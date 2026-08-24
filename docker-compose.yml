@@ -1,0 +1,62 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: squid
+      POSTGRES_USER: squid
+      POSTGRES_PASSWORD: ${DB_PASS:-squid}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U squid"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  processor:
+    build: ./squid
+    restart: unless-stopped
+    command: sh -c "npx squid-typeorm-migration apply && node lib/main.js"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-squid}
+      DB_USER: squid
+      DB_PASS: ${DB_PASS:-squid}
+      RPC_ENDPOINT: ${RPC_ENDPOINT:-ws://host.docker.internal:9944}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  graphql:
+    build: ./squid
+    restart: unless-stopped
+    command: npx squid-graphql-server
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      # GQL_DB_NAME lets graphql serve a mock database while the processor keeps indexing the real one
+      DB_NAME: ${GQL_DB_NAME:-${DB_NAME:-squid}}
+      DB_USER: squid
+      DB_PASS: ${DB_PASS:-squid}
+      GQL_PORT: 4350
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    environment:
+      GQL_HTTP: http://graphql:4350/graphql
+      PORT: 3000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - graphql
+
+volumes:
+  db:

@@ -1,0 +1,34 @@
+{
+  "name": "numen-explorer-squid",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "build": "rm -rf lib && tsc",
+    "codegen": "squid-typeorm-codegen",
+    "typegen": "squid-substrate-typegen typegen.json",
+    "migration:generate": "squid-typeorm-migration generate",
+    "migration:apply": "squid-typeorm-migration apply",
+    "processor": "node lib/main.js",
+    "graphql": "squid-graphql-server"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.3.0",
+    "@subsquid/graphql-server": "^4.12.1",
+    "@subsquid/rpc-client": "^4.16.0",
+    "@subsquid/substrate-processor": "^8.8.1",
+    "@subsquid/substrate-runtime": "^2.0.1",
+    "@subsquid/typeorm-migration": "^1.4.0",
+    "@subsquid/typeorm-store": "^1.9.2",
+    "@subsquid/util-internal-json": "^1.2.4",
+    "dotenv": "^17.4.2",
+    "pg": "^8.22.0",
+    "typeorm": "^0.3.31"
+  },
+  "devDependencies": {
+    "@subsquid/substrate-metadata-explorer": "^3.2.0",
+    "@subsquid/substrate-typegen": "^8.1.0",
+    "@subsquid/typeorm-codegen": "^2.4.0",
+    "@types/node": "^26.1.2",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,455 @@
+type Block @entity {
+  id: ID!
+  height: Int! @index
+  hash: String! @index @unique
+  parentHash: String!
+  timestamp: DateTime! @index
+  specVersion: Int!
+  author: Account @index
+  difficulty: BigInt!
+  reward: BigInt!
+  nonce: String!
+  workHash: String!
+  finalized: Boolean! @index
+  extrinsicCount: Int!
+  eventCount: Int!
+  "scale encoded digest items of the header, in header order"
+  logs: [String!]!
+}
+
+"single row the explorer reads instead of talking to a node"
+type ChainInfo @entity {
+  id: ID!
+  name: String!
+  symbol: String!
+  decimals: Int!
+  ss58: Int!
+  "target seconds per block, governance periods are counted in blocks"
+  blockTime: Int!
+  existentialDeposit: BigInt!
+  "chain id the EVM side answers with"
+  evmChainId: Int!
+  "blocks per session, boundaries land on multiples of it plus the offset"
+  sessionLength: Int!
+  sessionOffset: Int!
+  "chain head the indexer last saw, not the indexed head"
+  head: Int!
+  finalizedHead: Int!
+}
+
+type MinedObject @entity {
+  id: ID!
+  block: Block! @unique
+  protocol: String!
+  "gzip of little endian f32 xyz triples in node emission order"
+  vertices: Bytes!
+  vertexCount: Int!
+}
+
+type MeshTopology @entity {
+  id: ID!
+  "gzip of little endian u16 index triples, one row per protocol version"
+  faces: Bytes!
+  faceCount: Int!
+}
+
+type Account @entity {
+  id: ID!
+  free: BigInt!
+  reserved: BigInt!
+  frozen: BigInt!
+  nonce: Int!
+  firstSeenBlock: Int!
+  lastActiveBlock: Int! @index
+  identityDisplay: String @index
+  identityJson: JSON
+  "coarsens the judgement precedence the account badge uses, a flag from any registrar outranks approval from another"
+  identityStatus: IdentityStatus @index
+  identitySubName: String
+  identitySuper: Account
+  subs: [Account!]! @derivedFrom(field: "identitySuper")
+  "primary username granted through a username authority"
+  username: String @index
+  evmAddress: String @index
+  vestingJson: JSON
+  "balance locks with the lock id decoded from its eight bytes"
+  locksJson: JSON
+  "typed holds on the reserved balance"
+  holdsJson: JSON
+  "plain reserves the chain records no reason for, each read back from the pallet that took it"
+  depositsJson: JSON
+}
+
+type Extrinsic @entity {
+  id: ID!
+  block: Block! @index
+  indexInBlock: Int!
+  hash: String! @index
+  pallet: String! @index
+  method: String! @index
+  signer: Account @index
+  calls: [Call!]! @derivedFrom(field: "extrinsic")
+  success: Boolean!
+  error: JSON
+  fee: BigInt
+  tip: BigInt
+}
+
+"one node of an extrinsic call tree, the root included"
+type Call @entity {
+  id: ID!
+  extrinsic: Extrinsic! @index
+  block: Block! @index
+  "path of subcall indexes down from the root, empty at the root"
+  address: [Int!]!
+  parent: Call @index
+  subcalls: [Call!]! @derivedFrom(field: "parent")
+  pallet: String! @index
+  method: String! @index
+  args: JSON
+  success: Boolean!
+  "who the call dispatches as, which proxy and multisig move away from the signer"
+  origin: Account @index
+  events: [Event!]! @derivedFrom(field: "call")
+}
+
+type Event @entity {
+  id: ID!
+  block: Block! @index
+  extrinsic: Extrinsic @index
+  "the call that raised it, which for a batch is one of the subcalls"
+  call: Call @index
+  indexInBlock: Int!
+  phase: String!
+  pallet: String! @index
+  method: String! @index
+  args: JSON
+}
+
+type EvmTransaction @entity {
+  id: ID!
+  extrinsic: Extrinsic! @unique
+  block: Block! @index
+  txIndex: Int!
+  from: String! @index
+  to: String @index
+  contractAddress: String @index
+  value: BigInt!
+  input: Bytes!
+  inputSelector: String @index
+  nonce: Int!
+  gasLimit: BigInt!
+  gasUsed: BigInt!
+  gasPrice: BigInt!
+  txType: Int!
+  status: String!
+  statusReason: String
+  timestamp: DateTime! @index
+}
+
+type EvmLog @entity @index(fields: ["address", "logIndex"]) {
+  id: ID!
+  transaction: EvmTransaction! @index
+  block: Block!
+  logIndex: Int!
+  address: String! @index
+  topic0: String @index
+  topics: [String!]!
+  data: Bytes!
+}
+
+type Token @entity {
+  id: ID!
+  name: String
+  symbol: String @index
+  decimals: Int
+  totalSupply: BigInt!
+  holderCount: Int!
+  transferCount: Int!
+  "block the create tx landed in, absent for factory built contracts and for deployments older than the index range"
+  deployBlock: Int
+  "block the first transfer landed in, the earliest the token can be known without a create tx"
+  firstBlock: Int!
+}
+
+type TokenTransfer @entity {
+  id: ID!
+  token: Token! @index
+  from: String! @index
+  to: String! @index
+  amount: BigInt!
+  transaction: EvmTransaction!
+  block: Block!
+  timestamp: DateTime! @index
+}
+
+type TokenHolder @entity @index(fields: ["token", "balance"]) {
+  id: ID!
+  token: Token! @index
+  address: String! @index
+  balance: BigInt!
+}
+
+enum IdentityStatus {
+  VERIFIED
+  UNVERIFIED
+  FLAGGED
+}
+
+"""every pallet and method the chain has actually seen, so a call picker offers real options instead of a hardcoded list"""
+type CallKind @entity {
+  "pallet.method"
+  id: ID!
+  pallet: String! @index
+  method: String!
+}
+
+type Judgement @entity @index(fields: ["registrar", "block"]) {
+  "the id of the JudgementGiven event that recorded it"
+  id: ID!
+  registrar: Registrar! @index
+  target: Account! @index
+  "the verdict read back from storage right after the event, absent when the same batch cleared the identity"
+  kind: String
+  "only a FeePaid verdict carries one, it is the amount the registrar was paid up front"
+  fee: BigInt
+  block: Int! @index
+  timestamp: DateTime!
+}
+
+type Registrar @entity {
+  "the index into the registrar list, which is what judgements point at"
+  id: ID!
+  index: Int! @index @unique
+  account: Account @index
+  fee: BigInt!
+  fields: BigInt!
+  addedAt: Int!
+  requestCount: Int!
+  givenCount: Int!
+  lastJudgementBlock: Int
+  lastJudgementAt: DateTime
+}
+
+type Track @entity {
+  id: ID!
+  name: String!
+  maxDeciding: Int!
+  "ceiling the track origin can approve, set by pallet_custom_origins"
+  maxSpend: BigInt!
+  decisionDeposit: BigInt!
+  preparePeriod: Int!
+  decisionPeriod: Int!
+  confirmPeriod: Int!
+  minEnactmentPeriod: Int!
+  minApproval: JSON!
+  minSupport: JSON!
+}
+
+enum ReferendumStatus {
+  SUBMITTED
+  DECIDING
+  CONFIRMING
+  APPROVED
+  REJECTED
+  TIMEDOUT
+  CANCELLED
+  KILLED
+}
+
+type Referendum @entity {
+  id: ID!
+  index: Int! @index @unique
+  track: Track! @index
+  origin: String
+  proposalHash: String
+  "from the setMetadata preimage, a json object with title and description"
+  title: String
+  description: String
+  "set when the inline proposal decodes to a known call"
+  proposalCall: String
+  proposalAmount: BigInt
+  proposalBeneficiary: String
+  "bounty this referendum moves to approve, taken from the proposal call"
+  proposalBountyIndex: Int @index
+  submitter: Account @index
+  submittedAt: Int!
+  status: ReferendumStatus! @index
+  decidingSince: Int
+  confirmingSince: Int
+  endedAt: Int
+  ayes: BigInt!
+  nays: BigInt!
+  support: BigInt!
+  timeline: JSON!
+  "plain reserves the chain records no reason for, cleared once refunded or slashed"
+  submissionDepositor: String @index
+  submissionDeposit: BigInt
+  decisionDepositor: String @index
+  decisionDeposit: BigInt
+}
+
+type Vote @entity {
+  id: ID!
+  referendum: Referendum! @index
+  voter: Account! @index
+  decision: String!
+  amount: BigInt!
+  conviction: String
+  block: Int!
+  removed: Boolean!
+}
+
+type Delegation @entity {
+  id: ID!
+  who: Account! @index
+  target: Account! @index
+  track: Track!
+  conviction: String!
+  balance: BigInt!
+  block: Int!
+}
+
+type TreasurySpend @entity {
+  id: ID!
+  "referendum whose enactment created this spend, matched by scheduler task"
+  referendum: Referendum @index
+  kind: String!
+  beneficiary: Account
+  amount: BigInt!
+  status: String! @index
+  block: Int!
+}
+
+type Bounty @entity {
+  id: ID!
+  index: Int! @index @unique
+  "referendum that moves to approve this bounty, resolved from its call"
+  referendum: Referendum @index
+  proposer: Account
+  value: BigInt!
+  "curator fee taken out of the value on payout"
+  fee: BigInt
+  "reserved from the proposer until the bounty is funded or rejected"
+  bond: BigInt
+  "reserved from the curator while they hold the job"
+  curatorDeposit: BigInt
+  curator: Account @index
+  beneficiary: Account
+  description: String
+  status: String! @index
+  unlockAt: Int
+  updateDue: Int
+  payout: BigInt
+  createdAt: Int!
+  updatedAt: Int! @index
+  timeline: JSON!
+}
+
+type ChildBounty @entity {
+  id: ID!
+  parent: Bounty! @index
+  childIndex: Int!
+  value: BigInt!
+  fee: BigInt
+  "reserved from the curator while they hold the job"
+  curatorDeposit: BigInt
+  curator: Account
+  beneficiary: Account
+  description: String
+  status: String! @index
+  payout: BigInt
+  createdAt: Int!
+  updatedAt: Int!
+}
+
+type MultisigOp @entity {
+  id: ID!
+  multisig: Account! @index
+  callHash: String! @index
+  depositor: Account! @index
+  "reserved from the depositor until the call runs or is called off"
+  deposit: BigInt
+  "approver account ids in approval order"
+  approvals: [String!]!
+  threshold: Int
+  "full signer set recovered from the opening call when unambiguous"
+  signatories: [String!]
+  status: String! @index
+  "dispatch outcome of an executed operation, ok or err"
+  result: String
+  createdBlock: Int!
+  updatedBlock: Int! @index
+}
+
+type ProxyRelation @entity {
+  id: ID!
+  delegator: Account! @index
+  delegatee: Account! @index
+  proxyType: String!
+  "announcement delay in blocks"
+  delay: Int!
+}
+
+type PrimeState @entity {
+  id: ID!
+  account: Account!
+  since: Int!
+}
+
+type Validator @entity {
+  id: ID!
+  account: Account! @unique
+  active: Boolean! @index
+  lockedAmount: BigInt!
+  lockExpiry: Int
+  offlineSessions: Int!
+  equivocations: Int!
+  kicked: String
+  firstSeenBlock: Int!
+  lastActiveSession: Int!
+}
+
+type DailyStat @entity {
+  id: ID!
+  date: DateTime! @index
+  blocks: Int!
+  extrinsicsSigned: Int!
+  transfers: Int!
+  transferVolume: BigInt!
+  evmTxs: Int!
+  fees: BigInt!
+  tsFirst: DateTime!
+  tsLast: DateTime!
+  difficultyClose: BigInt!
+  issuanceTotal: BigInt!
+  issuanceInactive: BigInt!
+  treasuryPot: BigInt!
+  cumExtrinsicsSigned: BigInt!
+  cumTransfers: BigInt!
+  cumTransferVolume: BigInt!
+  "accounts the chain had seen by the end of the day"
+  accountsTotal: Int!
+  "referenda submitted by the end of the day"
+  referendaTotal: Int!
+}
+
+type MinerDayStat @entity @index(fields: ["day", "blocks"]) {
+  id: ID!
+  day: String! @index
+  account: Account! @index
+  blocks: Int!
+  rewards: BigInt!
+}
+
+type Transfer @entity @index(fields: ["from", "timestamp"]) @index(fields: ["to", "timestamp"]) {
+  id: ID!
+  block: Block!
+  extrinsic: Extrinsic
+  "the call that moved the money, which a batch or a proxy hides from the extrinsic"
+  call: Call @index
+  from: Account!
+  to: Account!
+  amount: BigInt!
+  timestamp: DateTime! @index
+}

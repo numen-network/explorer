@@ -1,0 +1,10 @@
+# Only these packages may run install scripts. Everything else is inert, which
+# is the cheapest defence against a compromised transitive dependency.
+# bufferutil and utf-8-validate are native speedups ws falls back from, es5-ext
+# only prints a donation notice, and the apollo postinstall sets up a cli we
+# never call.
+allowBuilds:
+  '@apollo/protobufjs': false
+  bufferutil: false
+  es5-ext: false
+  utf-8-validate: false

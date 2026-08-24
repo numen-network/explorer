@@ -1,0 +1,10 @@
+node_modules/
+/lib/
+*.log
+.env
+
+# AI files
+.agents
+.claude
+AGENTS.md
+CLAUDE.md

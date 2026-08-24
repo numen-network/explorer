@@ -1,0 +1,8 @@
+.env
+build.log
+
+# AI files
+.agents
+.claude
+AGENTS.md
+CLAUDE.md
