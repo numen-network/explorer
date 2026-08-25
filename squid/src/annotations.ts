@@ -165,7 +165,7 @@ function judgementStatus(judgements: [number, {__kind: string}][] | undefined): 
 
 // only the fee, the account and the field mask ever move, so the whole short
 // list is reread rather than tracked slot by slot
-async function finalizeRegistrars(batch: BatchData, lastHeader: any, store: Store): Promise<void> {
+export async function finalizeRegistrars(batch: BatchData, lastHeader: any, store: Store): Promise<void> {
     const stats = batch.registrarStats
     const known = new Map(
         stats.size > 0 ? (await store.find(Registrar, {where: {index: In([...stats.keys()])}})).map(r => [r.index, r]) : []
@@ -192,7 +192,7 @@ async function finalizeRegistrars(batch: BatchData, lastHeader: any, store: Stor
                     requestCount: 0,
                     givenCount: 0,
                 })
-            r.account = new Account({id: info.account})
+            r.account = batch.touch(info.account, lastHeader.height)
             r.fee = info.fee
             r.fields = info.fields
             known.set(index, r)
@@ -266,7 +266,6 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
             a.identityStatus = reg ? judgementStatus(reg.judgements) : null
         })
     }
-    await finalizeRegistrars(batch, lastHeader, store)
     for (const g of batch.judgementsGiven) {
         batch.judgements.push(
             new Judgement({

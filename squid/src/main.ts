@@ -22,7 +22,7 @@ import {fetchObj, mapLimit, parseMesh} from './objects'
 import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Metadata} from './evm'
 import {collectGovEvent, finalizeGovernance} from './governance'
 import {collectValidatorEvent, finalizeValidators} from './validators'
-import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, seedGenesisVesting} from './annotations'
+import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, seedGenesisVesting} from './annotations'
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig} from './multisig'
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
 import {accumulateDay, finalizeStats} from './stats'
@@ -75,10 +75,9 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     await finalizeMultisig(batch, lastHeader, ctx.store)
     await finalizeBounties(batch, lastHeader, ctx.store)
     await finalizeValidators(ctx, batch, lastHeader)
+    await finalizeRegistrars(batch, lastHeader, ctx.store)
     await finalizeAccounts(ctx, batch, lastHeader)
-    // after the merge so the newly created accounts are known
     await finalizeStats(ctx, batch, lastHeader)
-    // runs after the account merge so annotations land on the persisted entities
     await finalizeAnnotations(batch, lastHeader, ctx.store)
     await persist(ctx, batch)
     await markFinalized(ctx, finalizedHeight)
