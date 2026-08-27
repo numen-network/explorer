@@ -186,7 +186,7 @@ export interface AccountListRow {
 export function accountsPage(limit: number, offset: number) {
     return gql<{accounts: AccountListRow[]; conn: {totalCount: number}; dailyStats: {issuanceTotal: string}[]}>(
         `query ($limit: Int!, $offset: Int!) {
-            accounts(orderBy: free_DESC, limit: $limit, offset: $offset) { ${ACCOUNT_REF} free reserved nonce firstSeenBlock lastActiveBlock }
+            accounts(orderBy: [free_DESC, id_ASC], limit: $limit, offset: $offset) { ${ACCOUNT_REF} free reserved nonce firstSeenBlock lastActiveBlock }
             conn: accountsConnection(orderBy: id_ASC) { totalCount }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal }
         }`,
