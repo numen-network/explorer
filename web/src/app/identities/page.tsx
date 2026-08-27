@@ -3,7 +3,7 @@ import {BlockLink} from '@/components/links'
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
 import {TabBar} from '@/components/Tabs'
-import {TimeCell} from '@/components/TimeCell'
+import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {chainProps} from '@/lib/chain'
 import {fmtBalance, fmtInt} from '@/lib/format'
 import Socials from '@/components/Socials'
@@ -100,7 +100,9 @@ export default async function IdentitiesPage(props: PageProps<'/identities'>) {
                     <tr>
                         <th>#</th>
                         <th>Registrar</th>
-                        <th>Latest judgement</th>
+                        <th>
+                            <TimeModeButton />
+                        </th>
                         <th className="text-right">Requests received</th>
                         <th className="text-right">Judgements given</th>
                         <th className="text-right">Fee</th>
