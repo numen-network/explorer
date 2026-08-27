@@ -1,9 +1,9 @@
 import Pager from '@/components/Pager'
 import Refresh from '@/components/Refresh'
 import AccountLink from '@/components/AccountLink'
+import Balance from '@/components/Balance'
 import {BlockLink} from '@/components/links'
 import {chainProps} from '@/lib/chain'
-import {fmtBalance} from '@/lib/format'
 import {accountsPage, primeState} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -79,7 +79,7 @@ export default async function AccountsPage(props: PageProps<'/accounts'>) {
                                         return (
                                             <span title={held > 0n ? fmtShare(pct) : undefined}>
                                                 {mark && <span className="mr-1.5">{mark}</span>}
-                                                {fmtBalance(held, chain.decimals, chain.symbol)}
+                                                <Balance planck={held} chain={chain} />
                                             </span>
                                         )
                                     })()}

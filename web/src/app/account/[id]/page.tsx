@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type {ReactNode} from 'react'
 import {notFound} from 'next/navigation'
+import Balance from '@/components/Balance'
 import CopyBtn from '@/components/CopyBtn'
 import {AddrMark} from '@/components/addrHot'
 import {DetailCard, DetailRow} from '@/components/Detail'
@@ -24,7 +25,7 @@ import Vesting from '@/components/account/Vesting'
 import Votes from '@/components/account/Votes'
 import {lockRows, schedules, tabHref, type TabCtx} from '@/components/account/shared'
 import {chainProps} from '@/lib/chain'
-import {fmtAge, fmtBalance, fmtInt, shortHash} from '@/lib/format'
+import {fmtAge, fmtInt, shortHash} from '@/lib/format'
 import {accountSummary, blockTimes, evmDeployments, tokenTransferCount} from '@/lib/gql'
 import {identityLabel} from '@/lib/identity'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
@@ -148,12 +149,24 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
             <div className={`mt-4 grid items-start gap-4 ${hasIdentity ? 'lg:grid-cols-2' : ''}`}>
                 <div>
                     <DetailCard>
-                        <DetailRow label="Balance">{fmtBalance(free + reserved, chain.decimals, chain.symbol)}</DetailRow>
-                        <DetailRow label="Transferable *">{fmtBalance(transferable, chain.decimals, chain.symbol)}</DetailRow>
-                        <DetailRow label="Locked *">{fmtBalance(locked, chain.decimals, chain.symbol)}</DetailRow>
-                        <DetailRow label="Free">{fmtBalance(free, chain.decimals, chain.symbol)}</DetailRow>
-                        <DetailRow label="Reserved">{fmtBalance(reserved, chain.decimals, chain.symbol)}</DetailRow>
-                        <DetailRow label="Frozen">{fmtBalance(frozen, chain.decimals, chain.symbol)}</DetailRow>
+                        <DetailRow label="Balance">
+                            <Balance planck={free + reserved} chain={chain} />
+                        </DetailRow>
+                        <DetailRow label="Transferable *">
+                            <Balance planck={transferable} chain={chain} />
+                        </DetailRow>
+                        <DetailRow label="Locked *">
+                            <Balance planck={locked} chain={chain} />
+                        </DetailRow>
+                        <DetailRow label="Free">
+                            <Balance planck={free} chain={chain} />
+                        </DetailRow>
+                        <DetailRow label="Reserved">
+                            <Balance planck={reserved} chain={chain} />
+                        </DetailRow>
+                        <DetailRow label="Frozen">
+                            <Balance planck={frozen} chain={chain} />
+                        </DetailRow>
                         <DetailRow label="Nonce">{fmtInt(a.nonce)}</DetailRow>
                         <DetailRow label="First seen">
                             <BlockLink height={a.firstSeenBlock} />
