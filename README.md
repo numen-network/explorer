@@ -51,6 +51,20 @@ docker compose exec db psql -U squid -c "CREATE DATABASE squid_dev"
 
 The software never knows which network it is on. Chain name, token symbol, decimals, ss58 prefix and EVM chain id are all read from the chain at runtime, the indexer parks them in the database for the web to read.
 
+## Updating
+
+```bash
+git pull && docker compose up -d --build
+```
+
+Compose rebuilds only the images whose inputs changed. Migrations need no step of their own, the processor applies them on every start. When a single service is all that moved, name it and skip the rest.
+
+```bash
+docker compose up -d --build web
+```
+
+A runtime upgrade is the exception. Regenerate the typed accessors and commit them before the server pulls, the way Development describes.
+
 ## Development
 
 Every service runs in docker, so a code change means a rebuild.
