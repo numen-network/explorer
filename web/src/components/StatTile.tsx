@@ -22,7 +22,7 @@ export default function StatTile({label, value, chips, href}: {label: string; va
                     label
                 )}
             </div>
-            <div className="mt-1.5 truncate text-[17px] leading-7 font-semibold tracking-tight sm:text-[19px]">{value}</div>
+            <div className="mt-1.5 text-[17px] break-words leading-7 font-semibold tracking-tight sm:text-[19px]">{value}</div>
             {chips && (
                 <div className="mt-1 flex flex-wrap gap-x-4 text-xs">
                     {chips.map(c => (

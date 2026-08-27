@@ -36,6 +36,18 @@ export function fmtCompact(n: number): string {
     return trimNum(n)
 }
 
+export function fmtCompact3(planck: string | bigint, decimals: number, symbol?: string): string {
+    let v = BigInt(planck)
+    const neg = v < 0n
+    if (neg) v = -v
+    const base = 10n ** BigInt(decimals)
+    const whole = v / base
+    const [div, unit]: [bigint, string] = whole >= 1000000000n ? [1000000000n, 'B'] : whole >= 1000000n ? [1000000n, 'M'] : whole >= 10000n ? [1000n, 'K'] : [1n, '']
+    const scaled = (v * 1000n) / (base * div)
+    const out = `${neg ? '-' : ''}${fmtInt(scaled / 1000n)}.${(scaled % 1000n).toString().padStart(3, '0')}${unit}`
+    return symbol ? `${out} ${symbol}` : out
+}
+
 export function shortHash(s: string, pre = 5, post = 4): string {
     if (s.length <= pre + post + 1) return s
     return `${s.slice(0, pre)}…${s.slice(-post)}`

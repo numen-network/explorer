@@ -11,7 +11,7 @@ import {BountyTable, RefCell} from '@/components/bounties'
 import {StatusBadge, ThresholdBar} from '@/components/referenda'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainHeads, chainProps} from '@/lib/chain'
-import {fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum} from '@/lib/format'
+import {fmtBalance, fmtBlockSpan, fmtCompact, fmtCompact3, fmtInt, planckToNum} from '@/lib/format'
 import {blockTimes, bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -304,8 +304,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatTile label="Referenda" value={fmtInt(sum.refs.totalCount)} />
                 <StatTile label="Ongoing" value={fmtInt(sum.ongoing.totalCount)} />
-                <StatTile label="Treasury pot" value={latest ? `${fmtCompact(planckToNum(latest.treasuryPot, chain.decimals))} ${chain.symbol}` : '—'} />
-                <StatTile label="Active issuance" value={`${fmtCompact(planckToNum(activeIssuance, chain.decimals))} ${chain.symbol}`} />
+                <StatTile label="Treasury pot" value={latest ? fmtCompact3(latest.treasuryPot, chain.decimals, chain.symbol) : '—'} />
+                <StatTile label="Active issuance" value={fmtCompact3(activeIssuance, chain.decimals, chain.symbol)} />
             </div>
 
             <div className="mt-7">

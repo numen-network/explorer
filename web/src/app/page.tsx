@@ -12,7 +12,7 @@ import {StatusDot} from '@/components/pills'
 import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {chainHeads, chainProps} from '@/lib/chain'
-import {fmtBalance, fmtCompact, fmtInt, planckToNum} from '@/lib/format'
+import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum} from '@/lib/format'
 import {blockTimes, homeCounts, homeData, type DailyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -205,11 +205,15 @@ export default async function Home() {
                 />
                 <StatTile
                     label="Total issuance" href="/charts/issuance"
-                    value={`${fmtCompact(planckToNum(today?.issuanceTotal ?? '0', props.decimals))} ${props.symbol}`}
+                    value={fmtCompact3(today?.issuanceTotal ?? '0', props.decimals, props.symbol)}
                     chips={stockChips(iss)}
                 />
-                <StatTile label="Active issuance" href="/charts/active-issuance" value={`${fmtCompact(today ? act(today) : 0)} ${props.symbol}`} chips={stockChips(act)} />
-                <StatTile label="Treasury pot" href="/charts/treasury" value={`${fmtCompact(today ? pot(today) : 0)} ${props.symbol}`} chips={stockChips(pot)} />
+                <StatTile
+                    label="Active issuance" href="/charts/active-issuance"
+                    value={fmtCompact3(today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
+                    chips={stockChips(act)}
+                />
+                <StatTile label="Treasury pot" href="/charts/treasury" value={fmtCompact3(today?.treasuryPot ?? '0', props.decimals, props.symbol)} chips={stockChips(pot)} />
                 <StatTile
                     label="Referenda" href="/charts/referenda"
                     value={fmtInt(data.refsTotal.totalCount)}
