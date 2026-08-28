@@ -153,7 +153,7 @@ export function CurvesChart({
                 type: 'value',
                 min: 0,
                 max: hours,
-                interval: hours / 3,
+                interval: 24 * Math.ceil(hours / (24 * 7)),
                 axisLine: {lineStyle: {color: EDGE}},
                 axisTick: {show: false},
                 axisLabel: {color: SUB, fontSize: 11, formatter: (v: number) => `${Math.round(v)}h`},
