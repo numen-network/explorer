@@ -891,11 +891,15 @@ export interface ReferendumRow {
     support: string
     timeline: unknown
     submitter: AccountRef | null
+    submissionDepositor: string | null
+    submissionDeposit: string | null
+    decisionDepositor: string | null
+    decisionDeposit: string | null
     track: TrackRow
 }
 
 const TRACK_FIELDS = `id name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
-const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalCall proposalAmount proposalBeneficiary submittedAt status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } track { ${TRACK_FIELDS} }`
+const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalCall proposalAmount proposalBeneficiary submittedAt status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } submissionDepositor submissionDeposit decisionDepositor decisionDeposit track { ${TRACK_FIELDS} }`
 
 export interface TreasurySpendRow {
     id: string
@@ -1134,6 +1138,17 @@ export function referendumDetail(index: number) {
         }`,
         {index}
     )
+}
+
+export interface TimelineEventRow {
+    id: string
+    args: unknown
+    extrinsic: {id: string; hash: string} | null
+}
+
+export function eventsByIds(ids: string[]): Promise<{events: TimelineEventRow[]}> {
+    if (ids.length === 0) return Promise.resolve({events: []})
+    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, limit: 500) { id args extrinsic { id hash } } }`, {ids})
 }
 
 export function trackList() {

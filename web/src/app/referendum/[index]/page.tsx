@@ -1,3 +1,4 @@
+import type {ReactNode} from 'react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow} from '@/components/Detail'
@@ -5,15 +6,15 @@ import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {CurvesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
-import {BlockLink} from '@/components/links'
+import {BlockLink, ExtrinsicLink} from '@/components/links'
 import {Gauge, StatusBadge} from '@/components/referenda'
-import Timeline, {CROSS, RING, TICK, rawSteps, sentenceCase} from '@/components/timeline'
+import {CROSS, RING, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps, sentenceCase} from '@/components/timeline'
 import ActionList, {type ActionRow} from '@/components/actions'
 import VoteLists, {type VoteEntry} from '@/components/votes'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
 import {fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum} from '@/lib/format'
-import {accountRefs, blockTimes, delegationActionsFor, delegationsFor, referendumDetail} from '@/lib/gql'
+import {accountRefs, blockTimes, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -91,12 +92,17 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const trail = rawSteps(r.timeline)
     const voterIds = [...new Set(data.votes.map(v => v.voter?.id).filter((id): id is string => id != null))]
-    const [refs, dels, dacts] = await Promise.all([
-        accountRefs(r.proposalBeneficiary ? [r.proposalBeneficiary] : []),
+    const partyIds = [...new Set([r.proposalBeneficiary, r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
+    const [refs, dels, dacts, evs] = await Promise.all([
+        accountRefs(partyIds),
         delegationsFor(voterIds, r.track.id),
         delegationActionsFor(r.track.id, r.submittedAt, r.endedAt),
+        eventsByIds(trail.flatMap(s => (s.event != null ? [s.event] : []))),
     ])
-    const beneficiary = refs.accounts[0]
+    const evBy = new Map(evs.events.map(e => [e.id, e]))
+    const evWhos = evs.events.map(e => (e.args as {who?: unknown} | null)?.who).filter((w): w is string => typeof w === 'string')
+    const party = new Map(refs.accounts.map(a => [a.id, a]))
+    const beneficiary = r.proposalBeneficiary != null ? party.get(r.proposalBeneficiary) : undefined
 
     const byTarget = new Map<string, typeof dels.delegations>()
     for (const d of dels.delegations) byTarget.set(d.target.id, [...(byTarget.get(d.target.id) ?? []), d])
@@ -120,7 +126,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     })
 
     const heights = [...new Set([r.submittedAt, ...trail.map(s => s.block), ...data.voteActions.map(a => a.block), ...dactRows.map(({a}) => a.block)])]
-    const [times, whoRefsRes] = await Promise.all([blockTimes(heights), accountRefs(shown)])
+    const [times, whoRefsRes] = await Promise.all([blockTimes(heights), accountRefs([...new Set([...shown, ...evWhos])])])
     const stamps = new Map(times.blocks.map(b => [b.height, b.timestamp]))
     const whoRefs = new Map(whoRefsRes.accounts.map(a => [a.id, a]))
 
@@ -321,16 +327,73 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             <DetailRow label="Deciding since">{r.decidingSince !== null ? <BlockLink height={r.decidingSince} /> : '—'}</DetailRow>
             <DetailRow label="Confirming since">{r.confirmingSince !== null ? <BlockLink height={r.confirmingSince} /> : '—'}</DetailRow>
             <DetailRow label="Ended at">{r.endedAt !== null ? <BlockLink height={r.endedAt} /> : '—'}</DetailRow>
+            <DetailRow label="Submission deposit">
+                {r.submissionDeposit != null && r.submissionDepositor != null ? (
+                    <>
+                        {fmtBalance(r.submissionDeposit, chain.decimals, chain.symbol)} <span className="text-faint">·</span>{' '}
+                        <AccountLink addr={ss58Encode(r.submissionDepositor, chain.ss58)} acc={party.get(r.submissionDepositor)} />
+                    </>
+                ) : (
+                    '—'
+                )}
+            </DetailRow>
+            <DetailRow label="Decision deposit">
+                {r.decisionDeposit != null && r.decisionDepositor != null ? (
+                    <>
+                        {fmtBalance(r.decisionDeposit, chain.decimals, chain.symbol)} <span className="text-faint">·</span>{' '}
+                        <AccountLink addr={ss58Encode(r.decisionDepositor, chain.ss58)} acc={party.get(r.decisionDepositor)} />
+                    </>
+                ) : (
+                    '—'
+                )}
+            </DetailRow>
         </DetailCard>
     )
 
+    // what the step's own event carried, zero tallies before anyone voted say
+    // nothing worth a row
+    const stepRows = (args: unknown, amountLabel: string): [string, ReactNode][] => {
+        const a = (args ?? {}) as {who?: unknown; amount?: unknown; tally?: {ayes?: unknown; nays?: unknown; support?: unknown}}
+        const rows: [string, ReactNode][] = []
+        if (typeof a.who === 'string') rows.push(['Who', <AccountLink key="who" addr={ss58Encode(a.who, chain.ss58)} acc={whoRefs.get(a.who)} />])
+        if (a.amount != null) rows.push([amountLabel, fmtBalance(String(a.amount), chain.decimals, chain.symbol)])
+        const tally = [['Ayes', a.tally?.ayes], ['Nays', a.tally?.nays], ['Support', a.tally?.support]].filter(([, v]) => v != null)
+        if (tally.some(([, v]) => String(v) !== '0')) {
+            for (const [k, v] of tally) rows.push([String(k), fmtBalance(String(v), chain.decimals, chain.symbol)])
+        }
+        return rows
+    }
+
     const timeline = (
-        <Timeline
-            steps={trail.map(s => {
+        <TimelineList empty={trail.length === 0}>
+            {[...trail].reverse().map((s, i) => {
                 const key = s.status.toUpperCase()
-                return {block: s.block, label: sentenceCase(s.status), iso: stamps.get(s.block), tone: STATUS_TONE[key] ?? 'idle', icon: STEP_ICON(key)}
+                const e = s.event != null ? evBy.get(s.event) : undefined
+                const rows = stepRows(e?.args, s.status === 'decision deposit placed' ? 'Decision deposit' : 'Amount')
+                // the Submitted event names neither party nor deposit, the
+                // referendum record fills the step in
+                if (s.status === 'submitted') {
+                    if (r.submitter) rows.unshift(['Who', <AccountLink key="s" addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} />])
+                    if (r.submissionDeposit != null) rows.push(['Submission deposit', fmtBalance(r.submissionDeposit, chain.decimals, chain.symbol)])
+                }
+                return (
+                    <TimelineItem
+                        key={i}
+                        tone={STATUS_TONE[key] ?? 'idle'}
+                        icon={STEP_ICON(key)}
+                        title={sentenceCase(s.status)}
+                        iso={stamps.get(s.block)}
+                        links={
+                            <>
+                                <BlockLink height={s.block} />
+                                {e?.extrinsic && <ExtrinsicLink id={e.extrinsic.id} hash={e.extrinsic.hash} />}
+                            </>
+                        }
+                        detail={rows.length > 0 ? <TimelineRows rows={rows} /> : undefined}
+                    />
+                )
             })}
-        />
+        </TimelineList>
     )
 
     const entry = (v: (typeof data.votes)[number]): VoteEntry => {

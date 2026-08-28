@@ -338,8 +338,8 @@ function applyGovEvent(batch: BatchData, ev: GovEvent, runtime: Runtime): void {
     else if (pallet === 'Scheduler' && method === 'Dispatched') applyDispatch(batch, ev)
 }
 
-function pushTimeline(r: Referendum, status: string, height: number): void {
-    r.timeline = [...((r.timeline as any[]) ?? []), {status, block: height}]
+function pushTimeline(r: Referendum, status: string, ev: GovEvent): void {
+    r.timeline = [...((r.timeline as any[]) ?? []), {status, block: ev.height, event: ev.id}]
 }
 
 // Referenda.submit args carry the origin as a nested variant, system origins
@@ -379,7 +379,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent, run
             support: 0n,
             timeline: [],
         })
-        pushTimeline(r, 'submitted', ev.height)
+        pushTimeline(r, 'submitted', ev)
         batch.referenda.set(r.index, r)
         return
     }
@@ -389,56 +389,56 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent, run
         case 'DecisionDepositPlaced':
             r.decisionDepositor = args.who
             r.decisionDeposit = BigInt(args.amount)
-            pushTimeline(r, 'decision deposit placed', ev.height)
+            pushTimeline(r, 'decision deposit placed', ev)
             break
         case 'DecisionStarted':
             r.status = ReferendumStatus.DECIDING
             r.decidingSince = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'deciding', ev.height)
+            pushTimeline(r, 'deciding', ev)
             break
         case 'ConfirmStarted':
             r.status = ReferendumStatus.CONFIRMING
             r.confirmingSince = ev.height
-            pushTimeline(r, 'confirming', ev.height)
+            pushTimeline(r, 'confirming', ev)
             break
         case 'ConfirmAborted':
             r.status = ReferendumStatus.DECIDING
             r.confirmingSince = null
-            pushTimeline(r, 'confirm aborted', ev.height)
+            pushTimeline(r, 'confirm aborted', ev)
             break
         case 'Confirmed':
             setTally(r, args.tally)
-            pushTimeline(r, 'confirmed', ev.height)
+            pushTimeline(r, 'confirmed', ev)
             break
         case 'Approved':
             r.status = ReferendumStatus.APPROVED
             r.endedAt = ev.height
-            pushTimeline(r, 'approved', ev.height)
+            pushTimeline(r, 'approved', ev)
             break
         case 'Rejected':
             r.status = ReferendumStatus.REJECTED
             r.endedAt = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'rejected', ev.height)
+            pushTimeline(r, 'rejected', ev)
             break
         case 'TimedOut':
             r.status = ReferendumStatus.TIMEDOUT
             r.endedAt = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'timed out', ev.height)
+            pushTimeline(r, 'timed out', ev)
             break
         case 'Cancelled':
             r.status = ReferendumStatus.CANCELLED
             r.endedAt = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'cancelled', ev.height)
+            pushTimeline(r, 'cancelled', ev)
             break
         case 'Killed':
             r.status = ReferendumStatus.KILLED
             r.endedAt = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'killed', ev.height)
+            pushTimeline(r, 'killed', ev)
             // a kill slashes both deposits
             r.submissionDepositor = null
             r.submissionDeposit = null
@@ -450,12 +450,12 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent, run
         case 'SubmissionDepositRefunded':
             r.submissionDepositor = null
             r.submissionDeposit = null
-            pushTimeline(r, 'submission deposit refunded', ev.height)
+            pushTimeline(r, 'submission deposit refunded', ev)
             break
         case 'DecisionDepositRefunded':
             r.decisionDepositor = null
             r.decisionDeposit = null
-            pushTimeline(r, 'decision deposit refunded', ev.height)
+            pushTimeline(r, 'decision deposit refunded', ev)
             break
     }
 }
@@ -529,7 +529,7 @@ function applyDispatch(batch: BatchData, ev: GovEvent): void {
     const index = batch.enactments.get(id)
     if (index == null) return
     const r = batch.referenda.get(index)
-    if (r != null) pushTimeline(r, 'enacted', ev.height)
+    if (r != null) pushTimeline(r, 'enacted', ev)
     for (const spendId of pending) {
         const s = batch.spends.get(spendId)
         if (s != null) s.referendum = new Referendum({id: String(index)})
