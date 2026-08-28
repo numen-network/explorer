@@ -149,10 +149,13 @@ export function CurvesChart({
                     : [{name: 'Approval'}, {name: 'Support'}],
             },
             grid: {left: 8, right: 20, top: 16, bottom: 62, containLabel: true},
+            // filter mode would drop the points behind the window edge and cut
+            // the step lines off with them
             dataZoom: [
-                {type: 'inside'},
+                {type: 'inside', filterMode: 'none'},
                 {
                     type: 'slider',
+                    filterMode: 'none',
                     bottom: 28,
                     height: 10,
                     borderColor: 'transparent',
