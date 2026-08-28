@@ -319,8 +319,11 @@ async function loadTouchedReferenda(ctx: {store: any}, batch: BatchData): Promis
 // a dispatch names a task id, only approved referenda can own one
 async function loadEnactments(ctx: {store: any}, batch: BatchData): Promise<void> {
     if (!batch.govEvents.some(e => e.name === 'Scheduler.Dispatched')) return
-    const rows: Referendum[] = await ctx.store.find(Referendum, {where: {status: ReferendumStatus.APPROVED}})
-    for (const r of rows) batch.enactments.set(enactmentId(r.index), r.index)
+    const rows: Referendum[] = await ctx.store.find(Referendum, {where: {status: ReferendumStatus.APPROVED}, relations: {track: true}})
+    for (const r of rows) {
+        batch.enactments.set(enactmentId(r.index), r.index)
+        if (!batch.referenda.has(r.index)) batch.referenda.set(r.index, r)
+    }
 }
 
 function applyGovEvent(batch: BatchData, ev: GovEvent, runtime: Runtime): void {
@@ -379,6 +382,11 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent, run
     const r = batch.referenda.get(args.index)
     if (r == null) return
     switch (method) {
+        case 'DecisionDepositPlaced':
+            r.decisionDepositor = args.who
+            r.decisionDeposit = BigInt(args.amount)
+            pushTimeline(r, 'decision deposit placed', ev.height)
+            break
         case 'DecisionStarted':
             r.status = ReferendumStatus.DECIDING
             r.decidingSince = ev.height
@@ -438,10 +446,12 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent, run
         case 'SubmissionDepositRefunded':
             r.submissionDepositor = null
             r.submissionDeposit = null
+            pushTimeline(r, 'submission deposit refunded', ev.height)
             break
         case 'DecisionDepositRefunded':
             r.decisionDepositor = null
             r.decisionDeposit = null
+            pushTimeline(r, 'decision deposit refunded', ev.height)
             break
     }
 }
@@ -511,9 +521,11 @@ function applyDispatch(batch: BatchData, ev: GovEvent): void {
     const id = ev.args?.id
     const pending = batch.spendsAtHeight.get(ev.height) ?? []
     batch.spendsAtHeight.set(ev.height, [])
-    if (typeof id !== 'string' || pending.length === 0) return
+    if (typeof id !== 'string') return
     const index = batch.enactments.get(id)
     if (index == null) return
+    const r = batch.referenda.get(index)
+    if (r != null) pushTimeline(r, 'enacted', ev.height)
     for (const spendId of pending) {
         const s = batch.spends.get(spendId)
         if (s != null) s.referendum = new Referendum({id: String(index)})
