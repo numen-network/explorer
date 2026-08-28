@@ -20,7 +20,7 @@ export function curveAt(c: Curve, x: number): number {
 }
 
 // span is whatever unit the chart plots the decision period in
-export function curveSamples(c: Curve, span = 100, n = 101): [number, number][] {
+export function curveSamples(c: Curve, span = 100, n = span + 1): [number, number][] {
     return Array.from({length: n}, (_, i) => {
         const t = i / (n - 1)
         return [t * span, curveAt(c, t) * 100] as [number, number]

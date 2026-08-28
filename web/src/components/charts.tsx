@@ -1,4 +1,5 @@
 'use client'
+import {fmtInt} from '@/lib/format'
 import * as echarts from 'echarts'
 import {useEffect, useRef} from 'react'
 
@@ -95,6 +96,7 @@ export function CurvesChart({
     currentSupport,
     now,
     hours,
+    deciding,
     height = 320,
 }: {
     approval: [number, number][]
@@ -103,6 +105,7 @@ export function CurvesChart({
     currentSupport: [number, number][]
     now: {at: number; approval: number; support: number} | null
     hours: number
+    deciding: {start: number; perHour: number} | null
     height?: number
 }) {
     const ref = useChart(() => {
@@ -117,7 +120,18 @@ export function CurvesChart({
         })
         const hasCurrent = currentApproval.length > 0 || currentSupport.length > 0
         return {
-            tooltip: {...TOOLTIP, valueFormatter: (v: unknown) => `${Number(v).toFixed(2)}%`},
+            tooltip: {
+                ...TOOLTIP,
+                formatter: (params: unknown) => {
+                    const list = params as {seriesName?: string; marker?: string; value: [number, number]}[]
+                    const h = Math.round(list[0].value[0])
+                    const head = deciding ? `${h}h · #${fmtInt(deciding.start + Math.round(h * deciding.perHour))}` : `${h}h`
+                    const rows = list
+                        .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${p.value[1].toFixed(2)}%</span></div>`)
+                        .join('')
+                    return `<div style="margin-bottom:4px">${head}</div>${rows}`
+                },
+            },
             legend: {
                 bottom: 0,
                 itemWidth: 22,
@@ -184,7 +198,7 @@ export function CurvesChart({
                 ...(hasCurrent ? [walked('Current approval', currentApproval, GREEN)] : []),
             ],
         }
-    }, [approval.length, support.length, hours, now?.at, now?.approval, now?.support, currentApproval.map(p => p.join()).join('|'), currentSupport.map(p => p.join()).join('|')])
+    }, [approval.length, support.length, hours, deciding?.start, deciding?.perHour, now?.at, now?.approval, now?.support, currentApproval.map(p => p.join()).join('|'), currentSupport.map(p => p.join()).join('|')])
     return <div ref={ref} style={{height}} />
 }
 

@@ -159,6 +159,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const supportNow = activeIssuance > 0 ? (supportVal / activeIssuance) * 100 : 0
 
     const decisionHours = Math.max(1, Math.round((r.track.decisionPeriod * chain.blockTime) / 3600))
+    const deciding = r.decidingSince !== null && r.track.decisionPeriod > 0 ? {start: r.decidingSince, perHour: r.track.decisionPeriod / decisionHours} : null
     const approvalCurve = curveSamples(r.track.minApproval as Curve, decisionHours)
     const supportCurve = curveSamples(r.track.minSupport as Curve, decisionHours)
     const live = r.status === 'DECIDING' || r.status === 'CONFIRMING'
@@ -273,7 +274,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const curves = (
         <div className="space-y-4">
             <div className="card px-5 py-4">
-                <CurvesChart approval={approvalCurve} support={supportCurve} currentApproval={currentApproval} currentSupport={currentSupport} now={now} hours={decisionHours} />
+                <CurvesChart approval={approvalCurve} support={supportCurve} currentApproval={currentApproval} currentSupport={currentSupport} now={now} hours={decisionHours} deciding={deciding} />
             </div>
             <ActionList rows={actions} decimals={chain.decimals} symbol={chain.symbol} />
         </div>
