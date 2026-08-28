@@ -37,6 +37,18 @@ export class VoteAction {
     @StringColumn_({nullable: true})
     conviction!: string | undefined | null
 
+    /**
+     * capital delegated to the voter at this block, zero for split and abstain votes
+     */
+    @BigIntColumn_({nullable: false})
+    delegatedCapital!: bigint
+
+    /**
+     * conviction weighted sum of the same delegations, the vote carries this weight onto the tally
+     */
+    @BigIntColumn_({nullable: false})
+    delegatedVotes!: bigint
+
     @Index_("idx_vote_action_block_42e0cf2c")
     @IntColumn_({nullable: false})
     block!: number

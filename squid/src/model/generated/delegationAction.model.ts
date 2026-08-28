@@ -38,6 +38,12 @@ export class DelegationAction {
     @StringColumn_({nullable: false})
     conviction!: string
 
+    /**
+     * conviction weighted sum delegated to the target after this action
+     */
+    @BigIntColumn_({nullable: false})
+    delegatedVotes!: bigint
+
     @Index_("idx_delegation_action_block_5480dbe6")
     @IntColumn_({nullable: false})
     block!: number

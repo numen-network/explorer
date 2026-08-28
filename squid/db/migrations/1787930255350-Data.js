@@ -1,5 +1,5 @@
-module.exports = class Data1787884381381 {
-    name = 'Data1787884381381'
+module.exports = class Data1787930255350 {
+    name = 'Data1787930255350'
 
     async up(db) {
         await db.query(`CREATE TABLE "account" ("id" character varying NOT NULL, "free" numeric NOT NULL, "reserved" numeric NOT NULL, "frozen" numeric NOT NULL, "nonce" integer NOT NULL, "first_seen_block" integer NOT NULL, "last_active_block" integer NOT NULL, "identity_display" text, "identity_json" jsonb, "identity_status" character varying(10), "identity_sub_name" text, "username" text, "evm_address" text, "vesting_json" jsonb, "locks_json" jsonb, "holds_json" jsonb, "deposits_json" jsonb, "identity_super_id" character varying, CONSTRAINT "PK_54115ee388cdb6d86bb4bf5b2ea" PRIMARY KEY ("id"))`)
@@ -84,11 +84,11 @@ module.exports = class Data1787884381381 {
         await db.query(`CREATE TABLE "vote" ("id" character varying NOT NULL, "decision" text NOT NULL, "amount" numeric NOT NULL, "conviction" text, "block" integer NOT NULL, "removed" boolean NOT NULL, "referendum_id" character varying, "voter_id" character varying, CONSTRAINT "PK_2d5932d46afe39c8176f9d4be72" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_vote_referendum_0f9860c6" ON "vote" ("referendum_id") `)
         await db.query(`CREATE INDEX "idx_vote_voter_f6a67bf9" ON "vote" ("voter_id") `)
-        await db.query(`CREATE TABLE "vote_action" ("id" character varying NOT NULL, "kind" text NOT NULL, "decision" text NOT NULL, "amount" numeric NOT NULL, "conviction" text, "block" integer NOT NULL, "referendum_id" character varying, "voter_id" character varying, CONSTRAINT "PK_18cab2793abd8d788f725a9b6ec" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "vote_action" ("id" character varying NOT NULL, "kind" text NOT NULL, "decision" text NOT NULL, "amount" numeric NOT NULL, "conviction" text, "delegated_capital" numeric NOT NULL, "delegated_votes" numeric NOT NULL, "block" integer NOT NULL, "referendum_id" character varying, "voter_id" character varying, CONSTRAINT "PK_18cab2793abd8d788f725a9b6ec" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_vote_action_referendum_d7a46353" ON "vote_action" ("referendum_id") `)
         await db.query(`CREATE INDEX "idx_vote_action_voter_af15c119" ON "vote_action" ("voter_id") `)
         await db.query(`CREATE INDEX "idx_vote_action_block_42e0cf2c" ON "vote_action" ("block") `)
-        await db.query(`CREATE TABLE "delegation_action" ("id" character varying NOT NULL, "kind" text NOT NULL, "balance" numeric NOT NULL, "conviction" text NOT NULL, "block" integer NOT NULL, "who_id" character varying, "target_id" character varying, "track_id" character varying, CONSTRAINT "PK_a51f033f2c02feb17fd617ae12c" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "delegation_action" ("id" character varying NOT NULL, "kind" text NOT NULL, "balance" numeric NOT NULL, "conviction" text NOT NULL, "delegated_votes" numeric NOT NULL, "block" integer NOT NULL, "who_id" character varying, "target_id" character varying, "track_id" character varying, CONSTRAINT "PK_a51f033f2c02feb17fd617ae12c" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_delegation_action_who_69072ee4" ON "delegation_action" ("who_id") `)
         await db.query(`CREATE INDEX "idx_delegation_action_target_e94904f8" ON "delegation_action" ("target_id") `)
         await db.query(`CREATE INDEX "idx_delegation_action_track_ffb96758" ON "delegation_action" ("track_id") `)

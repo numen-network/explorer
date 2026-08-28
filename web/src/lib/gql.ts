@@ -1083,12 +1083,35 @@ export interface TallySnapshotRow {
     activeIssuance: string
 }
 
+export interface VoteActionRow {
+    id: string
+    kind: string
+    decision: string
+    amount: string
+    conviction: string | null
+    delegatedVotes: string
+    block: number
+    voter: AccountRef
+}
+
+export interface DelegationActionRow {
+    id: string
+    kind: string
+    balance: string
+    conviction: string
+    delegatedVotes: string
+    block: number
+    who: AccountRef
+    target: AccountRef
+}
+
 export function referendumDetail(index: number) {
     const tally = (decision: string) =>
         `votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false, decision_eq: "${decision}"}, orderBy: id_ASC) { totalCount }`
     return gql<{
         referendums: ReferendumRow[]
         votes: VoteRow[]
+        voteActions: VoteActionRow[]
         snapshots: TallySnapshotRow[]
         dailyStats: {issuanceTotal: string; issuanceInactive: string}[]
         voteCount: {totalCount: number}
@@ -1100,6 +1123,7 @@ export function referendumDetail(index: number) {
         `query ($index: Int!) {
             referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} }
             votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: amount_DESC, limit: 200) { id decision amount conviction block removed voter { ${ACCOUNT_REF} } referendum { index } }
+            voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id kind decision amount conviction delegatedVotes block voter { ${ACCOUNT_REF} } }
             snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}}, orderBy: block_ASC, limit: 5000) { block ayes nays support activeIssuance }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }
             voteCount: votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC) { totalCount }
@@ -1151,6 +1175,19 @@ export function delegationsFor(targets: string[], track: string) {
             conn: delegationsConnection(${where}, orderBy: id_ASC) { totalCount }
         }`,
         {targets, track}
+    )
+}
+
+// a delegation action touches every referendum open on its track, the window
+// clips the track log to this referendum's lifetime
+export function delegationActionsFor(track: string, from: number, to: number | null) {
+    const decl = to === null ? '($track: String!, $from: Int!)' : '($track: String!, $from: Int!, $to: Int!)'
+    const where = `{track: {id_eq: $track}, block_gte: $from${to === null ? '' : ', block_lte: $to'}}`
+    return gql<{delegationActions: DelegationActionRow[]}>(
+        `query ${decl} {
+            delegationActions(where: ${where}, orderBy: [block_DESC, id_DESC], limit: 500) { id kind balance conviction delegatedVotes block who { ${ACCOUNT_REF} } target { ${ACCOUNT_REF} } }
+        }`,
+        to === null ? {track, from} : {track, from, to}
     )
 }
 

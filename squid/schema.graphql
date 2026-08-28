@@ -310,6 +310,10 @@ type VoteAction @entity {
   decision: String!
   amount: BigInt!
   conviction: String
+  "capital delegated to the voter at this block, zero for split and abstain votes"
+  delegatedCapital: BigInt!
+  "conviction weighted sum of the same delegations, the vote carries this weight onto the tally"
+  delegatedVotes: BigInt!
   block: Int! @index
 }
 
@@ -323,6 +327,8 @@ type DelegationAction @entity {
   kind: String!
   balance: BigInt!
   conviction: String!
+  "conviction weighted sum delegated to the target after this action"
+  delegatedVotes: BigInt!
   block: Int! @index
 }
 

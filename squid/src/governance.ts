@@ -29,6 +29,7 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         await loadEnactments(ctx, batch)
         for (const ev of batch.govEvents) applyGovEvent(batch, ev, lastHeader._runtime)
         await applyMetadata(batch, rpc)
+        await stampDelegatedWeights(batch)
         await logDelegationActions(ctx, batch)
         await snapshotTallies(ctx, batch)
     }
@@ -128,10 +129,34 @@ async function snapshotTallies(ctx: {store: any}, batch: BatchData): Promise<voi
     }
 }
 
+// delegations ride a standard vote without any event of their own, the chain
+// keeps their conviction weighted sum on the voter's casting record
+async function stampDelegatedWeights(batch: BatchData): Promise<void> {
+    if (batch.voteActions.length === 0) return
+    const s = storage.convictionVoting.votingFor.v100
+    const events = new Map(batch.govEvents.map(ev => [ev.id, ev]))
+    for (const va of batch.voteActions) {
+        if (va.decision !== 'aye' && va.decision !== 'nay') continue
+        const ev = events.get(va.id)
+        const r = batch.referenda.get(Number(va.referendum.id))
+        if (ev == null || r == null) throw new Error(`no event or referendum behind vote action ${va.id}`)
+        if (!s.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
+        const v = await s.get(ev.header, va.voter.id, Number(r.track.id))
+        if (v?.__kind === 'Casting') {
+            va.delegatedCapital = v.value.delegations.capital
+            va.delegatedVotes = v.value.delegations.votes
+        }
+    }
+}
+
 // delegate rows read the chain back after the block, undelegate rows keep
 // values the chain already dropped, taken from this batch or the store
 async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promise<void> {
     const s = storage.convictionVoting.votingFor.v100
+    const votesOn = async (header: any, target: string, track: number): Promise<bigint> => {
+        const t = await s.get(header, target, track)
+        return t?.__kind === 'Casting' ? t.value.delegations.votes : 0n
+    }
     for (const ev of batch.govEvents) {
         const [pallet, method] = ev.name.split('.')
         if (pallet !== 'ConvictionVoting') continue
@@ -149,11 +174,13 @@ async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promis
                     kind: 'delegate',
                     balance: v.value.balance,
                     conviction: convictionLabel(v.value.conviction),
+                    delegatedVotes: await votesOn(ev.header, v.value.target, Number(track)),
                     block: ev.height,
                 })
             )
         } else if (method === 'Undelegated') {
             const [who, track] = ev.args as [string, number]
+            if (!s.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
             const inBatch = [...batch.delegationActions].reverse().find(a => a.kind === 'delegate' && a.who.id === who && a.track.id === String(track))
             const stored: Delegation | undefined = inBatch
                 ? undefined
@@ -169,6 +196,7 @@ async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promis
                     kind: 'undelegate',
                     balance: src.balance,
                     conviction: src.conviction,
+                    delegatedVotes: await votesOn(ev.header, src.target.id, Number(track)),
                     block: ev.height,
                 })
             )
@@ -452,6 +480,8 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
             decision: decoded.decision,
             amount: decoded.amount,
             conviction: decoded.conviction,
+            delegatedCapital: 0n,
+            delegatedVotes: 0n,
             block: ev.height,
         })
     )

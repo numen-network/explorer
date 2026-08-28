@@ -8,11 +8,12 @@ import AccountLink from '@/components/AccountLink'
 import {BlockLink} from '@/components/links'
 import {Gauge, StatusBadge} from '@/components/referenda'
 import Timeline, {CROSS, RING, TICK, rawSteps, sentenceCase} from '@/components/timeline'
+import ActionList, {type ActionRow} from '@/components/actions'
 import VoteLists, {type VoteEntry} from '@/components/votes'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
 import {fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum} from '@/lib/format'
-import {accountRefs, blockTimes, delegationsFor, referendumDetail} from '@/lib/gql'
+import {accountRefs, blockTimes, delegationActionsFor, delegationsFor, referendumDetail} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -72,6 +73,10 @@ function Slot({value, label, className = ''}: {value: string; label: string; cla
 // none locks nothing and counts a tenth, the rest count their own multiple
 const convictionMul = (c: string | null) => (c == null ? 1 : c === '0x' ? 0.1 : Number(c.slice(0, -1)))
 
+// the same multiples in planck arithmetic, split and abstain rows carry no
+// conviction and keep their raw amount
+const weightOf = (amount: string, c: string | null) => (c == null ? BigInt(amount) : (BigInt(amount) * BigInt(c === '0x' ? 1 : 10 * Number(c.slice(0, -1)))) / 10n)
+
 // the panel answers who is behind the vote, the full roster lives on the
 // delegate account page
 const INLINE_DELEGATORS = 10
@@ -85,15 +90,64 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     if (!r) notFound()
 
     const trail = rawSteps(r.timeline)
-    const heights = [...new Set([r.submittedAt, ...trail.map(s => s.block)])]
     const voterIds = [...new Set(data.votes.map(v => v.voter?.id).filter((id): id is string => id != null))]
-    const [times, refs, dels] = await Promise.all([
-        blockTimes(heights),
+    const [refs, dels, dacts] = await Promise.all([
         accountRefs(r.proposalBeneficiary ? [r.proposalBeneficiary] : []),
         delegationsFor(voterIds, r.track.id),
+        delegationActionsFor(r.track.id, r.submittedAt, r.endedAt),
     ])
-    const stamps = new Map(times.blocks.map(b => [b.height, b.timestamp]))
     const beneficiary = refs.accounts[0]
+
+    const byTarget = new Map<string, typeof dels.delegations>()
+    for (const d of dels.delegations) byTarget.set(d.target.id, [...(byTarget.get(d.target.id) ?? []), d])
+    const shown = [...new Set([...byTarget.values()].flatMap(list => list.slice(0, INLINE_DELEGATORS).map(d => d.who.id)))]
+
+    // a delegation change only moves the tally while its target holds a
+    // standard vote, the inert rest ride inside the target's next vote row
+    const voteLog = new Map<string, typeof data.voteActions>()
+    for (const a of [...data.voteActions].reverse()) voteLog.set(a.voter.id, [...(voteLog.get(a.voter.id) ?? []), a])
+    const standingVoteAt = (target: string, block: number, id: string) => {
+        let last
+        for (const a of voteLog.get(target) ?? []) {
+            if (a.block > block || (a.block === block && a.id >= id)) break
+            last = a
+        }
+        return last?.kind === 'vote' && (last.decision === 'aye' || last.decision === 'nay') ? last : undefined
+    }
+    const dactRows = dacts.delegationActions.flatMap(a => {
+        const vote = standingVoteAt(a.target.id, a.block, a.id)
+        return vote ? [{a, vote}] : []
+    })
+
+    const heights = [...new Set([r.submittedAt, ...trail.map(s => s.block), ...data.voteActions.map(a => a.block), ...dactRows.map(({a}) => a.block)])]
+    const [times, whoRefsRes] = await Promise.all([blockTimes(heights), accountRefs(shown)])
+    const stamps = new Map(times.blocks.map(b => [b.height, b.timestamp]))
+    const whoRefs = new Map(whoRefsRes.accounts.map(a => [a.id, a]))
+
+    const actions: ActionRow[] = [
+        ...data.voteActions.map(a => ({
+            id: a.id,
+            block: a.block,
+            iso: stamps.get(a.block),
+            actor: {addr: ss58Encode(a.voter.id, chain.ss58), acc: a.voter},
+            amount: String(weightOf(a.amount, a.conviction) + BigInt(a.delegatedVotes)),
+            own: String(weightOf(a.amount, a.conviction)),
+            delegated: a.delegatedVotes,
+            kind: a.kind as 'vote' | 'remove',
+            decision: a.decision,
+        })),
+        ...dactRows.map(({a, vote}) => ({
+            id: a.id,
+            block: a.block,
+            iso: stamps.get(a.block),
+            actor: {addr: ss58Encode(a.target.id, chain.ss58), acc: a.target},
+            amount: String(weightOf(vote.amount, vote.conviction) + BigInt(a.delegatedVotes)),
+            own: String(weightOf(vote.amount, vote.conviction)),
+            delegated: a.delegatedVotes,
+            kind: a.kind as 'delegate' | 'undelegate',
+            by: {addr: ss58Encode(a.who.id, chain.ss58), acc: a.who},
+        })),
+    ].sort((x, y) => y.block - x.block || y.id.localeCompare(x.id))
 
     const latest = data.dailyStats[0]
     const activeIssuance = latest ? planckToNum(BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive), chain.decimals) : 0
@@ -217,8 +271,11 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     )
 
     const curves = (
-        <div className="card px-5 py-4">
-            <CurvesChart approval={approvalCurve} support={supportCurve} currentApproval={currentApproval} currentSupport={currentSupport} now={now} hours={decisionHours} />
+        <div className="space-y-4">
+            <div className="card px-5 py-4">
+                <CurvesChart approval={approvalCurve} support={supportCurve} currentApproval={currentApproval} currentSupport={currentSupport} now={now} hours={decisionHours} />
+            </div>
+            <ActionList rows={actions} decimals={chain.decimals} symbol={chain.symbol} />
         </div>
     )
 
@@ -268,12 +325,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             })}
         />
     )
-
-    const byTarget = new Map<string, typeof dels.delegations>()
-    for (const d of dels.delegations) byTarget.set(d.target.id, [...(byTarget.get(d.target.id) ?? []), d])
-
-    const shown = [...new Set([...byTarget.values()].flatMap(list => list.slice(0, INLINE_DELEGATORS).map(d => d.who.id)))]
-    const whoRefs = new Map((await accountRefs(shown)).accounts.map(a => [a.id, a]))
 
     const entry = (v: (typeof data.votes)[number]): VoteEntry => {
         const capital = planckToNum(v.amount, chain.decimals)
