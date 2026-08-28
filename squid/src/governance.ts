@@ -281,13 +281,17 @@ export function enactmentId(index: number): string {
     return '0x' + Buffer.from(digest).toString('hex')
 }
 
-function decodeSpendLocal(callHex: string, runtime: Runtime): {amount: bigint; beneficiary: string} | undefined {
+// spend_local wraps the beneficiary in a MultiAddress while spend hands the
+// account over bare, the chain's unit asset kind takes no bytes at all
+function decodeSpend(callHex: string, runtime: Runtime): {call: string; amount: bigint; beneficiary: string} | undefined {
     const call = decodeCall(callHex, runtime)
-    if (call?.name !== 'Treasury.spend_local') return undefined
-    // beneficiary is a MultiAddress, only the plain Id variant names an account
-    const {amount, beneficiary} = call.args
-    if (beneficiary?.__kind !== 'Id') return undefined
-    return {amount, beneficiary: beneficiary.value}
+    if (call?.name === 'Treasury.spend_local' && call.args.beneficiary?.__kind === 'Id') {
+        return {call: 'treasury.spendLocal', amount: call.args.amount, beneficiary: call.args.beneficiary.value}
+    }
+    if (call?.name === 'Treasury.spend' && typeof call.args.beneficiary === 'string') {
+        return {call: 'treasury.spend', amount: call.args.amount, beneficiary: call.args.beneficiary}
+    }
+    return undefined
 }
 
 /**
@@ -355,7 +359,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent, run
     const args = ev.args
     if (method === 'Submitted') {
         const inline = args.proposal?.__kind === 'Inline' ? args.proposal.value : undefined
-        const decoded = inline ? decodeSpendLocal(inline, runtime) : undefined
+        const decoded = inline ? decodeSpend(inline, runtime) : undefined
         const bountyIndex = inline ? decodeApproveBounty(inline, runtime) : undefined
         const r = new Referendum({
             id: String(args.index),
@@ -363,7 +367,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent, run
             track: new Track({id: String(args.track)}),
             origin: originName(ev.callArgs?.proposalOrigin),
             proposalHash: proposalHash(args.proposal),
-            proposalCall: decoded ? 'treasury.spendLocal' : bountyIndex != null ? 'bounties.approveBounty' : undefined,
+            proposalCall: decoded?.call ?? (bountyIndex != null ? 'bounties.approveBounty' : undefined),
             proposalAmount: decoded?.amount,
             proposalBeneficiary: decoded?.beneficiary,
             proposalBountyIndex: bountyIndex,
