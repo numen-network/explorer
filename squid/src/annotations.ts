@@ -358,7 +358,7 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
     await refreshPrime(batch, lastHeader, store)
 }
 
-function convictionLabel(c: {__kind: string}): string {
+export function convictionLabel(c: {__kind: string}): string {
     return c.__kind === 'None' ? '0x' : c.__kind.replace('Locked', '')
 }
 

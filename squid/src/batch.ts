@@ -7,6 +7,7 @@ import {
     ChildBounty,
     DailyStat,
     Delegation,
+    DelegationAction,
     Event,
     EvmLog,
     EvmTransaction,
@@ -18,6 +19,7 @@ import {
     Judgement,
     ProxyRelation,
     Referendum,
+    ReferendumTallySnapshot,
     Registrar,
     Token,
     TokenHolder,
@@ -26,15 +28,19 @@ import {
     TreasurySpend,
     Validator,
     Vote,
+    VoteAction,
 } from './model'
 import {DecodedErc20Transfer} from './evm'
 import {MsigEvent} from './multisig'
 import {BountyEvent} from './bounties'
 
 export interface GovEvent {
+    id: string
     name: string
     args: any
     height: number
+    // storage reads at the action block need the header
+    header: any
     signer?: string
     callArgs?: any
 }
@@ -72,6 +78,9 @@ export class BatchData {
     govEvents: GovEvent[] = []
     referenda = new Map<number, Referendum>()
     votes = new Map<string, Vote>()
+    voteActions: VoteAction[] = []
+    delegationActions: DelegationAction[] = []
+    tallySnapshots = new Map<string, ReferendumTallySnapshot>()
     spends = new Map<string, TreasurySpend>()
     // scheduler task id to referendum index, and the spends still waiting for
     // the dispatch event that names their referendum

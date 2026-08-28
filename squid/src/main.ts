@@ -399,8 +399,8 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
         if (d.who === author) block.reward += d.amount
     }
     const name = ev.name ?? ''
-    collectGovEvent(batch, name, ev.args, block.height, signerOf(ev.extrinsic), ev.call?.args)
-    collectValidatorEvent(batch, name, ev.args, block.height)
+    collectGovEvent(batch, ev.id, name, ev.args, block.height, ev.block, signerOf(ev.extrinsic), ev.call?.args)
+    collectValidatorEvent(batch, ev.id, name, ev.args, block.height, ev.block)
     collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, block.timestamp, ev)
     collectMultisigEvent(batch, name, ev.args, block.height, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined)
     collectBountyEvent(batch, name, ev.args, block.height, signerOf(ev.extrinsic))
@@ -544,6 +544,9 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert(batch.holders)
     await ctx.store.upsert([...batch.referenda.values()])
     await ctx.store.upsert([...batch.votes.values()])
+    await ctx.store.insert(batch.voteActions)
+    await ctx.store.insert(batch.delegationActions)
+    await ctx.store.upsert([...batch.tallySnapshots.values()])
     await ctx.store.upsert([...batch.spends.values()])
     await ctx.store.upsert([...batch.validators.values()])
     await ctx.store.upsert(batch.days)

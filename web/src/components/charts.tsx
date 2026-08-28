@@ -86,33 +86,36 @@ export function BarsChart({labels, values, height = 210}: {labels: string[]; val
     return <div ref={ref} style={{height}} />
 }
 
-// the threshold curves run the whole decision period, the dashed pair holds
-// where the referendum actually stands and stops at the current hour
+// the threshold curves run the whole decision period, the dashed pair steps
+// through the recorded tally history
 export function CurvesChart({
     approval,
     support,
+    currentApproval,
+    currentSupport,
     now,
     hours,
     height = 320,
 }: {
     approval: [number, number][]
     support: [number, number][]
+    currentApproval: [number, number][]
+    currentSupport: [number, number][]
     now: {at: number; approval: number; support: number} | null
     hours: number
     height?: number
 }) {
     const ref = useChart(() => {
-        const flat = (name: string, value: number, color: string) => ({
+        const walked = (name: string, data: [number, number][], color: string) => ({
             name,
             type: 'line' as const,
             symbol: 'none',
+            step: 'end' as const,
             lineStyle: {width: 2, color, type: 'dashed' as const},
             itemStyle: {color},
-            data: [
-                [0, value],
-                [now!.at, value],
-            ],
+            data,
         })
+        const hasCurrent = currentApproval.length > 0 || currentSupport.length > 0
         return {
             tooltip: {...TOOLTIP, valueFormatter: (v: unknown) => `${Number(v).toFixed(2)}%`},
             legend: {
@@ -120,7 +123,7 @@ export function CurvesChart({
                 itemWidth: 22,
                 itemGap: 18,
                 textStyle: {color: SUB, fontSize: 11},
-                data: now
+                data: hasCurrent
                     ? [
                           {name: 'Support'},
                           {name: 'Current support', lineStyle: {type: 'dashed'}},
@@ -176,12 +179,12 @@ export function CurvesChart({
                         ? {silent: true, symbol: 'none', label: {show: false}, lineStyle: {color: GRAY, type: 'dashed', width: 1}, data: [{xAxis: now.at}]}
                         : undefined,
                 },
-                ...(now ? [flat('Current support', now.support, ACCENT)] : []),
+                ...(hasCurrent ? [walked('Current support', currentSupport, ACCENT)] : []),
                 {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: approval},
-                ...(now ? [flat('Current approval', now.approval, GREEN)] : []),
+                ...(hasCurrent ? [walked('Current approval', currentApproval, GREEN)] : []),
             ],
         }
-    }, [approval.length, support.length, hours, now?.at, now?.approval, now?.support])
+    }, [approval.length, support.length, hours, now?.at, now?.approval, now?.support, currentApproval.map(p => p.join()).join('|'), currentSupport.map(p => p.join()).join('|')])
     return <div ref={ref} style={{height}} />
 }
 

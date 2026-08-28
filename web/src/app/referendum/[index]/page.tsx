@@ -114,6 +114,28 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             : null
     const now = x !== null ? {at: (x / 100) * decisionHours, approval: approvalNow, support: supportNow} : null
 
+    const currentApproval: [number, number][] = []
+    const currentSupport: [number, number][] = []
+    const decidingStart = r.decidingSince
+    if (decidingStart !== null && r.track.decisionPeriod > 0) {
+        // votes cast before the decision clock started all collapse to hour
+        // zero, only the last of them still holds there
+        const pre = data.snapshots.filter(s => s.block <= decidingStart)
+        const kept = [...pre.slice(-1), ...data.snapshots.filter(s => s.block > decidingStart)]
+        const toX = (b: number) => Math.min(decisionHours, Math.max(0, ((b - decidingStart) / r.track.decisionPeriod) * decisionHours))
+        for (const s of kept) {
+            const a = planckToNum(s.ayes, chain.decimals)
+            const n = planckToNum(s.nays, chain.decimals)
+            const act = planckToNum(s.activeIssuance, chain.decimals)
+            currentApproval.push([toX(s.block), a + n > 0 ? (a / (a + n)) * 100 : 0])
+            currentSupport.push([toX(s.block), act > 0 ? (planckToNum(s.support, chain.decimals) / act) * 100 : 0])
+        }
+    }
+    if (now) {
+        currentApproval.push([now.at, now.approval])
+        currentSupport.push([now.at, now.support])
+    }
+
     const ended = r.endedAt !== null
     const decisionAt = r.decidingSince !== null && r.track.decisionPeriod > 0 ? (heads.best - r.decidingSince) / r.track.decisionPeriod : null
     const confirmAt = r.confirmingSince !== null && r.track.confirmPeriod > 0 ? (heads.best - r.confirmingSince) / r.track.confirmPeriod : null
@@ -196,7 +218,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const curves = (
         <div className="card px-5 py-4">
-            <CurvesChart approval={approvalCurve} support={supportCurve} now={now} hours={decisionHours} />
+            <CurvesChart approval={approvalCurve} support={supportCurve} currentApproval={currentApproval} currentSupport={currentSupport} now={now} hours={decisionHours} />
         </div>
     )
 

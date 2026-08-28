@@ -3,13 +3,13 @@ import {BatchData} from './batch'
 import {Validator} from './model'
 import {storage} from './types'
 
-export function collectValidatorEvent(batch: BatchData, name: string, args: any, height: number): void {
+export function collectValidatorEvent(batch: BatchData, id: string, name: string, args: any, height: number, header: any): void {
     if (name === 'Session.NewSession') {
         batch.sessionBoundaries.push({index: Number(args.sessionIndex), height})
         return
     }
     if (!name.startsWith('Validator.')) return
-    batch.govEvents.push({name, args, height})
+    batch.govEvents.push({id, name, args, height, header})
 }
 
 async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, height: number): Promise<Validator> {

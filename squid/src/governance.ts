@@ -3,8 +3,9 @@ import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
 import {RpcClient} from '@subsquid/rpc-client'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In} from 'typeorm'
+import {convictionLabel} from './annotations'
 import {BatchData, GovEvent} from './batch'
-import {Referendum, ReferendumStatus, Track, TreasurySpend, Vote} from './model'
+import {Delegation, DelegationAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VoteAction} from './model'
 import {storage} from './types'
 
 const GOV_PALLETS = new Set(['Referenda', 'ConvictionVoting', 'Treasury', 'Scheduler'])
@@ -18,8 +19,8 @@ const ENACTMENT = 'enactment'
 const MAX_METADATA_BYTES = 16384
 const MAX_TITLE_CHARS = 200
 
-export function collectGovEvent(batch: BatchData, name: string, args: any, height: number, signer?: string, callArgs?: any): void {
-    if (GOV_PALLETS.has(name.split('.')[0])) batch.govEvents.push({name, args, height, signer, callArgs})
+export function collectGovEvent(batch: BatchData, id: string, name: string, args: any, height: number, header: any, signer?: string, callArgs?: any): void {
+    if (GOV_PALLETS.has(name.split('.')[0])) batch.govEvents.push({id, name, args, height, header, signer, callArgs})
 }
 
 export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, lastHeader: any, rpc: RpcClient): Promise<void> {
@@ -28,8 +29,151 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         await loadEnactments(ctx, batch)
         for (const ev of batch.govEvents) applyGovEvent(batch, ev, lastHeader._runtime)
         await applyMetadata(batch, rpc)
+        await logDelegationActions(ctx, batch)
+        await snapshotTallies(ctx, batch)
     }
     await refreshOngoing(ctx, batch, lastHeader)
+}
+
+async function activeIssuanceAt(header: any): Promise<bigint> {
+    const total = storage.balances.totalIssuance.v100
+    const inactive = storage.balances.inactiveIssuance.v100
+    if (!total.is(header) || !inactive.is(header)) throw new Error('unhandled spec version for issuance')
+    const [t, i] = await Promise.all([total.get(header), inactive.get(header)])
+    return (t ?? 0n) - (i ?? 0n)
+}
+
+// these events clear the referendum storage at their own block, the tally
+// they carry is the last word
+const END_EVENTS = new Set(['Confirmed', 'Rejected', 'TimedOut', 'Cancelled', 'Killed'])
+
+// one row per poked referendum per poking block, read back from chain
+// storage and never folded from the actions, delegated capital moves the
+// tally without emitting any amount
+async function snapshotTallies(ctx: {store: any}, batch: BatchData): Promise<void> {
+    interface Point {
+        header: any
+        refs: Set<number>
+        tracks: Set<number>
+        ends: Map<number, any>
+    }
+    const points = new Map<number, Point>()
+    const at = (ev: GovEvent): Point => {
+        let p = points.get(ev.height)
+        if (p == null) points.set(ev.height, (p = {header: ev.header, refs: new Set(), tracks: new Set(), ends: new Map()}))
+        return p
+    }
+    for (const ev of batch.govEvents) {
+        const [pallet, method] = ev.name.split('.')
+        if (pallet === 'ConvictionVoting') {
+            if (method === 'Voted' || method === 'VoteRemoved') at(ev).refs.add(ev.args.pollIndex)
+            // the runtime appends the track to both delegation event tuples
+            else if (method === 'Delegated') at(ev).tracks.add(Number(ev.args[2]))
+            else if (method === 'Undelegated') at(ev).tracks.add(Number(ev.args[1]))
+        } else if (pallet === 'Referenda') {
+            if (method === 'DecisionStarted') at(ev).refs.add(ev.args.index)
+            else if (END_EVENTS.has(method) && ev.args.tally != null) at(ev).ends.set(ev.args.index, ev.args.tally)
+        }
+    }
+    if (points.size === 0) return
+
+    const byTrack = new Map<number, Set<number>>()
+    if ([...points.values()].some(p => p.tracks.size > 0)) {
+        const open: Referendum[] = await ctx.store.find(Referendum, {
+            where: {status: In([ReferendumStatus.SUBMITTED, ReferendumStatus.DECIDING, ReferendumStatus.CONFIRMING])},
+            relations: {track: true},
+        })
+        for (const r of [...open, ...batch.referenda.values()]) {
+            const track = Number(r.track.id)
+            if (!byTrack.has(track)) byTrack.set(track, new Set())
+            byTrack.get(track)!.add(r.index)
+        }
+    }
+
+    const s = storage.referenda.referendumInfoFor.v100
+    const issuanceByHeight = new Map<number, bigint>()
+    const issuance = async (height: number, header: any): Promise<bigint> => {
+        let v = issuanceByHeight.get(height)
+        if (v == null) issuanceByHeight.set(height, (v = await activeIssuanceAt(header)))
+        return v
+    }
+    const put = async (index: number, height: number, header: any, tally: any): Promise<void> => {
+        const id = `${index}-${height}`
+        batch.tallySnapshots.set(
+            id,
+            new ReferendumTallySnapshot({
+                id,
+                referendum: new Referendum({id: String(index)}),
+                block: height,
+                ayes: BigInt(tally.ayes),
+                nays: BigInt(tally.nays),
+                support: BigInt(tally.support),
+                activeIssuance: await issuance(height, header),
+            })
+        )
+    }
+    for (const [height, p] of points) {
+        for (const [index, tally] of p.ends) await put(index, height, p.header, tally)
+        const indices = new Set(p.refs)
+        for (const t of p.tracks) for (const idx of byTrack.get(t) ?? []) indices.add(idx)
+        if (indices.size === 0) continue
+        if (!s.is(p.header)) throw new Error(`unhandled spec version for referendum info at block ${height}`)
+        const list = [...indices]
+        const infos = await s.getMany(p.header, list)
+        for (let i = 0; i < list.length; i++) {
+            const info = infos[i]
+            if (info?.__kind !== 'Ongoing') continue
+            await put(list[i], height, p.header, info.value.tally)
+        }
+    }
+}
+
+// delegate rows read the chain back after the block, undelegate rows keep
+// values the chain already dropped, taken from this batch or the store
+async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promise<void> {
+    const s = storage.convictionVoting.votingFor.v100
+    for (const ev of batch.govEvents) {
+        const [pallet, method] = ev.name.split('.')
+        if (pallet !== 'ConvictionVoting') continue
+        if (method === 'Delegated') {
+            const [who, , track] = ev.args as [string, string, number]
+            if (!s.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
+            const v = await s.get(ev.header, who, Number(track))
+            if (v?.__kind !== 'Delegating') throw new Error(`no delegation behind Delegated at block ${ev.height}`)
+            batch.delegationActions.push(
+                new DelegationAction({
+                    id: ev.id,
+                    who: batch.touch(who, ev.height),
+                    target: batch.touch(v.value.target, ev.height),
+                    track: new Track({id: String(track)}),
+                    kind: 'delegate',
+                    balance: v.value.balance,
+                    conviction: convictionLabel(v.value.conviction),
+                    block: ev.height,
+                })
+            )
+        } else if (method === 'Undelegated') {
+            const [who, track] = ev.args as [string, number]
+            const inBatch = [...batch.delegationActions].reverse().find(a => a.kind === 'delegate' && a.who.id === who && a.track.id === String(track))
+            const stored: Delegation | undefined = inBatch
+                ? undefined
+                : await ctx.store.get(Delegation, {where: {id: `${who}-${track}`}, relations: {target: true}})
+            const src = inBatch ?? stored
+            if (src == null) throw new Error(`no delegation behind Undelegated at block ${ev.height}`)
+            batch.delegationActions.push(
+                new DelegationAction({
+                    id: ev.id,
+                    who: batch.touch(who, ev.height),
+                    target: batch.touch(src.target.id, ev.height),
+                    track: new Track({id: String(track)}),
+                    kind: 'undelegate',
+                    balance: src.balance,
+                    conviction: src.conviction,
+                    block: ev.height,
+                })
+            )
+        }
+    }
 }
 
 async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
@@ -297,6 +441,18 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
             conviction: decoded.conviction,
             block: ev.height,
             removed: method === 'VoteRemoved',
+        })
+    )
+    batch.voteActions.push(
+        new VoteAction({
+            id: ev.id,
+            referendum: new Referendum({id: String(pollIndex)}),
+            voter: batch.touch(who, ev.height),
+            kind: method === 'Voted' ? 'vote' : 'remove',
+            decision: decoded.decision,
+            amount: decoded.amount,
+            conviction: decoded.conviction,
+            block: ev.height,
         })
     )
 }

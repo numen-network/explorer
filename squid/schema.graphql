@@ -300,6 +300,44 @@ type Vote @entity {
   removed: Boolean!
 }
 
+"append-only voting action log, one row per Voted or VoteRemoved event"
+type VoteAction @entity {
+  id: ID!
+  referendum: Referendum! @index
+  voter: Account! @index
+  "vote or remove, a remove row keeps the vote it took off the tally"
+  kind: String!
+  decision: String!
+  amount: BigInt!
+  conviction: String
+  block: Int! @index
+}
+
+"append-only delegation action log, one row per Delegated or Undelegated event"
+type DelegationAction @entity {
+  id: ID!
+  who: Account! @index
+  target: Account! @index
+  track: Track!
+  "delegate or undelegate, an undelegate row keeps the delegation it removed"
+  kind: String!
+  balance: BigInt!
+  conviction: String!
+  block: Int! @index
+}
+
+"tally read back from chain storage at each block a voting action landed in"
+type ReferendumTallySnapshot @entity {
+  id: ID!
+  referendum: Referendum! @index
+  block: Int! @index
+  ayes: BigInt!
+  nays: BigInt!
+  support: BigInt!
+  "support denominator at the same block"
+  activeIssuance: BigInt!
+}
+
 type Delegation @entity {
   id: ID!
   who: Account! @index
