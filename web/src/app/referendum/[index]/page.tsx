@@ -192,18 +192,24 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     }
 
     const ended = r.endedAt !== null
+    const prepareAt = r.track.preparePeriod > 0 ? (heads.best - r.submittedAt) / r.track.preparePeriod : null
     const decisionAt = r.decidingSince !== null && r.track.decisionPeriod > 0 ? (heads.best - r.decidingSince) / r.track.decisionPeriod : null
     const confirmAt = r.confirmingSince !== null && r.track.confirmPeriod > 0 ? (heads.best - r.confirmingSince) / r.track.confirmPeriod : null
+    const enactAt = r.status === 'APPROVED' && r.endedAt !== null && r.track.minEnactmentPeriod > 0 ? (heads.best - r.endedAt) / r.track.minEnactmentPeriod : null
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
     const pct = (n: number) => `${n.toFixed(n < 1 ? 2 : 1)}%`
 
-    const status = !ended && (
+    // enactment only starts once the referendum is approved, keep the card
+    // up through that phase
+    const status = (!ended || r.status === 'APPROVED') && (
         <div className="card px-5 py-4">
             <h2 className="text-[15px] font-semibold">Status</h2>
             <div className="mt-3 space-y-4">
+                <PhaseBar label="Prepare" span={fmtBlockSpan(r.track.preparePeriod, chain.blockTime)} at={prepareAt} />
                 <PhaseBar label="Decision" span={fmtBlockSpan(r.track.decisionPeriod, chain.blockTime)} at={decisionAt} />
                 <PhaseBar label="Confirmation" span={fmtBlockSpan(r.track.confirmPeriod, chain.blockTime)} at={confirmAt} />
+                <PhaseBar label="Enactment" span={fmtBlockSpan(r.track.minEnactmentPeriod, chain.blockTime)} at={enactAt} />
             </div>
             <div className="mt-4 flex items-baseline justify-between border-t border-edge pt-3 text-sm">
                 <span className="text-sub">Attempts</span>
