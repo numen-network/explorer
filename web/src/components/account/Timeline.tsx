@@ -3,7 +3,7 @@ import Pager from '@/components/Pager'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, ExtrinsicLink} from '@/components/links'
 import {Tag} from '@/components/pills'
-import {TimeCell} from '@/components/TimeCell'
+import {TimelineItem, TimelineList, TimelineRows, type Tone} from '@/components/timeline'
 import type {ChainProps} from '@/lib/chain'
 import {hexBytes} from '@/lib/digest'
 import {fmtBalance} from '@/lib/format'
@@ -14,12 +14,7 @@ import {JUDGEMENT_TONE, NONE, num, tabHref, type TabCtx} from './shared'
 
 const PAGE = 25
 
-const TONE = (method: string) =>
-    /Killed|Cleared|Revoked|Removed/.test(method)
-        ? 'bg-neg-soft text-neg'
-        : method === 'JudgementGiven'
-          ? 'bg-pos-soft text-pos'
-          : 'bg-accent-soft text-accent'
+const TONE = (method: string): Tone => (/Killed|Cleared|Revoked|Removed/.test(method) ? 'neg' : method === 'JudgementGiven' ? 'pos' : 'accent')
 
 const ICON = (method: string) =>
     method.startsWith('Sub')
@@ -77,49 +72,33 @@ export default async function Timeline({hex, addr, chain, sp}: TabCtx) {
 
     return (
         <>
-            <div className="card px-7 py-1">
-                {events.length === 0 && <div className="py-5 text-sm text-sub">None</div>}
-                <ol className="ml-3 border-l border-edge">
-                    {events.map(e => {
-                        const rows = eventRows(e.args, hex, chain, registrarBy)
-                        const verdict = verdictBy.get(e.id)
-                        if (verdict?.kind) rows.push(['Judgement', <Tag key="j" text={verdict.kind} tone={JUDGEMENT_TONE[verdict.kind] ?? 'idle'} />])
-                        if (verdict?.fee) rows.push(['Fee', fmtBalance(verdict.fee, chain.decimals, chain.symbol)])
-                        if (e.call) rows.push(...identityCallRows(e.call.method, e.call.args))
-                        const subs = e.call ? callSubs(e.call.method, e.call.args) : []
-                        if (subs.length > 0) rows.push(['Subs', <SubList key="subs" subs={subs} chain={chain} />])
-                        return (
-                            <li key={e.id} className="relative grid grid-cols-[minmax(0,1fr)] gap-x-10 gap-y-4 border-t border-edge py-6 pl-9 first:border-t-0 lg:grid-cols-[300px_minmax(0,1fr)]">
-                                <span className={`absolute top-6 -left-[14px] grid size-7 place-items-center rounded-full ${TONE(e.method)}`}>
-                                    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d={ICON(e.method)} />
-                                    </svg>
-                                </span>
-                                <div className="min-w-0">
-                                    <div className="text-sm font-medium">{e.method}</div>
-                                    <div className="mt-1 text-xs text-sub">
-                                        <TimeCell iso={e.block.timestamp} cycle />
-                                    </div>
-                                    <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs">
-                                        <BlockLink height={e.block.height} />
-                                        {e.extrinsic && <ExtrinsicLink id={e.extrinsic.id} hash={e.extrinsic.hash} />}
-                                    </div>
-                                </div>
-                                {rows.length > 0 && (
-                                    <dl className="space-y-2 text-sm">
-                                        {rows.map(([label, value]) => (
-                                            <div key={label} className="flex gap-4">
-                                                <dt className="w-40 shrink-0 text-sub">{label}</dt>
-                                                <dd className="min-w-0 break-all">{value}</dd>
-                                            </div>
-                                        ))}
-                                    </dl>
-                                )}
-                            </li>
-                        )
-                    })}
-                </ol>
-            </div>
+            <TimelineList empty={events.length === 0}>
+                {events.map(e => {
+                    const rows = eventRows(e.args, hex, chain, registrarBy)
+                    const verdict = verdictBy.get(e.id)
+                    if (verdict?.kind) rows.push(['Judgement', <Tag key="j" text={verdict.kind} tone={JUDGEMENT_TONE[verdict.kind] ?? 'idle'} />])
+                    if (verdict?.fee) rows.push(['Fee', fmtBalance(verdict.fee, chain.decimals, chain.symbol)])
+                    if (e.call) rows.push(...identityCallRows(e.call.method, e.call.args))
+                    const subs = e.call ? callSubs(e.call.method, e.call.args) : []
+                    if (subs.length > 0) rows.push(['Subs', <SubList key="subs" subs={subs} chain={chain} />])
+                    return (
+                        <TimelineItem
+                            key={e.id}
+                            tone={TONE(e.method)}
+                            icon={ICON(e.method)}
+                            title={e.method}
+                            iso={e.block.timestamp}
+                            links={
+                                <>
+                                    <BlockLink height={e.block.height} />
+                                    {e.extrinsic && <ExtrinsicLink id={e.extrinsic.id} hash={e.extrinsic.hash} />}
+                                </>
+                            }
+                            detail={rows.length > 0 ? <TimelineRows rows={rows} /> : undefined}
+                        />
+                    )
+                })}
+            </TimelineList>
             {conn.totalCount > PAGE && <Pager page={page} pageCount={Math.ceil(conn.totalCount / PAGE)} href={n => tabHref(addr, 'timeline', {tpage: n})} />}
         </>
     )
