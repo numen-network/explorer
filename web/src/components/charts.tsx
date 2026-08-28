@@ -126,7 +126,8 @@ export function CurvesChart({
                     const list = params as {seriesName?: string; marker?: string; value: [number, number]}[]
                     const h = Math.round(list[0].value[0])
                     const head = deciding ? `${h}h · #${fmtInt(deciding.start + Math.round(h * deciding.perHour))}` : `${h}h`
-                    const rows = list
+                    const rows = [...list]
+                        .sort((a, b) => Number(b.seriesName?.toLowerCase().includes('approval')) - Number(a.seriesName?.toLowerCase().includes('approval')))
                         .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${p.value[1].toFixed(2)}%</span></div>`)
                         .join('')
                     return `<div style="margin-bottom:4px">${head}</div>${rows}`
@@ -139,12 +140,12 @@ export function CurvesChart({
                 textStyle: {color: SUB, fontSize: 11},
                 data: hasCurrent
                     ? [
-                          {name: 'Support'},
-                          {name: 'Current support', lineStyle: {type: 'dashed'}},
                           {name: 'Approval'},
                           {name: 'Current approval', lineStyle: {type: 'dashed'}},
+                          {name: 'Support'},
+                          {name: 'Current support', lineStyle: {type: 'dashed'}},
                       ]
-                    : [{name: 'Support'}, {name: 'Approval'}],
+                    : [{name: 'Approval'}, {name: 'Support'}],
             },
             grid: {left: 8, right: 20, top: 16, bottom: 62, containLabel: true},
             dataZoom: [
