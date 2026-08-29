@@ -32,6 +32,17 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+html {
+    /* keep the scrollbar gutter during modal scroll locks so the page never shifts */
+    scrollbar-gutter: stable;
+}
+
+/* the kept gutter turns the margin react-remove-scroll puts on a locked body
+   into a shift of its own */
+html body[data-scroll-locked] {
+    margin-right: 0 !important;
+}
+
 .card {
     background: var(--color-card);
     border: 1px solid var(--color-edge);
