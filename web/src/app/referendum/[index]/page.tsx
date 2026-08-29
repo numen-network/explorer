@@ -9,7 +9,7 @@ import AccountLink from '@/components/AccountLink'
 import {BlockLink, ExtrinsicLink} from '@/components/links'
 import {Gauge, StatusBadge} from '@/components/referenda'
 import {CROSS, RING, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps, sentenceCase} from '@/components/timeline'
-import ActionList, {type ActionRow} from '@/components/actions'
+import ActionList, {type ActionImpact, type ActionRow} from '@/components/actions'
 import VoteLists, {type VoteEntry} from '@/components/votes'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
@@ -155,6 +155,31 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         })),
     ].sort((x, y) => y.block - x.block || y.id.localeCompare(x.id))
 
+    const snapPct = (s: (typeof data.snapshots)[number]) => {
+        const a = planckToNum(s.ayes, chain.decimals)
+        const n = planckToNum(s.nays, chain.decimals)
+        const act = planckToNum(s.activeIssuance, chain.decimals)
+        return {
+            approval: a + n > 0 ? (a / (a + n)) * 100 : 0,
+            support: act > 0 ? (planckToNum(s.support, chain.decimals) / act) * 100 : 0,
+        }
+    }
+    // tally snapshots record end of block state, so a block's whole move
+    // lands on its latest action row
+    const impactByBlock = new Map<number, ActionImpact>()
+    let prevPct = {approval: 0, support: 0}
+    for (const s of data.snapshots) {
+        const p = snapPct(s)
+        impactByBlock.set(s.block, {approval: p.approval - prevPct.approval, support: p.support - prevPct.support})
+        prevPct = p
+    }
+    const seen = new Set<number>()
+    for (const a of actions) {
+        if (seen.has(a.block)) continue
+        seen.add(a.block)
+        a.impact = impactByBlock.get(a.block)
+    }
+
     const latest = data.dailyStats[0]
     const activeIssuance = latest ? planckToNum(BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive), chain.decimals) : 0
     const ayes = planckToNum(r.ayes, chain.decimals)
@@ -185,11 +210,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         const kept = [...pre.slice(-1), ...data.snapshots.filter(s => s.block > decidingStart)]
         const toX = (b: number) => Math.min(decisionHours, Math.max(0, ((b - decidingStart) / r.track.decisionPeriod) * decisionHours))
         for (const s of kept) {
-            const a = planckToNum(s.ayes, chain.decimals)
-            const n = planckToNum(s.nays, chain.decimals)
-            const act = planckToNum(s.activeIssuance, chain.decimals)
-            currentApproval.push([toX(s.block), a + n > 0 ? (a / (a + n)) * 100 : 0])
-            currentSupport.push([toX(s.block), act > 0 ? (planckToNum(s.support, chain.decimals) / act) * 100 : 0])
+            const p = snapPct(s)
+            currentApproval.push([toX(s.block), p.approval])
+            currentSupport.push([toX(s.block), p.support])
         }
     }
     if (now) {

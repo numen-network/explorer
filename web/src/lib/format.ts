@@ -48,6 +48,29 @@ export function fmtCompact3(planck: string | bigint, decimals: number, symbol?: 
     return symbol ? `${out} ${symbol}` : out
 }
 
+// one decimal in unit range, whole tokens below it, ≈ marks a lossy trim
+export function fmtApprox(planck: string | bigint, decimals: number, symbol?: string): string {
+    let v = BigInt(planck)
+    const neg = v < 0n
+    if (neg) v = -v
+    const base = 10n ** BigInt(decimals)
+    const whole = v / base
+    const [div, unit]: [bigint, string] = whole >= 1000000000n ? [1000000000n, 'B'] : whole >= 1000000n ? [1000000n, 'M'] : whole >= 1000n ? [1000n, 'K'] : [1n, '']
+    let out: string
+    let exact: boolean
+    if (unit === '') {
+        out = fmtInt(whole)
+        exact = whole * base === v
+    } else {
+        const tenths = (v * 10n) / (base * div)
+        out = `${fmtInt(tenths / 10n)}${tenths % 10n === 0n ? '' : '.' + (tenths % 10n)}${unit}`
+        exact = tenths * base * div === v * 10n
+    }
+    if (neg) out = '-' + out
+    if (!exact) out = '≈' + out
+    return symbol ? `${out} ${symbol}` : out
+}
+
 export function shortHash(s: string, pre = 5, post = 4): string {
     if (s.length <= pre + post + 1) return s
     return `${s.slice(0, pre)}…${s.slice(-post)}`
