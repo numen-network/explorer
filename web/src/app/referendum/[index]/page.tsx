@@ -458,9 +458,11 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         <div>
             <h1 className="mt-6 text-lg font-semibold">Referendum #{r.index}</h1>
 
-            <div className="mt-3 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-                <div className="min-w-0">
-                <div className="card px-7 py-5">
+            {/* one flat grid, so a phone reads the card, then status and tally,
+                then the tab panels. the 1fr row soaks up the side pair's
+                overshoot so the span cannot inflate the card row */}
+            <div className="mt-3 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr]">
+                <div className="card min-w-0 px-7 py-5">
                     <p className="text-base font-semibold">{r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                         {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : <span className="text-faint">—</span>}
@@ -480,23 +482,23 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     )}
                 </div>
 
-                    <TabPanels
-                        at={tab}
-                        href={s => `/referendum/${r.index}?tab=${s}`}
-                        panels={[
-                            {slug: 'call', label: 'Call', body: () => call},
-                            {slug: 'metadata', label: 'Metadata', body: () => metadata},
-                            {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
-                            {slug: 'votes', label: 'Votes', count: data.voteCount.totalCount, body: () => votes},
-                            {slug: 'curves', label: 'Curves', body: () => curves},
-                        ]}
-                    />
-                </div>
-
-                <div className="space-y-4">
+                <div className="space-y-4 lg:row-span-2">
                     {status}
                     {tally}
                 </div>
+
+                <TabPanels
+                    className="min-w-0 lg:mt-3"
+                    at={tab}
+                    href={s => `/referendum/${r.index}?tab=${s}`}
+                    panels={[
+                        {slug: 'call', label: 'Call', body: () => call},
+                        {slug: 'metadata', label: 'Metadata', body: () => metadata},
+                        {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
+                        {slug: 'votes', label: 'Votes', count: data.voteCount.totalCount, body: () => votes},
+                        {slug: 'curves', label: 'Curves', body: () => curves},
+                    ]}
+                />
             </div>
         </div>
     )
