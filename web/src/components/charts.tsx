@@ -1,4 +1,5 @@
 'use client'
+import {curveSamples, type Curve} from '@/lib/curves'
 import {fmtInt} from '@/lib/format'
 import * as echarts from 'echarts'
 import {useEffect, useRef} from 'react'
@@ -84,6 +85,59 @@ export function BarsChart({labels, values, height = 210}: {labels: string[]; val
             ],
         }),
         [labels.join(), values.join()]
+    )
+    return <div ref={ref} style={{height}} />
+}
+
+// the curve is a formula, so the point count comes from how smooth the line
+// has to look rather than from the length of the period
+const SAMPLES = 121
+
+/** What a track demands of a referendum as its decision period runs out. */
+export function ThresholdChart({approval, support, hours, height = 180}: {approval: Curve; support: Curve; hours: number; height?: number}) {
+    // a track running for weeks reads in days while a short one stays in hours
+    const unit = hours >= 48 ? 'd' : 'h'
+    const span = unit === 'd' ? hours / 24 : hours
+    const ref = useChart(
+        () => ({
+            tooltip: {
+                ...TOOLTIP,
+                formatter: (params: unknown) => {
+                    const list = params as {seriesName?: string; marker?: string; value: [number, number]}[]
+                    const rows = list
+                        .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${p.value[1].toFixed(2)}%</span></div>`)
+                        .join('')
+                    return `<div style="margin-bottom:4px">${list[0].value[0].toFixed(1)}${unit}</div>${rows}`
+                },
+            },
+            legend: {top: 0, right: 0, itemWidth: 18, itemGap: 14, textStyle: {color: SUB, fontSize: 11}},
+            grid: {left: 4, right: 10, top: 30, bottom: 0, containLabel: true},
+            xAxis: {
+                type: 'value',
+                min: 0,
+                max: span,
+                // echarts splits a span with both ends pinned into fifths, which
+                // puts the ticks on fractions of a day
+                interval: Math.max(1, Math.ceil(span / 7)),
+                axisLine: {lineStyle: {color: EDGE}},
+                axisTick: {show: false},
+                axisLabel: {color: SUB, fontSize: 11, formatter: (v: number) => `${v}${unit}`},
+                splitLine: {show: false},
+            },
+            yAxis: {
+                type: 'value',
+                min: 0,
+                max: 100,
+                interval: 25,
+                splitLine: {lineStyle: {color: EDGE}},
+                axisLabel: {color: SUB, fontSize: 11, formatter: (v: number) => `${v}%`},
+            },
+            series: [
+                {name: 'Approval', type: 'line', symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: curveSamples(approval, span, SAMPLES)},
+                {name: 'Support', type: 'line', symbol: 'none', lineStyle: {width: 2, color: SUPPORT}, itemStyle: {color: SUPPORT}, data: curveSamples(support, span, SAMPLES)},
+            ],
+        }),
+        [JSON.stringify(approval), JSON.stringify(support), hours]
     )
     return <div ref={ref} style={{height}} />
 }

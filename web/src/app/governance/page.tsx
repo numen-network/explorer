@@ -8,6 +8,7 @@ import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/compon
 import {BlockLink} from '@/components/links'
 import {FilterChip, Tag} from '@/components/pills'
 import {BountyTable, RefCell} from '@/components/bounties'
+import {ThresholdChart} from '@/components/charts'
 import {StatusBadge, ThresholdBar} from '@/components/referenda'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainHeads, chainProps} from '@/lib/chain'
@@ -262,6 +263,21 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
     // periods are stored in blocks, the block count stays on hover
     const span = (blocks: number) => <span title={`${fmtInt(blocks)} blocks`}>{fmtBlockSpan(blocks, chain.blockTime)}</span>
 
+    const trackCurves = tracks && (
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {tracks.tracks.map(t => (
+                <div key={t.id} className="card px-5 py-4">
+                    <h2 className="text-[13px] font-medium">{trackLabel(t.name)}</h2>
+                    <ThresholdChart
+                        approval={t.minApproval as Curve}
+                        support={t.minSupport as Curve}
+                        hours={Math.max(1, Math.round((t.decisionPeriod * chain.blockTime) / 3600))}
+                    />
+                </div>
+            ))}
+        </div>
+    )
+
     const trackList = tracks && (
         <div className="card">
             <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[minmax(max-content,1fr)_max-content_max-content_max-content_max-content_max-content_max-content_max-content]">
@@ -325,6 +341,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                     {bountyFilter}
                     {bounties && <BountyTable rows={bounties.rows} chain={chain} />}
                     {trackList}
+                    {trackCurves}
                 </div>
                 <Pager page={page} pageCount={Math.max(1, Math.ceil(pageTotal / PAGE))} href={n => `${facetHref('', '')}&page=${n}`} />
             </div>
