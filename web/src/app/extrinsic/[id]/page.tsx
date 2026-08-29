@@ -121,7 +121,17 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
                     <DetailRow label="Signer">
                         {x.signer ? <AccountLink full addr={ss58Encode(x.signer.id, chain.ss58)} acc={x.signer} /> : <span className="text-faint">unsigned</span>}
                     </DetailRow>
-                    <DetailRow label="Fee">{x.fee ? fmtBalance(x.fee, chain.decimals, chain.symbol) : '—'}</DetailRow>
+                    <DetailRow label="Fee">
+                        {x.fee ? (
+                            <>
+                                {fmtBalance(x.fee, chain.decimals, chain.symbol)}
+                                <div className="mt-0.5 text-xs text-sub">to miner {fmtBalance(x.minerFee, chain.decimals, chain.symbol)}</div>
+                                <div className="text-xs text-sub">to treasury {fmtBalance(x.treasuryFee, chain.decimals, chain.symbol)}</div>
+                            </>
+                        ) : (
+                            '—'
+                        )}
+                    </DetailRow>
                     <DetailRow label="Tip">{x.tip && x.tip !== '0' ? fmtBalance(x.tip, chain.decimals, chain.symbol) : '—'}</DetailRow>
                     {data.evm[0] && (
                         <DetailRow label="EVM view">

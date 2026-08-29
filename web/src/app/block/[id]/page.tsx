@@ -51,12 +51,14 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     }
     const object = data.minedObjects[0]
     const faces = data.topology[0]?.faces ?? ''
+    // a block with no extrinsics pays the miner nothing beyond the mint
+    const minerTake = [block.reward, block.minerFees].filter(v => v !== '0')
     const logs = parseDigest(block.logs ?? [])
 
     const extrinsics = (
         <>
         <div className="card">
-            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(max-content,1fr)_max-content_max-content]">
+            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(max-content,1fr)_max-content_max-content_max-content]">
                 <thead>
                     <tr>
                         <th>Extrinsic</th>
@@ -64,6 +66,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                         <th>Signer</th>
                         <th>Result</th>
                         <th className="text-right">Fee</th>
+                        <th className="text-right">Tip</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -76,12 +79,13 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                                 <CallCell call={x} leaves={leaves.get(x.id)} />
                             </td>
                             <td>
-                                {x.signer ? <AccountLink full addr={ss58Encode(x.signer.id, chain.ss58)} acc={x.signer} /> : <span className="text-faint">—</span>}
+                                {x.signer ? <AccountLink addr={ss58Encode(x.signer.id, chain.ss58)} acc={x.signer} /> : <span className="text-faint">—</span>}
                             </td>
                             <td>
                                 <Tag text={x.success ? 'Success' : 'Failed'} tone={x.success ? 'pos' : 'neg'} />
                             </td>
                             <td className="text-right font-mono">{x.fee ? fmtBalance(x.fee, chain.decimals) : '—'}</td>
+                            <td className="text-right font-mono">{x.tip && x.tip !== '0' ? fmtBalance(x.tip, chain.decimals) : '—'}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -183,7 +187,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                     {object ? (
                         <>
                             <Asteroid vertices={object.vertices} faces={faces} size={290} interactive />
-                            <div className="mt-3 text-center font-mono text-[11px] text-sub">
+                            <div className="mt-auto pt-3 text-center font-mono text-[11px] text-sub">
                                 <div className="flex items-center justify-center gap-1">
                                     OBJ {shortHash(block.workHash, 10, 8)}
                                     <CopyBtn text={block.workHash} />
@@ -222,7 +226,14 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                     <DetailRow label="Miner">
                         {block.author ? <AccountLink full addr={ss58Encode(block.author.id, chain.ss58)} acc={block.author} /> : '—'}
                     </DetailRow>
-                    <DetailRow label="Reward">{fmtBalance(block.reward, chain.decimals, chain.symbol)}</DetailRow>
+                    <DetailRow label="Reward">
+                        <span title="minted reward plus the miner's cut of any fees and tips paid here">
+                            {minerTake.length > 0 ? minerTake.map(v => fmtBalance(v, chain.decimals, chain.symbol)).join(' + ') : '—'}
+                        </span>
+                    </DetailRow>
+                    {block.treasuryFees !== '0' && (
+                        <DetailRow label="Fees to treasury">{fmtBalance(block.treasuryFees, chain.decimals, chain.symbol)}</DetailRow>
+                    )}
                     <DetailRow label="Difficulty">{fmtInt(block.difficulty)}</DetailRow>
                     <DetailRow label="Nonce">{block.nonce}</DetailRow>
                     <DetailRow label="Work hash">

@@ -1,5 +1,5 @@
-module.exports = class Data1787930255350 {
-    name = 'Data1787930255350'
+module.exports = class Data1788022839270 {
+    name = 'Data1788022839270'
 
     async up(db) {
         await db.query(`CREATE TABLE "account" ("id" character varying NOT NULL, "free" numeric NOT NULL, "reserved" numeric NOT NULL, "frozen" numeric NOT NULL, "nonce" integer NOT NULL, "first_seen_block" integer NOT NULL, "last_active_block" integer NOT NULL, "identity_display" text, "identity_json" jsonb, "identity_status" character varying(10), "identity_sub_name" text, "username" text, "evm_address" text, "vesting_json" jsonb, "locks_json" jsonb, "holds_json" jsonb, "deposits_json" jsonb, "identity_super_id" character varying, CONSTRAINT "PK_54115ee388cdb6d86bb4bf5b2ea" PRIMARY KEY ("id"))`)
@@ -9,7 +9,7 @@ module.exports = class Data1787930255350 {
         await db.query(`CREATE INDEX "idx_account_identity_super_6eb9fc9a" ON "account" ("identity_super_id") `)
         await db.query(`CREATE INDEX "idx_account_username_e1e37d55" ON "account" ("username") `)
         await db.query(`CREATE INDEX "idx_account_evm_address_66f5172b" ON "account" ("evm_address") `)
-        await db.query(`CREATE TABLE "block" ("id" character varying NOT NULL, "height" integer NOT NULL, "hash" text NOT NULL, "parent_hash" text NOT NULL, "timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "spec_version" integer NOT NULL, "difficulty" numeric NOT NULL, "reward" numeric NOT NULL, "nonce" text NOT NULL, "work_hash" text NOT NULL, "finalized" boolean NOT NULL, "extrinsic_count" integer NOT NULL, "event_count" integer NOT NULL, "logs" text array NOT NULL, "author_id" character varying, CONSTRAINT "PK_d0925763efb591c2e2ffb267572" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "block" ("id" character varying NOT NULL, "height" integer NOT NULL, "hash" text NOT NULL, "parent_hash" text NOT NULL, "timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "spec_version" integer NOT NULL, "difficulty" numeric NOT NULL, "reward" numeric NOT NULL, "miner_fees" numeric NOT NULL, "treasury_fees" numeric NOT NULL, "nonce" text NOT NULL, "work_hash" text NOT NULL, "finalized" boolean NOT NULL, "extrinsic_count" integer NOT NULL, "event_count" integer NOT NULL, "logs" text array NOT NULL, "author_id" character varying, CONSTRAINT "PK_d0925763efb591c2e2ffb267572" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_block_height_b20720ad" ON "block" ("height") `)
         await db.query(`CREATE UNIQUE INDEX "idx_block_hash_b194b635" ON "block" ("hash") `)
         await db.query(`CREATE INDEX "idx_block_timestamp_82806c7c" ON "block" ("timestamp") `)
@@ -32,7 +32,7 @@ module.exports = class Data1787930255350 {
         await db.query(`CREATE INDEX "idx_call_pallet_7d7fb025" ON "call" ("pallet") `)
         await db.query(`CREATE INDEX "idx_call_method_235f10f9" ON "call" ("method") `)
         await db.query(`CREATE INDEX "idx_call_origin_6f603f05" ON "call" ("origin_id") `)
-        await db.query(`CREATE TABLE "extrinsic" ("id" character varying NOT NULL, "index_in_block" integer NOT NULL, "hash" text NOT NULL, "pallet" text NOT NULL, "method" text NOT NULL, "success" boolean NOT NULL, "error" jsonb, "fee" numeric, "tip" numeric, "block_id" character varying, "signer_id" character varying, CONSTRAINT "PK_80d7db0e4b1e83e30336bc76755" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "extrinsic" ("id" character varying NOT NULL, "index_in_block" integer NOT NULL, "hash" text NOT NULL, "pallet" text NOT NULL, "method" text NOT NULL, "success" boolean NOT NULL, "error" jsonb, "fee" numeric, "tip" numeric, "miner_fee" numeric NOT NULL, "treasury_fee" numeric NOT NULL, "block_id" character varying, "signer_id" character varying, CONSTRAINT "PK_80d7db0e4b1e83e30336bc76755" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_extrinsic_block_bdb25d72" ON "extrinsic" ("block_id") `)
         await db.query(`CREATE INDEX "idx_extrinsic_hash_fb7b0484" ON "extrinsic" ("hash") `)
         await db.query(`CREATE INDEX "idx_extrinsic_pallet_10b2b37c" ON "extrinsic" ("pallet") `)

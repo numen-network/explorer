@@ -125,7 +125,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
             </div>
 
             <div className="card mt-4">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_max-content_minmax(max-content,1fr)_max-content_max-content]">
+                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_max-content_minmax(max-content,1fr)_max-content_max-content_max-content]">
                     <thead>
                         <tr>
                             <th>Extrinsic</th>
@@ -137,12 +137,13 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
                             <th>Signer</th>
                             <th>Result</th>
                             <th className="text-right">Fee</th>
+                            <th className="text-right">Tip</th>
                         </tr>
                     </thead>
                     <tbody>
                         {rows.length === 0 && (
                             <tr>
-                                <td colSpan={7} className="py-6 text-sub">
+                                <td colSpan={8} className="py-6 text-sub">
                                     Nothing matches.
                                 </td>
                             </tr>
@@ -168,6 +169,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
                                     <Tag text={x.success ? 'Success' : 'Failed'} tone={x.success ? 'pos' : 'neg'} />
                                 </td>
                                 <td className="text-right font-mono">{x.fee ? fmtBalance(x.fee, chain.decimals) : '—'}</td>
+                                <td className="text-right font-mono">{x.tip && x.tip !== '0' ? fmtBalance(x.tip, chain.decimals) : '—'}</td>
                             </tr>
                         ))}
                     </tbody>

@@ -25,7 +25,7 @@ import {collectValidatorEvent, finalizeValidators} from './validators'
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, seedGenesisVesting} from './annotations'
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig} from './multisig'
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
-import {accumulateDay, finalizeStats} from './stats'
+import {accumulateDay, finalizeStats, treasuryAccount} from './stats'
 import {readTracks} from './tracks'
 
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT
@@ -44,7 +44,7 @@ const processor = new SubstrateBatchProcessor()
     .addCall({extrinsic: true})
     .setFields({
         block: {timestamp: true, digest: true},
-        extrinsic: {hash: true, fee: true, tip: true, success: true, error: true, signature: true},
+        extrinsic: {hash: true, tip: true, success: true, error: true, signature: true},
         call: {name: true, args: true, success: true, origin: true},
         event: {name: true, args: true, phase: true},
     })
@@ -103,6 +103,8 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         author: author ? batch.touch(author, h.height) : undefined,
         difficulty: await currentDifficulty(h),
         reward: 0n,
+        minerFees: 0n,
+        treasuryFees: 0n,
         nonce: seal?.nonce ?? ZERO_H256,
         workHash: seal?.work ?? ZERO_H256,
         finalized: h.height <= finalizedHeight,
@@ -123,17 +125,27 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         else if (call.name.startsWith('Multisig.') && call.extrinsic != null) collectMultisigCall(batch, call.name, call.args, origin, call.extrinsic.id)
         else if (call.name.startsWith('ChildBounties.')) collectBountyCall(batch, call.name, call.args, h.height)
     }
-    for (const ev of b.events) mapEvent(batch, block, ev, author)
+    const treasury = treasuryAccount(h)
+    for (const ev of b.events) mapEvent(batch, block, ev, author, treasury)
     await mapEvm(batch, b, block)
     let transferVolume = 0n
     for (let i = transfersBefore; i < batch.transfers.length; i++) transferVolume += batch.transfers[i].amount
     let fees = 0n
     let signed = 0
+    // what the two accounts collected is what the extrinsic cost, and that
+    // measure covers the EVM side too. taking the tip out leaves the amount
+    // the 20/80 split runs on
     for (const ext of b.extrinsics) {
-        if (ext.signature != null) {
-            signed += 1
-            fees += ext.fee ?? 0n
-        }
+        const x = batch.extrinsicById.get(ext.id)!
+        const paid = x.minerFee + x.treasuryFee
+        const tip = x.tip ?? 0n
+        // the block keeps the whole take because that is what the miner earned
+        block.minerFees += x.minerFee
+        block.treasuryFees += x.treasuryFee
+        fees += paid
+        x.fee = paid > 0n ? paid - tip : undefined
+        x.minerFee -= tip
+        if (ext.signature != null) signed += 1
     }
     accumulateDay(batch, block, {
         extrinsicsSigned: signed,
@@ -181,6 +193,9 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Pro
         const gasUsed = cumGas - prevGas
         prevGas = cumGas
         const extrinsic = batch.extrinsicById.get(ext.id)!
+        // what the sender paid over the base fee is the EVM's own kind of tip,
+        // and the runtime hands it to the miner whole like a substrate one
+        extrinsic.tip = gasUsed * (decoded.gasPrice - baseFee)
         // canonical home of the tx payload is EvmTransaction, keep the call row lean
         batch.callById.get(ext.call!.id)!.args = undefined
         batch.touch(evmMappedAccount(decoded.from), h.height).evmAddress = decoded.from
@@ -326,8 +341,9 @@ function mapExtrinsic(batch: BatchData, block: Block, ext: ExtrinsicData<Fields>
         signer: signer ? batch.touch(signer, block.height) : undefined,
         success: ext.success ?? true,
         error: ext.error != null ? toJSON(ext.error) : undefined,
-        fee: ext.fee,
         tip: ext.tip,
+        minerFee: 0n,
+        treasuryFee: 0n,
     })
     batch.extrinsics.push(e)
     batch.extrinsicById.set(e.id, e)
@@ -362,7 +378,7 @@ function mapCalls(batch: BatchData, block: Block, calls: CallData<Fields>[]): vo
     }
 }
 
-function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author: string | undefined): void {
+function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author: string | undefined, treasury: string): void {
     const [pallet, method] = splitName(ev.name)
     const extrinsic = ev.extrinsic != null ? batch.extrinsicById.get(ev.extrinsic.id) : undefined
     const call = ev.call != null ? batch.callById.get(ev.call.id) : undefined
@@ -394,10 +410,17 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
             })
         )
     }
-    if (ev.phase === 'Finalization' && author && events.balances.deposit.v100.is(ev)) {
+    // the reward is minted on finalization, so a deposit reaching the miner
+    // while extrinsics run is a share of a fee or a tip
+    if (events.balances.deposit.v100.is(ev)) {
         const d = events.balances.deposit.v100.decode(ev)
-        if (d.who === author) block.reward += d.amount
+        if (d.who === author && ev.phase === 'Finalization') block.reward += d.amount
+        else if (d.who === author && extrinsic) extrinsic.minerFee += d.amount
+        else if (d.who === treasury && extrinsic) extrinsic.treasuryFee += d.amount
     }
+    // a slash reaches the treasury through the pallet, and the pallet's own
+    // event is what separates it from a fee share
+    if (ev.name === 'Treasury.Deposit' && extrinsic) extrinsic.treasuryFee -= BigInt(ev.args.value)
     const name = ev.name ?? ''
     collectGovEvent(batch, ev.id, name, ev.args, block.height, ev.block, signerOf(ev.extrinsic), ev.call?.args)
     collectValidatorEvent(batch, ev.id, name, ev.args, block.height, ev.block)

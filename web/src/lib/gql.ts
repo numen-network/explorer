@@ -34,6 +34,8 @@ export interface BlockRow {
     logs?: string[]
     difficulty: string
     reward: string
+    minerFees: string
+    treasuryFees: string
     nonce: string
     workHash: string
     specVersion: number
@@ -102,7 +104,7 @@ export interface DailyRow {
 // every list that shows an account shows the same identity trimmings
 const ACCOUNT_REF = `id identityDisplay identityJson identitySubName identitySuper { identityDisplay identityJson }`
 
-const BLOCK_FIELDS = `id height hash parentHash timestamp finalized extrinsicCount eventCount difficulty reward nonce workHash specVersion author { ${ACCOUNT_REF} }`
+const BLOCK_FIELDS = `id height hash parentHash timestamp finalized extrinsicCount eventCount difficulty reward minerFees treasuryFees nonce workHash specVersion author { ${ACCOUNT_REF} }`
 const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACCOUNT_REF} } to { ${ACCOUNT_REF} } block { height } extrinsic { id hash }`
 const DAILY_FIELDS = `id date blocks extrinsicsSigned transfers transferVolume evmTxs fees tsFirst tsLast issuanceTotal issuanceInactive treasuryPot cumExtrinsicsSigned cumTransfers cumTransferVolume difficultyClose accountsTotal referendaTotal`
 
@@ -204,6 +206,8 @@ export interface ExtrinsicRow {
     error: unknown
     fee: string | null
     tip: string | null
+    minerFee: string
+    treasuryFee: string
     signer: AccountRef | null
     block: {height: number; timestamp: string}
 }
@@ -229,7 +233,7 @@ export interface EventRow {
     extrinsic: {id: string; hash: string} | null
 }
 
-const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method success error fee tip signer { ${ACCOUNT_REF} } block { height timestamp }`
+const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp }`
 const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id hash }`
 
 export interface Slice {

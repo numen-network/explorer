@@ -7,7 +7,12 @@ type Block @entity {
   specVersion: Int!
   author: Account @index
   difficulty: BigInt!
+  "minted for the miner on finalization"
   reward: BigInt!
+  "fee share and tips the miner collected from the extrinsics in this block"
+  minerFees: BigInt!
+  "fee share those same extrinsics paid to the treasury"
+  treasuryFees: BigInt!
   nonce: String!
   workHash: String!
   finalized: Boolean! @index
@@ -91,8 +96,14 @@ type Extrinsic @entity {
   calls: [Call!]! @derivedFrom(field: "extrinsic")
   success: Boolean!
   error: JSON
+  "what running this extrinsic cost with the tip left out, null when it paid nothing"
   fee: BigInt
+  "tip the sender added, an EVM priority fee counted as one"
   tip: BigInt
+  "share of the fee the miner kept, with the tip paid on top"
+  minerFee: BigInt!
+  "part of the fee that funded the treasury"
+  treasuryFee: BigInt!
 }
 
 "one node of an extrinsic call tree, the root included"

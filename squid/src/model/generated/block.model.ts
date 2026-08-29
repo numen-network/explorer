@@ -35,8 +35,23 @@ export class Block {
     @BigIntColumn_({nullable: false})
     difficulty!: bigint
 
+    /**
+     * minted for the miner on finalization
+     */
     @BigIntColumn_({nullable: false})
     reward!: bigint
+
+    /**
+     * fee share and tips the miner collected from the extrinsics in this block
+     */
+    @BigIntColumn_({nullable: false})
+    minerFees!: bigint
+
+    /**
+     * fee share those same extrinsics paid to the treasury
+     */
+    @BigIntColumn_({nullable: false})
+    treasuryFees!: bigint
 
     @StringColumn_({nullable: false})
     nonce!: string

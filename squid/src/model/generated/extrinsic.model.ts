@@ -44,9 +44,27 @@ export class Extrinsic {
     @JSONColumn_({nullable: true})
     error!: unknown | undefined | null
 
+    /**
+     * what running this extrinsic cost with the tip left out, null when it paid nothing
+     */
     @BigIntColumn_({nullable: true})
     fee!: bigint | undefined | null
 
+    /**
+     * tip the sender added, an EVM priority fee counted as one
+     */
     @BigIntColumn_({nullable: true})
     tip!: bigint | undefined | null
+
+    /**
+     * share of the fee the miner kept, with the tip paid on top
+     */
+    @BigIntColumn_({nullable: false})
+    minerFee!: bigint
+
+    /**
+     * part of the fee that funded the treasury
+     */
+    @BigIntColumn_({nullable: false})
+    treasuryFee!: bigint
 }
