@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import type {ReactNode} from 'react'
+import TabScroller from '@/components/TabScroller'
 import {fmtInt} from '@/lib/format'
 
 const BASE = 'flex items-center border-b-2 px-1 pb-2.5 text-sm whitespace-nowrap'
 const ON = 'border-accent'
 const OFF = 'border-transparent text-sub hover:text-ink'
 const STRIP = 'border-b border-edge'
-const ROW = '-mb-px flex gap-6 overflow-x-auto'
 
 // the bold copy is hidden but still measured, so the strip holds its
 // positions when the active tab moves
@@ -26,14 +26,14 @@ function Count({n}: {n: number}) {
 export function TabBar({items}: {items: {label: string; count?: number; href: string; active: boolean}[]}) {
     return (
         <div className={STRIP}>
-            <div className={ROW}>
+            <TabScroller>
                 {items.map(t => (
                     <Link key={t.label} href={t.href} className={`${BASE} ${t.active ? ON : OFF}`}>
                         <Label text={t.label} active={t.active} />
                         {t.count != null && <Count n={t.count} />}
                     </Link>
                 ))}
-            </div>
+            </TabScroller>
         </div>
     )
 }
