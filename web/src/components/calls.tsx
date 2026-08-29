@@ -17,20 +17,38 @@ export function CallPill({call}: {call: CallRef | null}) {
     )
 }
 
+const SEP = ' · '
+
+// how many characters of the inner line a row can hold
+const LINE = 46
+
 // identical calls collapse into a count, which is what a batch of payouts is
-function tally(leaves: CallRef[]): string {
+function tally(leaves: CallRef[]): string[] {
     const n = new Map<string, number>()
     for (const c of leaves) n.set(qualified(c), (n.get(qualified(c)) ?? 0) + 1)
-    return [...n].map(([name, count]) => (count > 1 ? `${count}× ${name}` : name)).join(' · ')
+    return [...n].map(([name, count]) => (count > 1 ? `${count}× ${name}` : name))
+}
+
+// a wide batch names more calls than the row can hold, so the line keeps whole
+// entries and counts the rest
+function fit(parts: string[]): string {
+    const line = (kept: number) => (kept < parts.length ? [...parts.slice(0, kept), `+${parts.length - kept} more`] : parts).join(SEP)
+    let kept = parts.length
+    while (kept > 1 && line(kept).length > LINE) kept--
+    return line(kept)
 }
 
 /** A list row for a call, with what it ran underneath when it wraps anything. */
 export function CallCell({call, leaves}: {call: CallRef; leaves?: CallRef[]}) {
-    const inner = leaves && leaves.length > 0 ? tally(leaves) : ''
+    const parts = leaves && leaves.length > 0 ? tally(leaves) : []
     return (
         <div className="font-mono text-[13px]">
             <div>{qualified(call)}</div>
-            {inner && <div className="mt-0.5 max-w-[46ch] truncate text-[11px] text-faint" title={inner}>{inner}</div>}
+            {parts.length > 0 && (
+                <div className="mt-0.5 text-[11px] text-faint" title={parts.join(SEP)}>
+                    {fit(parts)}
+                </div>
+            )}
         </div>
     )
 }
