@@ -120,7 +120,7 @@ export function CurvesChart({
             data,
         })
         const hasCurrent = currentApproval.length > 0 || currentSupport.length > 0
-        return {
+        const opt: echarts.EChartsOption = {
             tooltip: {
                 ...TOOLTIP,
                 formatter: (params: unknown) => {
@@ -134,8 +134,10 @@ export function CurvesChart({
                     return `<div style="margin-bottom:4px">${head}</div>${rows}`
                 },
             },
+            // the legend hangs from its top edge so a wrapped second row grows
+            // toward the card edge instead of into the slider above it
             legend: {
-                bottom: 0,
+                top: height - 46,
                 itemWidth: 22,
                 itemGap: 18,
                 textStyle: {color: SUB, fontSize: 11},
@@ -148,7 +150,7 @@ export function CurvesChart({
                       ]
                     : [{name: 'Approval'}, {name: 'Support'}],
             },
-            grid: {left: 8, right: 20, top: 16, bottom: 62, containLabel: true},
+            grid: {left: 8, right: 20, top: 16, bottom: 70, containLabel: true},
             // filter mode would drop the points behind the window edge and cut
             // the step lines off with them
             dataZoom: [
@@ -156,7 +158,7 @@ export function CurvesChart({
                 {
                     type: 'slider',
                     filterMode: 'none',
-                    bottom: 28,
+                    bottom: 52,
                     height: 10,
                     borderColor: 'transparent',
                     backgroundColor: '#f1f2f5',
@@ -201,6 +203,16 @@ export function CurvesChart({
                 ...(hasCurrent ? [walked('Current support', currentSupport, SUPPORT)] : []),
                 {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: approval},
                 ...(hasCurrent ? [walked('Current approval', currentApproval, GREEN)] : []),
+            ],
+        }
+        // a width cap folds the four legend entries into balanced pairs when
+        // the container cannot hold one row. the no-query unit lifts the cap
+        // once one row fits again
+        return {
+            baseOption: opt,
+            media: [
+                {query: {maxWidth: 470}, option: {legend: {width: 260}}},
+                {option: {legend: {width: 'auto'}}},
             ],
         }
     }, [approval.length, support.length, hours, deciding?.start, deciding?.perHour, now?.at, now?.approval, now?.support, currentApproval.map(p => p.join()).join('|'), currentSupport.map(p => p.join()).join('|')])
