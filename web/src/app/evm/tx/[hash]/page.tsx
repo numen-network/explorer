@@ -8,6 +8,7 @@ import {BlockLink, EvmAddrLink, ExtrinsicLink} from '@/components/links'
 import {Tag} from '@/components/pills'
 import {chainProps} from '@/lib/chain'
 import {evmTxTypeLabel} from '@/lib/evm'
+import AddressText from '@/components/AddressText'
 import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmTxDetail} from '@/lib/gql'
 
@@ -55,7 +56,7 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
                     <EvmAddrLink addr={t.to} />
                     <span className="ml-auto font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
                     <Link href={`/token/${t.token.id}`} className="font-mono text-xs text-accent hover:underline">
-                        {shortHash(t.token.id, 6, 4)}
+                        <AddressText addr={t.token.id} />
                     </Link>
                 </div>
             ))}

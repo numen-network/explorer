@@ -6,14 +6,15 @@ import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {BlockLink, EvmAddrLink, EvmTxLink} from '@/components/links'
 import {isH160} from '@/lib/evm'
-import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
+import AddressText, {shortAddr} from '@/components/AddressText'
+import {fmtBalance, fmtInt} from '@/lib/format'
 import {tokenDetail} from '@/lib/gql'
 
 export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(props: PageProps<'/token/[address]'>) {
     const {address} = await props.params
-    return {title: `Token ${shortHash(address, 7, 4)}`}
+    return {title: `Token ${shortAddr(address)}`}
 }
 
 export default async function TokenPage(props: PageProps<'/token/[address]'>) {
@@ -72,7 +73,7 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                     <BlockLink height={t.block.height} />
                     <EvmTxLink hash={t.transaction.id} />
                     <span className="font-mono text-xs text-sub">
-                        {shortHash(t.from, 6, 4)} → {shortHash(t.to, 6, 4)}
+                        <AddressText addr={t.from} /> → <AddressText addr={t.to} />
                     </span>
                     <span className="ml-auto font-mono">{fmtBalance(t.amount, dec, token.symbol ?? undefined)}</span>
                     <span className="shrink-0 text-right text-xs text-sub">

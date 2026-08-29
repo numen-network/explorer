@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {AddrMark} from '@/components/addrHot'
+import AddressText from '@/components/AddressText'
 import {extrinsicPath, fmtInt, shortHash} from '@/lib/format'
 
 // marks a link that leaves for somewhere else, sized to whatever text it sits
@@ -38,7 +39,7 @@ export function EvmAddrLink({addr, full = false}: {addr: string; full?: boolean}
     return (
         <AddrMark addr={addr}>
             <Link href={`/evm/address/${addr}`} className="font-mono text-accent hover:underline" title={addr}>
-                {full ? addr : shortHash(addr, 7, 4)}
+                <AddressText addr={addr} full={full} />
             </Link>
         </AddrMark>
     )

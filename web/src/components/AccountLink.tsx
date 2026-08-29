@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import {Fragment} from 'react'
 import {useAddrHot} from '@/components/addrHot'
-import {shortHash} from '@/lib/format'
+import AddressText from '@/components/AddressText'
 import {identityChannels, identityInfoJson, identityLabel, type IdentityRef} from '@/lib/identity'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
 
@@ -63,7 +63,7 @@ export default function AccountLink({addr, acc, className = '', full = false}: {
                                     <span className="truncate font-medium">{display}</span>
                                 </>
                             ) : (
-                                <span className="truncate font-mono font-medium">{full ? addr : shortHash(addr, 7, 4)}</span>
+                                <span className="truncate font-mono font-medium"><AddressText addr={addr} full={full} /></span>
                             )}
                         </Link>
                     </TooltipTrigger>

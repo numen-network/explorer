@@ -2,7 +2,8 @@ import Link from 'next/link'
 import Pager from '@/components/Pager'
 import {EvmAddrLink, EvmTxLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
-import {fmtBalance, shortHash} from '@/lib/format'
+import AddressText from '@/components/AddressText'
+import {fmtBalance} from '@/lib/format'
 import {tokenTransfersFor} from '@/lib/gql'
 import {num, tabHref, type TabCtx} from './shared'
 
@@ -52,7 +53,7 @@ export default async function TokenTransfers({addr, evm, sp}: TabCtx & {evm: str
                                 </td>
                                 <td>
                                     <Link href={`/token/${t.token.id}`} className="text-accent hover:underline">
-                                        {t.token.symbol ?? shortHash(t.token.id, 6, 4)}
+                                        {t.token.symbol ?? <AddressText addr={t.token.id} />}
                                     </Link>
                                 </td>
                                 <td className="text-right font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0)}</td>
