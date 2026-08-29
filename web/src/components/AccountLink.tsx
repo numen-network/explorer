@@ -63,7 +63,7 @@ export default function AccountLink({addr, acc, className = '', full = false}: {
                                     <span className="truncate font-medium">{display}</span>
                                 </>
                             ) : (
-                                <span className="truncate font-mono font-medium">{full ? addr : shortHash(addr, 8, 6)}</span>
+                                <span className="truncate font-mono font-medium">{full ? addr : shortHash(addr, 7, 4)}</span>
                             )}
                         </Link>
                     </TooltipTrigger>

@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(props: PageProps<'/evm/address/[address]'>) {
     const {address} = await props.params
-    return {title: `EVM ${shortHash(address, 8, 6)}`}
+    return {title: `EVM ${shortHash(address, 7, 4)}`}
 }
 
 export default async function EvmAddressPage(props: PageProps<'/evm/address/[address]'>) {
@@ -33,7 +33,7 @@ export default async function EvmAddressPage(props: PageProps<'/evm/address/[add
             {data.holdings.map(h => (
                 <div key={h.token.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
                     <Link href={`/token/${h.token.id}`} className="font-medium text-accent hover:underline">
-                        {h.token.name ?? shortHash(h.token.id, 8, 6)}
+                        {h.token.name ?? shortHash(h.token.id, 7, 4)}
                     </Link>
                     <span className="text-xs text-sub">{h.token.symbol}</span>
                     <span className="ml-auto font-mono">{fmtBalance(h.balance, h.token.decimals ?? 0, h.token.symbol ?? undefined)}</span>

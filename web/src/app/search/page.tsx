@@ -57,7 +57,7 @@ export default async function SearchPage(props: PageProps<'/search'>) {
                         <Tag text="Token" />
                         <span className="font-medium">{t.name ?? 'Unknown'}</span>
                         {t.symbol && <span className="text-xs text-sub">{t.symbol}</span>}
-                        <span className="ml-auto font-mono text-xs text-sub">{shortHash(t.id, 8, 6)}</span>
+                        <span className="ml-auto font-mono text-xs text-sub">{shortHash(t.id, 7, 4)}</span>
                     </Link>
                 ))}
                 {accounts.map(a => {
@@ -65,7 +65,7 @@ export default async function SearchPage(props: PageProps<'/search'>) {
                     return (
                         <Link key={a.id} href={`/account/${addr}`} className="flex items-center gap-3 px-5 py-3 text-sm hover:bg-bg/60">
                             <span className="font-medium">{a.identityDisplay}</span>
-                            <span className="ml-auto font-mono text-xs text-sub">{shortHash(addr, 8, 6)}</span>
+                            <span className="ml-auto font-mono text-xs text-sub">{shortHash(addr, 7, 4)}</span>
                         </Link>
                     )
                 })}

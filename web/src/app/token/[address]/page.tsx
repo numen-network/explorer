@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(props: PageProps<'/token/[address]'>) {
     const {address} = await props.params
-    return {title: `Token ${shortHash(address, 8, 6)}`}
+    return {title: `Token ${shortHash(address, 7, 4)}`}
 }
 
 export default async function TokenPage(props: PageProps<'/token/[address]'>) {

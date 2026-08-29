@@ -38,7 +38,7 @@ export function EvmAddrLink({addr, full = false}: {addr: string; full?: boolean}
     return (
         <AddrMark addr={addr}>
             <Link href={`/evm/address/${addr}`} className="font-mono text-accent hover:underline" title={addr}>
-                {full ? addr : shortHash(addr, 8, 6)}
+                {full ? addr : shortHash(addr, 7, 4)}
             </Link>
         </AddrMark>
     )

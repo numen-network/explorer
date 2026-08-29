@@ -39,7 +39,7 @@ const MAX_U128 = (1n << 128n) - 1n
 
 export async function generateMetadata(props: PageProps<'/account/[id]'>) {
     const {id} = await props.params
-    return {title: `Account ${shortHash(id, 8, 6)}`}
+    return {title: `Account ${shortHash(id, 7, 4)}`}
 }
 
 // a tab is only built when the reader is on it, so the page runs one tab query
@@ -70,7 +70,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
         a.evmAddress ? tokenTransferCount(a.evmAddress) : 0,
     ])
 
-    const ctx: TabCtx = {hex, addr, label: identityLabel(a) ?? shortHash(addr, 8, 6), chain, sp}
+    const ctx: TabCtx = {hex, addr, label: identityLabel(a) ?? shortHash(addr, 7, 4), chain, sp}
     const validator = s.validators[0]
     const minedBlocks = s.minerDays.reduce((n, d) => n + d.blocks, 0)
     const locks = lockRows(a, validator, s)
