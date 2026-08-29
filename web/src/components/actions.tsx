@@ -137,7 +137,7 @@ export default function ActionList({rows, decimals, symbol}: {rows: ActionRow[];
                     <Picker value={move} options={MOVES} onChange={setMove} />
                 </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="max-h-120 overflow-auto">
                 <table className="gtable mt-1 w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(16ch,max-content)_minmax(max-content,1fr)_max-content_max-content]">
                     <thead>
                         <tr>
