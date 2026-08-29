@@ -7,8 +7,8 @@ import {NONE, type LockRow} from './shared'
 export default function Locks({rows, chain}: {rows: LockRow[]; chain: ChainProps}) {
     return (
         <div>
-            <div className="card overflow-x-auto">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_minmax(18ch,1fr)]">
+            <div className="card">
+                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_minmax(max-content,1fr)]">
                     <thead>
                         <tr>
                             <th>Kind</th>

@@ -15,8 +15,8 @@ export default async function Judgements({addr, chain, sp, index}: TabCtx & {ind
 
     return (
         <>
-            <div className="card overflow-x-auto">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[minmax(18ch,1fr)_max-content_max-content_max-content]">
+            <div className="card">
+                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[minmax(max-content,1fr)_max-content_max-content_max-content]">
                     <thead>
                         <tr>
                             <th>Account</th>

@@ -55,8 +55,8 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
 
     const extrinsics = (
         <>
-        <div className="card overflow-x-auto">
-            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(18ch,1fr)_max-content_max-content]">
+        <div className="card">
+            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(max-content,1fr)_max-content_max-content]">
                 <thead>
                     <tr>
                         <th>Extrinsic</th>
@@ -126,7 +126,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     )
 
     const digest = (
-        <div className="card overflow-x-auto">
+        <div className="card">
             <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_minmax(0,1fr)]">
                 <thead>
                     <tr>

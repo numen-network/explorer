@@ -214,8 +214,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
     )
 
     const treasury = spends && (
-        <div className="card overflow-x-auto">
-            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(18ch,1fr)_max-content_max-content_max-content_max-content]">
+        <div className="card">
+            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(max-content,1fr)_max-content_max-content_max-content_max-content]">
                 <thead>
                     <tr>
                         <th>Id</th>
@@ -263,7 +263,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
     const span = (blocks: number) => <span title={`${fmtInt(blocks)} blocks`}>{fmtBlockSpan(blocks, chain.blockTime)}</span>
 
     const trackList = tracks && (
-        <div className="card overflow-x-auto">
+        <div className="card">
             <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[minmax(max-content,1fr)_max-content_max-content_max-content_max-content_max-content_max-content_max-content]">
                 <thead>
                     <tr>

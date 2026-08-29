@@ -34,7 +34,7 @@ export interface VoteGroup {
     rows: VoteEntry[]
 }
 
-const COLS = 'grid-cols-[minmax(16ch,1fr)_max-content_max-content_2.5rem]'
+const COLS = 'grid-cols-[minmax(max-content,1fr)_max-content_max-content_2.5rem]'
 
 function Caret({open}: {open: boolean}) {
     return (
@@ -78,7 +78,7 @@ function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
             {v.delegators.length > 0 && (
                 <div className="mt-5">
                     <h3 className="text-[13px] font-semibold">Delegation list</h3>
-                    <table className="gtable mt-1 w-full text-sm whitespace-nowrap grid-cols-[minmax(16ch,1fr)_max-content_max-content]">
+                    <table className="gtable mt-1 w-full text-sm whitespace-nowrap grid-cols-[minmax(max-content,1fr)_max-content_max-content]">
                         <thead>
                             <tr>
                                 <th className="px-0 py-2">Delegator</th>
@@ -133,7 +133,7 @@ export default function VoteLists({groups, symbol, partial}: {groups: VoteGroup[
                     </button>
                 ))}
             </div>
-            <div className="card overflow-x-auto">
+            <div className="card">
                 <table className={`gtable w-full text-sm whitespace-nowrap ${COLS}`}>
                     <thead>
                         <tr>

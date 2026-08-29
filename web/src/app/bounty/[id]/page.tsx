@@ -38,7 +38,7 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
     const acc = (a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : <span className="text-faint">—</span>)
 
     const children = (
-        <div className="card overflow-x-auto">
+        <div className="card">
             <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_minmax(24ch,1fr)_max-content_max-content_max-content_max-content]">
                 <thead>
                     <tr>

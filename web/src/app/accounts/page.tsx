@@ -54,8 +54,8 @@ export default async function AccountsPage(props: PageProps<'/accounts'>) {
                     </span>
                 </div>
             )}
-            <div className="card mt-3 overflow-x-auto">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[minmax(18ch,1fr)_max-content_max-content_max-content_max-content]">
+            <div className="card mt-3">
+                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[minmax(max-content,1fr)_max-content_max-content_max-content_max-content]">
                     <thead>
                         <tr>
                             <th>Account</th>

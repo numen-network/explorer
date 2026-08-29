@@ -25,8 +25,8 @@ export default async function BlocksPage(props: PageProps<'/blocks'>) {
             <div className="mt-6">
                 <h1 className="text-lg font-semibold">Blocks</h1>
             </div>
-            <div className="card mt-3 overflow-x-auto">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_max-content_minmax(18ch,1fr)_max-content_max-content]">
+            <div className="card mt-3">
+                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_max-content_minmax(max-content,1fr)_max-content_max-content]">
                     <thead>
                         <tr>
                             <th>Height</th>

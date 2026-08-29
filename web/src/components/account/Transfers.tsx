@@ -26,8 +26,8 @@ export default async function Transfers({hex, addr, label, chain, sp}: TabCtx) {
                 <FilterChip label="Out" href={dirHref('out')} active={dir === 'out'} />
                 <FilterChip label="In" href={dirHref('in')} active={dir === 'in'} />
             </div>
-            <div className="card overflow-x-auto">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_minmax(18ch,max-content)_minmax(18ch,1fr)_max-content]">
+            <div className="card">
+                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_max-content_minmax(max-content,1fr)_max-content]">
                     <thead>
                         <tr>
                             <th>Extrinsic</th>

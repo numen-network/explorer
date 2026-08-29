@@ -15,7 +15,7 @@ export default async function Extrinsics({hex, addr, sp}: TabCtx) {
 
     return (
         <>
-            <div className="card overflow-x-auto">
+            <div className="card">
                 <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_minmax(max-content,1fr)_max-content]">
                     <thead>
                         <tr>

@@ -39,7 +39,7 @@ export function RefCell({r}: {r?: {index: number; status: string} | null}) {
 
 export function BountyTable({rows, chain}: {rows: BountyRow[]; chain: {ss58: number; decimals: number; symbol: string}}) {
     return (
-        <div className="card overflow-x-auto">
+        <div className="card">
             <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_minmax(24ch,1fr)_max-content_max-content_max-content_max-content_max-content]">
                 <thead>
                     <tr>

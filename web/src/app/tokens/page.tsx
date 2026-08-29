@@ -22,7 +22,7 @@ export default async function TokensPage(props: PageProps<'/tokens'>) {
                 <h1 className="text-lg font-semibold">ERC20 tokens</h1>
                 <span className="text-xs text-sub">{fmtInt(conn.totalCount)} contracts</span>
             </div>
-            <div className="card mt-3 overflow-x-auto">
+            <div className="card mt-3">
                 <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[minmax(max-content,1fr)_max-content_max-content_max-content_max-content_max-content]">
                     <thead>
                         <tr>

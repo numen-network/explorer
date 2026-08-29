@@ -8,7 +8,7 @@ import type {TabCtx} from './shared'
 export default async function Votes({hex, chain}: TabCtx) {
     const {votes} = await votesFor(hex)
     return (
-        <div className="card overflow-x-auto">
+        <div className="card">
             <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[minmax(max-content,1fr)_max-content_max-content_max-content_max-content]">
                 <thead>
                     <tr>

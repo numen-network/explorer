@@ -44,8 +44,8 @@ export default async function MinersPage(props: PageProps<'/miners'>) {
                     ))}
                 </div>
             </div>
-            <div className="card mt-3 overflow-x-auto">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_minmax(18ch,1fr)_max-content_max-content_max-content]">
+            <div className="card mt-3">
+                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_minmax(max-content,1fr)_max-content_max-content_max-content]">
                     <thead>
                         <tr>
                             <th>#</th>

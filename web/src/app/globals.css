@@ -60,6 +60,9 @@ html body[data-scroll-locked] {
 @layer components {
     table.gtable {
         display: grid;
+        /* the table is its own sideways scroller so squeezed tracks slide
+           instead of bleeding through the card */
+        overflow-x: auto;
     }
     .gtable thead,
     .gtable tbody,

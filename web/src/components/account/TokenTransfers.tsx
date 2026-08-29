@@ -15,8 +15,8 @@ export default async function TokenTransfers({addr, evm, sp}: TabCtx & {evm: str
 
     return (
         <>
-            <div className="card overflow-x-auto">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(14ch,1fr)_minmax(14ch,1fr)_max-content_max-content]">
+            <div className="card">
+                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(max-content,1fr)_minmax(max-content,1fr)_max-content_max-content]">
                     <thead>
                         <tr>
                             <th>Transaction</th>
