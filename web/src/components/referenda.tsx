@@ -32,7 +32,7 @@ export function Gauge({value, need, variant}: {value: number | null; need?: numb
                 <div className="flex-1 bg-edge" />
             ) : (
                 <>
-                    <div className={variant === 'split' ? 'bg-pos' : 'bg-accent'} style={{width: `${v}%`}} />
+                    <div className={variant === 'split' ? 'bg-pos' : 'bg-support'} style={{width: `${v}%`}} />
                     {variant === 'split' && v > 0 && v < 100 && <div className="w-[3px] shrink-0 bg-card" />}
                     <div className={`flex-1 ${variant === 'split' ? 'bg-neg' : 'bg-bg'}`} />
                 </>

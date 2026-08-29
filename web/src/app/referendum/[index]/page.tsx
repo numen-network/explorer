@@ -256,7 +256,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <Gauge value={supportNow} need={supportNeed} variant="solid" />
             </div>
             <div className="mt-1.5 flex justify-between text-[11px]">
-                <Slot className="text-accent" value={pct(supportNow)} label="Support" />
+                <Slot className="text-support" value={pct(supportNow)} label="Support" />
                 <Slot className="text-right text-sub" value={supportNeed !== null ? pct(supportNeed) : '—'} label="Threshold" />
             </div>
 

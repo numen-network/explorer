@@ -9,6 +9,7 @@ const ACCENT = '#0891b2'
 const ACCENT_SOFT = '#c4e5ed'
 const GRAY = '#9aa1ad'
 const GREEN = '#4caf50'
+const SUPPORT = '#7c3aed'
 
 function compact(v: number): string {
     const abs = Math.abs(v)
@@ -187,14 +188,14 @@ export function CurvesChart({
                     name: 'Support',
                     type: 'line',
                     symbol: 'none',
-                    lineStyle: {width: 2, color: ACCENT},
-                    itemStyle: {color: ACCENT},
+                    lineStyle: {width: 2, color: SUPPORT},
+                    itemStyle: {color: SUPPORT},
                     data: support,
                     markLine: now
                         ? {silent: true, symbol: 'none', label: {show: false}, lineStyle: {color: GRAY, type: 'dashed', width: 1}, data: [{xAxis: now.at}]}
                         : undefined,
                 },
-                ...(hasCurrent ? [walked('Current support', currentSupport, ACCENT)] : []),
+                ...(hasCurrent ? [walked('Current support', currentSupport, SUPPORT)] : []),
                 {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: approval},
                 ...(hasCurrent ? [walked('Current approval', currentApproval, GREEN)] : []),
             ],
