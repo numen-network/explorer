@@ -1,5 +1,8 @@
 import Link from 'next/link'
+import AddressText from '@/components/AddressText'
 import BlocksRail, {type BlockCard} from '@/components/BlocksRail'
+import CopyBtn from '@/components/CopyBtn'
+import {DetailRow} from '@/components/Detail'
 import Refresh from '@/components/Refresh'
 import Section from '@/components/Section'
 import StatTile, {type StatChip} from '@/components/StatTile'
@@ -29,6 +32,15 @@ function StatusRow({label, children}: {label: string; children: React.ReactNode}
         <div className="flex items-center justify-between py-[9px] text-sm">
             <dt className="text-sub">{label}</dt>
             <dd className="font-mono">{children}</dd>
+        </div>
+    )
+}
+
+function InfoCell({label, children}: {label: string; children: React.ReactNode}) {
+    return (
+        <div className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
+            <dt className="text-sub">{label}</dt>
+            <dd className="min-w-0 truncate font-mono">{children}</dd>
         </div>
     )
 }
@@ -80,6 +92,7 @@ export default async function Home() {
         vertices: o.vertices,
     }))
     const faces = data.topology[0]?.faces ?? ''
+    const genesisHash = data.genesis[0].hash
 
     const chrono = [...days].reverse().slice(-30)
     const txLabels = chrono.map(d => d.id.slice(5))
@@ -162,7 +175,6 @@ export default async function Home() {
                         <StatusRow label="Avg block time">{blockTime ? `${blockTime.toFixed(1)}s` : '—'}</StatusRow>
                         <StatusRow label="Validators">{fmtInt(data.validators.totalCount)}</StatusRow>
                         <StatusRow label="Session">#{fmtInt(sessionIdx)}</StatusRow>
-                        <StatusRow label="EVM chain id">{props.evmChainId}</StatusRow>
                     </dl>
                     {period > 0 && (
                         <div>
@@ -328,6 +340,32 @@ export default async function Home() {
                     </div>
             </div>
 
+            <Section title="Network info">
+                <div className="card py-2">
+                    <dl className="grid gap-x-10 px-5 py-1 sm:grid-cols-2 lg:grid-cols-3">
+                        <InfoCell label="Chain">{props.chain}</InfoCell>
+                        <InfoCell label="Token">{props.symbol}</InfoCell>
+                        <InfoCell label="Decimals">{props.decimals}</InfoCell>
+                        <InfoCell label="SS58 prefix">{props.ss58}</InfoCell>
+                        <InfoCell label="Existential deposit">{fmtBalance(props.existentialDeposit, props.decimals, props.symbol)}</InfoCell>
+                        <InfoCell label="Target block time">{props.blockTime}s</InfoCell>
+                        <InfoCell label="Session length">{fmtInt(props.sessionLength)} blocks</InfoCell>
+                        <InfoCell label="Spec version">{data.blocks[0]?.specVersion ?? '—'}</InfoCell>
+                        <InfoCell label="PoScan protocol">{data.topology[0]?.id ?? '—'}</InfoCell>
+                        <InfoCell label="EVM chain id">{props.evmChainId}</InfoCell>
+                    </dl>
+                    <div className="mt-1 border-t border-edge pt-1">
+                        <DetailRow label="Native ERC20">
+                            <AddressText addr={props.nativeErc20} full />
+                            <CopyBtn text={props.nativeErc20} />
+                        </DetailRow>
+                        <DetailRow label="Genesis hash">
+                            {genesisHash}
+                            <CopyBtn text={genesisHash} />
+                        </DetailRow>
+                    </div>
+                </div>
+            </Section>
         </div>
     )
 }

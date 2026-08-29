@@ -40,6 +40,12 @@ export class ChainInfo {
     evmChainId!: number
 
     /**
+     * EVM address of the native balance ERC20 facade
+     */
+    @StringColumn_({nullable: false})
+    nativeErc20!: string
+
+    /**
      * blocks per session, boundaries land on multiples of it plus the offset
      */
     @IntColumn_({nullable: false})

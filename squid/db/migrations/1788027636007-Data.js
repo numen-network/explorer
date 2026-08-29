@@ -1,5 +1,5 @@
-module.exports = class Data1788022839270 {
-    name = 'Data1788022839270'
+module.exports = class Data1788027636007 {
+    name = 'Data1788027636007'
 
     async up(db) {
         await db.query(`CREATE TABLE "account" ("id" character varying NOT NULL, "free" numeric NOT NULL, "reserved" numeric NOT NULL, "frozen" numeric NOT NULL, "nonce" integer NOT NULL, "first_seen_block" integer NOT NULL, "last_active_block" integer NOT NULL, "identity_display" text, "identity_json" jsonb, "identity_status" character varying(10), "identity_sub_name" text, "username" text, "evm_address" text, "vesting_json" jsonb, "locks_json" jsonb, "holds_json" jsonb, "deposits_json" jsonb, "identity_super_id" character varying, CONSTRAINT "PK_54115ee388cdb6d86bb4bf5b2ea" PRIMARY KEY ("id"))`)
@@ -15,7 +15,7 @@ module.exports = class Data1788022839270 {
         await db.query(`CREATE INDEX "idx_block_timestamp_82806c7c" ON "block" ("timestamp") `)
         await db.query(`CREATE INDEX "idx_block_author_c116954b" ON "block" ("author_id") `)
         await db.query(`CREATE INDEX "idx_block_finalized_b535c2b5" ON "block" ("finalized") `)
-        await db.query(`CREATE TABLE "chain_info" ("id" character varying NOT NULL, "name" text NOT NULL, "symbol" text NOT NULL, "decimals" integer NOT NULL, "ss58" integer NOT NULL, "block_time" integer NOT NULL, "existential_deposit" numeric NOT NULL, "evm_chain_id" integer NOT NULL, "session_length" integer NOT NULL, "session_offset" integer NOT NULL, "head" integer NOT NULL, "finalized_head" integer NOT NULL, CONSTRAINT "PK_1b82ce2acbc16bfc7f84bfdc8ff" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "chain_info" ("id" character varying NOT NULL, "name" text NOT NULL, "symbol" text NOT NULL, "decimals" integer NOT NULL, "ss58" integer NOT NULL, "block_time" integer NOT NULL, "existential_deposit" numeric NOT NULL, "evm_chain_id" integer NOT NULL, "native_erc20" text NOT NULL, "session_length" integer NOT NULL, "session_offset" integer NOT NULL, "head" integer NOT NULL, "finalized_head" integer NOT NULL, CONSTRAINT "PK_1b82ce2acbc16bfc7f84bfdc8ff" PRIMARY KEY ("id"))`)
         await db.query(`CREATE TABLE "mined_object" ("id" character varying NOT NULL, "protocol" text NOT NULL, "vertices" bytea NOT NULL, "vertex_count" integer NOT NULL, "block_id" character varying, CONSTRAINT "REL_0aea185c9517d8774d2afacfe3" UNIQUE ("block_id"), CONSTRAINT "PK_e33ffff2ccc603f6b29796ab7bb" PRIMARY KEY ("id"))`)
         await db.query(`CREATE UNIQUE INDEX "idx_mined_object_block_a24f655d" ON "mined_object" ("block_id") `)
         await db.query(`CREATE TABLE "mesh_topology" ("id" character varying NOT NULL, "faces" bytea NOT NULL, "face_count" integer NOT NULL, CONSTRAINT "PK_9069b0a7aa6abd0c3c022103e64" PRIMARY KEY ("id"))`)

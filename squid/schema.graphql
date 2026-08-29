@@ -34,6 +34,8 @@ type ChainInfo @entity {
   existentialDeposit: BigInt!
   "chain id the EVM side answers with"
   evmChainId: Int!
+  "EVM address of the native balance ERC20 facade"
+  nativeErc20: String!
   "blocks per session, boundaries land on multiples of it plus the offset"
   sessionLength: Int!
   sessionOffset: Int!
