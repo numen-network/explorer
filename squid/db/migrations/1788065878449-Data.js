@@ -1,5 +1,5 @@
-module.exports = class Data1788027636007 {
-    name = 'Data1788027636007'
+module.exports = class Data1788065878449 {
+    name = 'Data1788065878449'
 
     async up(db) {
         await db.query(`CREATE TABLE "account" ("id" character varying NOT NULL, "free" numeric NOT NULL, "reserved" numeric NOT NULL, "frozen" numeric NOT NULL, "nonce" integer NOT NULL, "first_seen_block" integer NOT NULL, "last_active_block" integer NOT NULL, "identity_display" text, "identity_json" jsonb, "identity_status" character varying(10), "identity_sub_name" text, "username" text, "evm_address" text, "vesting_json" jsonb, "locks_json" jsonb, "holds_json" jsonb, "deposits_json" jsonb, "identity_super_id" character varying, CONSTRAINT "PK_54115ee388cdb6d86bb4bf5b2ea" PRIMARY KEY ("id"))`)
@@ -73,9 +73,11 @@ module.exports = class Data1788027636007 {
         await db.query(`CREATE INDEX "idx_judgement_block_e9143e28" ON "judgement" ("block") `)
         await db.query(`CREATE INDEX "idx_judgement_registrar_block_c7e4ceff" ON "judgement" ("registrar_id", "block") `)
         await db.query(`CREATE TABLE "track" ("id" character varying NOT NULL, "name" text NOT NULL, "max_deciding" integer NOT NULL, "max_spend" numeric NOT NULL, "decision_deposit" numeric NOT NULL, "prepare_period" integer NOT NULL, "decision_period" integer NOT NULL, "confirm_period" integer NOT NULL, "min_enactment_period" integer NOT NULL, "min_approval" jsonb NOT NULL, "min_support" jsonb NOT NULL, CONSTRAINT "PK_0631b9bcf521f8fab3a15f2c37e" PRIMARY KEY ("id"))`)
-        await db.query(`CREATE TABLE "referendum" ("id" character varying NOT NULL, "index" integer NOT NULL, "origin" text, "proposal_hash" text, "title" text, "description" text, "proposal_call" text, "proposal_amount" numeric, "proposal_beneficiary" text, "proposal_bounty_index" integer, "submitted_at" integer NOT NULL, "status" character varying(10) NOT NULL, "deciding_since" integer, "confirming_since" integer, "ended_at" integer, "ayes" numeric NOT NULL, "nays" numeric NOT NULL, "support" numeric NOT NULL, "timeline" jsonb NOT NULL, "submission_depositor" text, "submission_deposit" numeric, "decision_depositor" text, "decision_deposit" numeric, "track_id" character varying, "submitter_id" character varying, CONSTRAINT "PK_772fc260f18c235a6327252ce00" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "referendum" ("id" character varying NOT NULL, "index" integer NOT NULL, "origin" text, "proposal_hash" text, "title" text, "description" text, "proposal_pallet" text, "proposal_method" text, "proposal_calls" jsonb, "proposal_amount" numeric, "proposal_beneficiary" text, "proposal_bounty_index" integer, "submitted_at" integer NOT NULL, "status" character varying(10) NOT NULL, "deciding_since" integer, "confirming_since" integer, "ended_at" integer, "ayes" numeric NOT NULL, "nays" numeric NOT NULL, "support" numeric NOT NULL, "timeline" jsonb NOT NULL, "submission_depositor" text, "submission_deposit" numeric, "decision_depositor" text, "decision_deposit" numeric, "track_id" character varying, "submitter_id" character varying, CONSTRAINT "PK_772fc260f18c235a6327252ce00" PRIMARY KEY ("id"))`)
         await db.query(`CREATE UNIQUE INDEX "idx_referendum_index_feec7826" ON "referendum" ("index") `)
         await db.query(`CREATE INDEX "idx_referendum_track_319f8fed" ON "referendum" ("track_id") `)
+        await db.query(`CREATE INDEX "idx_referendum_proposal_pallet_d027df5d" ON "referendum" ("proposal_pallet") `)
+        await db.query(`CREATE INDEX "idx_referendum_proposal_method_a540185e" ON "referendum" ("proposal_method") `)
         await db.query(`CREATE INDEX "idx_referendum_proposal_bounty_index_d217b665" ON "referendum" ("proposal_bounty_index") `)
         await db.query(`CREATE INDEX "idx_referendum_submitter_3fca5094" ON "referendum" ("submitter_id") `)
         await db.query(`CREATE INDEX "idx_referendum_status_24792806" ON "referendum" ("status") `)
@@ -327,6 +329,8 @@ module.exports = class Data1788027636007 {
         await db.query(`DROP INDEX "public"."idx_referendum_status_24792806"`)
         await db.query(`DROP INDEX "public"."idx_referendum_submitter_3fca5094"`)
         await db.query(`DROP INDEX "public"."idx_referendum_proposal_bounty_index_d217b665"`)
+        await db.query(`DROP INDEX "public"."idx_referendum_proposal_method_a540185e"`)
+        await db.query(`DROP INDEX "public"."idx_referendum_proposal_pallet_d027df5d"`)
         await db.query(`DROP INDEX "public"."idx_referendum_track_319f8fed"`)
         await db.query(`DROP INDEX "public"."idx_referendum_index_feec7826"`)
         await db.query(`DROP TABLE "referendum"`)

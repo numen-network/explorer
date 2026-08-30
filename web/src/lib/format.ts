@@ -98,6 +98,29 @@ export function fmtBlockSpan(blocks: number, blockTime: number): string {
     return `${secs}s`
 }
 
+const MONTH_DAYS = 30
+const YEAR_DAYS = 365
+
+/**
+ * A wait in calendar units, since a payout months away reads as nothing in days.
+ * A month is 30 days and a year 365, which is what anybody reading a schedule
+ * takes them for.
+ */
+export function fmtDaySpan(blocks: number, blockTime: number): string {
+    const days = Math.max(1, Math.ceil((blocks * blockTime) / 86400))
+    if (days >= YEAR_DAYS) {
+        const years = Math.floor(days / YEAR_DAYS)
+        const months = Math.floor((days % YEAR_DAYS) / MONTH_DAYS)
+        return months > 0 ? `${years}y ${months}mo` : `${years}y`
+    }
+    if (days >= MONTH_DAYS) {
+        const months = Math.floor(days / MONTH_DAYS)
+        const rest = days % MONTH_DAYS
+        return rest > 0 ? `${months}mo ${rest}d` : `${months}mo`
+    }
+    return `${days}d`
+}
+
 // squid mints 0000069254-4a12b-000001, the url wants height and index
 export function extrinsicPath(squidId: string): string {
     const p = squidId.split('-')

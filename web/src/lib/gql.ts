@@ -877,6 +877,20 @@ export interface TrackRow {
     minSupport: unknown
 }
 
+/**
+ * One call out of a proposal, flattened in preorder. Depth is what reads the
+ * list back as the tree the chain would run.
+ */
+export interface ProposalNode {
+    pallet: string
+    method: string
+    depth: number
+    amount?: string
+    beneficiary?: string
+    validFrom?: number | null
+    bounty?: number
+}
+
 export interface ReferendumRow {
     id: string
     index: number
@@ -884,7 +898,9 @@ export interface ReferendumRow {
     proposalHash: string | null
     title: string | null
     description: string | null
-    proposalCall: string | null
+    proposalPallet: string | null
+    proposalMethod: string | null
+    proposalCalls: ProposalNode[] | null
     proposalAmount: string | null
     proposalBeneficiary: string | null
     submittedAt: number
@@ -905,7 +921,7 @@ export interface ReferendumRow {
 }
 
 const TRACK_FIELDS = `id name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
-const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalCall proposalAmount proposalBeneficiary submittedAt status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } submissionDepositor submissionDeposit decisionDepositor decisionDeposit track { ${TRACK_FIELDS} }`
+const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalCalls proposalAmount proposalBeneficiary submittedAt status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } submissionDepositor submissionDeposit decisionDepositor decisionDeposit track { ${TRACK_FIELDS} }`
 
 export interface TreasurySpendRow {
     id: string

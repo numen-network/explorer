@@ -7,7 +7,7 @@ import {TimeCell} from '@/components/TimeCell'
 import {CurvesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, ExtrinsicLink} from '@/components/links'
-import {Gauge, StatusBadge} from '@/components/referenda'
+import {Gauge, ProposalTree, StatusBadge} from '@/components/referenda'
 import {CROSS, RING, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps, sentenceCase} from '@/components/timeline'
 import ActionList, {type ActionImpact, type ActionRow} from '@/components/actions'
 import VoteLists, {type VoteEntry} from '@/components/votes'
@@ -92,7 +92,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const trail = rawSteps(r.timeline)
     const voterIds = [...new Set(data.votes.map(v => v.voter?.id).filter((id): id is string => id != null))]
-    const partyIds = [...new Set([r.proposalBeneficiary, r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
+    const nodes = r.proposalCalls ?? []
+    const payees = nodes.map(node => node.beneficiary)
+    const partyIds = [...new Set([...payees, r.proposalBeneficiary, r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
     const [refs, dels, dacts, evs] = await Promise.all([
         accountRefs(partyIds),
         delegationsFor(voterIds, r.track.id),
@@ -102,7 +104,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const evBy = new Map(evs.events.map(e => [e.id, e]))
     const evWhos = evs.events.map(e => (e.args as {who?: unknown} | null)?.who).filter((w): w is string => typeof w === 'string')
     const party = new Map(refs.accounts.map(a => [a.id, a]))
-    const beneficiary = r.proposalBeneficiary != null ? party.get(r.proposalBeneficiary) : undefined
 
     const byTarget = new Map<string, typeof dels.delegations>()
     for (const d of dels.delegations) byTarget.set(d.target.id, [...(byTarget.get(d.target.id) ?? []), d])
@@ -315,15 +316,19 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         </div>
     )
 
+    const spends = nodes.filter(node => node.amount != null)
     const call = (
         <DetailCard>
-            <DetailRow label="Call">
-                <span className="font-mono text-[13px]">{r.proposalCall ?? '—'}</span>
-            </DetailRow>
-            <DetailRow label="Amount">{r.proposalAmount ? fmtBalance(r.proposalAmount, chain.decimals, chain.symbol) : '—'}</DetailRow>
-            <DetailRow label="Beneficiary">
-                {r.proposalBeneficiary ? <AccountLink full addr={ss58Encode(r.proposalBeneficiary, chain.ss58)} acc={beneficiary} /> : '—'}
-            </DetailRow>
+            {nodes.length === 0 ? (
+                <DetailRow label="Call">
+                    <span className="text-faint">Nothing here reads back as a call</span>
+                </DetailRow>
+            ) : (
+                <ProposalTree nodes={nodes} chain={chain} best={heads.best} party={party} />
+            )}
+            {spends.length > 1 && r.proposalAmount != null && (
+                <DetailRow label="Total">{fmtBalance(r.proposalAmount, chain.decimals, chain.symbol)}</DetailRow>
+            )}
         </DetailCard>
     )
 

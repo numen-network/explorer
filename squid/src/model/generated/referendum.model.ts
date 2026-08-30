@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, JSONColumn as JSONColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
 import {Track} from "./track.model"
 import {Account} from "./account.model"
 import {ReferendumStatus} from "./_referendumStatus"
@@ -36,14 +36,31 @@ export class Referendum {
     description!: string | undefined | null
 
     /**
-     * set when the inline proposal decodes to a known call
+     * the call a proposal runs, read back from the runtime whether it sits inline or behind a preimage
      */
+    @Index_("idx_referendum_proposal_pallet_d027df5d")
     @StringColumn_({nullable: true})
-    proposalCall!: string | undefined | null
+    proposalPallet!: string | undefined | null
 
+    @Index_("idx_referendum_proposal_method_a540185e")
+    @StringColumn_({nullable: true})
+    proposalMethod!: string | undefined | null
+
+    /**
+     * the proposal call tree flattened in preorder, spend nodes carrying what they pay and when
+     */
+    @JSONColumn_({nullable: true})
+    proposalCalls!: unknown | undefined | null
+
+    /**
+     * what the proposal asks the treasury for, summed over its spends
+     */
     @BigIntColumn_({nullable: true})
     proposalAmount!: bigint | undefined | null
 
+    /**
+     * set when every spend pays one account
+     */
     @StringColumn_({nullable: true})
     proposalBeneficiary!: string | undefined | null
 

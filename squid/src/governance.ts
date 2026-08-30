@@ -16,7 +16,11 @@ const PREIMAGE_FOR_PREFIX = '0xd8f314b7f4e6b095f0f8ee4656a448257c7dda85c9c297999
 // scheduler echoes the same id back on dispatch
 const ASSEMBLY_ID = 'assembly'
 const ENACTMENT = 'enactment'
-const MAX_METADATA_BYTES = 16384
+const MAX_PREIMAGE_BYTES = 16384
+const BATCH_CALLS = new Set(['Utility.batch', 'Utility.batch_all', 'Utility.force_batch'])
+// a preimage is bytes somebody paid to store, so a proposal nests as deep as it
+// likes and the walk has to stop on its own
+const MAX_PROPOSAL_DEPTH = 4
 const MAX_TITLE_CHARS = 200
 
 export function collectGovEvent(batch: BatchData, id: string, name: string, args: any, height: number, header: any, signer?: string, callArgs?: any): void {
@@ -27,7 +31,8 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
     if (batch.govEvents.length > 0) {
         await loadTouchedReferenda(ctx, batch)
         await loadEnactments(ctx, batch)
-        for (const ev of batch.govEvents) applyGovEvent(batch, ev, lastHeader._runtime)
+        for (const ev of batch.govEvents) applyGovEvent(batch, ev)
+        await applyProposals(batch, rpc, lastHeader._runtime)
         await applyMetadata(batch, rpc)
         await stampDelegatedWeights(batch)
         await logDelegationActions(ctx, batch)
@@ -221,19 +226,25 @@ async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
     }
 }
 
-// the convention is a noted preimage holding utf8 json {title, description}
-async function fetchMetadataJson(rpc: RpcClient, hash: string, height: number): Promise<{title: string; description: string | null} | undefined> {
+// the full key ends with the encoded (hash, len) pair, prefix scanning recovers len
+async function fetchPreimage(rpc: RpcClient, hash: string, height: number): Promise<Uint8Array | undefined> {
     const at = await rpc.call('chain_getBlockHash', [height])
-    // the full key ends with the encoded (hash, len) pair, prefix scanning recovers len
     const keys: string[] = await rpc.call('state_getKeysPaged', [PREIMAGE_FOR_PREFIX + hash.slice(2), 1, null, at])
     if (keys == null || keys.length === 0) return undefined
     const raw: string | null = await rpc.call('state_getStorage', [keys[0], at])
     if (raw == null) return undefined
     const b = hexToBytes(raw.slice(2))
     const len = decodeCompact(b, 0)
-    if (len == null || len.value > MAX_METADATA_BYTES) return undefined
+    if (len == null || len.value > MAX_PREIMAGE_BYTES) return undefined
+    return b.subarray(len.next, len.next + Number(len.value))
+}
+
+// the convention is a noted preimage holding utf8 json {title, description}
+async function fetchMetadataJson(rpc: RpcClient, hash: string, height: number): Promise<{title: string; description: string | null} | undefined> {
+    const bytes = await fetchPreimage(rpc, hash, height)
+    if (bytes == null) return undefined
     try {
-        const parsed = JSON.parse(new TextDecoder().decode(b.subarray(len.next, len.next + Number(len.value))))
+        const parsed = JSON.parse(new TextDecoder().decode(bytes))
         if (typeof parsed?.title !== 'string' || parsed.title.length === 0) return undefined
         return {
             title: parsed.title.slice(0, MAX_TITLE_CHARS),
@@ -263,15 +274,6 @@ function decodeCompact(b: Uint8Array, at: number): {value: bigint; next: number}
     return {value, next: at + 1 + n}
 }
 
-// approve_bounty and its with_curator shortcut both name the bounty
-function decodeApproveBounty(callHex: string, runtime: Runtime): number | undefined {
-    const call = decodeCall(callHex, runtime)
-    if (call?.name !== 'Bounties.approve_bounty' && call?.name !== 'Bounties.approve_bounty_with_curator') {
-        return undefined
-    }
-    return Number(call.args.bountyId)
-}
-
 export function enactmentId(index: number): string {
     const idx = new Uint8Array(4)
     new DataView(idx.buffer).setUint32(0, index, true)
@@ -281,26 +283,112 @@ export function enactmentId(index: number): string {
     return '0x' + Buffer.from(digest).toString('hex')
 }
 
-// spend_local wraps the beneficiary in a MultiAddress while spend hands the
-// account over bare, the chain's unit asset kind takes no bytes at all
-function decodeSpend(callHex: string, runtime: Runtime): {call: string; amount: bigint; beneficiary: string} | undefined {
-    const call = decodeCall(callHex, runtime)
-    if (call?.name === 'Treasury.spend_local' && call.args.beneficiary?.__kind === 'Id') {
-        return {call: 'treasury.spendLocal', amount: call.args.amount, beneficiary: call.args.beneficiary.value}
+type Call = {name: string; args: any}
+
+/**
+ * One call out of a proposal, kept in the order the chain would run it. Depth
+ * is what puts a batch back together, since a flat list of nodes reads out as a
+ * tree without carrying one.
+ */
+interface ProposalNode {
+    pallet: string
+    method: string
+    depth: number
+    /** Planck, held as a string because this lands in a json column. */
+    amount?: string
+    beneficiary?: string
+    /** The block the payout window opens on, null when the call sets none. */
+    validFrom?: number | null
+    /** The bounty an approval names. */
+    bounty?: number
+}
+
+/**
+ * A proposal runs one call, and a batch is how it runs several. What the
+ * treasury pays out is the sum of the spends anywhere inside it, so the walk
+ * goes down rather than reading the outermost call alone.
+ */
+async function applyProposals(batch: BatchData, rpc: RpcClient, runtime: Runtime): Promise<void> {
+    for (const ev of batch.govEvents) {
+        if (ev.name !== 'Referenda.Submitted') continue
+        const r = batch.referenda.get(ev.args.index)
+        if (r == null) continue
+        const call = await proposalCall(rpc, ev.args.proposal, ev.height, runtime)
+        if (call == null) continue
+
+        const nodes: ProposalNode[] = []
+        walkProposal(call, runtime, nodes, 0)
+        r.proposalPallet = nodes[0].pallet
+        r.proposalMethod = nodes[0].method
+        r.proposalCalls = nodes
+
+        const bounty = nodes.find(node => node.bounty != null)
+        if (bounty != null) r.proposalBountyIndex = bounty.bounty
+
+        const spends = nodes.filter(node => node.amount != null)
+        if (spends.length === 0) continue
+        r.proposalAmount = spends.reduce((sum, spend) => sum + BigInt(spend.amount!), 0n)
+        const payees = new Set(spends.map(spend => spend.beneficiary))
+        if (payees.size === 1) r.proposalBeneficiary = spends[0].beneficiary
     }
-    if (call?.name === 'Treasury.spend' && typeof call.args.beneficiary === 'string') {
-        return {call: 'treasury.spend', amount: call.args.amount, beneficiary: call.args.beneficiary}
+}
+
+// an inline proposal carries its bytes, a lookup leaves them in the preimage
+// store where anybody may unnote them once the referendum is over
+async function proposalCall(rpc: RpcClient, proposal: any, height: number, runtime: Runtime): Promise<Call | undefined> {
+    if (proposal?.__kind === 'Inline') return decodeCall(proposal.value, runtime)
+    if (proposal?.__kind !== 'Lookup') return undefined
+    const bytes = await fetchPreimage(rpc, proposal.hash, height)
+    if (bytes == null) return undefined
+    return decodeCall(bytes, runtime)
+}
+
+function walkProposal(call: Call, runtime: Runtime, nodes: ProposalNode[], depth: number): void {
+    const [pallet, method] = call.name.split('.')
+    nodes.push(Object.assign({pallet, method, depth}, readSpend(call), readBounty(call)))
+
+    if (!BATCH_CALLS.has(call.name) || depth >= MAX_PROPOSAL_DEPTH) return
+    for (const inner of call.args.calls ?? []) {
+        const record = decodeInner(inner, runtime)
+        if (record != null) walkProposal(record, runtime, nodes, depth + 1)
+    }
+}
+
+// spend_local wraps the beneficiary in a MultiAddress while spend hands the
+// account over bare, and only spend can hold a payout back
+function readSpend(call: Call): Partial<ProposalNode> | undefined {
+    if (call.name === 'Treasury.spend_local' && call.args.beneficiary?.__kind === 'Id') {
+        return {amount: String(call.args.amount), beneficiary: call.args.beneficiary.value, validFrom: null}
+    }
+    if (call.name === 'Treasury.spend' && typeof call.args.beneficiary === 'string') {
+        return {amount: String(call.args.amount), beneficiary: call.args.beneficiary, validFrom: call.args.validFrom ?? null}
     }
     return undefined
+}
+
+// approve_bounty and its with_curator shortcut both name the bounty
+function readBounty(call: Call): Partial<ProposalNode> | undefined {
+    if (call.name !== 'Bounties.approve_bounty' && call.name !== 'Bounties.approve_bounty_with_curator') {
+        return undefined
+    }
+    return {bounty: Number(call.args.bountyId)}
+}
+
+function decodeInner(call: any, runtime: Runtime): Call | undefined {
+    try {
+        return runtime.toCallRecord(call)
+    } catch {
+        return undefined
+    }
 }
 
 /**
  * A preimage holds whatever bytes somebody paid to store, so anything that
  * does not read back as a call of this runtime is simply not one.
  */
-function decodeCall(callHex: string, runtime: Runtime): {name: string; args: any} | undefined {
+function decodeCall(callBytes: string | Uint8Array, runtime: Runtime): Call | undefined {
     try {
-        return runtime.toCallRecord(runtime.decodeCall(callHex))
+        return runtime.toCallRecord(runtime.decodeCall(callBytes))
     } catch {
         return undefined
     }
@@ -330,9 +418,9 @@ async function loadEnactments(ctx: {store: any}, batch: BatchData): Promise<void
     }
 }
 
-function applyGovEvent(batch: BatchData, ev: GovEvent, runtime: Runtime): void {
+function applyGovEvent(batch: BatchData, ev: GovEvent): void {
     const [pallet, method] = ev.name.split('.')
-    if (pallet === 'Referenda') applyReferendaEvent(batch, method, ev, runtime)
+    if (pallet === 'Referenda') applyReferendaEvent(batch, method, ev)
     else if (pallet === 'ConvictionVoting') applyVoteEvent(batch, method, ev)
     else if (pallet === 'Treasury') applyTreasuryEvent(batch, method, ev)
     else if (pallet === 'Scheduler' && method === 'Dispatched') applyDispatch(batch, ev)
@@ -355,22 +443,15 @@ function setTally(r: Referendum, tally: any): void {
     r.support = BigInt(tally.support)
 }
 
-function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent, runtime: Runtime): void {
+function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): void {
     const args = ev.args
     if (method === 'Submitted') {
-        const inline = args.proposal?.__kind === 'Inline' ? args.proposal.value : undefined
-        const decoded = inline ? decodeSpend(inline, runtime) : undefined
-        const bountyIndex = inline ? decodeApproveBounty(inline, runtime) : undefined
         const r = new Referendum({
             id: String(args.index),
             index: args.index,
             track: new Track({id: String(args.track)}),
             origin: originName(ev.callArgs?.proposalOrigin),
             proposalHash: proposalHash(args.proposal),
-            proposalCall: decoded?.call ?? (bountyIndex != null ? 'bounties.approveBounty' : undefined),
-            proposalAmount: decoded?.amount,
-            proposalBeneficiary: decoded?.beneficiary,
-            proposalBountyIndex: bountyIndex,
             submitter: ev.signer ? batch.touch(ev.signer, ev.height) : undefined,
             submittedAt: ev.height,
             status: ReferendumStatus.SUBMITTED,

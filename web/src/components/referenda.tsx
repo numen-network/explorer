@@ -1,5 +1,9 @@
 import type {ReactNode} from 'react'
-import {fmtCompact, planckToNum} from '@/lib/format'
+import AccountLink from '@/components/AccountLink'
+import type {ChainProps} from '@/lib/chain'
+import {fmtBalance, fmtCompact, fmtDaySpan, planckToNum} from '@/lib/format'
+import type {AccountRef, ProposalNode} from '@/lib/gql'
+import {ss58Encode} from '@/lib/ss58'
 
 const STATUS_BG: Record<string, string> = {
     SUBMITTED: 'bg-sub',
@@ -72,6 +76,41 @@ export function ThresholdBar({label, value, need, variant, foot}: {label: string
                 <Gauge value={value} need={need} variant={variant} />
             </div>
             {foot && <div className="mt-1 flex justify-between gap-2 font-mono text-[10px] text-sub">{foot}</div>}
+        </div>
+    )
+}
+
+/** How many payouts a proposal books, which is what makes one staged. */
+export const payouts = (nodes: ProposalNode[] | null) => (nodes ?? []).filter(node => node.amount != null).length
+
+// a payout the chain still holds back says how long is left on it
+function release(validFrom: number | null | undefined, best: number, blockTime: number): string {
+    if (validFrom == null || validFrom <= best) return 'immediately'
+    return `in ${fmtDaySpan(validFrom - best, blockTime)}`
+}
+
+/**
+ * The call a referendum runs, read out as the tree the chain would run.
+ * Depth is the indent, and a spend says what it pays and when it opens.
+ */
+export function ProposalTree({nodes, chain, best, party}: {nodes: ProposalNode[]; chain: ChainProps; best: number; party: Map<string, AccountRef>}) {
+    return (
+        <div className="divide-y divide-edge">
+            {nodes.map((node, i) => (
+                <div key={i} className="flex flex-col gap-1 px-5 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <span className="shrink-0 font-mono text-[13px]" style={{paddingLeft: `${node.depth * 22}px`}}>
+                        {node.pallet}.{node.method}
+                    </span>
+                    {node.amount != null && node.beneficiary != null && (
+                        <span className="flex min-w-0 flex-wrap items-center gap-2">
+                            <span className="font-semibold">{fmtBalance(node.amount, chain.decimals, chain.symbol)}</span>
+                            <span className="text-sub">to</span>
+                            <AccountLink addr={ss58Encode(node.beneficiary, chain.ss58)} acc={party.get(node.beneficiary)} />
+                            <span className="text-faint">{release(node.validFrom, best, chain.blockTime)}</span>
+                        </span>
+                    )}
+                </div>
+            ))}
         </div>
     )
 }

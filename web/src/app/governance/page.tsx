@@ -9,7 +9,7 @@ import {BlockLink} from '@/components/links'
 import {FilterChip, Tag} from '@/components/pills'
 import {BountyTable, RefCell} from '@/components/bounties'
 import {ThresholdChart} from '@/components/charts'
-import {StatusBadge, ThresholdBar} from '@/components/referenda'
+import {payouts, StatusBadge, ThresholdBar} from '@/components/referenda'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {fmtBalance, fmtBlockSpan, fmtCompact, fmtCompact3, fmtInt, planckToNum} from '@/lib/format'
@@ -153,9 +153,10 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     <>
                                         <span className="font-semibold">{fmtInt(Math.round(planckToNum(r.proposalAmount, chain.decimals)))}</span>{' '}
                                         <span className="font-medium text-faint">{chain.symbol}</span>
+                                        {payouts(r.proposalCalls) > 1 && <span className="text-sub"> · {payouts(r.proposalCalls)} payouts</span>}
                                     </>
                                 ) : (
-                                    <span className="text-sub">{r.proposalCall?.split('.')[1] ?? ''}</span>
+                                    <span className="text-sub">{r.proposalMethod ?? ''}</span>
                                 )}
                             </span>
                         </div>

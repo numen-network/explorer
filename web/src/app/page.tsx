@@ -326,7 +326,7 @@ export default async function Home() {
                                             {r.proposalAmount != null ? (
                                                 fmtBalance(r.proposalAmount, props.decimals, props.symbol)
                                             ) : (
-                                                <span className="text-sub">{r.proposalCall?.split('.')[1] ?? '—'}</span>
+                                                <span className="text-sub">{r.proposalMethod ?? '—'}</span>
                                             )}
                                         </div>
                                         <div className="mt-1 flex justify-end">

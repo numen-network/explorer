@@ -279,9 +279,14 @@ type Referendum @entity {
   "from the setMetadata preimage, a json object with title and description"
   title: String
   description: String
-  "set when the inline proposal decodes to a known call"
-  proposalCall: String
+  "the call a proposal runs, read back from the runtime whether it sits inline or behind a preimage"
+  proposalPallet: String @index
+  proposalMethod: String @index
+  "the proposal call tree flattened in preorder, spend nodes carrying what they pay and when"
+  proposalCalls: JSON
+  "what the proposal asks the treasury for, summed over its spends"
   proposalAmount: BigInt
+  "set when every spend pays one account"
   proposalBeneficiary: String
   "bounty this referendum moves to approve, taken from the proposal call"
   proposalBountyIndex: Int @index
