@@ -21,19 +21,27 @@ export function identityInfoJson(acc: IdentityRef | undefined): unknown {
     return acc?.identityJson ?? acc?.identitySuper?.identityJson
 }
 
+// what the account says about itself, none of it a way to reach anybody
+const PROFILE: [key: string, label: string][] = [
+    ['display', 'Display'],
+    ['avatar', 'Avatar'],
+    ['about', 'About'],
+]
+
 // keys double as icon names and follow the runtime field order
 const CHANNELS: [key: string, label: string][] = [
     ['web', 'Web'],
     ['email', 'Email'],
-    ['matrix', 'Matrix'],
     ['github', 'GitHub'],
+    ['matrix', 'Matrix'],
     ['x', 'X'],
     ['telegram', 'Telegram'],
     ['discord', 'Discord'],
 ]
 
-const FIELDS: [key: string, label: string][] = [['display', 'Display'], ...CHANNELS]
+const FIELDS: [key: string, label: string][] = [...PROFILE, ...CHANNELS]
 
+// sub account names are the last thing still wearing pallet_identity's Data
 export function dataText(d: unknown): string | null {
     const kind = (d as {__kind?: string})?.__kind
     const value = (d as {value?: string})?.value
@@ -42,9 +50,15 @@ export function dataText(d: unknown): string | null {
     return value ? `${kind} ${value}` : kind
 }
 
+// every identity field is bare utf-8 bytes, so an empty one reads as 0x
+export function fieldText(v: unknown): string | null {
+    if (typeof v !== 'string' || v === '0x') return null
+    return new TextDecoder().decode(hexBytes(v)) || null
+}
+
 export function identityRows(json: unknown): [label: string, value: string | null][] {
     const info = (json as {info?: Record<string, unknown>})?.info
-    return FIELDS.map(([key, label]) => [label, info ? dataText(info[key]) : null])
+    return FIELDS.map(([key, label]) => [label, info ? fieldText(info[key]) : null])
 }
 
 export interface IdentityChannel {
@@ -59,7 +73,7 @@ export function identityChannels(json: unknown): IdentityChannel[] {
     if (!info) return []
     const rows: IdentityChannel[] = []
     for (const [key, label] of CHANNELS) {
-        const value = dataText(info[key])
+        const value = fieldText(info[key])
         if (value) rows.push({key, label, value})
     }
     return rows

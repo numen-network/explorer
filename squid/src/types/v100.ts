@@ -999,14 +999,16 @@ export interface Registration {
 }
 
 export interface IdentityInfo {
-    display: Data
-    web: Data
-    email: Data
-    matrix: Data
-    github: Data
-    x: Data
-    telegram: Data
-    discord: Data
+    display: BoundedVec
+    avatar: Bytes
+    about: Bytes
+    web: Bytes
+    email: Bytes
+    github: BoundedVec
+    matrix: BoundedVec
+    x: BoundedVec
+    telegram: BoundedVec
+    discord: BoundedVec
 }
 
 export type Judgement = Judgement_Erroneous | Judgement_FeePaid | Judgement_KnownGood | Judgement_LowQuality | Judgement_OutOfDate | Judgement_Reasonable | Judgement_Unknown
@@ -1050,14 +1052,16 @@ export const Registration: sts.Type<Registration> = sts.struct(() => {
 
 export const IdentityInfo: sts.Type<IdentityInfo> = sts.struct(() => {
     return  {
-        display: Data,
-        web: Data,
-        email: Data,
-        matrix: Data,
-        github: Data,
-        x: Data,
-        telegram: Data,
-        discord: Data,
+        display: BoundedVec,
+        avatar: sts.bytes(),
+        about: sts.bytes(),
+        web: sts.bytes(),
+        email: sts.bytes(),
+        github: BoundedVec,
+        matrix: BoundedVec,
+        x: BoundedVec,
+        telegram: BoundedVec,
+        discord: BoundedVec,
     }
 })
 

@@ -22,17 +22,22 @@ END $$;
 CREATE FUNCTION pg_temp.pk(n int) RETURNS text LANGUAGE sql IMMUTABLE
     AS $$ SELECT '0x' || repeat('aa', 31) || lpad(to_hex(10 + n), 2, '0') $$;
 
+CREATE FUNCTION pg_temp.bytes(t text) RETURNS jsonb LANGUAGE sql IMMUTABLE
+    AS $$ SELECT to_jsonb('0x' || encode(convert_to(t, 'UTF8'), 'hex')) $$;
+
+-- sub account names are the last thing still wearing pallet_identity's Data
 CREATE FUNCTION pg_temp.raw(t text) RETURNS jsonb LANGUAGE sql IMMUTABLE
     AS $$ SELECT jsonb_build_object('__kind', 'Raw' || length(convert_to(t, 'UTF8')), 'value', '0x' || encode(convert_to(t, 'UTF8'), 'hex')) $$;
 
 CREATE FUNCTION pg_temp.idjson(name text, judge text) RETURNS jsonb LANGUAGE sql IMMUTABLE
     AS $$ SELECT jsonb_build_object(
         'info', jsonb_build_object(
-            'display', pg_temp.raw(name),
-            'web', '{"__kind": "None"}'::jsonb, 'email', '{"__kind": "None"}'::jsonb,
-            'matrix', '{"__kind": "None"}'::jsonb, 'github', '{"__kind": "None"}'::jsonb,
-            'x', '{"__kind": "None"}'::jsonb, 'telegram', '{"__kind": "None"}'::jsonb,
-            'discord', '{"__kind": "None"}'::jsonb),
+            'display', pg_temp.bytes(name),
+            'avatar', '"0x"'::jsonb, 'about', '"0x"'::jsonb,
+            'web', '"0x"'::jsonb, 'email', '"0x"'::jsonb,
+            'github', '"0x"'::jsonb, 'matrix', '"0x"'::jsonb,
+            'x', '"0x"'::jsonb, 'telegram', '"0x"'::jsonb,
+            'discord', '"0x"'::jsonb),
         'deposit', '5410000000000000000',
         'judgements', CASE WHEN judge IS NULL THEN '[]'::jsonb
             ELSE jsonb_build_array(jsonb_build_array(0, jsonb_build_object('__kind', judge))) END) $$;
@@ -241,35 +246,37 @@ FROM (VALUES
 -- rows just under them read as recent
 UPDATE chain_info SET head = :h + 100, finalized_head = :h + 97 WHERE id = 'chain';
 
--- one identity with every channel filled so the identity card shows a populated case
+-- one identity with every field filled so the identity card shows a populated case
 UPDATE account SET identity_json = identity_json || jsonb_build_object('info',
     (identity_json -> 'info') || jsonb_build_object(
-        'web', pg_temp.raw('https://orbitlabs.example'),
-        'email', pg_temp.raw('hello@orbitlabs.example'),
-        'matrix', pg_temp.raw('@orbit:matrix.org'),
-        'github', pg_temp.raw('orbit-labs'),
-        'x', pg_temp.raw('@orbit_labs'),
-        'telegram', pg_temp.raw('@orbitlabs'),
-        'discord', pg_temp.raw('orbitlabs')))
+        'avatar', pg_temp.bytes('https://orbitlabs.example/orbit.png'),
+        'about', pg_temp.bytes('Orbit Labs runs validators and funds tooling.'),
+        'web', pg_temp.bytes('https://orbitlabs.example'),
+        'email', pg_temp.bytes('hello@orbitlabs.example'),
+        'matrix', pg_temp.bytes('@orbit:matrix.org'),
+        'github', pg_temp.bytes('orbit-labs'),
+        'x', pg_temp.bytes('@orbit_labs'),
+        'telegram', pg_temp.bytes('@orbitlabs'),
+        'discord', pg_temp.bytes('orbitlabs')))
 WHERE id = pg_temp.pk(2);
 
 UPDATE account SET identity_json = identity_json || jsonb_build_object('info',
     (identity_json -> 'info') || jsonb_build_object(
-        'web', pg_temp.raw('https://polaris.example'),
-        'email', pg_temp.raw('guild@polaris.example'),
-        'matrix', pg_temp.raw('@polaris:matrix.org'),
-        'github', pg_temp.raw('polaris-guild'),
-        'x', pg_temp.raw('@polaris_guild'),
-        'telegram', pg_temp.raw('@polarisguild'),
-        'discord', pg_temp.raw('polarisguild')))
+        'web', pg_temp.bytes('https://polaris.example'),
+        'email', pg_temp.bytes('guild@polaris.example'),
+        'matrix', pg_temp.bytes('@polaris:matrix.org'),
+        'github', pg_temp.bytes('polaris-guild'),
+        'x', pg_temp.bytes('@polaris_guild'),
+        'telegram', pg_temp.bytes('@polarisguild'),
+        'discord', pg_temp.bytes('polarisguild')))
 WHERE id = pg_temp.pk(1);
 
 -- a partially filled one, most registrations never fill every channel
 UPDATE account SET identity_json = identity_json || jsonb_build_object('info',
     (identity_json -> 'info') || jsonb_build_object(
-        'email', pg_temp.raw('grants@novafund.example'),
-        'github', pg_temp.raw('nova-fund'),
-        'x', pg_temp.raw('@nova_fund')))
+        'email', pg_temp.bytes('grants@novafund.example'),
+        'github', pg_temp.bytes('nova-fund'),
+        'x', pg_temp.bytes('@nova_fund')))
 WHERE id = pg_temp.pk(4);
 
 -- a spread of registrar judgements on one identity so the card shows the mix

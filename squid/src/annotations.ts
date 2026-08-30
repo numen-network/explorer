@@ -261,7 +261,7 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
         who.forEach((id, i) => {
             const a = entity(id)
             const reg = regs[i]
-            a.identityDisplay = reg ? decodeIdentityData(reg.info?.display) : null
+            a.identityDisplay = reg ? decodeUtf8(reg.info?.display) : null
             a.identityJson = reg ? toJSON(reg) : null
             a.identityStatus = reg ? judgementStatus(reg.judgements) : null
         })
@@ -388,8 +388,9 @@ async function refreshPrime(batch: BatchData, lastHeader: any, store: Store): Pr
     batch.prime = new PrimeState({id: 'prime', account: acc, since: batch.primeChanged ?? prev?.since ?? 0})
 }
 
-// Identity Data enum decodes to variants None, Raw0..Raw32, BlakeTwo256 and
-// friends. Only raw inline bytes carry a readable value.
+// Sub account names are the last thing still wearing the Data enum, which
+// decodes to None, Raw0..Raw32, BlakeTwo256 and friends. Only raw inline bytes
+// carry a readable value.
 function decodeIdentityData(data: any): string | null {
     if (data?.__kind == null || !data.__kind.startsWith('Raw')) return null
     return decodeUtf8(data.value)
