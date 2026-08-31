@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import AccountLink from '@/components/AccountLink'
+import DateRange from '@/components/DateRange'
 import Pager from '@/components/Pager'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {BlockLink, ExtrinsicLink} from '@/components/links'
@@ -89,9 +90,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
                 <form className="flex flex-wrap items-center gap-2 text-xs" action="/extrinsics">
                     <span className="mr-1 w-14 text-xs text-sub">Date</span>
                     <Carry keep={{pallet, method, signer: rawSigner, result: result ?? ''}} />
-                    <input type="date" name="after" defaultValue={after} className={FIELD} />
-                    <span className="text-faint">to</span>
-                    <input type="date" name="before" defaultValue={before} className={FIELD} />
+                    <DateRange after={after} before={before} />
                     <button type="submit" className={`${FIELD} hover:text-accent`}>
                         Apply
                     </button>

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import ChartList from '@/components/ChartList'
+import DateRange from '@/components/DateRange'
 import {SeriesChart} from '@/components/charts'
 import {chainProps} from '@/lib/chain'
 import {CONTROL, FIELD} from '@/lib/ui'
@@ -67,9 +68,7 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
                     <h1 className="text-[17px] font-semibold">{def.title}</h1>
                     <div className="flex flex-wrap items-center gap-2">
                         <form className="flex flex-wrap items-center gap-2 text-xs" action={`/charts/${slug}`}>
-                            <input type="date" name="after" defaultValue={custom ? after : ''} className={FIELD} />
-                            <span className="text-faint">to</span>
-                            <input type="date" name="before" defaultValue={before} className={FIELD} />
+                            <DateRange after={custom ? after : ''} before={before} />
                             <button type="submit" className={`${FIELD} hover:text-accent`}>
                                 Apply
                             </button>
