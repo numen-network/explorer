@@ -22,7 +22,7 @@ function Registration({json, chain}: {json: unknown; chain: ChainProps}) {
                 {identityRows(json).map(([label, value], i) => (
                     <div key={label} className={`${ROW} ${i > 0 ? 'border-t border-edge' : ''} ${i === 1 ? 'sm:border-t-0' : ''} sm:odd:border-r sm:odd:border-edge`}>
                         <div className={LABEL}>{label}</div>
-                        <div className="min-w-0 font-mono break-all">{value ?? NONE}</div>
+                        <div className="min-w-0 truncate font-mono">{value ?? NONE}</div>
                     </div>
                 ))}
             </div>
