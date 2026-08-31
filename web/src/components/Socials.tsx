@@ -1,13 +1,15 @@
 'use client'
 
 import {ICON} from '@/lib/icons'
-import {channelHref, identityChannels} from '@/lib/identity'
+import {channelHref, identityFields} from '@/lib/identity'
+
+const SOCIAL = new Set(['web', 'email', 'github', 'matrix', 'x', 'telegram', 'discord'])
 
 // the cell sits inside a summary, so a click on a link must not also toggle the row
 export default function Socials({json}: {json: unknown}) {
     return (
         <span className="flex items-center gap-2 text-faint">
-            {identityChannels(json).map(c => {
+            {identityFields(json).filter(c => SOCIAL.has(c.key)).map(c => {
                 const icon = (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-label={c.label}>
                         <title>{`${c.label} ${c.value}`}</title>

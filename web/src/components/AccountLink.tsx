@@ -4,7 +4,7 @@ import Link from 'next/link'
 import {Fragment} from 'react'
 import {useAddrHot} from '@/components/addrHot'
 import AddressText from '@/components/AddressText'
-import {identityChannels, identityInfoJson, identityLabel, type IdentityRef} from '@/lib/identity'
+import {identityFields, identityInfoJson, identityLabel, type IdentityRef} from '@/lib/identity'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
 
 // mirrors the pallet identity judgement enum, bad verdicts win over good ones
@@ -19,6 +19,8 @@ function identityState(identityJson: unknown): IdentityState | null {
     if (kinds.some(k => k === 'FeePaid')) return 'pending'
     return 'unjudged'
 }
+
+const SKIP = new Set(['display', 'avatar', 'about'])
 
 const QUESTION = 'M5.4 5.4c0-1 .7-1.7 1.6-1.7s1.6.7 1.6 1.65c0 1.3-1.6 1.35-1.6 2.65M7 10.3v.2'
 
@@ -49,7 +51,7 @@ export default function AccountLink({addr, acc, className = '', full = false}: {
     const display = identityLabel(acc)
     const info = identityInfoJson(acc)
     const state = identityState(info)
-    const channels = identityChannels(info)
+    const fields = identityFields(info).filter(f => !SKIP.has(f.key))
     const {cls, ...hot} = useAddrHot(addr)
     return (
         <span className={`flex min-w-0 items-center ${className}`}>
@@ -69,12 +71,12 @@ export default function AccountLink({addr, acc, className = '', full = false}: {
                     </TooltipTrigger>
                     <TooltipContent side="top" align="start" sideOffset={4} className="max-w-md flex-col items-start">
                         <span className="font-mono">{addr}</span>
-                        {channels.length > 0 && (
+                        {fields.length > 0 && (
                             <span className="grid w-full grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 border-t border-current/25 pt-1.5">
-                                {channels.map(c => (
-                                    <Fragment key={c.key}>
-                                        <span className="opacity-60">{c.label}</span>
-                                        <span className="truncate">{c.value}</span>
+                                {fields.map(f => (
+                                    <Fragment key={f.key}>
+                                        <span className="opacity-60">{f.label}</span>
+                                        <span className="truncate">{f.value}</span>
                                     </Fragment>
                                 ))}
                             </span>

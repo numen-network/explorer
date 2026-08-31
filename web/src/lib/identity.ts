@@ -21,15 +21,11 @@ export function identityInfoJson(acc: IdentityRef | undefined): unknown {
     return acc?.identityJson ?? acc?.identitySuper?.identityJson
 }
 
-// what the account says about itself, none of it a way to reach anybody
-const PROFILE: [key: string, label: string][] = [
+// order follows the runtime struct
+const FIELDS: [key: string, label: string][] = [
     ['display', 'Display'],
     ['avatar', 'Avatar'],
     ['about', 'About'],
-]
-
-// keys double as icon names and follow the runtime field order
-const CHANNELS: [key: string, label: string][] = [
     ['web', 'Web'],
     ['email', 'Email'],
     ['github', 'GitHub'],
@@ -38,8 +34,6 @@ const CHANNELS: [key: string, label: string][] = [
     ['telegram', 'Telegram'],
     ['discord', 'Discord'],
 ]
-
-const FIELDS: [key: string, label: string][] = [...PROFILE, ...CHANNELS]
 
 // sub account names are the last thing still wearing pallet_identity's Data
 export function dataText(d: unknown): string | null {
@@ -61,18 +55,18 @@ export function identityRows(json: unknown): [label: string, value: string | nul
     return FIELDS.map(([key, label]) => [label, info ? fieldText(info[key]) : null])
 }
 
-export interface IdentityChannel {
+export interface IdentityField {
     key: string
     label: string
     value: string
 }
 
 // only what the account actually filled in
-export function identityChannels(json: unknown): IdentityChannel[] {
+export function identityFields(json: unknown): IdentityField[] {
     const info = (json as {info?: Record<string, unknown>})?.info
     if (!info) return []
-    const rows: IdentityChannel[] = []
-    for (const [key, label] of CHANNELS) {
+    const rows: IdentityField[] = []
+    for (const [key, label] of FIELDS) {
         const value = fieldText(info[key])
         if (value) rows.push({key, label, value})
     }
