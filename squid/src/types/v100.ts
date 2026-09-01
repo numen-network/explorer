@@ -1001,7 +1001,7 @@ export interface Registration {
 export interface IdentityInfo {
     display: BoundedVec
     avatar: Bytes
-    about: Bytes
+    bio: Bytes
     web: Bytes
     email: Bytes
     github: BoundedVec
@@ -1054,7 +1054,7 @@ export const IdentityInfo: sts.Type<IdentityInfo> = sts.struct(() => {
     return  {
         display: BoundedVec,
         avatar: sts.bytes(),
-        about: sts.bytes(),
+        bio: sts.bytes(),
         web: sts.bytes(),
         email: sts.bytes(),
         github: BoundedVec,

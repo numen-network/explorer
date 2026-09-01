@@ -25,7 +25,7 @@ export function identityInfoJson(acc: IdentityRef | undefined): unknown {
 const FIELDS: [key: string, label: string][] = [
     ['display', 'Display'],
     ['avatar', 'Avatar'],
-    ['about', 'About'],
+    ['bio', 'Bio'],
     ['web', 'Web'],
     ['email', 'Email'],
     ['github', 'GitHub'],

@@ -33,7 +33,7 @@ CREATE FUNCTION pg_temp.idjson(name text, judge text) RETURNS jsonb LANGUAGE sql
     AS $$ SELECT jsonb_build_object(
         'info', jsonb_build_object(
             'display', pg_temp.bytes(name),
-            'avatar', '"0x"'::jsonb, 'about', '"0x"'::jsonb,
+            'avatar', '"0x"'::jsonb, 'bio', '"0x"'::jsonb,
             'web', '"0x"'::jsonb, 'email', '"0x"'::jsonb,
             'github', '"0x"'::jsonb, 'matrix', '"0x"'::jsonb,
             'x', '"0x"'::jsonb, 'telegram', '"0x"'::jsonb,
@@ -263,7 +263,7 @@ UPDATE chain_info SET head = :h + 100, finalized_head = :h + 97 WHERE id = 'chai
 UPDATE account SET identity_json = identity_json || jsonb_build_object('info',
     (identity_json -> 'info') || jsonb_build_object(
         'avatar', pg_temp.bytes('https://orbitlabs.example/orbit.png'),
-        'about', pg_temp.bytes('Orbit Labs runs validators and funds tooling.'),
+        'bio', pg_temp.bytes('Orbit Labs runs validators and funds tooling.'),
         'web', pg_temp.bytes('https://orbitlabs.example'),
         'email', pg_temp.bytes('hello@orbitlabs.example'),
         'matrix', pg_temp.bytes('@orbit:matrix.org'),

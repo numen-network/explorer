@@ -20,7 +20,7 @@ function identityState(identityJson: unknown): IdentityState | null {
     return 'unjudged'
 }
 
-const SKIP = new Set(['display', 'avatar', 'about'])
+const SKIP = new Set(['display', 'avatar', 'bio'])
 
 const QUESTION = 'M5.4 5.4c0-1 .7-1.7 1.6-1.7s1.6.7 1.6 1.65c0 1.3-1.6 1.35-1.6 2.65M7 10.3v.2'
 
