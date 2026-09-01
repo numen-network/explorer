@@ -335,6 +335,20 @@ type VoteAction @entity {
   block: Int! @index
 }
 
+"append-only metadata log, one row per MetadataSet or MetadataCleared event, so every text a referendum ever carried stays readable"
+type MetadataAction @entity {
+  id: ID!
+  referendum: Referendum! @index
+  "set or cleared, a cleared row carries no text"
+  kind: String!
+  "preimage the pointer moved to or came off"
+  hash: String!
+  "null when the preimage was missing or held no first line"
+  title: String
+  description: String
+  block: Int!
+}
+
 "append-only delegation action log, one row per Delegated or Undelegated event"
 type DelegationAction @entity {
   id: ID!

@@ -5,7 +5,7 @@ import type {Runtime} from '@subsquid/substrate-runtime'
 import {In} from 'typeorm'
 import {convictionLabel} from './annotations'
 import {BatchData, GovEvent} from './batch'
-import {Delegation, DelegationAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VoteAction} from './model'
+import {Delegation, DelegationAction, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VoteAction} from './model'
 import {storage} from './types'
 
 const GOV_PALLETS = new Set(['Referenda', 'ConvictionVoting', 'Treasury', 'Scheduler'])
@@ -209,6 +209,8 @@ async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promis
     }
 }
 
+// the referendum row keeps only the latest text, every set and clear also
+// lands in the action log so earlier versions stay readable
 async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
     for (const ev of batch.govEvents) {
         if (ev.name !== 'Referenda.MetadataSet' && ev.name !== 'Referenda.MetadataCleared') continue
@@ -219,6 +221,17 @@ async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
         const meta = bytes ? readMetadataText(bytes) : {title: null, description: null}
         r.title = meta.title
         r.description = meta.description
+        batch.metadataActions.push(
+            new MetadataAction({
+                id: ev.id,
+                referendum: new Referendum({id: String(ev.args.index)}),
+                kind: cleared ? 'cleared' : 'set',
+                hash: ev.args.hash,
+                title: meta.title,
+                description: meta.description,
+                block: ev.height,
+            })
+        )
     }
 }
 

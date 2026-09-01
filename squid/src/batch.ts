@@ -12,6 +12,7 @@ import {
     EvmLog,
     EvmTransaction,
     Extrinsic,
+    MetadataAction,
     MinedObject,
     MinerDayStat,
     MultisigOp,
@@ -80,6 +81,7 @@ export class BatchData {
     votes = new Map<string, Vote>()
     voteActions: VoteAction[] = []
     delegationActions: DelegationAction[] = []
+    metadataActions: MetadataAction[] = []
     tallySnapshots = new Map<string, ReferendumTallySnapshot>()
     spends = new Map<string, TreasurySpend>()
     // scheduler task id to referendum index, and the spends still waiting for

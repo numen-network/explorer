@@ -1131,6 +1131,15 @@ export interface DelegationActionRow {
     target: AccountRef
 }
 
+export interface MetadataActionRow {
+    id: string
+    kind: string
+    hash: string
+    title: string | null
+    description: string | null
+    block: number
+}
+
 export function referendumDetail(index: number) {
     const tally = (decision: string) =>
         `votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false, decision_eq: "${decision}"}, orderBy: id_ASC) { totalCount }`
@@ -1138,6 +1147,7 @@ export function referendumDetail(index: number) {
         referendums: ReferendumRow[]
         votes: VoteRow[]
         voteActions: VoteActionRow[]
+        metadataActions: MetadataActionRow[]
         snapshots: TallySnapshotRow[]
         dailyStats: {issuanceTotal: string; issuanceInactive: string}[]
         voteCount: {totalCount: number}
@@ -1150,6 +1160,7 @@ export function referendumDetail(index: number) {
             referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} }
             votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: amount_DESC, limit: 200) { id decision amount conviction block removed voter { ${ACCOUNT_REF} } referendum { index } }
             voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id kind decision amount conviction delegatedVotes block voter { ${ACCOUNT_REF} } }
+            metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 200) { id kind hash title description block }
             snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}}, orderBy: block_ASC, limit: 5000) { block ayes nays support activeIssuance }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }
             voteCount: votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC) { totalCount }

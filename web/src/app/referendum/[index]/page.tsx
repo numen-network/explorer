@@ -126,7 +126,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         return vote ? [{a, vote}] : []
     })
 
-    const heights = [...new Set([r.submittedAt, ...trail.map(s => s.block), ...data.voteActions.map(a => a.block), ...dactRows.map(({a}) => a.block)])]
+    const heights = [...new Set([r.submittedAt, ...trail.map(s => s.block), ...data.voteActions.map(a => a.block), ...dactRows.map(({a}) => a.block), ...data.metadataActions.map(a => a.block)])]
     const [times, whoRefsRes] = await Promise.all([blockTimes(heights), accountRefs([...new Set([...shown, ...evWhos])])])
     const stamps = new Map(times.blocks.map(b => [b.height, b.timestamp]))
     const whoRefs = new Map(whoRefsRes.accounts.map(a => [a.id, a]))
@@ -378,6 +378,39 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         </DetailCard>
     )
 
+    // every text the referendum ever carried, newest first, since the pointer
+    // may move while people are voting and the earlier pitch should stay readable
+    const texts = (
+        <TimelineList empty={data.metadataActions.length === 0}>
+            {data.metadataActions.map(a => (
+                <TimelineItem
+                    key={a.id}
+                    tone={a.kind === 'set' ? 'accent' : 'idle'}
+                    icon={a.kind === 'set' ? RING : CROSS}
+                    title={a.kind === 'set' ? 'Text set' : 'Text cleared'}
+                    iso={stamps.get(a.block)}
+                    links={<BlockLink height={a.block} />}
+                    detail={
+                        a.kind === 'set' ? (
+                            <div className="min-w-0">
+                                {a.title ? (
+                                    <p className="text-sm font-semibold">{a.title}</p>
+                                ) : (
+                                    <p className="text-sm text-faint">Nothing read back from the preimage</p>
+                                )}
+                                {a.description && <p className="mt-1.5 text-sm whitespace-pre-wrap">{a.description}</p>}
+                                <p className="mt-2 flex items-center gap-1 text-xs text-faint">
+                                    <span className="font-mono break-all">{a.hash}</span>
+                                    <CopyBtn text={a.hash} />
+                                </p>
+                            </div>
+                        ) : undefined
+                    }
+                />
+            ))}
+        </TimelineList>
+    )
+
     // what the step's own event carried, zero tallies before anyone voted say
     // nothing worth a row
     const stepRows = (args: unknown, amountLabel: string): [string, ReactNode][] => {
@@ -499,6 +532,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     panels={[
                         {slug: 'call', label: 'Call', body: () => call},
                         {slug: 'metadata', label: 'Metadata', body: () => metadata},
+                        {slug: 'text', label: 'Text history', count: data.metadataActions.length, body: () => texts},
                         {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
                         {slug: 'votes', label: 'Votes', count: data.voteCount.totalCount, body: () => votes},
                         {slug: 'curves', label: 'Curves', body: () => curves},

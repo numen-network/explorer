@@ -124,6 +124,19 @@ FROM (VALUES
         'treasury.spendLocal', 2500000, 1, 1500, NULL, NULL, NULL, 0, 0, 0)
 ) v(n, track, origin, status, title, descr, pcall, amtk, benef, sub, dec, conf, fin, ayesk, naysk, supk);
 
+-- one set row behind every title, and an earlier version on the withdrawn one
+-- so the text history has something to show
+INSERT INTO metadata_action (id, referendum_id, kind, hash, title, description, block)
+SELECT id || '-meta', id, 'set', '0x' || md5(id || 'meta') || md5(id), title, description, submitted_at
+FROM referendum WHERE index >= :base AND title IS NOT NULL AND index <> :base + 4;
+
+INSERT INTO metadata_action (id, referendum_id, kind, hash, title, description, block)
+VALUES
+    ((:base + 4)::text || '-meta-0', (:base + 4)::text, 'set', '0x' || md5('meta v1') || md5('4'),
+     'Bridge audit budget', 'Full scope audit across both bridge contracts, fixed fee.', :h - 30000),
+    ((:base + 4)::text || '-meta-1', (:base + 4)::text, 'set', '0x' || md5('meta v2') || md5('4'),
+     'Bridge audit budget', 'Withdrawn by the submitter, superseded by a revised scope.', :h - 27000);
+
 INSERT INTO vote (id, referendum_id, voter_id, decision, conviction, amount, block, removed)
 SELECT (:base + refn)::text || '-' || pg_temp.pk(voter), (:base + refn)::text, pg_temp.pk(voter),
        decision, conviction, amtk * :P, :h - blk, false
