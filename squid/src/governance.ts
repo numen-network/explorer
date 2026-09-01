@@ -214,13 +214,9 @@ async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
         if (ev.name !== 'Referenda.MetadataSet' && ev.name !== 'Referenda.MetadataCleared') continue
         const r = batch.referenda.get(ev.args.index)
         if (r == null) continue
-        if (ev.name === 'Referenda.MetadataCleared') {
-            r.title = null
-            r.description = null
-            continue
-        }
-        const meta = await fetchMetadataJson(rpc, ev.args.hash, ev.height)
-        if (meta == null) continue
+        const cleared = ev.name === 'Referenda.MetadataCleared'
+        const bytes = cleared ? undefined : await fetchPreimage(rpc, ev.args.hash, ev.height)
+        const meta = bytes ? readMetadataText(bytes) : {title: null, description: null}
         r.title = meta.title
         r.description = meta.description
     }
@@ -239,20 +235,14 @@ async function fetchPreimage(rpc: RpcClient, hash: string, height: number): Prom
     return b.subarray(len.next, len.next + Number(len.value))
 }
 
-// the convention is a noted preimage holding utf8 json {title, description}
-async function fetchMetadataJson(rpc: RpcClient, hash: string, height: number): Promise<{title: string; description: string | null} | undefined> {
-    const bytes = await fetchPreimage(rpc, hash, height)
-    if (bytes == null) return undefined
-    try {
-        const parsed = JSON.parse(new TextDecoder().decode(bytes))
-        if (typeof parsed?.title !== 'string' || parsed.title.length === 0) return undefined
-        return {
-            title: parsed.title.slice(0, MAX_TITLE_CHARS),
-            description: typeof parsed.description === 'string' ? parsed.description : null,
-        }
-    } catch {
-        return undefined
-    }
+// the convention is a noted preimage holding commit shaped utf8 text, the
+// first line is the title and everything past the first break the description
+function readMetadataText(bytes: Uint8Array): {title: string | null; description: string | null} {
+    const dump = new TextDecoder().decode(bytes)
+    const cut = dump.indexOf('\n')
+    const title = (cut === -1 ? dump : dump.slice(0, cut)).trim().slice(0, MAX_TITLE_CHARS)
+    const description = cut === -1 ? '' : dump.slice(cut + 1).trim()
+    return {title: title || null, description: description || null}
 }
 
 function decodeCompact(b: Uint8Array, at: number): {value: bigint; next: number} | undefined {
