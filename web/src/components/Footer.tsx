@@ -1,7 +1,7 @@
 import {ICON} from '@/lib/icons'
 
 const SOCIAL: [label: string, href: string, icon: string][] = [
-    ['GitHub', 'https://github.com/numen-network/numen', 'github'],
+    ['GitHub', 'https://github.com/numen-network/explorer', 'github'],
     ['Discord', 'https://discord.gg/ajPKdvrvJK', 'discord'],
     ['X', 'https://x.com/numen_network', 'x'],
     ['Telegram', 'https://t.me/numen_network', 'telegram'],
