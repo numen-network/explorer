@@ -613,9 +613,10 @@ async function refreshChainInfo(ctx: Ctx, h: BlockHeader<Fields>, finalizedHeigh
     const ed = constants.balances.existentialDeposit.v100
     const sessionPeriod = constants.validator.sessionPeriod.v100
     const sessionOffset = constants.validator.sessionOffset.v100
+    const voteLocking = constants.convictionVoting.voteLockingPeriod.v100
     const chainIdStore = storage.evmChainId.chainId.v100
     const facade = constants.precompiles.balancesErc20.v100
-    if (!blockTime.is(h) || !ed.is(h) || !sessionPeriod.is(h) || !sessionOffset.is(h) || !chainIdStore.is(h) || !facade.is(h)) {
+    if (!blockTime.is(h) || !ed.is(h) || !sessionPeriod.is(h) || !sessionOffset.is(h) || !voteLocking.is(h) || !chainIdStore.is(h) || !facade.is(h)) {
         throw new Error(`unhandled spec version at block ${h.height}`)
     }
     const head: {number: string} = await rpc.call('chain_getHeader', [])
@@ -629,6 +630,7 @@ async function refreshChainInfo(ctx: Ctx, h: BlockHeader<Fields>, finalizedHeigh
             nativeErc20: facade.get(h),
             sessionLength: sessionPeriod.get(h),
             sessionOffset: sessionOffset.get(h),
+            voteLockingPeriod: voteLocking.get(h),
             head: parseInt(head.number, 16),
             finalizedHead: finalizedHeight,
         })

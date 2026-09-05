@@ -55,6 +55,12 @@ export class ChainInfo {
     sessionOffset!: number
 
     /**
+     * length of one conviction period, a vote holds its balance for a multiple of it
+     */
+    @IntColumn_({nullable: false})
+    voteLockingPeriod!: number
+
+    /**
      * chain head the indexer last saw, not the indexed head
      */
     @IntColumn_({nullable: false})

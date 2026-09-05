@@ -39,6 +39,8 @@ type ChainInfo @entity {
   "blocks per session, boundaries land on multiples of it plus the offset"
   sessionLength: Int!
   sessionOffset: Int!
+  "length of one conviction period, a vote holds its balance for a multiple of it"
+  voteLockingPeriod: Int!
   "chain head the indexer last saw, not the indexed head"
   head: Int!
   finalizedHead: Int!

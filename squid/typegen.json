@@ -10,6 +10,7 @@
   "calls": [],
   "constants": [
     "Balances.ExistentialDeposit",
+    "ConvictionVoting.VoteLockingPeriod",
     "Difficulty.TargetBlockTime",
     "Origins.SpendCaps",
     "Poscan.Engine",

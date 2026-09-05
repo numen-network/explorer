@@ -11,6 +11,7 @@ export interface ChainProps {
     nativeErc20: string
     sessionLength: number
     sessionOffset: number
+    voteLockingPeriod: number
 }
 
 interface InfoRow {
@@ -24,13 +25,14 @@ interface InfoRow {
     nativeErc20: string
     sessionLength: number
     sessionOffset: number
+    voteLockingPeriod: number
     head: number
     finalizedHead: number
 }
 
 async function chainInfo(): Promise<InfoRow> {
     const {chainInfos} = await gql<{chainInfos: InfoRow[]}>(
-        `query { chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset head finalizedHead } }`
+        `query { chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod head finalizedHead } }`
     )
     if (!chainInfos[0]) throw new Error('chain info row is missing, the indexer has not written it yet')
     return chainInfos[0]
@@ -52,6 +54,7 @@ export async function chainProps(): Promise<ChainProps> {
         nativeErc20: row.nativeErc20,
         sessionLength: row.sessionLength,
         sessionOffset: row.sessionOffset,
+        voteLockingPeriod: row.voteLockingPeriod,
     }
     return cached
 }

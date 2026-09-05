@@ -456,7 +456,7 @@ export async function tokenTransferCount(address: string) {
 
 export function votesFor(idHex: string) {
     return gql<{votes: VoteRow[]}>(
-        `query ($id: String!) { votes(where: {voter: {id_eq: $id}}, orderBy: block_DESC, limit: 100) { id decision amount conviction block removed referendum { index status } } }`,
+        `query ($id: String!) { votes(where: {voter: {id_eq: $id}}, orderBy: block_DESC, limit: 100) { id decision amount conviction block removed referendum { index status endedAt } } }`,
         {id: idHex}
     )
 }
@@ -1098,7 +1098,7 @@ export interface VoteRow {
     block: number
     removed: boolean
     voter?: AccountRef
-    referendum: {index: number; status?: string}
+    referendum: {index: number; status?: string; endedAt?: number | null}
 }
 
 export interface TallySnapshotRow {
