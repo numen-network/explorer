@@ -13,7 +13,7 @@ export default function Balance({planck, chain}: {planck: string | bigint; chain
     return (
         <span>
             {fmtInt(v / base) + '.' + lead}
-            <span className="text-faint">{frac.slice(lead.length)}</span> {chain.symbol}
+            <span className="text-dim">{frac.slice(lead.length)}</span> {chain.symbol}
         </span>
     )
 }

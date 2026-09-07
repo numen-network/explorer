@@ -1,27 +1,23 @@
 import type {ReactNode} from 'react'
+import {Star, User, Users} from 'lucide-react'
 import Pager from '@/components/Pager'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, ExtrinsicLink} from '@/components/links'
-import {Tag} from '@/components/pills'
+import {Badge} from '@/components/ui/badge'
 import {TimelineItem, TimelineList, TimelineRows, type Tone} from '@/components/timeline'
 import type {ChainProps} from '@/lib/chain'
 import {hexBytes} from '@/lib/digest'
 import {fmtBalance} from '@/lib/format'
 import {identityTimeline, judgementsByEvent, registrarsList, type AccountRef} from '@/lib/gql'
+import {paging} from '@/lib/paging'
 import {callSubs, identityCallRows, type SubEntry} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
-import {JUDGEMENT_TONE, NONE, num, tabHref, type TabCtx} from './shared'
+import {JUDGEMENT_TONE, NONE, tabHref, type TabCtx} from './shared'
 
-const PAGE = 25
 
-const TONE = (method: string): Tone => (/Killed|Cleared|Revoked|Removed/.test(method) ? 'neg' : method === 'JudgementGiven' ? 'pos' : 'accent')
+const TONE = (method: string): Tone => (/Killed|Cleared|Revoked|Removed/.test(method) ? 'neg' : method === 'JudgementGiven' ? 'pos' : 'primary')
 
-const ICON = (method: string) =>
-    method.startsWith('Sub')
-        ? 'M5.8 7.4a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4Zm5.6.6a1.8 1.8 0 1 0 0-3.6 1.8 1.8 0 0 0 0 3.6M1.6 13.4a4.2 4.2 0 0 1 8.4 0M11.8 9.8a3.2 3.2 0 0 1 2.6 3.6'
-        : method.startsWith('Judgement')
-          ? 'M8 2.4l1.7 3.4 3.8.6-2.8 2.6.7 3.7L8 10.9l-3.4 1.8.7-3.7-2.8-2.6 3.8-.6z'
-          : 'M8 7.8a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2ZM3 13.6a5 5 0 0 1 10 0'
+const ICON = (method: string) => (method.startsWith('Sub') ? Users : method.startsWith('Judgement') ? Star : User)
 
 const MONEY = /deposit|amount|fee|value/i
 
@@ -54,15 +50,15 @@ const SubList = ({subs, chain}: {subs: SubEntry[]; chain: ChainProps}) => (
         {subs.map(s => (
             <li key={s.addr} className="min-w-0">
                 <AccountLink full addr={ss58Encode(s.addr, chain.ss58)} />
-                <div className="truncate text-sub">{s.name ?? NONE}</div>
+                <div className="truncate text-muted-foreground">{s.name ?? NONE}</div>
             </li>
         ))}
     </ul>
 )
 
 export default async function Timeline({hex, addr, chain, sp}: TabCtx) {
-    const page = num(sp, 'tpage')
-    const {events, conn} = await identityTimeline(hex, PAGE, (page - 1) * PAGE)
+    const pg = paging(sp, 'tpage')
+    const {events, conn} = await identityTimeline(hex, pg.size, pg.offset)
     const [regs, verdicts] = await Promise.all([
         events.some(e => (e.args as {registrarIndex?: unknown} | null)?.registrarIndex != null) ? registrarsList() : null,
         judgementsByEvent(events.filter(e => e.method === 'JudgementGiven').map(e => e.id)),
@@ -76,7 +72,13 @@ export default async function Timeline({hex, addr, chain, sp}: TabCtx) {
                 {events.map(e => {
                     const rows = eventRows(e.args, hex, chain, registrarBy)
                     const verdict = verdictBy.get(e.id)
-                    if (verdict?.kind) rows.push(['Judgement', <Tag key="j" text={verdict.kind} tone={JUDGEMENT_TONE[verdict.kind] ?? 'idle'} />])
+                    if (verdict?.kind)
+                        rows.push([
+                            'Judgement',
+                            <Badge key="j" variant={JUDGEMENT_TONE[verdict.kind] ?? 'idle'}>
+                                {verdict.kind}
+                            </Badge>,
+                        ])
                     if (verdict?.fee) rows.push(['Fee', fmtBalance(verdict.fee, chain.decimals, chain.symbol)])
                     if (e.call) rows.push(...identityCallRows(e.call.method, e.call.args))
                     const subs = e.call ? callSubs(e.call.method, e.call.args) : []
@@ -99,7 +101,7 @@ export default async function Timeline({hex, addr, chain, sp}: TabCtx) {
                     )
                 })}
             </TimelineList>
-            {conn.totalCount > PAGE && <Pager page={page} pageCount={Math.ceil(conn.totalCount / PAGE)} href={n => tabHref(addr, 'timeline', {tpage: n})} />}
+            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'timeline')} pageKey="tpage" />
         </>
     )
 }

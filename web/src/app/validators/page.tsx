@@ -1,10 +1,8 @@
-import AccountLink from '@/components/AccountLink'
-import {BlockLink} from '@/components/links'
-import {Tag} from '@/components/pills'
+import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
-import {fmtBalance, fmtInt} from '@/lib/format'
+import {fmtInt} from '@/lib/format'
 import {validatorsData} from '@/lib/gql'
-import {ss58Encode} from '@/lib/ss58'
+import {ValidatorsTable} from './table'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Validators'}
@@ -17,49 +15,13 @@ export default async function ValidatorsPage() {
         <div>
             <div className="mt-6 flex items-baseline justify-between">
                 <h1 className="text-lg font-semibold">Validators</h1>
-                <span className="text-xs text-sub">
+                <span className="text-xs text-muted-foreground">
                     {fmtInt(active)} active · {fmtInt(validators.length)} known
                 </span>
             </div>
-            <div className="card mt-3">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[minmax(max-content,1fr)_max-content_max-content_max-content_max-content_max-content_max-content_max-content]">
-                    <thead>
-                        <tr>
-                            <th>Validator</th>
-                            <th>Status</th>
-                            <th className="text-right">Locked</th>
-                            <th className="text-right">Lock expiry</th>
-                            <th className="text-right">Offline sessions</th>
-                            <th className="text-right">Equivocations</th>
-                            <th className="text-right">First seen</th>
-                            <th className="text-right">Last session</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {validators.map(v => (
-                            <tr key={v.id}>
-                                <td>
-                                    <AccountLink full addr={ss58Encode(v.account.id, chain.ss58)} acc={v.account} />
-                                </td>
-                                <td>
-                                    <Tag
-                                        text={v.kicked ? `Kicked · ${v.kicked}` : v.active ? 'Active' : 'Inactive'}
-                                        tone={v.kicked ? 'neg' : v.active ? 'pos' : 'idle'}
-                                    />
-                                </td>
-                                <td className="text-right font-mono">{fmtBalance(v.lockedAmount, chain.decimals, chain.symbol)}</td>
-                                <td className="text-right font-mono">{v.lockExpiry ? fmtInt(v.lockExpiry) : '—'}</td>
-                                <td className="text-right font-mono">{fmtInt(v.offlineSessions)}</td>
-                                <td className="text-right font-mono">{fmtInt(v.equivocations)}</td>
-                                <td className="text-right">
-                                    <BlockLink height={v.firstSeenBlock} />
-                                </td>
-                                <td className="text-right font-mono">#{fmtInt(v.lastActiveSession)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <Card size="flush" className="mt-3">
+                <ValidatorsTable rows={validators} chain={chain} />
+            </Card>
         </div>
     )
 }

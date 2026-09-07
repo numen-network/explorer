@@ -1,11 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import {Fragment, useState} from 'react'
+import {useMemo, useState} from 'react'
 import AccountLink from '@/components/AccountLink'
-import {fmtCompact, fmtInt} from '@/lib/format'
-import type {IdentityRef} from '@/lib/identity'
+import {columnsFor, DataTable, expander} from '@/components/DataTable'
 import {Jump} from '@/components/links'
+import {Card} from '@/components/ui/card'
+import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs'
+import {fmtCompact, fmtInt} from '@/lib/format'
+
+const CHIP =
+    'group/chip h-auto flex-none gap-1 rounded-full border-border bg-card px-3 py-1 text-xs font-normal text-muted-foreground hover:text-foreground data-active:border-primary data-active:bg-primary data-active:font-medium data-active:text-primary-foreground data-active:shadow-none!'
+import type {IdentityRef} from '@/lib/identity'
 
 export interface Delegator {
     addr: string
@@ -34,27 +40,36 @@ export interface VoteGroup {
     rows: VoteEntry[]
 }
 
-const COLS = 'grid-cols-[minmax(max-content,1fr)_max-content_max-content_2.5rem]'
-
-function Caret({open}: {open: boolean}) {
-    return (
-        <svg width="14" height="14" viewBox="0 0 16 16" className={`transition-transform ${open ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 3.5 10.5 8 6 12.5" />
-        </svg>
-    )
-}
-
 function Stat({label, value}: {label: string; value: string}) {
     return (
-        <div className="flex items-baseline justify-between gap-4 border-t border-edge py-2 first:border-t-0">
-            <span className="text-sub">{label}</span>
+        <div className="flex items-baseline justify-between gap-4 border-t py-2 first:border-t-0">
+            <span className="text-muted-foreground">{label}</span>
             <span className="font-mono">{value}</span>
         </div>
     )
 }
 
+const dcol = columnsFor<Delegator>()
+
 function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
     const hidden = v.delegatorCount - v.delegators.length
+    const columns = useMemo(
+        () => [
+            dcol.display({id: 'delegator', header: 'Delegator', meta: {className: 'w-full px-0 py-2 first:pl-0'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
+            dcol.display({
+                id: 'capital',
+                header: 'Capital',
+                meta: {align: 'right', className: 'py-2', cellClassName: 'font-mono'},
+                cell: ({row}) => (
+                    <>
+                        {fmtCompact(row.original.capital)} {symbol} <span className="text-dim">{row.original.conviction}</span>
+                    </>
+                ),
+            }),
+            dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: 'font-mono'}, cell: ({row}) => `${fmtCompact(row.original.votes)} ${symbol}`}),
+        ],
+        [symbol]
+    )
     return (
         <div className="bg-[#fafaf9] px-5 py-4">
             <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 gap-y-4 sm:grid-cols-2">
@@ -78,32 +93,9 @@ function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
             {v.delegators.length > 0 && (
                 <div className="mt-5">
                     <h3 className="text-[13px] font-semibold">Delegation list</h3>
-                    <table className="gtable mt-1 w-full text-sm whitespace-nowrap grid-cols-[minmax(max-content,1fr)_max-content_max-content]">
-                        <thead>
-                            <tr>
-                                <th className="px-0 py-2">Delegator</th>
-                                <th className="py-2 text-right">Capital</th>
-                                <th className="px-0 py-2 text-right">Votes</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {v.delegators.map(d => (
-                                <tr key={d.addr}>
-                                    <td className="px-0 py-2">
-                                        <AccountLink addr={d.addr} acc={d.acc} />
-                                    </td>
-                                    <td className="py-2 text-right font-mono">
-                                        {fmtCompact(d.capital)} {symbol} <span className="text-faint">{d.conviction}</span>
-                                    </td>
-                                    <td className="px-0 py-2 text-right font-mono">
-                                        {fmtCompact(d.votes)} {symbol}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <DataTable columns={columns} rows={v.delegators} getRowId={d => d.addr} className="mt-1" />
                     {hidden > 0 && (
-                        <Link href={`/account/${v.addr}`} className="mt-2 inline-block text-xs text-accent hover:underline">
+                        <Link href={`/account/${v.addr}`} className="mt-2 inline-block text-xs text-primary hover:underline">
                             {fmtInt(hidden)} more {hidden === 1 ? 'delegator' : 'delegators'} on the account page <Jump />
                         </Link>
                     )}
@@ -113,72 +105,36 @@ function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
     )
 }
 
+const col = columnsFor<VoteEntry>()
+
 export default function VoteLists({groups, symbol, partial}: {groups: VoteGroup[]; symbol: string; partial: boolean}) {
     const [at, setAt] = useState(Math.max(0, groups.findIndex(g => g.total > 0)))
-    const [open, setOpen] = useState<string | null>(null)
     const group = groups[Math.min(at, groups.length - 1)]
+    const columns = useMemo(
+        () => [
+            col.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
+            col.display({id: 'delegators', header: 'Delegators', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.delegatorCount)}),
+            col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => `${fmtCompact(row.original.selfVotes + row.original.delegatedVotes)} ${symbol}`}),
+            expander(col),
+        ],
+        [symbol]
+    )
     return (
         <div>
-            <div className="mb-3 flex flex-wrap gap-2">
-                {groups.map((g, i) => (
-                    <button
-                        key={g.label}
-                        onClick={() => {
-                            setAt(i)
-                            setOpen(null)
-                        }}
-                        className={`rounded-full border px-3 py-1 text-xs whitespace-nowrap ${i === at ? 'border-accent bg-accent font-medium text-white' : 'border-edge bg-card text-sub hover:text-ink'}`}
-                    >
-                        {g.label} <span className={i === at ? 'text-white/70' : 'text-faint'}>{fmtInt(g.total)}</span>
-                    </button>
-                ))}
-            </div>
-            <div className="card">
-                <table className={`gtable w-full text-sm whitespace-nowrap ${COLS}`}>
-                    <thead>
-                        <tr>
-                            <th>Account</th>
-                            <th className="text-right">Delegators</th>
-                            <th className="text-right">Votes</th>
-                            <th className="px-0" />
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {group.rows.length === 0 && (
-                            <tr>
-                                <td colSpan={4} className="py-6 text-sub">
-                                    No {group.label.toLowerCase()} votes.
-                                </td>
-                            </tr>
-                        )}
-                        {group.rows.map(v => (
-                            <Fragment key={v.id}>
-                                <tr className="cursor-pointer" onClick={() => setOpen(open === v.id ? null : v.id)}>
-                                    <td>
-                                        <AccountLink addr={v.addr} acc={v.acc} />
-                                    </td>
-                                    <td className="text-right font-mono">{fmtInt(v.delegatorCount)}</td>
-                                    <td className="text-right font-mono">
-                                        {fmtCompact(v.selfVotes + v.delegatedVotes)} {symbol}
-                                    </td>
-                                    <td className="px-0 text-faint">
-                                        <Caret open={open === v.id} />
-                                    </td>
-                                </tr>
-                                {open === v.id && (
-                                    <tr>
-                                        <td colSpan={4}>
-                                            <Detail v={v} symbol={symbol} />
-                                        </td>
-                                    </tr>
-                                )}
-                            </Fragment>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <Tabs value={String(at)} onValueChange={v => setAt(Number(v))} className="mb-3">
+                <TabsList className="h-auto flex-wrap justify-start gap-2 rounded-none bg-transparent p-0 group-data-horizontal/tabs:h-auto">
+                    {groups.map((g, i) => (
+                        <TabsTrigger key={g.label} value={String(i)} className={CHIP}>
+                            {g.label} <span className="text-dim group-data-active/chip:text-primary-foreground/70">{fmtInt(g.total)}</span>
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+            </Tabs>
+            <Card size="flush">
+                <DataTable columns={columns} rows={group.rows} empty={`No ${group.label.toLowerCase()} votes.`} getRowId={v => v.id} canExpand={() => true} expand={v => <Detail v={v} symbol={symbol} />} />
+            </Card>
             {group.rows.length < group.total && (
-                <p className="mt-2 text-xs text-faint">
+                <p className="mt-2 text-xs text-dim">
                     showing the largest {fmtInt(group.rows.length)} of {fmtInt(group.total)} votes
                 </p>
             )}

@@ -1,3 +1,4 @@
+import {Alert, AlertDescription} from '@/components/ui/alert'
 import {fmtInt} from '@/lib/format'
 import {indexerStatus} from '@/lib/gql'
 
@@ -31,5 +32,9 @@ export default async function IndexerBanner() {
         () => null
     )
     if (!text) return null
-    return <div className="mt-4 rounded-lg border border-warn/40 bg-warn/10 px-4 py-2 text-sm text-ink">{text}</div>
+    return (
+        <Alert className="mt-4 border-warn/40 bg-warn/10 px-4 py-2">
+            <AlertDescription className="text-wrap text-foreground md:text-wrap">{text}</AlertDescription>
+        </Alert>
+    )
 }

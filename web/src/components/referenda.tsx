@@ -1,26 +1,28 @@
 import type {ReactNode} from 'react'
+import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
+import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtCompact, fmtDaySpan, planckToNum} from '@/lib/format'
 import type {AccountRef, ProposalNode} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 const STATUS_BG: Record<string, string> = {
-    SUBMITTED: 'bg-sub',
-    DECIDING: 'bg-accent',
-    CONFIRMING: 'bg-pos',
-    APPROVED: 'bg-pos',
-    REJECTED: 'bg-neg',
-    TIMEDOUT: 'bg-sub',
-    CANCELLED: 'bg-sub',
-    KILLED: 'bg-neg',
+    SUBMITTED: 'bg-muted-foreground',
+    DECIDING: 'bg-primary',
+    CONFIRMING: 'bg-good',
+    APPROVED: 'bg-good',
+    REJECTED: 'bg-destructive',
+    TIMEDOUT: 'bg-muted-foreground',
+    CANCELLED: 'bg-muted-foreground',
+    KILLED: 'bg-destructive',
 }
 
-export function StatusBadge({status, className = ''}: {status: string; className?: string}) {
+export function StatusBadge({status, className}: {status: string; className?: string}) {
     return (
-        <span className={`shrink-0 rounded-md px-3 py-1.5 text-xs leading-none font-semibold text-white ${STATUS_BG[status] ?? 'bg-sub'} ${className}`}>
+        <Badge className={cn('shrink-0 rounded-md px-3 py-1.5 text-xs leading-none font-semibold', STATUS_BG[status] ?? 'bg-muted-foreground', className)}>
             {status[0] + status.slice(1).toLowerCase()}
-        </span>
+        </Badge>
     )
 }
 
@@ -33,15 +35,15 @@ export function Gauge({value, need, variant}: {value: number | null; need?: numb
     return (
         <div className="relative flex h-2 overflow-hidden rounded-full">
             {value === null ? (
-                <div className="flex-1 bg-edge" />
+                <div className="flex-1 bg-border" />
             ) : (
                 <>
-                    <div className={variant === 'split' ? 'bg-pos' : 'bg-support'} style={{width: `${v}%`}} />
+                    <div className={variant === 'split' ? 'bg-good' : 'bg-support'} style={{width: `${v}%`}} />
                     {variant === 'split' && v > 0 && v < 100 && <div className="w-[3px] shrink-0 bg-card" />}
-                    <div className={`flex-1 ${variant === 'split' ? 'bg-neg' : 'bg-bg'}`} />
+                    <div className={`flex-1 ${variant === 'split' ? 'bg-destructive' : 'bg-background'}`} />
                 </>
             )}
-            {need != null && <span className="absolute top-0 h-full w-px bg-ink" style={{left: `${clamp(need)}%`}} />}
+            {need != null && <span className="absolute top-0 h-full w-px bg-foreground" style={{left: `${clamp(need)}%`}} />}
         </div>
     )
 }
@@ -53,7 +55,7 @@ export function TallyBar({r, decimals, className = 'w-40'}: {r: {ayes: string; n
     return (
         <div className={className}>
             <Gauge value={total > 0 ? (ayes / total) * 100 : null} variant="split" />
-            <div className="mt-1 flex justify-between font-mono text-[10px] text-sub">
+            <div className="mt-1 flex justify-between font-mono text-[10px] text-muted-foreground">
                 <span>aye {fmtCompact(ayes)}</span>
                 <span>nay {fmtCompact(nays)}</span>
             </div>
@@ -66,16 +68,16 @@ export function ThresholdBar({label, value, need, variant, foot}: {label: string
     return (
         <div className="min-w-0">
             <div className="flex items-baseline justify-between gap-2 text-[11px]">
-                <span className="text-sub">{label}</span>
+                <span className="text-muted-foreground">{label}</span>
                 <span className="font-mono">
-                    <span className={pass ? 'text-pos' : 'text-neg'}>{(value ?? 0).toFixed(1)}%</span>
-                    <span className="text-sub"> need {need.toFixed(1)}%</span>
+                    <span className={pass ? 'text-good' : 'text-destructive'}>{(value ?? 0).toFixed(1)}%</span>
+                    <span className="text-muted-foreground"> need {need.toFixed(1)}%</span>
                 </span>
             </div>
             <div className="mt-1">
                 <Gauge value={value} need={need} variant={variant} />
             </div>
-            {foot && <div className="mt-1 flex justify-between gap-2 font-mono text-[10px] text-sub">{foot}</div>}
+            {foot && <div className="mt-1 flex justify-between gap-2 font-mono text-[10px] text-muted-foreground">{foot}</div>}
         </div>
     )
 }
@@ -95,7 +97,7 @@ function release(validFrom: number | null | undefined, best: number, blockTime: 
  */
 export function ProposalTree({nodes, chain, best, party}: {nodes: ProposalNode[]; chain: ChainProps; best: number; party: Map<string, AccountRef>}) {
     return (
-        <div className="divide-y divide-edge">
+        <div className="divide-y">
             {nodes.map((node, i) => (
                 <div key={i} className="flex flex-col gap-1 px-5 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                     <span className="shrink-0 font-mono text-[13px]" style={{paddingLeft: `${node.depth * 22}px`}}>
@@ -104,9 +106,9 @@ export function ProposalTree({nodes, chain, best, party}: {nodes: ProposalNode[]
                     {node.amount != null && node.beneficiary != null && (
                         <span className="flex min-w-0 flex-wrap items-center gap-2">
                             <span className="font-semibold">{fmtBalance(node.amount, chain.decimals, chain.symbol)}</span>
-                            <span className="text-sub">to</span>
+                            <span className="text-muted-foreground">to</span>
                             <AccountLink addr={ss58Encode(node.beneficiary, chain.ss58)} acc={party.get(node.beneficiary)} />
-                            <span className="text-faint">{release(node.validFrom, best, chain.blockTime)}</span>
+                            <span className="text-dim">{release(node.validFrom, best, chain.blockTime)}</span>
                         </span>
                     )}
                 </div>

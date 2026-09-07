@@ -1,68 +1,27 @@
 import Link from 'next/link'
+import {ExtrinsicsTable} from '@/components/ExtrinsicsTable'
 import Pager from '@/components/Pager'
-import {BlockLink, ExtrinsicLink, Jump} from '@/components/links'
-import {Tag} from '@/components/pills'
-import {CallCell} from '@/components/calls'
-import {TimeCell, TimeModeButton} from '@/components/TimeCell'
+import {Jump} from '@/components/links'
+import {Card} from '@/components/ui/card'
 import {extrinsicsPage} from '@/lib/gql'
-import {num, tabHref, type TabCtx} from './shared'
+import {paging} from '@/lib/paging'
+import {tabHref, type TabCtx} from './shared'
 
-const PAGE = 25
 
-export default async function Extrinsics({hex, addr, sp}: TabCtx) {
-    const page = num(sp, 'epage')
-    const {rows, total, leaves} = await extrinsicsPage(PAGE, (page - 1) * PAGE, {signer: hex}, [])
+export default async function Extrinsics({hex, addr, chain, sp}: TabCtx) {
+    const pg = paging(sp, 'epage')
+    const {rows, total, leaves} = await extrinsicsPage(pg.size, pg.offset, {signer: hex}, [])
 
     return (
         <>
-            <div className="card">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_minmax(max-content,1fr)_max-content]">
-                    <thead>
-                        <tr>
-                            <th>Extrinsic</th>
-                            <th>Block</th>
-                            <th>
-                                <TimeModeButton />
-                            </th>
-                            <th>Call</th>
-                            <th className="text-right">Result</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.length === 0 && (
-                            <tr>
-                                <td colSpan={5} className="py-5 text-sub">
-                                    None
-                                </td>
-                            </tr>
-                        )}
-                        {rows.map(x => (
-                            <tr key={x.id}>
-                                <td>
-                                    <ExtrinsicLink id={x.id} hash={x.hash} />
-                                </td>
-                                <td>
-                                    <BlockLink height={x.block.height} />
-                                </td>
-                                <td className="text-sub">
-                                    <TimeCell iso={x.block.timestamp} />
-                                </td>
-                                <td>
-                                    <CallCell call={x} leaves={leaves.get(x.id)} />
-                                </td>
-                                <td className="text-right">
-                                    <Tag text={x.success ? 'Success' : 'Failed'} tone={x.success ? 'pos' : 'neg'} />
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <Card size="flush">
+                <ExtrinsicsTable rows={rows} leaves={Object.fromEntries(leaves)} chain={chain} view="account" />
+            </Card>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
-                <Link href={`/extrinsics?signer=${addr}`} className="text-accent hover:underline">
+                <Link href={`/extrinsics?signer=${addr}`} className="text-primary hover:underline">
                     Search all extrinsics from this account <Jump />
                 </Link>
-                {total > PAGE && <Pager className="" page={page} pageCount={Math.ceil(total / PAGE)} href={n => tabHref(addr, 'extrinsics', {epage: n})} />}
+                <Pager className="" paging={pg} total={total} href={tabHref(addr, 'extrinsics')} pageKey="epage" />
             </div>
         </>
     )

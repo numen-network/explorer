@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import IndexerBanner from '@/components/IndexerBanner'
 import Nav from '@/components/Nav'
 import SearchBar from '@/components/SearchBar'
+import {TooltipProvider} from '@/components/ui/tooltip'
 import {chainProps} from '@/lib/chain'
 import './globals.css'
 
@@ -24,15 +25,17 @@ export default async function RootLayout({children}: {children: ReactNode}) {
     return (
         <html lang="en" className={inter.variable}>
             <body className="flex min-h-dvh flex-col">
-                <Nav chain={chain} />
-                <div className="mx-auto w-full max-w-[1400px] grow px-6 pb-16">
-                    <div className="mt-5">
-                        <SearchBar />
+                <TooltipProvider>
+                    <Nav chain={chain} />
+                    <div className="mx-auto w-full max-w-[1400px] grow px-6 pb-16">
+                        <div className="mt-5">
+                            <SearchBar />
+                        </div>
+                        <IndexerBanner />
+                        {children}
                     </div>
-                    <IndexerBanner />
-                    {children}
-                </div>
-                <Footer />
+                    <Footer />
+                </TooltipProvider>
             </body>
         </html>
     )

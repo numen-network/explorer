@@ -1,4 +1,5 @@
 import type {ReactNode} from 'react'
+import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow} from '@/components/Detail'
@@ -11,6 +12,10 @@ import {Gauge, ProposalTree, StatusBadge} from '@/components/referenda'
 import {CROSS, RING, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps, sentenceCase} from '@/components/timeline'
 import ActionList, {type ActionImpact, type ActionRow} from '@/components/actions'
 import VoteLists, {type VoteEntry} from '@/components/votes'
+import {Badge} from '@/components/ui/badge'
+import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
+import {Progress} from '@/components/ui/progress'
+import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
 import {fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum} from '@/lib/format'
@@ -24,9 +29,9 @@ export async function generateMetadata(props: PageProps<'/referendum/[index]'>) 
     return {title: `Referendum #${index}`}
 }
 
-const STATUS_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle' | 'accent'> = {
+const STATUS_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle' | 'primary'> = {
     SUBMITTED: 'idle',
-    DECIDING: 'accent',
+    DECIDING: 'primary',
     CONFIRMING: 'warn',
     APPROVED: 'pos',
     REJECTED: 'neg',
@@ -40,22 +45,16 @@ const trackLabel = (name: string) => name.split('_').map(w => w[0].toUpperCase()
 const STEP_ICON = (status: string) =>
     status === 'APPROVED' ? TICK : /REJECTED|KILLED|CANCELLED|TIMEDOUT/.test(status) ? CROSS : RING
 
-function Mark({path, className}: {path: string; className: string}) {
-    return (
-        <svg width="14" height="14" viewBox="0 0 16 16" className={`shrink-0 ${className}`} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d={path} />
-        </svg>
-    )
+function Mark({icon: Icon, className}: {icon: LucideIcon; className: string}) {
+    return <Icon className={`size-3.5 shrink-0 ${className}`} strokeWidth={2.2} />
 }
 
 function PhaseBar({label, span, at}: {label: string; span: string; at: number | null}) {
     return (
         <div>
-            <div className="h-2 overflow-hidden rounded-full bg-bg">
-                {at !== null && <div className="h-full bg-accent" style={{width: `${Math.min(100, Math.max(0, at * 100))}%`}} />}
-            </div>
+            <Progress value={at !== null ? Math.min(100, Math.max(0, at * 100)) : 0} className="h-2 bg-background" />
             <div className="mt-1.5 flex items-baseline justify-between text-sm">
-                <span className="text-sub">{label}</span>
+                <span className="text-muted-foreground">{label}</span>
                 <span className="font-mono">{span}</span>
             </div>
         </div>
@@ -66,7 +65,7 @@ function Slot({value, label, className = ''}: {value: string; label: string; cla
     return (
         <div className={`min-w-0 ${className}`}>
             <div className="font-mono">{value}</div>
-            <div className="text-faint">{label}</div>
+            <div className="text-dim">{label}</div>
         </div>
     )
 }
@@ -233,39 +232,43 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     // enactment only starts once the referendum is approved, keep the card
     // up through that phase
     const status = (!ended || r.status === 'APPROVED') && (
-        <div className="card px-5 py-4">
-            <h2 className="text-[15px] font-semibold">Status</h2>
-            <div className="mt-3 space-y-4">
+        <Card className="gap-3 py-4 [--card-spacing:--spacing(5)]">
+            <CardHeader>
+                <CardTitle className="text-[15px] leading-normal font-semibold">Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
                 <PhaseBar label="Prepare" span={fmtBlockSpan(r.track.preparePeriod, chain.blockTime)} at={prepareAt} />
                 <PhaseBar label="Decision" span={fmtBlockSpan(r.track.decisionPeriod, chain.blockTime)} at={decisionAt} />
                 <PhaseBar label="Confirmation" span={fmtBlockSpan(r.track.confirmPeriod, chain.blockTime)} at={confirmAt} />
                 <PhaseBar label="Enactment" span={fmtBlockSpan(r.track.minEnactmentPeriod, chain.blockTime)} at={enactAt} />
-            </div>
-            <div className="mt-4 flex items-baseline justify-between border-t border-edge pt-3 text-sm">
-                <span className="text-sub">Attempts</span>
-                <span className="font-mono">{trail.filter(s => s.status === 'confirming').length}</span>
-            </div>
-        </div>
+                <div className="flex items-baseline justify-between border-t pt-3 text-sm">
+                    <span className="text-muted-foreground">Attempts</span>
+                    <span className="font-mono">{trail.filter(s => s.status === 'confirming').length}</span>
+                </div>
+            </CardContent>
+        </Card>
     )
 
     const tally = (
-        <div className="card px-5 py-4">
-            <h2 className="text-[15px] font-semibold">Tally</h2>
-
-            <div className="mt-3">
+        <Card className="gap-3 py-4 [--card-spacing:--spacing(5)]">
+            <CardHeader>
+                <CardTitle className="text-[15px] leading-normal font-semibold">Tally</CardTitle>
+            </CardHeader>
+            <CardContent>
+            <div>
                 <Gauge value={total > 0 ? approvalNow : null} need={approvalNeed} variant="split" />
             </div>
             <div className="mt-1.5 flex text-[11px]">
-                <Slot className="flex-1 text-left text-pos" value={pct(approvalNow)} label="Aye" />
-                <Slot className="flex-1 text-center text-sub" value={approvalNeed !== null ? pct(approvalNeed) : '—'} label="Threshold" />
-                <Slot className="flex-1 text-right text-neg" value={pct(total > 0 ? 100 - approvalNow : 0)} label="Nay" />
+                <Slot className="flex-1 text-left text-good" value={pct(approvalNow)} label="Aye" />
+                <Slot className="flex-1 text-center text-muted-foreground" value={approvalNeed !== null ? pct(approvalNeed) : '—'} label="Threshold" />
+                <Slot className="flex-1 text-right text-destructive" value={pct(total > 0 ? 100 - approvalNow : 0)} label="Nay" />
             </div>
 
-            <div className="mt-4 divide-y divide-edge border-t border-edge text-sm">
+            <div className="mt-4 divide-y border-t text-sm">
                 <div className="flex items-center justify-between gap-3 py-2.5">
                     <span className="flex items-center gap-1.5">
-                        <Mark path={TICK} className="text-pos" />
-                        Aye <span className="text-faint">({fmtInt(data.ayeCount.totalCount)})</span>
+                        <Mark icon={TICK} className="text-good" />
+                        Aye <span className="text-dim">({fmtInt(data.ayeCount.totalCount)})</span>
                     </span>
                     <span className="font-mono">
                         {fmtCompact(ayes)} {chain.symbol}
@@ -273,8 +276,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 </div>
                 <div className="flex items-center justify-between gap-3 py-2.5">
                     <span className="flex items-center gap-1.5">
-                        <Mark path={CROSS} className="text-neg" />
-                        Nay <span className="text-faint">({fmtInt(data.nayCount.totalCount)})</span>
+                        <Mark icon={CROSS} className="text-destructive" />
+                        Nay <span className="text-dim">({fmtInt(data.nayCount.totalCount)})</span>
                     </span>
                     <span className="font-mono">
                         {fmtCompact(nays)} {chain.symbol}
@@ -287,31 +290,32 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             </div>
             <div className="mt-1.5 flex justify-between text-[11px]">
                 <Slot className="text-support" value={pct(supportNow)} label="Support" />
-                <Slot className="text-right text-sub" value={supportNeed !== null ? pct(supportNeed) : '—'} label="Threshold" />
+                <Slot className="text-right text-muted-foreground" value={supportNeed !== null ? pct(supportNeed) : '—'} label="Threshold" />
             </div>
 
-            <div className="mt-4 divide-y divide-edge border-t border-edge text-sm">
+            <div className="mt-4 divide-y border-t text-sm">
                 <div className="flex items-center justify-between gap-3 py-2.5">
-                    <span className="text-sub">Support</span>
+                    <span className="text-muted-foreground">Support</span>
                     <span className="font-mono">
                         {fmtCompact(supportVal)} {chain.symbol}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-3 py-2.5">
-                    <span className="text-sub">Active issuance</span>
+                    <span className="text-muted-foreground">Active issuance</span>
                     <span className="font-mono">
                         {fmtCompact(activeIssuance)} {chain.symbol}
                     </span>
                 </div>
             </div>
-        </div>
+            </CardContent>
+        </Card>
     )
 
     const curves = (
         <div className="space-y-4">
-            <div className="card px-5 py-4">
+            <Card size="flush" className="px-5 py-4">
                 <CurvesChart approval={approvalCurve} support={supportCurve} currentApproval={currentApproval} currentSupport={currentSupport} now={now} hours={decisionHours} deciding={deciding} />
-            </div>
+            </Card>
             <ActionList rows={actions} decimals={chain.decimals} symbol={chain.symbol} />
         </div>
     )
@@ -321,7 +325,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         <DetailCard>
             {nodes.length === 0 ? (
                 <DetailRow label="Call">
-                    <span className="text-faint">Nothing here reads back as a call</span>
+                    <span className="text-dim">Nothing here reads back as a call</span>
                 </DetailRow>
             ) : (
                 <ProposalTree nodes={nodes} chain={chain} best={heads.best} party={party} />
@@ -336,7 +340,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         <DetailCard>
             <DetailRow label="Index">{r.index}</DetailRow>
             <DetailRow label="Track">
-                {trackLabel(r.track.name)} <span className="text-sub">#{r.track.id}</span>
+                {trackLabel(r.track.name)} <span className="text-muted-foreground">#{r.track.id}</span>
             </DetailRow>
             <DetailRow label="Origin">{r.origin ?? '—'}</DetailRow>
             <DetailRow label="Proposal hash">
@@ -358,7 +362,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             <DetailRow label="Submission deposit">
                 {r.submissionDeposit != null && r.submissionDepositor != null ? (
                     <>
-                        {fmtBalance(r.submissionDeposit, chain.decimals, chain.symbol)} <span className="text-faint">·</span>{' '}
+                        {fmtBalance(r.submissionDeposit, chain.decimals, chain.symbol)} <span className="text-dim">·</span>{' '}
                         <AccountLink addr={ss58Encode(r.submissionDepositor, chain.ss58)} acc={party.get(r.submissionDepositor)} />
                     </>
                 ) : (
@@ -368,7 +372,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             <DetailRow label="Decision deposit">
                 {r.decisionDeposit != null && r.decisionDepositor != null ? (
                     <>
-                        {fmtBalance(r.decisionDeposit, chain.decimals, chain.symbol)} <span className="text-faint">·</span>{' '}
+                        {fmtBalance(r.decisionDeposit, chain.decimals, chain.symbol)} <span className="text-dim">·</span>{' '}
                         <AccountLink addr={ss58Encode(r.decisionDepositor, chain.ss58)} acc={party.get(r.decisionDepositor)} />
                     </>
                 ) : (
@@ -385,7 +389,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             {data.metadataActions.map(a => (
                 <TimelineItem
                     key={a.id}
-                    tone={a.kind === 'set' ? 'accent' : 'idle'}
+                    tone={a.kind === 'set' ? 'primary' : 'idle'}
                     icon={a.kind === 'set' ? RING : CROSS}
                     title={a.kind === 'set' ? 'Text set' : 'Text cleared'}
                     iso={stamps.get(a.block)}
@@ -396,10 +400,10 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                                 {a.title ? (
                                     <p className="text-sm font-semibold">{a.title}</p>
                                 ) : (
-                                    <p className="text-sm text-faint">Nothing read back from the preimage</p>
+                                    <p className="text-sm text-dim">Nothing read back from the preimage</p>
                                 )}
                                 {a.description && <p className="mt-1.5 text-sm whitespace-pre-wrap">{a.description}</p>}
-                                <p className="mt-2 flex items-center gap-1 text-xs text-faint">
+                                <p className="mt-2 flex items-center gap-1 text-xs text-dim">
                                     <span className="font-mono break-all">{a.hash}</span>
                                     <CopyBtn text={a.hash} />
                                 </p>
@@ -500,25 +504,27 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 then the tab panels. the 1fr row soaks up the side pair's
                 overshoot so the span cannot inflate the card row */}
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr]">
-                <div className="card min-w-0 px-7 py-5">
+                <Card size="flush" className="min-w-0 px-7 py-5">
                     <p className="text-base font-semibold">{r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : <span className="text-faint">—</span>}
-                        <span className="text-faint">·</span>
-                        <span className="rounded-full bg-bg px-3 py-1 text-sub">{trackLabel(r.track.name)}</span>
-                        <span className="text-faint">·</span>
-                        <span className="-ml-0.5 text-sub">
+                        {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : <span className="text-dim">—</span>}
+                        <span className="text-dim">·</span>
+                        <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs text-muted-foreground">
+                            {trackLabel(r.track.name)}
+                        </Badge>
+                        <span className="text-dim">·</span>
+                        <span className="-ml-0.5 text-muted-foreground">
                             {stamps.has(r.submittedAt) ? <TimeCell iso={stamps.get(r.submittedAt)!} cycle /> : <BlockLink height={r.submittedAt} />}
                         </span>
                         <StatusBadge status={r.status} className="ml-auto" />
                     </div>
-                    <div className="my-4 h-px bg-edge" />
+                    <Separator className="my-4" />
                     {r.description ? (
                         <p className="text-sm whitespace-pre-wrap">{r.description}</p>
                     ) : (
-                        <p className="py-4 text-center text-sm text-faint">No description provided.</p>
+                        <p className="py-4 text-center text-sm text-dim">No description provided.</p>
                     )}
-                </div>
+                </Card>
 
                 <div className="space-y-4 lg:row-span-2">
                     {status}

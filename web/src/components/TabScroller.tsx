@@ -1,5 +1,7 @@
 'use client'
 import {useEffect, useRef, useState, type ReactNode} from 'react'
+import {ChevronLeft, ChevronRight} from 'lucide-react'
+import {Button} from '@/components/ui/button'
 
 export default function TabScroller({children}: {children: ReactNode}) {
     const ref = useRef<HTMLDivElement>(null)
@@ -24,37 +26,21 @@ export default function TabScroller({children}: {children: ReactNode}) {
         const el = ref.current
         el?.scrollBy({left: dir * el.clientWidth * 0.6, behavior: 'smooth'})
     }
-    // chevron geometry comes from lucide under ISC, inlined
-    const chev = (d: string) => (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d={d} />
-        </svg>
-    )
     // pb-3 mirrors the links' bottom band so the icon centers on the label line
     return (
-        <div className="relative -mb-px">
+        <div className="relative -mb-px w-full">
             {state.left && (
-                <button
-                    type="button"
-                    aria-label="Scroll left"
-                    onClick={() => nudge(-1)}
-                    className="absolute inset-y-0 left-0 z-10 flex items-center bg-gradient-to-r from-bg to-transparent pr-6 pb-3 text-sub hover:text-ink"
-                >
-                    {chev('m15 18-6-6 6-6')}
-                </button>
+                <Button variant="ghost" size="icon-xs" aria-label="Scroll left" onClick={() => nudge(-1)} className="absolute inset-y-0 left-0 z-10 h-auto w-auto rounded-none bg-gradient-to-r from-background to-transparent pr-6 pb-3 text-muted-foreground hover:bg-transparent hover:text-foreground">
+                    <ChevronLeft className="size-4" />
+                </Button>
             )}
             <div ref={ref} onScroll={sync} className="flex gap-6 overflow-x-auto">
                 {children}
             </div>
             {state.right && (
-                <button
-                    type="button"
-                    aria-label="Scroll right"
-                    onClick={() => nudge(1)}
-                    className="absolute inset-y-0 right-0 z-10 flex items-center bg-gradient-to-l from-bg to-transparent pb-3 pl-6 text-sub hover:text-ink"
-                >
-                    {chev('m9 18 6-6-6-6')}
-                </button>
+                <Button variant="ghost" size="icon-xs" aria-label="Scroll right" onClick={() => nudge(1)} className="absolute inset-y-0 right-0 z-10 h-auto w-auto rounded-none bg-gradient-to-l from-background to-transparent pb-3 pl-6 text-muted-foreground hover:bg-transparent hover:text-foreground">
+                    <ChevronRight className="size-4" />
+                </Button>
             )}
         </div>
     )

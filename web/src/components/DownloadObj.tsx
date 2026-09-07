@@ -1,4 +1,7 @@
 'use client'
+import {Download} from 'lucide-react'
+import {Tip} from '@/components/Tip'
+import {Button} from '@/components/ui/button'
 import {gunzipHex} from '@/lib/mesh'
 
 const fmt = (x: number) => String(parseFloat(x.toPrecision(7)))
@@ -19,17 +22,10 @@ export default function DownloadObj({vertices, faces, name}: {vertices: string; 
         URL.revokeObjectURL(url)
     }
     return (
-        <button
-            aria-label="download obj"
-            title="Download OBJ"
-            onClick={onClick}
-            className="inline-grid size-5 place-items-center rounded border border-edge bg-card align-middle text-faint hover:text-accent"
-        >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 4v11" />
-                <path d="m7 11 5 5 5-5" />
-                <path d="M4 20h16" />
-            </svg>
-        </button>
+        <Tip text="Download OBJ">
+            <Button variant="outline" size="icon-xs" aria-label="download obj" onClick={onClick} className="size-5 rounded bg-card align-middle text-dim hover:bg-card hover:text-primary">
+                <Download className="size-[11px]" />
+            </Button>
+        </Tip>
     )
 }

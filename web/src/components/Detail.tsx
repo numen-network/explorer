@@ -1,11 +1,12 @@
 import {ReactNode} from 'react'
+import {Card} from '@/components/ui/card'
 
 export function DetailCard({title, children}: {title?: string; children: ReactNode}) {
     return (
-        <div className="card divide-y divide-edge">
+        <Card size="flush" className="divide-y">
             {title && <div className="px-5 py-2.5 text-sm font-semibold">{title}</div>}
             {children}
-        </div>
+        </Card>
     )
 }
 
@@ -14,16 +15,16 @@ export function DetailCard({title, children}: {title?: string; children: ReactNo
 export function DetailRow({label, children}: {label: string; children: ReactNode}) {
     return (
         <div className="flex flex-col gap-0.5 px-5 py-2.5 text-sm sm:flex-row sm:gap-4">
-            <div className="shrink-0 text-sub sm:w-40">{label}</div>
+            <div className="shrink-0 text-muted-foreground sm:w-40">{label}</div>
             <div className="min-w-0 font-mono break-all">{children}</div>
         </div>
     )
 }
 
 export function JsonBlock({value}: {value: unknown}) {
-    if (value === null || value === undefined) return <span className="text-faint">—</span>
+    if (value === null || value === undefined) return <span className="text-dim">—</span>
     return (
-        <pre className="max-h-72 overflow-auto rounded-lg border border-edge bg-bg px-3 py-2 font-mono text-xs leading-5 whitespace-pre-wrap">
+        <pre className="max-h-72 overflow-auto rounded-lg border bg-background px-3 py-2 font-mono text-xs leading-5 whitespace-pre-wrap">
             {JSON.stringify(value, null, 2)}
         </pre>
     )

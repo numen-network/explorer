@@ -1,6 +1,9 @@
 'use client'
 import {useEffect, useSyncExternalStore} from 'react'
+import {ArrowLeftRight} from 'lucide-react'
 import TimeAgo from './TimeAgo'
+import {Tip} from '@/components/Tip'
+import {Toggle} from '@/components/ui/toggle'
 import {fmtDateTime} from '@/lib/format'
 
 // every timestamp shows the ago | date pair, the toggle only picks the timezone
@@ -17,8 +20,8 @@ const subscribe = (f: () => void) => {
 const getMode = () => mode
 const serverMode = (): Mode => 'utc'
 const notify = () => subs.forEach(f => f())
-const cycleMode = () => {
-    mode = mode === 'utc' ? 'local' : 'utc'
+const setMode = (local: boolean) => {
+    mode = local ? 'local' : 'utc'
     try {
         localStorage.setItem('timeMode', mode)
     } catch {}
@@ -35,24 +38,18 @@ const loadPref = () => {
     } catch {}
 }
 
-function CycleIcon() {
-    return (
-        <svg width="1em" height="1em" viewBox="0 0 24 24" className="shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M15.5 9.3h-7m0 0 2.2-2.2M8.5 9.3l2.2 2.2" />
-            <path d="M8.5 14.7h7m0 0-2.2-2.2m2.2 2.2-2.2 2.2" />
-        </svg>
-    )
-}
+const QUIET = "h-auto min-w-0 gap-1 rounded-none p-0 text-[length:inherit] hover:bg-transparent aria-pressed:bg-transparent data-[state=on]:bg-transparent [&_svg:not([class*='size-'])]:size-[1em]"
 
 export function TimeModeButton() {
     const m = useSyncExternalStore(subscribe, getMode, serverMode)
     useEffect(loadPref, [])
     return (
-        <button onClick={cycleMode} title="Switch timezone" className="inline-flex items-center gap-1 font-medium whitespace-nowrap text-accent hover:underline">
-            {LABEL[m]}
-            <CycleIcon />
-        </button>
+        <Tip text="Switch timezone">
+            <Toggle size="sm" pressed={m === 'local'} onPressedChange={setMode} aria-label="Switch timezone" className={`${QUIET} font-medium text-primary hover:text-primary hover:underline data-[state=on]:text-primary`}>
+                {LABEL[m]}
+                <ArrowLeftRight />
+            </Toggle>
+        </Tip>
     )
 }
 
@@ -63,7 +60,7 @@ export function TimeCell({iso, cycle = false}: {iso: string; cycle?: boolean}) {
     useEffect(loadPref, [])
     const body = (
         <span className="whitespace-nowrap">
-            <TimeAgo iso={iso} /> <span className="text-faint">|</span>{' '}
+            <TimeAgo iso={iso} /> <span className="text-dim">|</span>{' '}
             <span suppressHydrationWarning>
                 {fmtDateTime(iso, m === 'utc')}
                 {cycle ? ` (${m === 'utc' ? 'UTC' : 'Local'})` : ''}
@@ -74,9 +71,11 @@ export function TimeCell({iso, cycle = false}: {iso: string; cycle?: boolean}) {
     return (
         <span className="inline-flex items-center gap-1.5">
             {body}
-            <button aria-label="switch timezone" title="Switch timezone" onClick={cycleMode} className="text-faint hover:text-accent">
-                <CycleIcon />
-            </button>
+            <Tip text="Switch timezone">
+                <Toggle size="sm" pressed={m === 'local'} onPressedChange={setMode} aria-label="Switch timezone" className={`${QUIET} text-dim hover:text-primary data-[state=on]:text-dim`}>
+                    <ArrowLeftRight />
+                </Toggle>
+            </Tip>
         </span>
     )
 }

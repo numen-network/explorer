@@ -1,14 +1,17 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
+import {ChevronRight} from 'lucide-react'
+import AddressText from '@/components/AddressText'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import {TabPanels, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {BlockLink, EvmAddrLink, ExtrinsicLink} from '@/components/links'
-import {Tag} from '@/components/pills'
+import {Badge} from '@/components/ui/badge'
+import {Card} from '@/components/ui/card'
+import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import {chainProps} from '@/lib/chain'
 import {evmTxTypeLabel} from '@/lib/evm'
-import AddressText from '@/components/AddressText'
 import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmTxDetail} from '@/lib/gql'
 
@@ -29,38 +32,38 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
     const fee = BigInt(tx.gasUsed) * BigInt(tx.gasPrice)
 
     const logs = (
-        <div className="card divide-y divide-edge">
-            {data.evmLogs.length === 0 && <div className="px-5 py-5 text-sm text-sub">None</div>}
+        <Card size="flush" className="divide-y">
+            {data.evmLogs.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
             {data.evmLogs.map(log => (
                 <div key={log.id} className="space-y-1 px-5 py-3 font-mono text-xs">
                     <div>
-                        <span className="text-sub">#{log.logIndex}</span> <EvmAddrLink addr={log.address} full />
+                        <span className="text-muted-foreground">#{log.logIndex}</span> <EvmAddrLink addr={log.address} full />
                     </div>
                     {log.topics.map((t, i) => (
-                        <div key={i} className="break-all text-sub">
-                            <span className="text-faint">topic{i}</span> {t}
+                        <div key={i} className="break-all text-muted-foreground">
+                            <span className="text-dim">topic{i}</span> {t}
                         </div>
                     ))}
-                    {log.data !== '0x' && <div className="break-all text-sub">data {log.data}</div>}
+                    {log.data !== '0x' && <div className="break-all text-muted-foreground">data {log.data}</div>}
                 </div>
             ))}
-        </div>
+        </Card>
     )
 
     const tokenTransfers = (
-        <div className="card divide-y divide-edge">
+        <Card size="flush" className="divide-y">
             {data.tokenTransfers.map(t => (
                 <div key={t.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
                     <EvmAddrLink addr={t.from} />
-                    <span className="text-sub">→</span>
+                    <span className="text-muted-foreground">→</span>
                     <EvmAddrLink addr={t.to} />
                     <span className="ml-auto font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
-                    <Link href={`/token/${t.token.id}`} className="font-mono text-xs text-accent hover:underline">
+                    <Link href={`/token/${t.token.id}`} className="font-mono text-xs text-primary hover:underline">
                         <AddressText addr={t.token.id} />
                     </Link>
                 </div>
             ))}
-        </div>
+        </Card>
     )
 
     const panels: Panel[] = [{slug: 'logs', label: 'Logs', count: data.evmLogs.length, body: () => logs}]
@@ -70,7 +73,7 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
         <div>
             <div className="mt-6 flex items-center gap-3">
                 <h1 className="text-lg font-semibold">EVM Transaction</h1>
-                <Tag text={ok ? 'Success' : `${tx.status}${tx.statusReason ? ` · ${tx.statusReason}` : ''}`} tone={ok ? 'pos' : 'neg'} />
+                <Badge variant={ok ? 'pos' : 'neg'}>{ok ? 'Success' : `${tx.status}${tx.statusReason ? ` · ${tx.statusReason}` : ''}`}</Badge>
             </div>
 
             <div className="mt-3">
@@ -80,7 +83,7 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
                         <CopyBtn text={tx.id} />
                     </DetailRow>
                     <DetailRow label="Block">
-                        <BlockLink height={tx.block.height} /> <span className="text-sub">· index {tx.txIndex}</span>
+                        <BlockLink height={tx.block.height} /> <span className="text-muted-foreground">· index {tx.txIndex}</span>
                     </DetailRow>
                     <DetailRow label="Timestamp">
                         <TimeCell iso={tx.timestamp} cycle />
@@ -113,12 +116,13 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
                         {tx.input === '0x' ? (
                             '0x'
                         ) : (
-                            <details>
-                                <summary className="cursor-pointer">
+                            <Collapsible className="group">
+                                <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5">
+                                    <ChevronRight className="size-3.5 text-dim transition-transform group-data-[state=open]:rotate-90" />
                                     {tx.inputSelector ?? '0x'} · {(tx.input.length - 2) / 2} bytes
-                                </summary>
-                                <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-edge bg-bg px-3 py-2 text-xs break-all text-sub">{tx.input}</div>
-                            </details>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="mt-2 max-h-48 overflow-y-auto rounded-lg border bg-background px-3 py-2 text-xs break-all text-muted-foreground">{tx.input}</CollapsibleContent>
+                            </Collapsible>
                         )}
                     </DetailRow>
                 </DetailCard>

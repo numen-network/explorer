@@ -15,7 +15,7 @@ export default function Section({title, more, moreLabel = 'View all', children}:
             <div className="mb-3 flex items-baseline justify-between gap-4">
                 <h2 className="text-[17px] font-semibold whitespace-nowrap">{title}</h2>
                 {more && (
-                    <Link href={more} className="text-sm whitespace-nowrap text-accent hover:underline">
+                    <Link href={more} className="text-sm whitespace-nowrap text-primary hover:underline">
                         {moreLabel} <Jump />
                     </Link>
                 )}

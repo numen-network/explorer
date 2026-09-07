@@ -2,12 +2,15 @@ import Link from 'next/link'
 import {notFound, redirect} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow, JsonBlock} from '@/components/Detail'
+import {EventsTable} from '@/components/EventsTable'
 import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, EvmTxLink} from '@/components/links'
-import {Tag} from '@/components/pills'
 import {CallTree} from '@/components/calls'
+import {Badge} from '@/components/ui/badge'
+import {Card} from '@/components/ui/card'
+import {Item} from '@/components/ui/item'
 import {chainProps} from '@/lib/chain'
 import {extrinsicPath, fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {extrinsicDetail, extrinsicMatches, type ExtrinsicHit} from '@/lib/gql'
@@ -27,22 +30,24 @@ function Ambiguous({hash, hits}: {hash: string; hits: ExtrinsicHit[]}) {
     return (
         <div>
             <h1 className="mt-6 text-lg font-semibold">Extrinsic {shortHash(hash, 10, 6)}</h1>
-            <p className="mt-1.5 text-sm text-sub">{fmtInt(hits.length)} extrinsics share this hash, pick the block you meant.</p>
-            <div className="card mt-3 divide-y divide-edge">
+            <p className="mt-1.5 text-sm text-muted-foreground">{fmtInt(hits.length)} extrinsics share this hash, pick the block you meant.</p>
+            <Card size="flush" className="mt-3 divide-y">
                 {hits.map(h => (
-                    <Link key={h.id} href={`/extrinsic/${h.block.height}-${h.indexInBlock}`} className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-bg/60">
-                        <span className="font-mono text-sm text-accent">
-                            {h.block.height}-{h.indexInBlock}
-                        </span>
-                        <span className="text-sm text-sub">
-                            {h.pallet}.{h.method}
-                        </span>
-                        <span className="text-xs text-sub">
-                            <TimeCell iso={h.block.timestamp} />
-                        </span>
-                    </Link>
+                    <Item key={h.id} asChild className="justify-between gap-4 rounded-none border-0 px-5 py-3 [a]:hover:bg-background/60">
+                        <Link href={`/extrinsic/${h.block.height}-${h.indexInBlock}`}>
+                            <span className="font-mono text-sm text-primary">
+                                {h.block.height}-{h.indexInBlock}
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                                {h.pallet}.{h.method}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                <TimeCell iso={h.block.timestamp} />
+                            </span>
+                        </Link>
+                    </Item>
                 ))}
-            </div>
+            </Card>
         </div>
     )
 }
@@ -66,27 +71,9 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
     if (!x) notFound()
 
     const events = (
-        <div className="card divide-y divide-edge">
-            {data.events.length === 0 && <div className="px-5 py-5 text-sm text-sub">None</div>}
-            {data.events.map(e => (
-                <details key={e.id} className="px-5 py-2.5">
-                    <summary className="flex cursor-pointer items-center gap-3 text-sm">
-                        <span className="w-8 font-mono text-xs text-sub">{e.indexInBlock}</span>
-                        <span className="font-mono text-[13px]">
-                            {e.pallet}.{e.method}
-                        </span>
-                        {e.call && (e.call.pallet !== x.pallet || e.call.method !== x.method) && (
-                            <span className="font-mono text-[11px] text-faint">
-                                from {e.call.pallet}.{e.call.method}
-                            </span>
-                        )}
-                    </summary>
-                    <div className="mt-2 pl-11">
-                        <JsonBlock value={e.args} />
-                    </div>
-                </details>
-            ))}
-        </div>
+        <Card size="flush">
+            <EventsTable rows={data.events} view="extrinsic" parent={{pallet: x.pallet, method: x.method}} />
+        </Card>
     )
 
     return (
@@ -98,7 +85,7 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
                         {x.block.height}-{x.indexInBlock}
                     </span>
                 </h1>
-                <Tag text={x.success ? 'Success' : 'Failed'} tone={x.success ? 'pos' : 'neg'} />
+                <Badge variant={x.success ? 'pos' : 'neg'}>{x.success ? 'Success' : 'Failed'}</Badge>
             </div>
 
             <div className="mt-3">
@@ -119,14 +106,14 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
                         <TimeCell iso={x.block.timestamp} cycle />
                     </DetailRow>
                     <DetailRow label="Signer">
-                        {x.signer ? <AccountLink full addr={ss58Encode(x.signer.id, chain.ss58)} acc={x.signer} /> : <span className="text-faint">unsigned</span>}
+                        {x.signer ? <AccountLink full addr={ss58Encode(x.signer.id, chain.ss58)} acc={x.signer} /> : <span className="text-dim">unsigned</span>}
                     </DetailRow>
                     <DetailRow label="Fee">
                         {x.fee ? (
                             <>
                                 {fmtBalance(x.fee, chain.decimals, chain.symbol)}
-                                <div className="mt-0.5 text-xs text-sub">to miner {fmtBalance(x.minerFee, chain.decimals, chain.symbol)}</div>
-                                <div className="text-xs text-sub">to treasury {fmtBalance(x.treasuryFee, chain.decimals, chain.symbol)}</div>
+                                <div className="mt-0.5 text-xs text-muted-foreground">to miner {fmtBalance(x.minerFee, chain.decimals, chain.symbol)}</div>
+                                <div className="text-xs text-muted-foreground">to treasury {fmtBalance(x.treasuryFee, chain.decimals, chain.symbol)}</div>
                             </>
                         ) : (
                             '—'

@@ -3,19 +3,21 @@ import AccountLink from '@/components/AccountLink'
 import {TabPanels, type Panel} from '@/components/Tabs'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import {BlockLink} from '@/components/links'
-import {Tag} from '@/components/pills'
 import {bountyStatusLabel, bountyStatusTone} from '@/components/bounties'
 import Timeline, {CROSS, RING, TICK, rawSteps, sentenceCase} from '@/components/timeline'
+import {Badge} from '@/components/ui/badge'
+import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
 import {blockTimes, bountyDetail, type AccountRef} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
+import {ChildBountiesTable} from './table'
 
 export const dynamic = 'force-dynamic'
 
 // the rail marks how a bounty ended, everything before that is a step along
-const STEP_TONE = (status: string): 'pos' | 'neg' | 'accent' | 'idle' =>
-    status === 'claimed' ? 'pos' : /rejected|cancelled|unassigned/.test(status) ? 'neg' : status === 'awarded' ? 'accent' : 'idle'
+const STEP_TONE = (status: string): 'pos' | 'neg' | 'primary' | 'idle' =>
+    status === 'claimed' ? 'pos' : /rejected|cancelled|unassigned/.test(status) ? 'neg' : status === 'awarded' ? 'primary' : 'idle'
 
 const STEP_ICON = (status: string) => (status === 'claimed' ? TICK : /rejected|cancelled|unassigned/.test(status) ? CROSS : RING)
 
@@ -35,41 +37,12 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
     const trail = rawSteps(b.timeline)
     const stamps = new Map((await blockTimes([...new Set(trail.map(s => s.block))])).blocks.map(bl => [bl.height, bl.timestamp]))
 
-    const acc = (a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : <span className="text-faint">—</span>)
+    const acc = (a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : <span className="text-dim">—</span>)
 
     const children = (
-        <div className="card">
-            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_minmax(24ch,1fr)_max-content_max-content_max-content_max-content]">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Child bounty</th>
-                        <th className="text-right">Value</th>
-                        <th>Curator</th>
-                        <th>Beneficiary</th>
-                        <th className="text-right">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.childBounties.map(c => (
-                        <tr key={c.id}>
-                            <td className="font-mono text-sub">{c.childIndex}</td>
-                            <td>
-                                <span className="block truncate" title={c.description ?? undefined}>
-                                    {c.description ?? `Child #${c.childIndex}`}
-                                </span>
-                            </td>
-                            <td className="text-right font-mono">{fmtBalance(c.value, chain.decimals, chain.symbol)}</td>
-                            <td>{acc(c.curator)}</td>
-                            <td>{acc(c.beneficiary)}</td>
-                            <td className="text-right">
-                                <Tag text={bountyStatusLabel(c.status)} tone={bountyStatusTone(c.status)} />
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+        <Card size="flush">
+            <ChildBountiesTable rows={data.childBounties} chain={chain} />
+        </Card>
     )
 
     const overview = (
@@ -112,9 +85,9 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
         <div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
                 <h1 className="text-lg font-semibold">Bounty #{b.index}</h1>
-                <Tag text={bountyStatusLabel(b.status)} tone={bountyStatusTone(b.status)} />
+                <Badge variant={bountyStatusTone(b.status)}>{bountyStatusLabel(b.status)}</Badge>
             </div>
-            {b.description && <p className="mt-1.5 max-w-3xl text-sm text-sub">{b.description}</p>}
+            {b.description && <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">{b.description}</p>}
 
             <div className="mt-4">{overview}</div>
 

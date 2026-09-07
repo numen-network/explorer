@@ -1,10 +1,12 @@
-import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import ChartList from '@/components/ChartList'
 import DateRange from '@/components/DateRange'
+import {TabBar} from '@/components/Tabs'
 import {SeriesChart} from '@/components/charts'
+import {Button} from '@/components/ui/button'
+import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
+import {Empty, EmptyDescription} from '@/components/ui/empty'
 import {chainProps} from '@/lib/chain'
-import {CONTROL, FIELD} from '@/lib/ui'
 import {CHARTS, chartBySlug, highlight, type ChartInput} from '@/lib/charts'
 import {chartSeries} from '@/lib/gql'
 
@@ -17,7 +19,6 @@ const RANGES: [key: string, label: string, days: number][] = [
     ['365', '365D', 365],
     ['all', 'ALL', 0],
 ]
-const PILL = 'rounded-lg px-2.5 py-1 text-xs'
 
 export async function generateMetadata(props: PageProps<'/charts/[slug]'>) {
     const {slug} = await props.params
@@ -63,47 +64,41 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
 
             {/* min-w-0 or the grid track widens to fit the date row and takes
                 the chart with it */}
-            <div className="card order-1 min-w-0 px-5 py-4 lg:order-2">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <h1 className="text-[17px] font-semibold">{def.title}</h1>
+            <Card className="order-1 min-w-0 gap-3 py-4 [--card-spacing:--spacing(5)] lg:order-2">
+                <CardHeader className="flex flex-wrap items-center justify-between gap-3">
+                    <CardTitle className="text-[17px] leading-normal font-semibold">{def.title}</CardTitle>
                     <div className="flex flex-wrap items-center gap-2">
                         <form className="flex flex-wrap items-center gap-2 text-xs" action={`/charts/${slug}`}>
                             <DateRange after={custom ? after : ''} before={before} />
-                            <button type="submit" className={`${FIELD} hover:text-accent`}>
+                            <Button type="submit" variant="outline" className="h-auto rounded-lg bg-card px-2.5 py-1 text-xs font-normal hover:bg-card hover:text-primary">
                                 Apply
-                            </button>
+                            </Button>
                         </form>
-                        <div className={`${CONTROL} flex items-center gap-1 p-0.5`}>
-                            {RANGES.map(([k, label]) => (
-                                <Link key={k} href={`/charts/${slug}${k === '365' ? '' : `?r=${k}`}`} className={`${PILL} ${k === range ? 'bg-bg font-medium' : 'text-sub hover:text-accent'}`}>
-                                    {label}
-                                </Link>
-                            ))}
-                        </div>
+                        <TabBar variant="pill" items={RANGES.map(([k, label]) => ({label, href: `/charts/${slug}${k === '365' ? '' : `?r=${k}`}`, active: k === range}))} />
                     </div>
-                </div>
-
-                <div className="mt-3">
+                </CardHeader>
+                <CardContent>
                     {input.days.length === 0 ? (
-                        <div className="grid h-[420px] place-items-center text-sm text-faint">No data in this range.</div>
+                        <Empty className="h-[420px] p-0 text-wrap">
+                            <EmptyDescription className="text-sm text-dim">No data in this range.</EmptyDescription>
+                        </Empty>
                     ) : (
                         <SeriesChart labels={labels} values={values} tips={values.map(v => def.format(v, input))} name={def.unit} kind={def.kind} />
                     )}
-                </div>
-
-                <dl className="mt-4 space-y-1.5 border-t border-edge pt-4 text-sm">
-                    <div className="flex gap-4">
-                        <dt className="w-16 shrink-0 text-sub">About</dt>
-                        <dd className="text-ink">{def.about}</dd>
-                    </div>
-                    {note && (
+                    <dl className="mt-4 space-y-1.5 border-t pt-4 text-sm">
                         <div className="flex gap-4">
-                            <dt className="w-16 shrink-0 text-sub">Highlight</dt>
-                            <dd className="text-ink">{note}</dd>
+                            <dt className="w-16 shrink-0 text-muted-foreground">About</dt>
+                            <dd>{def.about}</dd>
                         </div>
-                    )}
-                </dl>
-            </div>
+                        {note && (
+                            <div className="flex gap-4">
+                                <dt className="w-16 shrink-0 text-muted-foreground">Highlight</dt>
+                                <dd>{note}</dd>
+                            </div>
+                        )}
+                    </dl>
+                </CardContent>
+            </Card>
         </div>
     )
 }

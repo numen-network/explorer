@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { cn } from "cn"
 import {
   DayPicker,
   getDefaultClassNames,
@@ -8,15 +9,8 @@ import {
   type Locale,
 } from "react-day-picker"
 
-import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
-
-// chevron geometry is a lucide icon under ISC, inlined
-const CHEVRON = {
-  left: "m15 18-6-6 6-6",
-  right: "m9 18 6-6-6-6",
-  down: "m6 9 6 6 6-6",
-}
+import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
 function Calendar({
   className,
@@ -150,25 +144,23 @@ function Calendar({
             />
           )
         },
-        Chevron: ({ className, orientation }) => (
-          <svg
-            className={cn("size-4", className)}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path
-              d={
-                orientation === "left" || orientation === "right"
-                  ? CHEVRON[orientation]
-                  : CHEVRON.down
-              }
-            />
-          </svg>
-        ),
+        Chevron: ({ className, orientation, ...props }) => {
+          if (orientation === "left") {
+            return (
+              <ChevronLeftIcon className={cn("size-4", className)} {...props} />
+            )
+          }
+
+          if (orientation === "right") {
+            return (
+              <ChevronRightIcon className={cn("size-4", className)} {...props} />
+            )
+          }
+
+          return (
+            <ChevronDownIcon className={cn("size-4", className)} {...props} />
+          )
+        },
         DayButton: ({ ...props }) => (
           <CalendarDayButton locale={locale} {...props} />
         ),

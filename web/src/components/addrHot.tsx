@@ -2,7 +2,7 @@
 
 import {useEffect, useSyncExternalStore, type ReactNode} from 'react'
 
-const HOT = 'rounded-[4px] bg-accent-soft ring-1 ring-accent/30'
+const HOT = 'rounded-[4px] bg-primary-soft ring-1 ring-primary/30'
 
 let hot: string | null = null
 const subs = new Set<() => void>()

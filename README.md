@@ -99,7 +99,8 @@ The explorer refuses to append to a file that holds another chain, so delete `sp
 
 - Package manager is pnpm, pinned by the `packageManager` field and enabled through corepack in both images. Install scripts are denied by default, `squid/pnpm-workspace.yaml` records the ones that were looked at and rejected.
 - Tabs live in the url, so the server builds only the panel being read and a tab can be linked. The account page carries this furthest, one query per tab plus a summary that fetches nothing but counts.
-- Tables are css grid because table auto layout cannot shrink an address column. Rows and sections are `display: contents`, so everything a row wants painted is written against its cells in the `.gtable` rules.
+- Every table is a TanStack Table drawn with the shadcn table parts through `web/src/components/DataTable.tsx`. Column widths follow the content and a wide table scrolls sideways inside its card. Sorting and paging stay in the url, so the table registers no feature that could reorder the page it was handed. Rows open through TanStack row expanding rather than a details element, since a details cannot sit inside a table.
+- UI parts are shadcn's generated files under `web/src/components/ui/`, pulled with the CLI and edited only for explorer tones and spacing. Icons come from lucide-react and simple-icons, which makes every icon in a server component a small client component of its own, a cost taken knowingly rather than copying SVG paths by hand.
 - Finality lags the head by minutes on this chain, so the processor follows hot blocks and marks finality separately.
 - Mined objects are not stored on chain. The processor regenerates each one from the node and stores gzipped f32 vertex arrays, topology is stored once per protocol version.
 - ERC20 supply is derived purely from events, only token metadata goes through `eth_call`.

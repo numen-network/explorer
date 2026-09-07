@@ -7,7 +7,7 @@ import {AddrMark} from '@/components/addrHot'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import {TabBar} from '@/components/Tabs'
 import {BlockLink} from '@/components/links'
-import {Tag} from '@/components/pills'
+import {Badge, type BadgeVariant} from '@/components/ui/badge'
 import Delegations from '@/components/account/Delegations'
 import Extrinsics from '@/components/account/Extrinsics'
 import Identity from '@/components/account/Identity'
@@ -93,12 +93,12 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
         return v !== MAX_U128 && v > m ? v : m
     }, 0n)
 
-    const roles: {text: string; tone: 'pos' | 'warn' | 'neg' | 'idle' | 'accent'}[] = []
+    const roles: {text: string; tone: BadgeVariant}[] = []
     if (s.prime.length > 0) roles.push({text: 'Prime', tone: 'warn'})
     if (validator) roles.push({text: validator.active ? 'Active validator' : 'Validator', tone: validator.active ? 'pos' : 'idle'})
-    if (minedBlocks > 0) roles.push({text: 'Miner', tone: 'accent'})
-    if (registrar) roles.push({text: `Registrar #${registrar.index}`, tone: 'accent'})
-    if (evm.tokens > 0) roles.push({text: evm.tokens > 1 ? `Token issuer · ${evm.tokens}` : 'Token issuer', tone: 'accent'})
+    if (minedBlocks > 0) roles.push({text: 'Miner', tone: 'primary'})
+    if (registrar) roles.push({text: `Registrar #${registrar.index}`, tone: 'primary'})
+    if (evm.tokens > 0) roles.push({text: evm.tokens > 1 ? `Token issuer · ${evm.tokens}` : 'Token issuer', tone: 'primary'})
     if (evm.contracts > evm.tokens) roles.push({text: 'Contract deployer', tone: 'idle'})
     if (s.curated.totalCount + s.childCurated.totalCount > 0) roles.push({text: 'Bounty curator', tone: 'idle'})
     if (s.nDelegIn.totalCount > 0) roles.push({text: 'Delegate', tone: 'idle'})
@@ -141,7 +141,9 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                 {roles.length > 0 && (
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         {roles.map(r => (
-                            <Tag key={r.text} text={r.text} tone={r.tone} />
+                            <Badge key={r.text} variant={r.tone}>
+                                {r.text}
+                            </Badge>
                         ))}
                     </div>
                 )}
@@ -171,21 +173,21 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                         <DetailRow label="Nonce">{fmtInt(a.nonce)}</DetailRow>
                         <DetailRow label="First seen">
                             <BlockLink height={a.firstSeenBlock} />
-                            {firstSeen && <span className="ml-3 text-xs text-faint">active age {fmtAge(firstSeen.timestamp)}</span>}
+                            {firstSeen && <span className="ml-3 text-xs text-dim">active age {fmtAge(firstSeen.timestamp)}</span>}
                         </DetailRow>
                         <DetailRow label="Last active">
                             <BlockLink height={a.lastActiveBlock} />
                         </DetailRow>
                         {a.evmAddress && (
                             <DetailRow label="EVM origin">
-                                <Link href={`/evm/address/${a.evmAddress}`} className="text-accent hover:underline">
+                                <Link href={`/evm/address/${a.evmAddress}`} className="text-primary hover:underline">
                                     {a.evmAddress}
                                 </Link>
-                                <span className="ml-2 text-xs text-faint">mapped account of this H160</span>
+                                <span className="ml-2 text-xs text-dim">mapped account of this H160</span>
                             </DetailRow>
                         )}
                     </DetailCard>
-                    <div className="mt-2 px-1 text-xs text-faint">* computed from on-chain data, not raw on-chain data</div>
+                    <div className="mt-2 px-1 text-xs text-dim">* computed from on-chain data, not raw on-chain data</div>
                 </div>
                 {hasIdentity && <Identity a={a} chain={chain} />}
             </div>

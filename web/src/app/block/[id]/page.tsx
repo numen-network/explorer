@@ -4,26 +4,25 @@ import Asteroid from '@/components/Asteroid'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import CopyBtn from '@/components/CopyBtn'
 import DownloadObj from '@/components/DownloadObj'
+import {EventsTable} from '@/components/EventsTable'
+import {ExtrinsicsTable} from '@/components/ExtrinsicsTable'
 import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
+import {Tip} from '@/components/Tip'
 import AccountLink from '@/components/AccountLink'
-import {ExtrinsicLink} from '@/components/links'
-import {Tag} from '@/components/pills'
-import {CallCell} from '@/components/calls'
-import {JsonBlock} from '@/components/Detail'
+import {Badge} from '@/components/ui/badge'
+import {Card} from '@/components/ui/card'
+import {Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious} from '@/components/ui/pagination'
 import {chainProps} from '@/lib/chain'
 import {parseDigest} from '@/lib/digest'
 import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {blockDetail, leafCalls} from '@/lib/gql'
+import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
-import {FIELD} from '@/lib/ui'
+import {DigestTable} from './tables'
 
 export const dynamic = 'force-dynamic'
-
-const EVENT_ROW = 'grid grid-cols-[2.5rem_minmax(0,1fr)_8rem_9rem] items-center gap-3'
-const XPAGE = 25
-const EPAGE = 50
 
 export async function generateMetadata(props: PageProps<'/block/[id]'>) {
     const {id} = await props.params
@@ -34,21 +33,15 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     const {id} = await props.params
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')
-    const xPage = Math.max(1, Number(sp.xpage) || 1)
-    const ePage = Math.max(1, Number(sp.epage) || 1)
+    const x = paging(sp, 'xpage')
+    const e = paging(sp, 'epage')
     const [chain, data] = await Promise.all([
         chainProps(),
-        blockDetail(id, {limit: XPAGE, offset: (xPage - 1) * XPAGE}, {limit: EPAGE, offset: (ePage - 1) * EPAGE}),
+        blockDetail(id, {limit: x.size, offset: x.offset}, {limit: e.size, offset: e.offset}),
     ])
     const block = data.blocks[0]
     if (!block) notFound()
     const leaves = await leafCalls(data.extrinsics.map(x => x.id))
-    const pageHref = (patch: Record<string, number>) => {
-        const q = new URLSearchParams()
-        const merged = {xpage: xPage, epage: ePage, ...patch}
-        for (const [k, v] of Object.entries(merged)) if (v > 1) q.set(k, String(v))
-        return `/block/${id}${q.size ? `?${q}` : ''}`
-    }
     const object = data.minedObjects[0]
     const faces = data.topology[0]?.faces ?? ''
     // a block with no extrinsics pays the miner nothing beyond the mint
@@ -57,151 +50,67 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
 
     const extrinsics = (
         <>
-        <div className="card">
-            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(max-content,1fr)_max-content_max-content_max-content]">
-                <thead>
-                    <tr>
-                        <th>Extrinsic</th>
-                        <th>Call</th>
-                        <th>Signer</th>
-                        <th>Result</th>
-                        <th className="text-right">Fee</th>
-                        <th className="text-right">Tip</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.extrinsics.map(x => (
-                        <tr key={x.id}>
-                            <td>
-                                <ExtrinsicLink id={x.id} hash={x.hash} />
-                            </td>
-                            <td>
-                                <CallCell call={x} leaves={leaves.get(x.id)} />
-                            </td>
-                            <td>
-                                {x.signer ? <AccountLink addr={ss58Encode(x.signer.id, chain.ss58)} acc={x.signer} /> : <span className="text-faint">—</span>}
-                            </td>
-                            <td>
-                                <Tag text={x.success ? 'Success' : 'Failed'} tone={x.success ? 'pos' : 'neg'} />
-                            </td>
-                            <td className="text-right font-mono">{x.fee ? fmtBalance(x.fee, chain.decimals) : '—'}</td>
-                            <td className="text-right font-mono">{x.tip && x.tip !== '0' ? fmtBalance(x.tip, chain.decimals) : '—'}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-        {block.extrinsicCount > XPAGE && <Pager page={xPage} pageCount={Math.ceil(block.extrinsicCount / XPAGE)} href={n => pageHref({xpage: n})} />}
+            <Card size="flush">
+                <ExtrinsicsTable rows={data.extrinsics} leaves={Object.fromEntries(leaves)} chain={chain} view="block" />
+            </Card>
+            <Pager paging={x} total={block.extrinsicCount} href={`/block/${id}?tab=extrinsics`} pageKey="xpage" />
         </>
     )
 
     const events = (
         <>
-        <div className="card">
-            <div className={`${EVENT_ROW} border-b border-edge px-5 py-2.5 text-xs text-sub`}>
-                <span>#</span>
-                <span>Event</span>
-                <span>Phase</span>
-                <span>Extrinsic</span>
-            </div>
-            <div className="divide-y divide-edge">
-                {data.events.map(e => (
-                    <details key={e.id} className="group px-5 py-2.5">
-                        <summary className={`${EVENT_ROW} cursor-pointer text-sm`}>
-                            <span className="font-mono text-xs text-sub">{e.indexInBlock}</span>
-                            <span className="truncate font-mono text-[13px]">
-                                {e.pallet}.{e.method}
-                                {e.call && <span className="ml-2 text-[11px] text-faint">from {e.call.pallet}.{e.call.method}</span>}
-                            </span>
-                            <span className="text-xs text-faint">{e.phase}</span>
-                            <span className="text-xs">
-                                {e.extrinsic ? <ExtrinsicLink id={e.extrinsic.id} hash={e.extrinsic.hash} /> : <span className="text-faint">—</span>}
-                            </span>
-                        </summary>
-                        <div className="mt-2 pl-11">
-                            <JsonBlock value={e.args} />
-                        </div>
-                    </details>
-                ))}
-            </div>
-        </div>
-        {block.eventCount > EPAGE && <Pager page={ePage} pageCount={Math.ceil(block.eventCount / EPAGE)} href={n => pageHref({epage: n})} />}
+            <Card size="flush">
+                <EventsTable rows={data.events} view="block" />
+            </Card>
+            <Pager paging={e} total={block.eventCount} href={`/block/${id}?tab=events`} pageKey="epage" />
         </>
     )
 
     const digest = (
-        <div className="card">
-            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_minmax(0,1fr)]">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Type</th>
-                        <th>Engine</th>
-                        <th>Data</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {logs.length === 0 && (
-                        <tr>
-                            <td colSpan={4} className="py-5 text-sub">
-                                None
-                            </td>
-                        </tr>
-                    )}
-                    {logs.map(l => (
-                        <tr key={l.index}>
-                            <td className="font-mono text-sub">{l.index}</td>
-                            <td>{l.kind}</td>
-                            <td className="font-mono text-[13px] text-sub">{l.engine ?? '—'}</td>
-                            <td className="font-mono text-[13px]">
-                                <span className="block truncate" title={l.data}>
-                                    {l.data}
-                                </span>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+        <Card size="flush">
+            <DigestTable rows={logs} />
+        </Card>
     )
 
     return (
         <div>
             <div className="mt-6 flex items-center gap-3">
                 <h1 className="text-lg font-semibold">Block #{fmtInt(block.height)}</h1>
-                <Tag text={block.finalized ? 'Finalized' : 'Confirming'} tone={block.finalized ? 'pos' : 'warn'} />
-                <div className="ml-auto flex gap-2 font-mono text-sm">
-                    {block.height > 0 && (
-                        <Link href={`/block/${block.height - 1}`} className={`${FIELD} hover:text-accent`}>
-                            ←
-                        </Link>
-                    )}
-                    <Link href={`/block/${block.height + 1}`} className={`${FIELD} hover:text-accent`}>
-                        →
-                    </Link>
-                </div>
+                <Badge variant={block.finalized ? 'pos' : 'warn'}>{block.finalized ? 'Finalized' : 'Confirming'}</Badge>
+                <Pagination className="mr-0 ml-auto w-auto">
+                    <PaginationContent>
+                        {block.height > 0 && (
+                            <PaginationItem>
+                                <PaginationPrevious href={`/block/${block.height - 1}`} aria-label="Previous block" />
+                            </PaginationItem>
+                        )}
+                        <PaginationItem>
+                            <PaginationNext href={`/block/${block.height + 1}`} aria-label="Next block" />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
             </div>
 
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-                <div className="card flex min-w-0 flex-col items-center overflow-hidden px-5 py-5">
+                <Card size="flush" className="min-w-0 items-center px-5 py-5">
                     {object ? (
                         <>
                             <Asteroid vertices={object.vertices} faces={faces} size={290} interactive />
-                            <div className="mt-auto pt-3 text-center font-mono text-[11px] text-sub">
+                            <div className="mt-auto pt-3 text-center font-mono text-[11px] text-muted-foreground">
                                 <div className="flex items-center justify-center gap-1">
                                     OBJ {shortHash(block.workHash, 10, 8)}
                                     <CopyBtn text={block.workHash} />
                                     <DownloadObj vertices={object.vertices} faces={faces} name={`block-${block.height}.obj`} />
                                 </div>
-                                <div className="mt-1 text-faint">
+                                <div className="mt-1 text-dim">
                                     {object.protocol} · {fmtInt(object.vertexCount)} vertices
                                 </div>
                             </div>
                         </>
                     ) : (
-                        <div className="grid h-[290px] place-items-center text-sm text-faint">object not indexed</div>
+                        <div className="grid h-[290px] place-items-center text-sm text-dim">object not indexed</div>
                     )}
-                </div>
+                </Card>
 
                 <DetailCard>
                     <DetailRow label="Hash">
@@ -211,7 +120,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                     <DetailRow label="Parent">
                         {block.height > 0 ? (
                             <>
-                                <Link href={`/block/${block.height - 1}`} className="text-accent hover:underline">
+                                <Link href={`/block/${block.height - 1}`} className="text-primary hover:underline">
                                     {block.parentHash}
                                 </Link>
                                 <CopyBtn text={block.parentHash} />
@@ -227,9 +136,9 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                         {block.author ? <AccountLink full addr={ss58Encode(block.author.id, chain.ss58)} acc={block.author} /> : '—'}
                     </DetailRow>
                     <DetailRow label="Reward">
-                        <span title="minted reward plus the miner's cut of any fees and tips paid here">
-                            {minerTake.length > 0 ? minerTake.map(v => fmtBalance(v, chain.decimals, chain.symbol)).join(' + ') : '—'}
-                        </span>
+                        <Tip text="minted reward plus the miner's cut of any fees and tips paid here">
+                            <span>{minerTake.length > 0 ? minerTake.map(v => fmtBalance(v, chain.decimals, chain.symbol)).join(' + ') : '—'}</span>
+                        </Tip>
                     </DetailRow>
                     {block.treasuryFees !== '0' && (
                         <DetailRow label="Fees to treasury">{fmtBalance(block.treasuryFees, chain.decimals, chain.symbol)}</DetailRow>

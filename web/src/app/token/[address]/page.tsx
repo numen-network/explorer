@@ -3,12 +3,14 @@ import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import StatTile from '@/components/StatTile'
 import {TabPanels} from '@/components/Tabs'
+import {BlockLink, EvmTxLink} from '@/components/links'
 import {TimeCell} from '@/components/TimeCell'
-import {BlockLink, EvmAddrLink, EvmTxLink} from '@/components/links'
+import {Card} from '@/components/ui/card'
 import {isH160} from '@/lib/evm'
 import AddressText, {shortAddr} from '@/components/AddressText'
 import {fmtBalance, fmtInt} from '@/lib/format'
 import {tokenDetail} from '@/lib/gql'
+import {HoldersTable} from './tables'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,73 +27,42 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
     const data = await tokenDetail(address)
     const token = data.tokenById
     if (!token) notFound()
-    const supply = BigInt(token.totalSupply)
     const dec = token.decimals ?? 0
+    const symbol = token.symbol ?? undefined
 
     const holders = (
-        <div className="card">
-            <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_minmax(max-content,1fr)_max-content_max-content]">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Address</th>
-                        <th className="text-right">Balance</th>
-                        <th className="text-right">Share</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.tokenHolders.map((h, i) => {
-                        const share = supply > 0n ? Number((BigInt(h.balance) * 10000n) / supply) / 100 : 0
-                        return (
-                            <tr key={h.id}>
-                                <td className="font-mono text-sub">{i + 1}</td>
-                                <td>
-                                    <EvmAddrLink addr={h.address} full />
-                                </td>
-                                <td className="text-right font-mono">{fmtBalance(h.balance, dec, token.symbol ?? undefined)}</td>
-                                <td className="text-right">
-                                    <div className="inline-flex items-center gap-2">
-                                        <span className="h-1.5 w-16 overflow-hidden rounded-full bg-bg">
-                                            <span className="block h-full rounded-full bg-accent" style={{width: `${Math.min(100, share)}%`}} />
-                                        </span>
-                                        <span className="w-14 text-right font-mono text-xs text-sub">{share.toFixed(2)}%</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        )
-                    })}
-                </tbody>
-            </table>
-        </div>
+        <Card size="flush">
+            <HoldersTable rows={data.tokenHolders} supply={token.totalSupply} decimals={dec} symbol={symbol} />
+        </Card>
     )
 
     const transfers = (
-        <div className="card divide-y divide-edge">
-            {data.tokenTransfers.length === 0 && <div className="px-5 py-5 text-sm text-sub">None</div>}
+        <Card size="flush" className="divide-y">
+            {data.tokenTransfers.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
             {data.tokenTransfers.map(t => (
                 <div key={t.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
                     <BlockLink height={t.block.height} />
                     <EvmTxLink hash={t.transaction.id} />
-                    <span className="font-mono text-xs text-sub">
+                    <span className="font-mono text-xs text-muted-foreground">
                         <AddressText addr={t.from} /> → <AddressText addr={t.to} />
                     </span>
-                    <span className="ml-auto font-mono">{fmtBalance(t.amount, dec, token.symbol ?? undefined)}</span>
-                    <span className="shrink-0 text-right text-xs text-sub">
+                    <span className="ml-auto font-mono">{fmtBalance(t.amount, dec, symbol)}</span>
+                    <span className="shrink-0 text-right text-xs text-muted-foreground">
                         <TimeCell iso={t.timestamp} cycle />
                     </span>
                 </div>
             ))}
-        </div>
+        </Card>
     )
 
     return (
         <div>
             <div className="mt-6">
                 <h1 className="text-lg font-semibold">
-                    {token.name ?? 'Token'} {token.symbol && <span className="text-sm font-normal text-sub">{token.symbol}</span>}
+                    {token.name ?? 'Token'} {token.symbol && <span className="text-sm font-normal text-muted-foreground">{token.symbol}</span>}
                 </h1>
-                <div className="mt-1 font-mono text-[13px] break-all text-sub">
-                    <Link href={`/evm/address/${token.id}`} className="text-accent hover:underline">
+                <div className="mt-1 font-mono text-[13px] break-all text-muted-foreground">
+                    <Link href={`/evm/address/${token.id}`} className="text-primary hover:underline">
                         {token.id}
                     </Link>
                     <CopyBtn text={token.id} />
@@ -99,7 +70,7 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
             </div>
 
             <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatTile label="Total supply" value={fmtBalance(token.totalSupply, dec, token.symbol ?? undefined)} />
+                <StatTile label="Total supply" value={fmtBalance(token.totalSupply, dec, symbol)} />
                 <StatTile label="Holders" value={fmtInt(token.holderCount)} />
                 <StatTile label="Transfers" value={fmtInt(token.transferCount)} />
                 <StatTile

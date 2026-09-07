@@ -1,68 +1,21 @@
-import Link from 'next/link'
 import Pager from '@/components/Pager'
-import {EvmAddrLink, EvmTxLink} from '@/components/links'
-import {TimeCell, TimeModeButton} from '@/components/TimeCell'
-import AddressText from '@/components/AddressText'
-import {fmtBalance} from '@/lib/format'
+import {Card} from '@/components/ui/card'
 import {tokenTransfersFor} from '@/lib/gql'
-import {num, tabHref, type TabCtx} from './shared'
+import {paging} from '@/lib/paging'
+import {TokenTransfersTable} from './TokenTransfersTable'
+import {tabHref, type TabCtx} from './shared'
 
-const PAGE = 25
 
 export default async function TokenTransfers({addr, evm, sp}: TabCtx & {evm: string}) {
-    const page = num(sp, 'kpage')
-    const {tokenTransfers, conn} = await tokenTransfersFor(evm, PAGE, (page - 1) * PAGE)
+    const pg = paging(sp, 'kpage')
+    const {tokenTransfers, conn} = await tokenTransfersFor(evm, pg.size, pg.offset)
 
     return (
         <>
-            <div className="card">
-                <table className="gtable w-full text-sm whitespace-nowrap grid-cols-[max-content_max-content_minmax(max-content,1fr)_minmax(max-content,1fr)_max-content_max-content]">
-                    <thead>
-                        <tr>
-                            <th>Transaction</th>
-                            <th>
-                                <TimeModeButton />
-                            </th>
-                            <th>From</th>
-                            <th>To</th>
-                            <th>Token</th>
-                            <th className="text-right">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {tokenTransfers.length === 0 && (
-                            <tr>
-                                <td colSpan={6} className="py-5 text-sub">
-                                    None
-                                </td>
-                            </tr>
-                        )}
-                        {tokenTransfers.map(t => (
-                            <tr key={t.id}>
-                                <td>
-                                    <EvmTxLink hash={t.transaction.id} />
-                                </td>
-                                <td className="text-sub">
-                                    <TimeCell iso={t.timestamp} />
-                                </td>
-                                <td>
-                                    <EvmAddrLink addr={t.from} />
-                                </td>
-                                <td>
-                                    <EvmAddrLink addr={t.to} />
-                                </td>
-                                <td>
-                                    <Link href={`/token/${t.token.id}`} className="text-accent hover:underline">
-                                        {t.token.symbol ?? <AddressText addr={t.token.id} />}
-                                    </Link>
-                                </td>
-                                <td className="text-right font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            {conn.totalCount > PAGE && <Pager page={page} pageCount={Math.ceil(conn.totalCount / PAGE)} href={n => tabHref(addr, 'tokens', {kpage: n})} />}
+            <Card size="flush">
+                <TokenTransfersTable rows={tokenTransfers} />
+            </Card>
+            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'tokens')} pageKey="kpage" />
         </>
     )
 }

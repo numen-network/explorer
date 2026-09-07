@@ -12,6 +12,8 @@ import {LinesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import {ExtrinsicLink, Jump} from '@/components/links'
 import {StatusDot} from '@/components/pills'
+import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
+import {Progress} from '@/components/ui/progress'
 import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {chainHeads, chainProps} from '@/lib/chain'
@@ -30,7 +32,7 @@ const trackLabel = (name: string) => name.split('_').map(w => w[0].toUpperCase()
 function StatusRow({label, children}: {label: string; children: React.ReactNode}) {
     return (
         <div className="flex items-center justify-between py-[9px] text-sm">
-            <dt className="text-sub">{label}</dt>
+            <dt className="text-muted-foreground">{label}</dt>
             <dd className="font-mono">{children}</dd>
         </div>
     )
@@ -39,18 +41,14 @@ function StatusRow({label, children}: {label: string; children: React.ReactNode}
 function InfoCell({label, children}: {label: string; children: React.ReactNode}) {
     return (
         <div className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-            <dt className="text-sub">{label}</dt>
+            <dt className="text-muted-foreground">{label}</dt>
             <dd className="min-w-0 truncate font-mono">{children}</dd>
         </div>
     )
 }
 
 function Bar({ratio}: {ratio: number}) {
-    return (
-        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-bg">
-            <div className="h-full rounded-full bg-accent" style={{width: `${Math.min(100, ratio * 100).toFixed(1)}%`}} />
-        </div>
-    )
+    return <Progress value={Math.min(100, ratio * 100)} className="mt-1.5 h-1.5" />
 }
 
 export default async function Home() {
@@ -131,9 +129,11 @@ export default async function Home() {
             <Refresh ms={10000} />
 
             <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <div className="card px-5 py-4">
-                    <h2 className="text-[15px] font-semibold">Daily transactions</h2>
-                    <div className="mt-2">
+                <Card className="gap-2 py-4 [--card-spacing:--spacing(5)]">
+                    <CardHeader>
+                        <CardTitle className="text-[15px] leading-normal font-semibold">Daily transactions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
                         <LinesChart
                             labels={txLabels}
                             dualAxis
@@ -143,20 +143,20 @@ export default async function Home() {
                                 {name: 'Count', values: cntSeries},
                             ]}
                         />
-                    </div>
-                </div>
+                    </CardContent>
+                </Card>
 
-                <div className="card px-5 py-4">
+                <Card size="flush" className="px-5 py-4">
                     <div className="flex items-center justify-between">
                         <h2 className="text-[15px] font-semibold">Network status</h2>
                         <span className="flex items-center gap-1.5 text-xs">
                             <StatusDot tone={indexing ? 'warn' : 'pos'} />
-                            <span className={indexing ? 'text-warn' : 'text-pos'}>{indexing ? 'Indexing' : 'Operational'}</span>
+                            <span className={indexing ? 'text-warn' : 'text-good'}>{indexing ? 'Indexing' : 'Operational'}</span>
                         </span>
                     </div>
                     {indexing && (
                         <div className="mt-3">
-                            <div className="flex justify-between text-xs text-sub">
+                            <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>Catching up</span>
                                 <span className="font-mono">
                                     {fmtInt(dbHead)} / {fmtInt(heads.best)}
@@ -165,9 +165,9 @@ export default async function Home() {
                             <Bar ratio={dbHead / Math.max(1, heads.best)} />
                         </div>
                     )}
-                    <dl className="mt-1 divide-y divide-edge">
+                    <dl className="mt-1 divide-y">
                         <StatusRow label="Best block">
-                            <Link href={`/block/${heads.best}`} className="text-accent hover:underline">
+                            <Link href={`/block/${heads.best}`} className="text-primary hover:underline">
                                 {fmtInt(heads.best)}
                             </Link>
                         </StatusRow>
@@ -178,7 +178,7 @@ export default async function Home() {
                     </dl>
                     {period > 0 && (
                         <div>
-                            <div className="flex justify-between text-xs text-sub">
+                            <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>
                                     Block {fmtInt(inSession)} / {period}
                                 </span>
@@ -186,7 +186,7 @@ export default async function Home() {
                             <Bar ratio={inSession / period} />
                         </div>
                     )}
-                </div>
+                </Card>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-5">
@@ -253,29 +253,29 @@ export default async function Home() {
                 <div className="min-w-0">
                     <div className="mb-3 flex items-baseline justify-between gap-4">
                         <h2 className="text-[17px] font-semibold whitespace-nowrap">Transfers</h2>
-                        <Link href="/transfers" className="pr-2 text-sm whitespace-nowrap text-accent hover:underline">
+                        <Link href="/transfers" className="pr-2 text-sm whitespace-nowrap text-primary hover:underline">
                             View all <Jump />
                         </Link>
                     </div>
-                    <div className={`card divide-y divide-edge ${LIST_H}`}>
-                        {data.transfers.length === 0 && <div className="px-5 py-6 text-sm text-sub">No transfers yet.</div>}
+                    <Card size="flush" className={`divide-y ${LIST_H}`}>
+                        {data.transfers.length === 0 && <div className="px-5 py-6 text-sm text-muted-foreground">No transfers yet.</div>}
                         {data.transfers.map(t => (
                             <div key={t.id} className="flex flex-col justify-center gap-1.5 px-5 py-3 sm:h-[66px] sm:flex-row sm:items-center sm:gap-3 sm:py-0">
                                 <div className="flex min-w-0 items-baseline justify-between gap-3 sm:block sm:w-[230px] sm:shrink-0">
                                     <span className="shrink-0">
-                                        {t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} hash={t.extrinsic.hash} /> : <span className="font-mono text-sub">—</span>}
+                                        {t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} hash={t.extrinsic.hash} /> : <span className="font-mono text-muted-foreground">—</span>}
                                     </span>
-                                    <div className="text-[11px] whitespace-nowrap text-sub sm:mt-0.5">
+                                    <div className="text-[11px] whitespace-nowrap text-muted-foreground sm:mt-0.5">
                                         <TimeCell iso={t.timestamp} cycle />
                                     </div>
                                 </div>
                                 <div className="min-w-0 flex-1 text-[12.5px]">
                                     <div className="flex min-w-0 items-baseline gap-2">
-                                        <span className="w-9 shrink-0 text-[11px] text-faint">From</span>
+                                        <span className="w-9 shrink-0 text-[11px] text-dim">From</span>
                                         <AccountLink addr={ss58Encode(t.from.id, props.ss58)} acc={t.from} className="min-w-0" />
                                     </div>
                                     <div className="mt-0.5 flex min-w-0 items-baseline gap-2">
-                                        <span className="w-9 shrink-0 text-[11px] text-faint">To</span>
+                                        <span className="w-9 shrink-0 text-[11px] text-dim">To</span>
                                         <AccountLink addr={ss58Encode(t.to.id, props.ss58)} acc={t.to} className="min-w-0" />
                                     </div>
                                 </div>
@@ -287,35 +287,35 @@ export default async function Home() {
                                 </div>
                             </div>
                         ))}
-                        </div>
+                    </Card>
                 </div>
                 <div className="min-w-0">
                     <div className="mb-3 flex items-baseline justify-between gap-4">
                         <h2 className="text-[17px] font-semibold whitespace-nowrap">Referenda</h2>
-                        <Link href="/governance" className="pr-2 text-sm whitespace-nowrap text-accent hover:underline">
+                        <Link href="/governance" className="pr-2 text-sm whitespace-nowrap text-primary hover:underline">
                             View all <Jump />
                         </Link>
                     </div>
-                    <div className={`card divide-y divide-edge ${LIST_H}`}>
-                        {data.referendums.length === 0 && <div className="px-5 py-6 text-sm text-sub">No referenda yet.</div>}
+                    <Card size="flush" className={`divide-y ${LIST_H}`}>
+                        {data.referendums.length === 0 && <div className="px-5 py-6 text-sm text-muted-foreground">No referenda yet.</div>}
                         {data.referendums.map(r => {
                             const iso = refStamps.get(r.submittedAt)
                             return (
                                 <div key={r.id} className={`${ROW_H} flex items-center gap-3 px-5`}>
                                     <div className="min-w-0 flex-1">
                                         <div className="flex min-w-0 items-baseline gap-2">
-                                            <Link href={`/referendum/${r.index}`} className="shrink-0 font-mono text-accent hover:underline">
+                                            <Link href={`/referendum/${r.index}`} className="shrink-0 font-mono text-primary hover:underline">
                                                 #{r.index}
                                             </Link>
                                             <span className="truncate text-[13px]">
                                                 {r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}
                                             </span>
                                         </div>
-                                        <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-[11px] text-sub">
+                                        <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-[11px] text-muted-foreground">
                                             <span className="truncate">{trackLabel(r.track.name)}</span>
                                             {iso && (
                                                 <>
-                                                    <span className="text-faint">·</span>
+                                                    <span className="text-dim">·</span>
                                                     <TimeAgo iso={iso} />
                                                 </>
                                             )}
@@ -326,7 +326,7 @@ export default async function Home() {
                                             {r.proposalAmount != null ? (
                                                 fmtBalance(r.proposalAmount, props.decimals, props.symbol)
                                             ) : (
-                                                <span className="text-sub">{r.proposalMethod ?? '—'}</span>
+                                                <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>
                                             )}
                                         </div>
                                         <div className="mt-1 flex justify-end">
@@ -336,12 +336,12 @@ export default async function Home() {
                                 </div>
                             )
                         })}
-                    </div>
-                    </div>
+                    </Card>
+                </div>
             </div>
 
             <Section title="Network info">
-                <div className="card py-2">
+                <Card size="flush" className="py-2">
                     <dl className="grid gap-x-10 px-5 py-1 sm:grid-cols-2 lg:grid-cols-3">
                         <InfoCell label="Chain">{props.chain}</InfoCell>
                         <InfoCell label="Token">{props.symbol}</InfoCell>
@@ -354,7 +354,7 @@ export default async function Home() {
                         <InfoCell label="PoScan protocol">{data.topology[0]?.id ?? '—'}</InfoCell>
                         <InfoCell label="EVM chain id">{props.evmChainId}</InfoCell>
                     </dl>
-                    <div className="mt-1 border-t border-edge pt-1">
+                    <div className="mt-1 border-t pt-1">
                         <DetailRow label="Native ERC20">
                             <AddressText addr={props.nativeErc20} full />
                             <CopyBtn text={props.nativeErc20} />
@@ -364,7 +364,7 @@ export default async function Home() {
                             <CopyBtn text={genesisHash} />
                         </DetailRow>
                     </div>
-                </div>
+                </Card>
             </Section>
         </div>
     )

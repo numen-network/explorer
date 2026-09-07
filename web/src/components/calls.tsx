@@ -1,6 +1,9 @@
 import AccountLink from '@/components/AccountLink'
 import {JsonBlock} from '@/components/Detail'
-import {Tag} from '@/components/pills'
+import {Tip} from '@/components/Tip'
+import {Badge} from '@/components/ui/badge'
+import {Card} from '@/components/ui/card'
+import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import type {ChainProps} from '@/lib/chain'
 import type {AccountRef, CallRef, CallRow, EventRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
@@ -9,11 +12,13 @@ const qualified = (c: CallRef) => `${c.pallet}.${c.method}`
 
 /** What a transfer really called, which a batch or a proxy hides from the extrinsic. */
 export function CallPill({call}: {call: CallRef | null}) {
-    if (!call) return <span className="text-[11px] text-faint">—</span>
+    if (!call) return <span className="text-[11px] text-dim">—</span>
     return (
-        <span className="rounded-md bg-accent-soft px-1.5 py-0.5 font-mono text-[11px] whitespace-nowrap text-accent" title={qualified(call)}>
-            {call.method}
-        </span>
+        <Tip text={qualified(call)}>
+            <Badge variant="primary" className="font-mono">
+                {call.method}
+            </Badge>
+        </Tip>
     )
 }
 
@@ -45,9 +50,9 @@ export function CallCell({call, leaves}: {call: CallRef; leaves?: CallRef[]}) {
         <div className="font-mono text-[13px]">
             <div>{qualified(call)}</div>
             {parts.length > 0 && (
-                <div className="mt-0.5 text-[11px] text-faint" title={parts.join(SEP)}>
-                    {fit(parts)}
-                </div>
+                <Tip text={parts.join(SEP)}>
+                    <div className="mt-0.5 text-[11px] text-dim">{fit(parts)}</div>
+                </Tip>
             )}
         </div>
     )
@@ -70,22 +75,22 @@ export function CallTree({calls, events, chain, signer}: {calls: CallRow[]; even
         byCall.set(e.call.id, arr)
     }
     return (
-        <div className="card divide-y divide-edge">
-            {calls.length === 0 && <div className="px-5 py-5 text-sm text-sub">None</div>}
+        <Card size="flush" className="divide-y">
+            {calls.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
             {[...calls].sort(preorder).map(c => {
                 const raised = byCall.get(c.id) ?? []
                 const dispatched = c.origin && c.origin.id !== signer?.id ? c.origin : null
                 return (
-                    <details key={c.id} open={c.address.length === 0} className="py-2.5 pr-5">
-                        <summary className="flex cursor-pointer items-center gap-3 text-sm" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
+                    <Collapsible key={c.id} defaultOpen={c.address.length === 0} className="group py-2.5 pr-5">
+                        <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-3 text-left text-sm" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
                             <span className="font-mono text-[13px]">{qualified(c)}</span>
-                            {!c.success && <Tag text="Failed" tone="neg" />}
-                            {raised.length > 0 && <span className="text-[11px] text-faint">{raised.length} events</span>}
-                        </summary>
-                        <div className="mt-2 space-y-2" style={{paddingLeft: `${36 + c.address.length * 22}px`}}>
+                            {!c.success && <Badge variant="neg">Failed</Badge>}
+                            {raised.length > 0 && <span className="text-[11px] text-dim">{raised.length} events</span>}
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2 space-y-2" style={{paddingLeft: `${36 + c.address.length * 22}px`}}>
                             {dispatched && (
                                 <div className="flex gap-3 text-sm">
-                                    <span className="text-sub">Dispatched as</span>
+                                    <span className="text-muted-foreground">Dispatched as</span>
                                     <AccountLink full addr={ss58Encode(dispatched.id, chain.ss58)} acc={dispatched} />
                                 </div>
                             )}
@@ -93,16 +98,16 @@ export function CallTree({calls, events, chain, signer}: {calls: CallRow[]; even
                             {raised.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
                                     {raised.map(e => (
-                                        <span key={e.id} className="rounded-md border border-edge bg-bg px-1.5 py-0.5 font-mono text-[11px] text-sub">
+                                        <Badge key={e.id} variant="outline" className="bg-background font-mono text-muted-foreground">
                                             {e.pallet}.{e.method}
-                                        </span>
+                                        </Badge>
                                     ))}
                                 </div>
                             )}
-                        </div>
-                    </details>
+                        </CollapsibleContent>
+                    </Collapsible>
                 )
             })}
-        </div>
+        </Card>
     )
 }

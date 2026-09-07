@@ -1,9 +1,13 @@
 'use client'
-import {useState} from 'react'
+import {useMemo, useState} from 'react'
+import {Search} from 'lucide-react'
 import AccountLink from '@/components/AccountLink'
+import {columnsFor, DataTable} from '@/components/DataTable'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {BlockLink} from '@/components/links'
 import {sentenceCase} from '@/components/timeline'
+import {Card} from '@/components/ui/card'
+import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {fmtApprox, fmtInt} from '@/lib/format'
 import {identityLabel, type IdentityRef} from '@/lib/identity'
@@ -22,7 +26,7 @@ export type ActionRow =
     | {id: string; block: number; iso?: string; actor: ActionActor; amount: string; own: string; delegated: string; impact?: ActionImpact; kind: 'vote' | 'remove'; decision: string}
     | {id: string; block: number; iso?: string; actor: ActionActor; amount: string; own: string; delegated: string; impact?: ActionImpact; kind: 'delegate' | 'undelegate'; by: ActionActor}
 
-const TONE: Record<string, string> = {aye: 'text-pos', nay: 'text-neg'}
+const TONE: Record<string, string> = {aye: 'text-good', nay: 'text-destructive'}
 
 // both the cell and the filter call a move flat once it rounds to 0.00
 const FLAT = 0.005
@@ -53,7 +57,7 @@ function Action({a}: {a: ActionRow}) {
         case 'remove':
             return (
                 <span>
-                    {a.kind === 'vote' ? 'Voted' : 'Removed'} <span className={TONE[a.decision] ?? 'text-sub'}>{sentenceCase(a.decision)}</span>
+                    {a.kind === 'vote' ? 'Voted' : 'Removed'} <span className={TONE[a.decision] ?? 'text-muted-foreground'}>{sentenceCase(a.decision)}</span>
                 </span>
             )
         default:
@@ -68,10 +72,10 @@ function Action({a}: {a: ActionRow}) {
 
 function Delta({label, value}: {label: string; value: number}) {
     const flat = Math.abs(value) < FLAT
-    const tone = flat ? 'text-sub' : value > 0 ? 'text-pos' : 'text-neg'
+    const tone = flat ? 'text-muted-foreground' : value > 0 ? 'text-good' : 'text-destructive'
     return (
         <div>
-            <span className="text-sub">{label} </span>
+            <span className="text-muted-foreground">{label} </span>
             <span className={tone}>{flat ? '0.00%' : `${value > 0 ? '+' : ''}${value.toFixed(2)}%`}</span>
         </div>
     )
@@ -80,12 +84,12 @@ function Delta({label, value}: {label: string; value: number}) {
 function Picker({value, options, onChange}: {value: string; options: {value: string; label: string}[]; onChange: (v: string) => void}) {
     return (
         <Select value={value} onValueChange={onChange}>
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-[150px] gap-2 bg-card py-1.5 pr-2.5 pl-3 hover:bg-background data-[size=default]:h-auto [&_svg]:size-3.5">
                 <SelectValue>{options.find(o => o.value === value)?.label}</SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent align="start" className="border shadow-lg ring-0">
                 {options.map(o => (
-                    <SelectItem key={o.value} value={o.value}>
+                    <SelectItem key={o.value} value={o.value} className="gap-3 py-1.5 pl-3 [&_svg]:text-primary">
                         {o.label}
                     </SelectItem>
                 ))}
@@ -107,95 +111,74 @@ const hay = (a: ActionRow) => {
     return parts.join(' ').toLowerCase()
 }
 
+const col = columnsFor<ActionRow>()
+
 export default function ActionList({rows, decimals, symbol}: {rows: ActionRow[]; decimals: number; symbol: string}) {
     const [query, setQuery] = useState('')
     const [kind, setKind] = useState('all')
     const [move, setMove] = useState('any')
     const needle = query.trim().toLowerCase()
     const shown = rows.filter(a => (kind === 'all' || a.kind === kind) && (move === 'any' || moveHit(a.impact, move)) && (needle === '' || hay(a).includes(needle)))
+    const columns = useMemo(
+        () => [
+            col.display({id: 'block', header: 'Block', cell: ({row}) => <BlockLink height={row.original.block} />}),
+            col.display({id: 'time', header: () => <TimeModeButton />, cell: ({row}) => (row.original.iso ? <TimeCell iso={row.original.iso} /> : '—')}),
+            col.display({id: 'account', header: 'Account', cell: ({row}) => <AccountLink addr={row.original.actor.addr} acc={row.original.actor.acc} />}),
+            col.display({id: 'action', header: 'Action', meta: {className: 'w-full'}, cell: ({row}) => <Action a={row.original} />}),
+            col.display({
+                id: 'amount',
+                header: 'Amount',
+                meta: {align: 'right', cellClassName: 'font-mono'},
+                cell: ({row}) => (
+                    <>
+                        {fmtApprox(row.original.amount, decimals, symbol)}
+                        {row.original.delegated !== '0' && (
+                            <div className="text-xs text-dim">
+                                {fmtApprox(row.original.own, decimals)} + {fmtApprox(row.original.delegated, decimals)} delegated
+                            </div>
+                        )}
+                    </>
+                ),
+            }),
+            col.display({
+                id: 'impact',
+                header: 'Impact',
+                meta: {align: 'right', cellClassName: 'font-mono text-xs'},
+                cell: ({row}) =>
+                    row.original.impact ? (
+                        <>
+                            <Delta label="Approval" value={row.original.impact.approval} />
+                            <Delta label="Support" value={row.original.impact.support} />
+                        </>
+                    ) : (
+                        <span className="text-dim">—</span>
+                    ),
+            }),
+        ],
+        [decimals, symbol]
+    )
     return (
-        <div className="card">
+        <Card size="flush">
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
                 <h2 className="text-[15px] font-semibold">
-                    Actions <span className="font-normal text-faint">({fmtInt(shown.length)})</span>
+                    Actions <span className="font-normal text-dim">({fmtInt(shown.length)})</span>
                 </h2>
                 <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <label className="relative">
-                        <svg className="absolute top-1/2 left-3 -translate-y-1/2 text-faint" width="15" height="15" viewBox="0 0 15 15" fill="none">
-                            <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5" />
-                            <path d="M10.5 10.5 L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
-                        <input
-                            value={query}
-                            onChange={e => setQuery(e.target.value)}
-                            placeholder="Search address or identity"
-                            spellCheck={false}
-                            className="w-90 rounded-lg border border-edge bg-card py-1.5 pr-3 pl-9 outline-none placeholder:text-faint"
-                        />
-                    </label>
+                    <InputGroup className="h-auto w-90 bg-card">
+                        <InputGroupAddon className="pr-[3px] pl-3">
+                            <Search className="size-[15px] text-dim" />
+                        </InputGroupAddon>
+                        <InputGroupInput value={query} onChange={e => setQuery(e.target.value)} placeholder="Search address or identity" spellCheck={false} className="h-auto py-1.5 pr-3 text-sm placeholder:text-dim md:text-sm" />
+                    </InputGroup>
                     <Picker value={kind} options={KINDS} onChange={setKind} />
                     <Picker value={move} options={MOVES} onChange={setMove} />
                 </div>
             </div>
             {/* the height cap would bury the table's own x scrollbar, so the
                 wrapper keeps both axes */}
-            <div className="max-h-120 overflow-auto">
-                <table className="gtable mt-1 w-full overflow-x-visible text-sm whitespace-nowrap grid-cols-[max-content_max-content_max-content_minmax(max-content,1fr)_max-content_max-content]">
-                    <thead>
-                        <tr>
-                            <th>Block</th>
-                            <th>
-                                <TimeModeButton />
-                            </th>
-                            <th>Account</th>
-                            <th>Action</th>
-                            <th className="text-right">Amount</th>
-                            <th className="text-right">Impact</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {shown.length === 0 && (
-                            <tr>
-                                <td colSpan={6} className="py-6 text-sub">
-                                    {rows.length === 0 ? 'No actions.' : 'No matching actions.'}
-                                </td>
-                            </tr>
-                        )}
-                        {shown.map(a => (
-                            <tr key={a.id}>
-                                <td>
-                                    <BlockLink height={a.block} />
-                                </td>
-                                <td>{a.iso ? <TimeCell iso={a.iso} /> : '—'}</td>
-                                <td>
-                                    <AccountLink addr={a.actor.addr} acc={a.actor.acc} />
-                                </td>
-                                <td>
-                                    <Action a={a} />
-                                </td>
-                                <td className="text-right font-mono">
-                                    {fmtApprox(a.amount, decimals, symbol)}
-                                    {a.delegated !== '0' && (
-                                        <div className="text-xs text-faint">
-                                            {fmtApprox(a.own, decimals)} + {fmtApprox(a.delegated, decimals)} delegated
-                                        </div>
-                                    )}
-                                </td>
-                                <td className="text-right font-mono text-xs">
-                                    {a.impact ? (
-                                        <>
-                                            <Delta label="Approval" value={a.impact.approval} />
-                                            <Delta label="Support" value={a.impact.support} />
-                                        </>
-                                    ) : (
-                                        <span className="text-faint">—</span>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+            <div className="mt-1 max-h-120 overflow-auto">
+                <DataTable columns={columns} rows={shown} empty={rows.length === 0 ? 'No actions.' : 'No matching actions.'} getRowId={a => a.id} />
             </div>
-        </div>
+        </Card>
     )
 }
