@@ -16,6 +16,7 @@
     "Poscan.Engine",
     "Poscan.Protocol",
     "Precompiles.BalancesErc20",
+    "Referenda.SubmissionDeposit",
     "Referenda.Tracks",
     "Treasury.PalletId",
     "Validator.SessionPeriod",

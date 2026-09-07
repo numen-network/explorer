@@ -12,6 +12,7 @@ export interface ChainProps {
     sessionLength: number
     sessionOffset: number
     voteLockingPeriod: number
+    submissionDeposit: string
 }
 
 interface InfoRow {
@@ -26,13 +27,14 @@ interface InfoRow {
     sessionLength: number
     sessionOffset: number
     voteLockingPeriod: number
+    submissionDeposit: string
     head: number
     finalizedHead: number
 }
 
 async function chainInfo(): Promise<InfoRow> {
     const {chainInfos} = await gql<{chainInfos: InfoRow[]}>(
-        `query { chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod head finalizedHead } }`
+        `query { chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod submissionDeposit head finalizedHead } }`
     )
     if (!chainInfos[0]) throw new Error('chain info row is missing, the indexer has not written it yet')
     return chainInfos[0]
@@ -55,6 +57,7 @@ export async function chainProps(): Promise<ChainProps> {
         sessionLength: row.sessionLength,
         sessionOffset: row.sessionOffset,
         voteLockingPeriod: row.voteLockingPeriod,
+        submissionDeposit: row.submissionDeposit,
     }
     return cached
 }

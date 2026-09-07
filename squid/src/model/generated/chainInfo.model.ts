@@ -61,6 +61,12 @@ export class ChainInfo {
     voteLockingPeriod!: number
 
     /**
+     * what a referendum submission reserves, the same on every track
+     */
+    @BigIntColumn_({nullable: false})
+    submissionDeposit!: bigint
+
+    /**
      * chain head the indexer last saw, not the indexed head
      */
     @IntColumn_({nullable: false})

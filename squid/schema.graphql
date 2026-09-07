@@ -41,6 +41,8 @@ type ChainInfo @entity {
   sessionOffset: Int!
   "length of one conviction period, a vote holds its balance for a multiple of it"
   voteLockingPeriod: Int!
+  "what a referendum submission reserves, the same on every track"
+  submissionDeposit: BigInt!
   "chain head the indexer last saw, not the indexed head"
   head: Int!
   finalizedHead: Int!
