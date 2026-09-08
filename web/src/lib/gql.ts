@@ -99,6 +99,8 @@ export interface DailyRow {
     difficultyClose: string
     accountsTotal: number
     referendaTotal: number
+    minersActive: number
+    rewards: string
 }
 
 // every list that shows an account shows the same identity trimmings
@@ -106,7 +108,7 @@ const ACCOUNT_REF = `id identityDisplay identityJson identitySubName identitySup
 
 const BLOCK_FIELDS = `id height hash parentHash timestamp finalized extrinsicCount eventCount difficulty reward minerFees treasuryFees nonce workHash specVersion author { ${ACCOUNT_REF} }`
 const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACCOUNT_REF} } to { ${ACCOUNT_REF} } block { height } extrinsic { id hash }`
-const DAILY_FIELDS = `id date blocks extrinsicsSigned transfers transferVolume evmTxs fees tsFirst tsLast issuanceTotal issuanceInactive treasuryPot cumExtrinsicsSigned cumTransfers cumTransferVolume difficultyClose accountsTotal referendaTotal`
+const DAILY_FIELDS = `id date blocks extrinsicsSigned transfers transferVolume evmTxs fees tsFirst tsLast issuanceTotal issuanceInactive treasuryPot cumExtrinsicsSigned cumTransfers cumTransferVolume difficultyClose accountsTotal referendaTotal minersActive rewards`
 
 export interface HomeData {
     blocks: BlockRow[]
@@ -118,7 +120,6 @@ export interface HomeData {
     validators: {totalCount: number}
     sessionHead: {lastActiveSession: number}[]
     topology: TopologyRow[]
-    minerDays: {day: string; account: {id: string}}[]
     evmTotal: {totalCount: number}
     refsTotal: {totalCount: number}
     referendums: ReferendumRow[]
@@ -128,9 +129,9 @@ export interface HomeData {
     refs30: {totalCount: number}
 }
 
-export function homeData(sinceDay: string, since24: string, since30: string) {
+export function homeData(since24: string, since30: string) {
     return gql<HomeData>(
-        `query ($sinceDay: String!, $since24: DateTime!, $since30: DateTime!) {
+        `query ($since24: DateTime!, $since30: DateTime!) {
             blocks(orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
             genesis: blocks(where: {height_eq: 0}, limit: 1) { hash }
             minedObjects(orderBy: id_DESC, limit: 5) { block { height hash timestamp finalized extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
@@ -140,7 +141,6 @@ export function homeData(sinceDay: string, since24: string, since30: string) {
             validators: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
             sessionHead: validators(orderBy: lastActiveSession_DESC, limit: 1) { lastActiveSession }
             topology: meshTopologies(limit: 1) { id faces faceCount }
-            minerDays: minerDayStats(where: {day_gte: $sinceDay}, limit: 2000) { day account { id } }
             evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
             refsTotal: referendumsConnection(orderBy: index_ASC) { totalCount }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
@@ -149,7 +149,7 @@ export function homeData(sinceDay: string, since24: string, since30: string) {
             refs24: referendumsConnection(orderBy: index_ASC, where: {submittedTimestamp_gt: $since24}) { totalCount }
             refs30: referendumsConnection(orderBy: index_ASC, where: {submittedTimestamp_gt: $since30}) { totalCount }
         }`,
-        {sinceDay, since24, since30}
+        {since24, since30}
     )
 }
 
@@ -1251,31 +1251,29 @@ export interface MinerDayRow {
     account: AccountRef
 }
 
-export function minerDays(sinceDay: string) {
-    return gql<{minerDayStats: MinerDayRow[]}>(
-        `query ($since: String!) {
-            minerDayStats(where: {day_gte: $since}, orderBy: day_DESC, limit: 2000) { day blocks rewards account { ${ACCOUNT_REF} } }
-        }`,
-        {since: sinceDay}
-    )
+const MINER_DAY_PAGE = 5000
+
+// a long window over many miners runs past any single page
+export async function minerDays(sinceDay: string): Promise<MinerDayRow[]> {
+    const rows: MinerDayRow[] = []
+    for (let offset = 0; ; offset += MINER_DAY_PAGE) {
+        const {minerDayStats} = await gql<{minerDayStats: MinerDayRow[]}>(
+            `query ($since: String!, $limit: Int!, $offset: Int!) {
+                minerDayStats(where: {day_gte: $since}, orderBy: id_ASC, limit: $limit, offset: $offset) { day blocks rewards account { ${ACCOUNT_REF} } }
+            }`,
+            {since: sinceDay, limit: MINER_DAY_PAGE, offset}
+        )
+        rows.push(...minerDayStats)
+        if (minerDayStats.length < MINER_DAY_PAGE) return rows
+    }
 }
 
-export interface MinerDayRaw {
-    day: string
-    blocks: number
-    rewards: string
-    account: {id: string}
-}
-
-// days are named YYYY-MM-DD on both tables, DailyStat keys them as a timestamp
-export function chartSeries(after: string, before: string, withMiners: boolean) {
+export function chartSeries(after: string, before: string) {
     const day = [after && `date_gte: "${after}T00:00:00.000Z"`, before && `date_lte: "${before}T00:00:00.000Z"`].filter(Boolean)
-    const miner = [after && `day_gte: "${after}"`, before && `day_lte: "${before}"`].filter(Boolean)
     const clause = (parts: string[]) => (parts.length ? `where: {${parts.join(', ')}}, ` : '')
-    return gql<{dailyStats: DailyRow[]; minerDayStats?: MinerDayRaw[]}>(
+    return gql<{dailyStats: DailyRow[]}>(
         `query {
             dailyStats(${clause(day)}orderBy: date_ASC, limit: 4000) { ${DAILY_FIELDS} }
-            ${withMiners ? `minerDayStats(${clause(miner)}orderBy: day_ASC, limit: 20000) { day blocks rewards account { id } }` : ''}
         }`
     )
 }

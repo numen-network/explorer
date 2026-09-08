@@ -69,4 +69,16 @@ export class DailyStat {
      */
     @IntColumn_({nullable: false})
     referendaTotal!: number
+
+    /**
+     * accounts that sealed at least one block that day
+     */
+    @IntColumn_({nullable: false})
+    minersActive!: number
+
+    /**
+     * minted for the miners of that day's blocks
+     */
+    @BigIntColumn_({nullable: false})
+    rewards!: bigint
 }

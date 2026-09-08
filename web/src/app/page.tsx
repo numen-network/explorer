@@ -53,7 +53,7 @@ function Bar({ratio}: {ratio: number}) {
 
 export default async function Home() {
     const ago = (days: number) => new Date(Date.now() - days * 86400000).toISOString()
-    const [props, heads, data] = await Promise.all([chainProps(), chainHeads(), homeData(ago(31).slice(0, 10), ago(1), ago(30))])
+    const [props, heads, data] = await Promise.all([chainProps(), chainHeads(), homeData(ago(1), ago(30))])
     const days = data.dailyStats.filter(d => !d.id.startsWith('1970'))
     const today: DailyRow | undefined = days[0]
     const yesterday: DailyRow | undefined = days[1]
@@ -107,13 +107,7 @@ export default async function Home() {
     const act = (d: DailyRow) => iss(d) - planckToNum(d.issuanceInactive, props.decimals)
     const pot = (d: DailyRow) => planckToNum(d.treasuryPot, props.decimals)
 
-    const minersByDay = new Map<string, Set<string>>()
-    for (const r of data.minerDays) {
-        const set = minersByDay.get(r.day) ?? new Set<string>()
-        set.add(r.account.id)
-        minersByDay.set(r.day, set)
-    }
-    const minersOn = (d?: DailyRow) => (d ? (minersByDay.get(d.id)?.size ?? 0) : 0)
+    const minersOn = (d?: DailyRow) => d?.minersActive ?? 0
     const curDifficulty = data.blocks[0] ? Number(data.blocks[0].difficulty) : today ? Number(today.difficultyClose) : 0
 
     return (

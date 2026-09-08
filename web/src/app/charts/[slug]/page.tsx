@@ -43,12 +43,11 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
     const before = custom ? str(sp.before) : ''
 
     const chain = await chainProps()
-    const data = await chartSeries(DAY.test(after) ? after : '', DAY.test(before) ? before : '', def.miners === true)
+    const data = await chartSeries(DAY.test(after) ? after : '', DAY.test(before) ? before : '')
 
     const input: ChartInput = {
         // the indexer parks a sentinel row at the epoch for counters with no day of their own
         days: data.dailyStats.filter(d => !d.id.startsWith('1970')),
-        miners: data.minerDayStats ?? [],
         decimals: chain.decimals,
         symbol: chain.symbol,
     }

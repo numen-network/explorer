@@ -14,7 +14,7 @@ export default async function MinersPage(props: PageProps<'/miners'>) {
     const sp = await props.searchParams
     const w: WindowKey = sp.w === '7d' || sp.w === '30d' ? sp.w : '24h'
     const since = new Date(Date.now() - WINDOWS[w] * 86400000).toISOString().slice(0, 10)
-    const [chain, {minerDayStats}] = await Promise.all([chainProps(), minerDays(since)])
+    const [chain, minerDayStats] = await Promise.all([chainProps(), minerDays(since)])
 
     const byMiner = new Map<string, MinerStat & {rewards: string}>()
     const rewards = new Map<string, bigint>()

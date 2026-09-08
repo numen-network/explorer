@@ -1,16 +1,8 @@
 import {fmtInt, planckToNum} from './format'
 import type {DailyRow} from './gql'
 
-export interface MinerDay {
-    day: string
-    account: {id: string}
-    blocks: number
-    rewards: string
-}
-
 export interface ChartInput {
     days: DailyRow[]
-    miners: MinerDay[]
     decimals: number
     symbol: string
 }
@@ -23,8 +15,6 @@ export interface ChartDef {
     kind: 'line' | 'bar'
     // names the series in the tooltip and the legend
     unit: string
-    // set when the series needs the miner day table on top of the daily stats
-    miners?: true
     values: (input: ChartInput) => number[]
     format: (v: number, input: ChartInput) => string
 }
@@ -36,18 +26,6 @@ const token = (v: number, {symbol}: ChartInput) => `${fmtInt(v.toFixed(v < 1000 
 const planck = (pick: (d: DailyRow) => string) => (input: ChartInput) => input.days.map(d => planckToNum(pick(d), input.decimals))
 const count = (pick: (d: DailyRow) => number) => (input: ChartInput) => input.days.map(pick)
 const bigint = (pick: (d: DailyRow) => string) => (input: ChartInput) => input.days.map(d => Number(pick(d)))
-
-// miner rows arrive one per miner per day, the day totals are folded here
-// because openreader has no GROUP BY
-function byDay(input: ChartInput, fold: (rows: MinerDay[]) => number): number[] {
-    const groups = new Map<string, MinerDay[]>()
-    for (const m of input.miners) {
-        const arr = groups.get(m.day)
-        if (arr) arr.push(m)
-        else groups.set(m.day, [m])
-    }
-    return input.days.map(d => fold(groups.get(d.id) ?? []))
-}
 
 export const CHARTS: ChartDef[] = [
     {
@@ -87,8 +65,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Accounts that sealed at least one block that day.',
         kind: 'line',
         unit: 'Miners',
-        miners: true,
-        values: input => byDay(input, rows => new Set(rows.map(r => r.account.id)).size),
+        values: count(d => d.minersActive),
         format: num,
     },
     {
@@ -98,8 +75,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Newly issued coins paid to miners each day. The reward pallet keeps no events, so this is the deposit into the author at finalization.',
         kind: 'line',
         unit: 'Rewards',
-        miners: true,
-        values: input => byDay(input, rows => planckToNum(rows.reduce((a, r) => a + BigInt(r.rewards), 0n), input.decimals)),
+        values: planck(d => d.rewards),
         format: token,
     },
     {

@@ -14,7 +14,7 @@ export function treasuryAccount(block: RuntimeCtx): string {
     return ('0x' + TYPE_ID + palletId.get(block).slice(2)).padEnd(66, '0')
 }
 
-export function accumulateDay(batch: BatchData, block: Block, delta: Omit<DayDelta, 'tsFirst' | 'tsLast' | 'difficultyClose' | 'blocks'>): void {
+export function accumulateDay(batch: BatchData, block: Block, delta: Omit<DayDelta, 'tsFirst' | 'tsLast' | 'difficultyClose' | 'blocks' | 'rewards'>): void {
     const day = block.timestamp.toISOString().slice(0, 10)
     let d = batch.dayDeltas.get(day)
     if (d == null) {
@@ -26,6 +26,7 @@ export function accumulateDay(batch: BatchData, block: Block, delta: Omit<DayDel
             evmTxs: 0,
             fees: 0n,
             referendaNew: 0,
+            rewards: 0n,
             tsFirst: block.timestamp,
             tsLast: block.timestamp,
             difficultyClose: block.difficulty,
@@ -39,6 +40,7 @@ export function accumulateDay(batch: BatchData, block: Block, delta: Omit<DayDel
     d.evmTxs += delta.evmTxs
     d.fees += delta.fees
     d.referendaNew += delta.referendaNew
+    d.rewards += block.reward
     d.tsLast = block.timestamp
     d.difficultyClose = block.difficulty
 
@@ -79,6 +81,17 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData, lastHea
         if (day != null) bornOn.set(day, (bornOn.get(day) ?? 0) + 1)
     }
 
+    // a miner joins the day's count on the batch that first sees it seal a
+    // block that day
+    const minerIds = [...batch.minerDayDeltas.keys()]
+    const minerRows = new Map<string, MinerDayStat>(
+        minerIds.length > 0 ? (await ctx.store.find(MinerDayStat, {where: {id: In(minerIds)}, relations: {account: true}})).map((r: MinerDayStat) => [r.id, r]) : []
+    )
+    const newMiners = new Map<string, number>()
+    for (const [id, delta] of batch.minerDayDeltas) {
+        if (!minerRows.has(id)) newMiners.set(delta.day, (newMiners.get(delta.day) ?? 0) + 1)
+    }
+
     const totalIssuanceStore = storage.balances.totalIssuance.v100
     const inactiveIssuanceStore = storage.balances.inactiveIssuance.v100
     const accountStore = storage.system.account.v100
@@ -115,6 +128,8 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData, lastHea
                 cumTransferVolume: cumTransferVolume,
                 accountsTotal: accountsTotal,
                 referendaTotal: referendaTotal,
+                minersActive: 0,
+                rewards: 0n,
             })
         }
         row.blocks += delta.blocks
@@ -132,6 +147,8 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData, lastHea
         // carries what earlier batches counted for the same day
         row.accountsTotal += bornOn.get(day) ?? 0
         row.referendaTotal += delta.referendaNew
+        row.minersActive += newMiners.get(day) ?? 0
+        row.rewards += delta.rewards
         cumExtrinsicsSigned = row.cumExtrinsicsSigned
         cumTransfers = row.cumTransfers
         cumTransferVolume = row.cumTransferVolume
@@ -143,21 +160,10 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData, lastHea
         batch.days.push(row)
     }
 
-    if (batch.minerDayDeltas.size > 0) {
-        const ids = [...batch.minerDayDeltas.keys()]
-        const existing = new Map<string, MinerDayStat>(
-            (
-                await ctx.store.find(MinerDayStat, {where: {id: In(ids)}, relations: {account: true}})
-            ).map((r: MinerDayStat) => [r.id, r])
-        )
-        for (const [id, delta] of batch.minerDayDeltas) {
-            let row = existing.get(id)
-            if (row == null) {
-                row = new MinerDayStat({id, day: delta.day, account: new Account({id: delta.account}), blocks: 0, rewards: 0n})
-            }
-            row.blocks += delta.blocks
-            row.rewards += delta.rewards
-            batch.minerDays.push(row)
-        }
+    for (const [id, delta] of batch.minerDayDeltas) {
+        const row = minerRows.get(id) ?? new MinerDayStat({id, day: delta.day, account: new Account({id: delta.account}), blocks: 0, rewards: 0n})
+        row.blocks += delta.blocks
+        row.rewards += delta.rewards
+        batch.minerDays.push(row)
     }
 }

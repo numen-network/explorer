@@ -54,6 +54,7 @@ export interface DayDelta {
     evmTxs: number
     fees: bigint
     referendaNew: number
+    rewards: bigint
     tsFirst: Date
     tsLast: Date
     difficultyClose: bigint

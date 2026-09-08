@@ -517,6 +517,10 @@ type DailyStat @entity {
   accountsTotal: Int!
   "referenda submitted by the end of the day"
   referendaTotal: Int!
+  "accounts that sealed at least one block that day"
+  minersActive: Int!
+  "minted for the miners of that day's blocks"
+  rewards: BigInt!
 }
 
 type MinerDayStat @entity @index(fields: ["day", "blocks"]) {
