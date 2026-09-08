@@ -84,6 +84,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     await finalizeStats(ctx, batch)
     await finalizeAnnotations(batch, lastHeader, ctx.store)
     await persist(ctx, batch)
+    await dateGenesisAccounts(ctx, batch)
     await markFinalized(ctx, finalizedHeight)
     await refreshChainInfo(ctx, lastHeader, finalizedHeight)
 })
@@ -483,6 +484,16 @@ async function seedGenesisBalances(batch: BatchData, h: BlockHeader<Fields>): Pr
     const s = storage.system.account.v100
     if (!s.is(h)) throw new Error('unhandled spec version for system accounts at genesis')
     for (const [who] of await s.getPairs(h)) batch.touch(who, 0)
+}
+
+// genesis carries no timestamp inherent, so block 1 is what dates the accounts
+// born there
+async function dateGenesisAccounts(ctx: Ctx, batch: BatchData): Promise<void> {
+    const one = batch.blocks.find(b => b.height === 1)
+    if (one == null) return
+    const born = await ctx.store.findBy(Account, {firstSeenBlock: 0})
+    for (const a of born) a.firstSeenTimestamp = one.timestamp
+    await ctx.store.upsert(born)
 }
 
 async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fields>): Promise<void> {
