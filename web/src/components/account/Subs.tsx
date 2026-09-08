@@ -7,7 +7,7 @@ import {tabHref, type TabCtx} from './shared'
 
 
 export default async function Subs({hex, addr, chain, sp}: TabCtx) {
-    const pg = paging(sp, 'spage')
+    const pg = paging(sp)
     const {accounts, conn} = await subIdentitiesPage(hex, pg.size, pg.offset)
 
     return (
@@ -15,7 +15,7 @@ export default async function Subs({hex, addr, chain, sp}: TabCtx) {
             <Card size="flush">
                 <SubsTable rows={accounts} chain={chain} />
             </Card>
-            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'subs')} pageKey="spage" />
+            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'subs')} />
         </>
     )
 }

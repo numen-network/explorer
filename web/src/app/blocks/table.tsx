@@ -11,6 +11,7 @@ import type {ChainProps} from '@/lib/chain'
 import {shortHash} from '@/lib/format'
 import type {BlockRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
+import {NONE} from '@/components/Detail'
 
 const col = columnsFor<BlockRow>()
 
@@ -43,7 +44,7 @@ export function BlocksTable({rows, chain}: {rows: BlockRow[]; chain: ChainProps}
                 col.display({
                     id: 'miner',
                     header: 'Miner', meta: {className: 'w-full'},
-                    cell: ({row}) => (row.original.author ? <AccountLink full addr={ss58Encode(row.original.author.id, chain.ss58)} acc={row.original.author} /> : <span className="text-dim">—</span>),
+                    cell: ({row}) => (row.original.author ? <AccountLink full addr={ss58Encode(row.original.author.id, chain.ss58)} acc={row.original.author} /> : NONE),
                 }),
                 col.display({id: 'extrinsics', header: 'Extrinsics', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => row.original.extrinsicCount}),
                 col.display({id: 'events', header: 'Events', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => row.original.eventCount}),

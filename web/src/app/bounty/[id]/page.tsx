@@ -1,14 +1,14 @@
 import {notFound} from 'next/navigation'
 import AccountLink from '@/components/AccountLink'
 import {TabPanels, type Panel} from '@/components/Tabs'
-import {DetailCard, DetailRow} from '@/components/Detail'
+import {DetailCard, DetailRow, NONE} from '@/components/Detail'
 import {BlockLink} from '@/components/links'
-import {bountyStatusLabel, bountyStatusTone} from '@/components/bounties'
-import Timeline, {CROSS, RING, TICK, rawSteps, sentenceCase} from '@/components/timeline'
+import {bountyStatusTone} from '@/components/bounties'
+import Timeline, {CROSS, RING, TICK, rawSteps} from '@/components/timeline'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
-import {fmtBalance} from '@/lib/format'
+import {fmtBalance, humanize, sentenceCase} from '@/lib/format'
 import {bountyDetail, type AccountRef} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {ChildBountiesTable} from './table'
@@ -36,7 +36,7 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
 
     const trail = rawSteps(b.timeline)
 
-    const acc = (a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : <span className="text-dim">—</span>)
+    const acc = (a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : NONE)
 
     const children = (
         <Card size="flush">
@@ -84,7 +84,7 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
         <div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
                 <h1 className="text-lg font-semibold">Bounty #{b.index}</h1>
-                <Badge variant={bountyStatusTone(b.status)}>{bountyStatusLabel(b.status)}</Badge>
+                <Badge variant={bountyStatusTone(b.status)}>{humanize(b.status)}</Badge>
             </div>
             {b.description && <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">{b.description}</p>}
 

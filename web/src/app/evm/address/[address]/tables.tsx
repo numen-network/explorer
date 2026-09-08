@@ -9,6 +9,7 @@ import type {ChainProps} from '@/lib/chain'
 import {evmTxTypeLabel} from '@/lib/evm'
 import {fmtBalance} from '@/lib/format'
 import type {EvmTxRow} from '@/lib/gql'
+import {NONE} from '@/components/Detail'
 
 const xcol = columnsFor<EvmTxRow>()
 
@@ -31,7 +32,7 @@ export function EvmTxsTable({rows, chain}: {rows: EvmTxRow[]; chain: ChainProps}
                                 create → <EvmAddrLink addr={row.original.contractAddress} />
                             </span>
                         ) : (
-                            <span className="text-dim">—</span>
+                            NONE
                         ),
                 }),
                 xcol.display({id: 'type', header: 'Type', meta: {cellClassName: 'text-xs'}, cell: ({row}) => evmTxTypeLabel(row.original.txType)}),

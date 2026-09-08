@@ -9,7 +9,8 @@ import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import type {JudgementRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
-import {JUDGEMENT_TONE, NONE} from './shared'
+import {NONE} from '@/components/Detail'
+import {JUDGEMENT_TONE} from './shared'
 
 const col = columnsFor<JudgementRow>()
 

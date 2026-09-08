@@ -6,13 +6,13 @@ import {BlockLink, ExtrinsicLink} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import {TimelineItem, TimelineList, TimelineRows, type Tone} from '@/components/timeline'
 import type {ChainProps} from '@/lib/chain'
-import {hexBytes} from '@/lib/digest'
 import {fmtBalance} from '@/lib/format'
 import {identityTimeline, judgementsByEvent, registrarsList, type AccountRef} from '@/lib/gql'
 import {paging} from '@/lib/paging'
-import {callSubs, identityCallRows, type SubEntry} from '@/lib/identity'
+import {callSubs, hexText, identityCallRows, type SubEntry} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
-import {JUDGEMENT_TONE, NONE, tabHref, type TabCtx} from './shared'
+import {NONE} from '@/components/Detail'
+import {JUDGEMENT_TONE, tabHref, type TabCtx} from './shared'
 
 
 const TONE = (method: string): Tone => (/Killed|Cleared|Revoked|Removed/.test(method) ? 'neg' : method === 'JudgementGiven' ? 'pos' : 'primary')
@@ -39,7 +39,7 @@ const eventRows = (args: unknown, self: string, chain: ChainProps, registrars: M
                 if (acc) rows.push(['Registrar account', <AccountLink key={k} addr={ss58Encode(acc.id, chain.ss58)} acc={acc} />])
                 return rows
             }
-            if (k === 'username' && raw.startsWith('0x')) return [[rowLabel(k), new TextDecoder().decode(hexBytes(raw))]]
+            if (k === 'username' && raw.startsWith('0x')) return [[rowLabel(k), hexText(raw)]]
             if (/^0x[0-9a-fA-F]{64}$/.test(raw)) return [[rowLabel(k), <AccountLink key={k} addr={ss58Encode(raw, chain.ss58)} />]]
             if (MONEY.test(k) && /^\d+$/.test(raw)) return [[rowLabel(k), fmtBalance(raw, chain.decimals, chain.symbol)]]
             return [[rowLabel(k), raw]]
@@ -57,7 +57,7 @@ const SubList = ({subs, chain}: {subs: SubEntry[]; chain: ChainProps}) => (
 )
 
 export default async function Timeline({hex, addr, chain, sp}: TabCtx) {
-    const pg = paging(sp, 'tpage')
+    const pg = paging(sp)
     const {events, conn} = await identityTimeline(hex, pg.size, pg.offset)
     const [regs, verdicts] = await Promise.all([
         events.some(e => (e.args as {registrarIndex?: unknown} | null)?.registrarIndex != null) ? registrarsList() : null,
@@ -101,7 +101,7 @@ export default async function Timeline({hex, addr, chain, sp}: TabCtx) {
                     )
                 })}
             </TimelineList>
-            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'timeline')} pageKey="tpage" />
+            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'timeline')} />
         </>
     )
 }

@@ -1,5 +1,6 @@
 'use client'
-import {useEffect, useSyncExternalStore} from 'react'
+import {useEffect} from 'react'
+import {create} from 'zustand'
 import {ArrowLeftRight} from 'lucide-react'
 import TimeAgo from './TimeAgo'
 import {Tip} from '@/components/Tip'
@@ -10,38 +11,31 @@ import {fmtDateTime} from '@/lib/format'
 type Mode = 'utc' | 'local'
 const LABEL: Record<Mode, string> = {utc: 'Age | Date (UTC)', local: 'Age | Date (Local)'}
 
-let mode: Mode = 'utc'
+const useTimeMode = create<{mode: Mode; setLocal: (local: boolean) => void}>(set => ({
+    mode: 'utc',
+    setLocal: local => {
+        const mode: Mode = local ? 'local' : 'utc'
+        try {
+            localStorage.setItem('timeMode', mode)
+        } catch {}
+        set({mode})
+    },
+}))
+
 let loaded = false
-const subs = new Set<() => void>()
-const subscribe = (f: () => void) => {
-    subs.add(f)
-    return () => subs.delete(f)
-}
-const getMode = () => mode
-const serverMode = (): Mode => 'utc'
-const notify = () => subs.forEach(f => f())
-const setMode = (local: boolean) => {
-    mode = local ? 'local' : 'utc'
-    try {
-        localStorage.setItem('timeMode', mode)
-    } catch {}
-    notify()
-}
 const loadPref = () => {
     if (loaded) return
     loaded = true
     try {
-        if (localStorage.getItem('timeMode') === 'local') {
-            mode = 'local'
-            notify()
-        }
+        if (localStorage.getItem('timeMode') === 'local') useTimeMode.setState({mode: 'local'})
     } catch {}
 }
 
 const QUIET = "h-auto min-w-0 gap-1 rounded-none p-0 text-[length:inherit] hover:bg-transparent aria-pressed:bg-transparent data-[state=on]:bg-transparent [&_svg:not([class*='size-'])]:size-[1em]"
 
 export function TimeModeButton() {
-    const m = useSyncExternalStore(subscribe, getMode, serverMode)
+    const m = useTimeMode(s => s.mode)
+    const setMode = useTimeMode(s => s.setLocal)
     useEffect(loadPref, [])
     return (
         <Tip text="Switch timezone">
@@ -56,7 +50,8 @@ export function TimeModeButton() {
 // table cells sit under a TimeModeButton header that already names the
 // timezone, standalone rows carry the suffix themselves
 export function TimeCell({iso, cycle = false}: {iso: string; cycle?: boolean}) {
-    const m = useSyncExternalStore(subscribe, getMode, serverMode)
+    const m = useTimeMode(s => s.mode)
+    const setMode = useTimeMode(s => s.setLocal)
     useEffect(loadPref, [])
     const body = (
         <span className="whitespace-nowrap">

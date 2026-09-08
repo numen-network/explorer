@@ -9,7 +9,7 @@ import type {ChainProps} from '@/lib/chain'
 import {unlockAt} from '@/lib/conviction'
 import {fmtBalance} from '@/lib/format'
 import type {VoteRow} from '@/lib/gql'
-import {NONE} from './shared'
+import {NONE} from '@/components/Detail'
 
 const col = columnsFor<VoteRow>()
 

@@ -10,8 +10,6 @@ export interface TabCtx {
     sp: Record<string, string | string[] | undefined>
 }
 
-export const NONE = <span className="text-dim">—</span>
-
 export const JUDGEMENT_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle'> = {
     KnownGood: 'pos',
     Reasonable: 'pos',
@@ -21,8 +19,6 @@ export const JUDGEMENT_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle'> = {
     LowQuality: 'neg',
     Erroneous: 'neg',
 }
-
-export const trackLabel = (name: string) => name.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
 
 // a pager or a filter inside a tab has to carry the tab along, otherwise the
 // next click drops the reader back on the first one

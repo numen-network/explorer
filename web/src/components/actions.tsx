@@ -5,12 +5,12 @@ import AccountLink from '@/components/AccountLink'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {BlockLink} from '@/components/links'
-import {sentenceCase} from '@/components/timeline'
 import {Card} from '@/components/ui/card'
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
-import {fmtApprox, fmtInt} from '@/lib/format'
+import {fmtApprox, fmtInt, sentenceCase} from '@/lib/format'
 import {identityLabel, type IdentityRef} from '@/lib/identity'
+import {NONE} from '@/components/Detail'
 
 export interface ActionActor {
     addr: string
@@ -151,7 +151,7 @@ export default function ActionList({rows, decimals, symbol}: {rows: ActionRow[];
                             <Delta label="Support" value={row.original.impact.support} />
                         </>
                     ) : (
-                        <span className="text-dim">—</span>
+                        NONE
                     ),
             }),
         ],

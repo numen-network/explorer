@@ -163,12 +163,7 @@ export function blocksPage(limit: number, offset: number) {
     )
 }
 
-export interface AccountListRow {
-    id: string
-    identityDisplay: string | null
-    identityJson?: unknown
-    identitySubName?: string | null
-    identitySuper?: {identityDisplay: string | null; identityJson?: unknown} | null
+export interface AccountListRow extends AccountRef {
     free: string
     reserved: string
     nonce: number
@@ -234,7 +229,7 @@ export interface Slice {
 
 // the block row carries extrinsicCount and eventCount, so the totals the pagers
 // need come free and no connection query is required
-export function blockDetail(idOrHash: string, x: Slice, e: Slice) {
+export function blockDetail(idOrHash: string, page: Slice) {
     const byHeight = /^\d+$/.test(idOrHash)
     const where = byHeight ? '{height_eq: $height}' : '{hash_eq: $hash}'
     return gql<{
@@ -244,26 +239,18 @@ export function blockDetail(idOrHash: string, x: Slice, e: Slice) {
         minedObjects: {protocol: string; vertexCount: number; vertices: string}[]
         topology: TopologyRow[]
     }>(
-        `query (${byHeight ? '$height: Int!' : '$hash: String!'}, $xl: Int!, $xo: Int!, $el: Int!, $eo: Int!) {
+        `query (${byHeight ? '$height: Int!' : '$hash: String!'}, $limit: Int!, $offset: Int!) {
             blocks(where: ${where}, limit: 1) { ${BLOCK_FIELDS} logs }
-            extrinsics(where: {block: ${where}}, orderBy: indexInBlock_ASC, limit: $xl, offset: $xo) { ${EXTRINSIC_FIELDS} }
-            events(where: {block: ${where}}, orderBy: indexInBlock_ASC, limit: $el, offset: $eo) { ${EVENT_FIELDS} }
+            extrinsics(where: {block: ${where}}, orderBy: indexInBlock_ASC, limit: $limit, offset: $offset) { ${EXTRINSIC_FIELDS} }
+            events(where: {block: ${where}}, orderBy: indexInBlock_ASC, limit: $limit, offset: $offset) { ${EVENT_FIELDS} }
             minedObjects(where: {block: ${where}}, limit: 1) { protocol vertexCount vertices }
             topology: meshTopologies(limit: 1) { id faces faceCount }
         }`,
-        {...(byHeight ? {height: Number(idOrHash)} : {hash: idOrHash.toLowerCase()}), xl: x.limit, xo: x.offset, el: e.limit, eo: e.offset}
+        {...(byHeight ? {height: Number(idOrHash)} : {hash: idOrHash.toLowerCase()}), limit: page.limit, offset: page.offset}
     )
 }
 
-export interface ExtrinsicHit {
-    id: string
-    indexInBlock: number
-    hash: string
-    pallet: string
-    method: string
-    success: boolean
-    block: {height: number; timestamp: string}
-}
+export type ExtrinsicHit = Pick<ExtrinsicRow, 'id' | 'indexInBlock' | 'hash' | 'pallet' | 'method' | 'success' | 'block'>
 
 // a hash can name more than one extrinsic, the canonical pair never can
 export function extrinsicMatches(hash: string) {
@@ -293,8 +280,7 @@ export function extrinsicDetail(height: number, index: number) {
     )
 }
 
-export interface AccountRow {
-    id: string
+export interface AccountRow extends AccountRef {
     free: string
     reserved: string
     frozen: string
@@ -302,9 +288,7 @@ export interface AccountRow {
     firstSeenBlock: number
     firstSeenTimestamp: string
     lastActiveBlock: number
-    identityDisplay: string | null
     identityJson: unknown
-    identitySubName?: string | null
     identitySuper?: {id: string; identityDisplay: string | null; identityJson?: unknown} | null
     evmAddress: string | null
     vestingJson: unknown
@@ -511,9 +495,7 @@ export function transfersPage(limit: number, offset: number) {
 
 export type IdentityStatus = 'VERIFIED' | 'UNVERIFIED' | 'FLAGGED'
 
-export interface IdentityRow {
-    id: string
-    identityDisplay: string | null
+export interface IdentityRow extends AccountRef {
     identityJson: unknown
     identityStatus: IdentityStatus
     username: string | null
@@ -1018,7 +1000,6 @@ export type Selected = Record<string, string>
 
 // track hangs off the referendum, the other fields sit on the row itself
 const pred = (field: string, value: string) => (field === 'track' ? `referendum: {track: {id_eq: "${value}"}}` : `${field}_eq: "${value}"`)
-const where = (parts: string[]) => (parts.length ? `where: {${parts.join(', ')}}, ` : '')
 
 // each chip counts the set it would produce, keeping the other dimensions on
 async function facetPage<T>(entity: string, sel: string, order: string, limit: number, offset: number, facets: Facets, on: Selected) {
@@ -1027,12 +1008,12 @@ async function facetPage<T>(entity: string, sel: string, order: string, limit: n
             .filter(([f, v]) => v && f !== skip)
             .map(([f, v]) => pred(f, v))
     const tallies = Object.entries(facets).flatMap(([field, values]) =>
-        values.map((v, i) => `${field}${i}: ${entity}Connection(${where([...active(field), pred(field, v)])}orderBy: id_ASC) { totalCount }`)
+        values.map((v, i) => `${field}${i}: ${entity}Connection(${clause([...active(field), pred(field, v)])}orderBy: id_ASC) { totalCount }`)
     )
     const raw = await gql<Record<string, never>>(
         `query ($limit: Int!, $offset: Int!) {
-            rows: ${entity}(${where(active())}orderBy: ${order}, limit: $limit, offset: $offset) { ${sel} }
-            conn: ${entity}Connection(${where(active())}orderBy: id_ASC) { totalCount }
+            rows: ${entity}(${clause(active())}orderBy: ${order}, limit: $limit, offset: $offset) { ${sel} }
+            conn: ${entity}Connection(${clause(active())}orderBy: id_ASC) { totalCount }
             all: ${entity}Connection(orderBy: id_ASC) { totalCount }
             ${tallies.join('\n            ')}
         }`,
@@ -1270,7 +1251,6 @@ export async function minerDays(sinceDay: string): Promise<MinerDayRow[]> {
 
 export function chartSeries(after: string, before: string) {
     const day = [after && `date_gte: "${after}T00:00:00.000Z"`, before && `date_lte: "${before}T00:00:00.000Z"`].filter(Boolean)
-    const clause = (parts: string[]) => (parts.length ? `where: {${parts.join(', ')}}, ` : '')
     return gql<{dailyStats: DailyRow[]}>(
         `query {
             dailyStats(${clause(day)}orderBy: date_ASC, limit: 4000) { ${DAILY_FIELDS} }

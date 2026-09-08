@@ -5,7 +5,7 @@ import AccountLink from '@/components/AccountLink'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import type {ChainProps} from '@/lib/chain'
 import {ss58Encode} from '@/lib/ss58'
-import {NONE} from './shared'
+import {NONE} from '@/components/Detail'
 
 export interface SubRow {
     id: string

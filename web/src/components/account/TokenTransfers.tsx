@@ -7,7 +7,7 @@ import {tabHref, type TabCtx} from './shared'
 
 
 export default async function TokenTransfers({addr, evm, sp}: TabCtx & {evm: string}) {
-    const pg = paging(sp, 'kpage')
+    const pg = paging(sp)
     const {tokenTransfers, conn} = await tokenTransfersFor(evm, pg.size, pg.offset)
 
     return (
@@ -15,7 +15,7 @@ export default async function TokenTransfers({addr, evm, sp}: TabCtx & {evm: str
             <Card size="flush">
                 <TokenTransfersTable rows={tokenTransfers} />
             </Card>
-            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'tokens')} pageKey="kpage" />
+            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'tokens')} />
         </>
     )
 }

@@ -7,7 +7,7 @@ import {tabHref, type TabCtx} from './shared'
 
 
 export default async function Judgements({addr, chain, sp, index}: TabCtx & {index: number}) {
-    const pg = paging(sp, 'jpage')
+    const pg = paging(sp)
     const {judgements, conn} = await judgementsGiven(index, pg.size, pg.offset)
 
     return (
@@ -15,7 +15,7 @@ export default async function Judgements({addr, chain, sp, index}: TabCtx & {ind
             <Card size="flush">
                 <JudgementsTable rows={judgements} chain={chain} />
             </Card>
-            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'judgements')} pageKey="jpage" />
+            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'judgements')} />
         </>
     )
 }

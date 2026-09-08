@@ -3,13 +3,14 @@ import Pager from '@/components/Pager'
 import {FilterChip} from '@/components/pills'
 import {Card} from '@/components/ui/card'
 import {delegationsInPage, delegationsOutFor, trackList} from '@/lib/gql'
+import {trackLabel} from '@/lib/format'
 import {paging} from '@/lib/paging'
 import {DelegationsTable} from './DelegationsTable'
-import {tabHref, trackLabel, type TabCtx} from './shared'
+import {tabHref, type TabCtx} from './shared'
 
 
 export default async function Delegations({hex, addr, chain, sp}: TabCtx) {
-    const pg = paging(sp, 'dpage')
+    const pg = paging(sp)
     const [{delegations: out}, {tracks}] = await Promise.all([delegationsOutFor(hex), trackList()])
     const trackIds = tracks.map(t => t.id)
     const track = trackIds.includes(String(sp.dtrack)) ? String(sp.dtrack) : ''
@@ -41,7 +42,7 @@ export default async function Delegations({hex, addr, chain, sp}: TabCtx) {
                     <Card size="flush">
                         <DelegationsTable label="Delegated from" rows={dIn.rows} chain={chain} />
                     </Card>
-                    <Pager paging={pg} total={dIn.total} href={href({})} pageKey="dpage" />
+                    <Pager paging={pg} total={dIn.total} href={href({})} />
                 </div>
             )}
         </div>

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type {BadgeVariant} from '@/components/ui/badge'
+import {NONE} from '@/components/Detail'
 
 const TONES: Record<string, BadgeVariant> = {
     proposed: 'idle',
@@ -14,17 +15,12 @@ const TONES: Record<string, BadgeVariant> = {
     cancelled: 'idle',
 }
 
-export function bountyStatusLabel(s: string): string {
-    const text = s.replaceAll('_', ' ')
-    return text[0].toUpperCase() + text.slice(1)
-}
-
 export function bountyStatusTone(s: string): BadgeVariant {
     return TONES[s] ?? 'idle'
 }
 
 export function RefCell({r}: {r?: {index: number; status: string} | null}) {
-    if (!r) return <span className="text-dim">—</span>
+    if (!r) return NONE
     return (
         <Link href={`/referendum/${r.index}`} className="font-mono text-primary hover:underline">
             #{r.index}

@@ -10,7 +10,7 @@ import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
 import type {TransferRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
-import {NONE} from './shared'
+import {NONE} from '@/components/Detail'
 
 const col = columnsFor<TransferRow>()
 

@@ -1,4 +1,4 @@
-import {hexBytes} from './digest'
+import {hexToBytes} from '@noble/hashes/utils.js'
 
 export interface IdentityRef {
     identityDisplay?: string | null
@@ -35,43 +35,37 @@ const FIELDS: [key: string, label: string][] = [
     ['discord', 'Discord'],
 ]
 
+export const hexText = (hex: string) => new TextDecoder().decode(hexToBytes(hex.slice(2)))
+
 // sub account names are the last thing still wearing pallet_identity's Data
 export function dataText(d: unknown): string | null {
     const kind = (d as {__kind?: string})?.__kind
     const value = (d as {value?: string})?.value
     if (!kind || kind === 'None') return null
-    if (kind.startsWith('Raw')) return value ? new TextDecoder().decode(hexBytes(value)) : null
+    if (kind.startsWith('Raw')) return value ? hexText(value) : null
     return value ? `${kind} ${value}` : kind
 }
 
 // every identity field is bare utf-8 bytes, so an empty one reads as 0x
 export function fieldText(v: unknown): string | null {
     if (typeof v !== 'string' || v === '0x') return null
-    return new TextDecoder().decode(hexBytes(v)) || null
-}
-
-export function identityRows(json: unknown): [label: string, value: string | null][] {
-    const info = (json as {info?: Record<string, unknown>})?.info
-    return FIELDS.map(([key, label]) => [label, info ? fieldText(info[key]) : null])
+    return hexText(v) || null
 }
 
 export interface IdentityField {
     key: string
     label: string
-    value: string
+    value: string | null
+}
+
+// every field in runtime order, the empty ones included
+export function identityRows(json: unknown): IdentityField[] {
+    const info = (json as {info?: Record<string, unknown>})?.info
+    return FIELDS.map(([key, label]) => ({key, label, value: info ? fieldText(info[key]) : null}))
 }
 
 // only what the account actually filled in
-export function identityFields(json: unknown): IdentityField[] {
-    const info = (json as {info?: Record<string, unknown>})?.info
-    if (!info) return []
-    const rows: IdentityField[] = []
-    for (const [key, label] of FIELDS) {
-        const value = fieldText(info[key])
-        if (value) rows.push({key, label, value})
-    }
-    return rows
-}
+export const identityFields = (json: unknown) => identityRows(json).filter((f): f is IdentityField & {value: string} => f.value != null)
 
 // identity values are whatever the account holder put on chain, so the scheme
 // is never taken from the value and handles are escaped into the path
@@ -113,7 +107,7 @@ export function identityCallRows(method: string, args: unknown): [label: string,
     const a = (args ?? {}) as Record<string, unknown>
     switch (method) {
         case 'set_identity':
-            return identityRows(a).filter((r): r is [string, string] => r[1] != null)
+            return identityFields(a).map(f => [f.label, f.value])
         case 'add_sub':
         case 'rename_sub': {
             const name = dataText(a.data)

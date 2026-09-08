@@ -1,4 +1,5 @@
 import {BountyTable} from '@/components/BountyTable'
+import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
 import {bountiesPage} from '@/lib/gql'
@@ -14,9 +15,9 @@ export default async function BountiesPage() {
                 <h1 className="text-lg font-semibold">Bounties</h1>
                 <span className="text-xs text-muted-foreground">{fmtInt(data.total)} total</span>
             </div>
-            <div className="mt-3">
+            <Card size="flush" className="mt-3">
                 <BountyTable rows={data.rows} chain={chain} />
-            </div>
+            </Card>
         </div>
     )
 }

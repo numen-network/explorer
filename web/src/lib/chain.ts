@@ -15,19 +15,8 @@ export interface ChainProps {
     submissionDeposit: string
 }
 
-interface InfoRow {
+interface InfoRow extends Omit<ChainProps, 'chain'> {
     name: string
-    symbol: string
-    decimals: number
-    ss58: number
-    blockTime: number
-    existentialDeposit: string
-    evmChainId: number
-    nativeErc20: string
-    sessionLength: number
-    sessionOffset: number
-    voteLockingPeriod: number
-    submissionDeposit: string
     head: number
     finalizedHead: number
 }
@@ -44,22 +33,8 @@ let cached: ChainProps | undefined
 
 export async function chainProps(): Promise<ChainProps> {
     if (cached) return cached
-    const row = await chainInfo()
-    cached = {
-        chain: row.name,
-        symbol: row.symbol,
-        decimals: row.decimals,
-        ss58: row.ss58,
-        blockTime: row.blockTime,
-        existentialDeposit: row.existentialDeposit,
-        evmChainId: row.evmChainId,
-        nativeErc20: row.nativeErc20,
-        sessionLength: row.sessionLength,
-        sessionOffset: row.sessionOffset,
-        voteLockingPeriod: row.voteLockingPeriod,
-        submissionDeposit: row.submissionDeposit,
-    }
-    return cached
+    const {name, head, finalizedHead, ...props} = await chainInfo()
+    return (cached = {chain: name, ...props})
 }
 
 export async function chainHeads(): Promise<{best: number; finalized: number}> {

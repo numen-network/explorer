@@ -1,6 +1,6 @@
 'use client'
 import {curveSamples, type Curve} from '@/lib/curves'
-import {fmtInt} from '@/lib/format'
+import {fmtCompact, fmtInt} from '@/lib/format'
 import * as echarts from 'echarts'
 import {useEffect, useRef} from 'react'
 
@@ -11,14 +11,6 @@ const ACCENT_SOFT = '#c4e5ed'
 const GRAY = '#9aa1ad'
 const GREEN = '#4caf50'
 const SUPPORT = '#7c3aed'
-
-function compact(v: number): string {
-    const abs = Math.abs(v)
-    if (abs >= 1e9) return (v / 1e9).toFixed(1).replace(/\.0$/, '') + 'B'
-    if (abs >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, '') + 'M'
-    if (abs >= 1e4) return (v / 1e3).toFixed(1).replace(/\.0$/, '') + 'K'
-    return String(v)
-}
 
 function useChart(build: () => echarts.EChartsOption, deps: unknown[]) {
     const ref = useRef<HTMLDivElement>(null)
@@ -55,7 +47,7 @@ function valAxis(scale = false): object {
         // axis there flattens every move it makes
         scale,
         splitLine: {lineStyle: {color: EDGE}},
-        axisLabel: {color: SUB, fontSize: 11, formatter: compact},
+        axisLabel: {color: SUB, fontSize: 11, formatter: fmtCompact},
     }
 }
 

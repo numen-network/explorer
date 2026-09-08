@@ -1,6 +1,8 @@
 import {ReactNode} from 'react'
 import {Card} from '@/components/ui/card'
 
+export const NONE = <span className="text-dim">—</span>
+
 export function DetailCard({title, children}: {title?: string; children: ReactNode}) {
     return (
         <Card size="flush" className="divide-y">
@@ -22,7 +24,7 @@ export function DetailRow({label, children}: {label: string; children: ReactNode
 }
 
 export function JsonBlock({value}: {value: unknown}) {
-    if (value === null || value === undefined) return <span className="text-dim">—</span>
+    if (value === null || value === undefined) return NONE
     return (
         <pre className="max-h-72 overflow-auto rounded-lg border bg-background px-3 py-2 font-mono text-xs leading-5 whitespace-pre-wrap">
             {JSON.stringify(value, null, 2)}

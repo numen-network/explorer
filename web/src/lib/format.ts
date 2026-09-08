@@ -4,18 +4,30 @@ export function fmtInt(n: number | string | bigint): string {
     return String(n).replace(GROUP, ',')
 }
 
-// every planck the chain holds, trailing zeros trimmed. a balance is never
-// rounded for looks, the reader is owed the whole number
-export function fmtBalance(planck: string | bigint, decimals: number, symbol?: string): string {
+export const sentenceCase = (s: string) => s[0].toUpperCase() + s.slice(1)
+
+// snake_case status names read as a sentence
+export const humanize = (s: string) => sentenceCase(s.replaceAll('_', ' '))
+
+// track names are snake_case and read as a title
+export const trackLabel = (name: string) => name.split('_').map(sentenceCase).join(' ')
+
+function planckParts(planck: string | bigint, decimals: number): {neg: boolean; v: bigint; base: bigint; whole: bigint} {
     let v = BigInt(planck)
     const neg = v < 0n
     if (neg) v = -v
     const base = 10n ** BigInt(decimals)
-    let out = fmtInt(v / base)
+    return {neg, v, base, whole: v / base}
+}
+
+const signed = (neg: boolean, out: string, symbol?: string) => `${neg ? '-' : ''}${out}${symbol ? ` ${symbol}` : ''}`
+
+// every planck the chain holds, trailing zeros trimmed. a balance is never
+// rounded for looks, the reader is owed the whole number
+export function fmtBalance(planck: string | bigint, decimals: number, symbol?: string): string {
+    const {neg, v, base, whole} = planckParts(planck, decimals)
     const frac = (v % base).toString().padStart(decimals, '0').replace(/0+$/, '')
-    if (frac) out += '.' + frac
-    if (neg) out = '-' + out
-    return symbol ? `${out} ${symbol}` : out
+    return signed(neg, fmtInt(whole) + (frac ? '.' + frac : ''), symbol)
 }
 
 export function planckToNum(planck: string | bigint, decimals: number): number {
@@ -28,47 +40,42 @@ function trimNum(x: number): string {
     return fixed.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
 }
 
+// four digits still read as a number, so K only starts at ten thousand
+const UNITS: [floor: bigint, div: bigint, suffix: string][] = [
+    [1_000_000_000n, 1_000_000_000n, 'B'],
+    [1_000_000n, 1_000_000n, 'M'],
+    [10_000n, 1_000n, 'K'],
+]
+
+const unitFor = (whole: bigint): [bigint, bigint, string] => UNITS.find(([floor]) => whole >= floor) ?? [1n, 1n, '']
+
 export function fmtCompact(n: number): string {
-    const abs = Math.abs(n)
-    if (abs >= 1e9) return trimNum(n / 1e9) + 'B'
-    if (abs >= 1e6) return trimNum(n / 1e6) + 'M'
-    if (abs >= 1e4) return trimNum(n / 1e3) + 'K'
-    return trimNum(n)
+    const [, div, suffix] = unitFor(BigInt(Math.floor(Math.abs(n))))
+    return trimNum(n / Number(div)) + suffix
 }
 
 export function fmtCompact3(planck: string | bigint, decimals: number, symbol?: string): string {
-    let v = BigInt(planck)
-    const neg = v < 0n
-    if (neg) v = -v
-    const base = 10n ** BigInt(decimals)
-    const whole = v / base
-    const [div, unit]: [bigint, string] = whole >= 1000000000n ? [1000000000n, 'B'] : whole >= 1000000n ? [1000000n, 'M'] : whole >= 10000n ? [1000n, 'K'] : [1n, '']
+    const {neg, v, base, whole} = planckParts(planck, decimals)
+    const [, div, suffix] = unitFor(whole)
     const scaled = (v * 1000n) / (base * div)
-    const out = `${neg ? '-' : ''}${fmtInt(scaled / 1000n)}.${(scaled % 1000n).toString().padStart(3, '0')}${unit}`
-    return symbol ? `${out} ${symbol}` : out
+    return signed(neg, `${fmtInt(scaled / 1000n)}.${(scaled % 1000n).toString().padStart(3, '0')}${suffix}`, symbol)
 }
 
 // one decimal in unit range, whole tokens below it, ≈ marks a lossy trim
 export function fmtApprox(planck: string | bigint, decimals: number, symbol?: string): string {
-    let v = BigInt(planck)
-    const neg = v < 0n
-    if (neg) v = -v
-    const base = 10n ** BigInt(decimals)
-    const whole = v / base
-    const [div, unit]: [bigint, string] = whole >= 1000000000n ? [1000000000n, 'B'] : whole >= 1000000n ? [1000000n, 'M'] : whole >= 1000n ? [1000n, 'K'] : [1n, '']
+    const {neg, v, base, whole} = planckParts(planck, decimals)
+    const [, div, suffix] = unitFor(whole)
     let out: string
     let exact: boolean
-    if (unit === '') {
+    if (suffix === '') {
         out = fmtInt(whole)
         exact = whole * base === v
     } else {
         const tenths = (v * 10n) / (base * div)
-        out = `${fmtInt(tenths / 10n)}${tenths % 10n === 0n ? '' : '.' + (tenths % 10n)}${unit}`
+        out = `${fmtInt(tenths / 10n)}${tenths % 10n === 0n ? '' : '.' + (tenths % 10n)}${suffix}`
         exact = tenths * base * div === v * 10n
     }
-    if (neg) out = '-' + out
-    if (!exact) out = '≈' + out
-    return symbol ? `${out} ${symbol}` : out
+    return `${exact ? '' : '≈'}${signed(neg, out, symbol)}`
 }
 
 export function shortHash(s: string, pre = 5, post = 4): string {

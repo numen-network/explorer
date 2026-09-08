@@ -15,23 +15,19 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainHeads, chainProps} from '@/lib/chain'
-import {fmtCompact, fmtCompact3, fmtInt, planckToNum} from '@/lib/format'
+import {fmtCompact, fmtCompact3, fmtInt, humanize, planckToNum, trackLabel} from '@/lib/format'
+import {isLive, phaseFraction} from '@/lib/referendum'
 import {bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {TracksTable, TreasuryTable} from './tables'
+import {NONE} from '@/components/Detail'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Governance'}
 
 const TABS = ['referenda', 'treasury', 'bounties', 'tracks'] as const
 type Tab = (typeof TABS)[number]
-
-const trackLabel = (name: string) => name.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
-const spaced = (s: string) => {
-    const t = s.split('_').join(' ')
-    return t[0].toUpperCase() + t.slice(1)
-}
 
 // closed sets written by the indexer, see squid governance.ts and bounties.ts
 const SPEND_KINDS = ['local', 'spend']
@@ -83,14 +79,14 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
 
     const spendFilter = spends && (
         <div className="mb-4 space-y-2">
-            <FacetRow label="Kind" field="kind" values={SPEND_KINDS} counts={spends.counts.kind ?? {}} labelOf={spaced} />
-            <FacetRow label="Status" field="status" values={SPEND_STATUSES} counts={spends.counts.status ?? {}} labelOf={spaced} />
+            <FacetRow label="Kind" field="kind" values={SPEND_KINDS} counts={spends.counts.kind ?? {}} labelOf={humanize} />
+            <FacetRow label="Status" field="status" values={SPEND_STATUSES} counts={spends.counts.status ?? {}} labelOf={humanize} />
             <FacetRow label="Track" field="track" values={trackIds} counts={spends.counts.track ?? {}} labelOf={trackName} />
         </div>
     )
     const bountyFilter = bounties && (
         <div className="mb-4 space-y-2">
-            <FacetRow label="Status" field="status" values={BOUNTY_STATUSES} counts={bounties.counts.status ?? {}} labelOf={spaced} />
+            <FacetRow label="Status" field="status" values={BOUNTY_STATUSES} counts={bounties.counts.status ?? {}} labelOf={humanize} />
             <FacetRow label="Track" field="track" values={trackIds} counts={bounties.counts.track ?? {}} labelOf={trackName} />
         </div>
     )
@@ -115,11 +111,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
             {refs.referendums.map(r => {
                 const ayes = BigInt(r.ayes)
                 const nays = BigInt(r.nays)
-                const live = r.status === 'DECIDING' || r.status === 'CONFIRMING'
-                const at =
-                    live && r.decidingSince != null && r.track.decisionPeriod > 0
-                        ? Math.min(1, Math.max(0, (heads.best - r.decidingSince) / r.track.decisionPeriod))
-                        : null
+                const ran = isLive(r.status) ? phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best) : null
+                const at = ran !== null ? Math.min(1, Math.max(0, ran)) : null
                 const approval = ayes + nays > 0n ? Number((ayes * 10000n) / (ayes + nays)) / 100 : 0
                 const support = activeIssuance > 0n ? Number((BigInt(r.support) * 1000000n) / activeIssuance) / 10000 : 0
                 const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
@@ -160,7 +153,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                 {r.submitter ? (
                                     <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} />
                                 ) : (
-                                    <span className="text-dim">—</span>
+                                    NONE
                                 )}
                                 <span className="text-dim">·</span>
                                 <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs text-muted-foreground">

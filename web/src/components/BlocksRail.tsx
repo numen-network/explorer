@@ -8,6 +8,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {fmtInt, shortHash} from '@/lib/format'
 import {type AccountRef} from '@/lib/gql'
+import {NONE} from '@/components/Detail'
 
 export interface BlockCard {
     height: number
@@ -43,7 +44,7 @@ export default function BlocksRail({cards, faces}: {cards: BlockCard[]; faces: s
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-xs">
                         <span className="text-muted-foreground">Miner</span>
-                        {c.minerAddr ? <AccountLink addr={c.minerAddr} acc={c.minerAcc ?? undefined} className="min-w-0" /> : <span className="text-dim">—</span>}
+                        {c.minerAddr ? <AccountLink addr={c.minerAddr} acc={c.minerAcc ?? undefined} className="min-w-0" /> : NONE}
                     </div>
                     <div className="mt-1 flex justify-center">
                         <Asteroid vertices={c.vertices} faces={faces} size={148} interactive />

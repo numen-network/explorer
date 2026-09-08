@@ -8,11 +8,10 @@ import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {fmtBalance, fmtBlockSpan, fmtInt} from '@/lib/format'
+import {fmtBalance, fmtBlockSpan, fmtInt, trackLabel} from '@/lib/format'
 import type {TrackRow, TreasurySpendRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
-
-const trackLabel = (name: string) => name.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
+import {NONE} from '@/components/Detail'
 
 const scol = columnsFor<TreasurySpendRow>()
 
@@ -25,7 +24,7 @@ export function TreasuryTable({rows, chain}: {rows: TreasurySpendRow[]; chain: C
                 scol.display({
                     id: 'beneficiary',
                     header: 'Beneficiary', meta: {className: 'w-full'},
-                    cell: ({row}) => (row.original.beneficiary ? <AccountLink addr={ss58Encode(row.original.beneficiary.id, chain.ss58)} acc={row.original.beneficiary} /> : <span className="text-dim">—</span>),
+                    cell: ({row}) => (row.original.beneficiary ? <AccountLink addr={ss58Encode(row.original.beneficiary.id, chain.ss58)} acc={row.original.beneficiary} /> : NONE),
                 }),
                 scol.display({id: 'referendum', header: 'Referendum', cell: ({row}) => <RefCell r={row.original.referendum} />}),
                 scol.display({

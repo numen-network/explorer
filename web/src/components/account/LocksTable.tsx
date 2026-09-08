@@ -6,7 +6,7 @@ import {BlockLink} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
-import {NONE} from './shared'
+import {NONE} from '@/components/Detail'
 
 export interface LockCell {
     kind: 'Frozen' | 'Reserved'

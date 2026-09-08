@@ -1,12 +1,12 @@
 import AccountLink from '@/components/AccountLink'
-import {DetailCard, DetailRow} from '@/components/Detail'
+import {DetailCard, DetailRow, NONE} from '@/components/Detail'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
 import type {AccountRow} from '@/lib/gql'
 import {identityJudgements, identityLabel, identityRows} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
-import {JUDGEMENT_TONE, NONE} from './shared'
+import {JUDGEMENT_TONE} from './shared'
 
 // the identity channels sit two to a line, so the label column is tighter here
 const ROW = 'flex gap-3 px-5 py-2.5 text-sm'
@@ -19,7 +19,7 @@ function Registration({json, chain}: {json: unknown; chain: ChainProps}) {
     return (
         <>
             <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2">
-                {identityRows(json).map(([label, value], i) => (
+                {identityRows(json).map(({label, value}, i) => (
                     <div key={label} className={`${ROW} ${i > 0 ? 'border-t' : ''} ${i === 1 ? 'sm:border-t-0' : ''} sm:odd:border-r`}>
                         <div className={LABEL}>{label}</div>
                         <div className="min-w-0 truncate font-mono">{value ?? NONE}</div>

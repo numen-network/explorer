@@ -17,7 +17,7 @@ import {Progress} from '@/components/ui/progress'
 import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {chainHeads, chainProps} from '@/lib/chain'
-import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum} from '@/lib/format'
+import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum, trackLabel} from '@/lib/format'
 import {homeData, type DailyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -26,8 +26,6 @@ export const dynamic = 'force-dynamic'
 // both lists hold five slots so the pair stays level however little data lands
 const ROW_H = 'h-[66px]'
 const LIST_H = 'min-h-[332px]'
-
-const trackLabel = (name: string) => name.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
 
 function StatusRow({label, children}: {label: string; children: React.ReactNode}) {
     return (

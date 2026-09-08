@@ -5,10 +5,9 @@ import AccountLink from '@/components/AccountLink'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import type {ChainProps} from '@/lib/chain'
-import {fmtBalance} from '@/lib/format'
+import {fmtBalance, trackLabel} from '@/lib/format'
 import type {DelegationRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
-import {trackLabel} from './shared'
 
 const col = columnsFor<DelegationRow>()
 

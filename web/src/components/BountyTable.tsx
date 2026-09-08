@@ -3,15 +3,15 @@
 import Link from 'next/link'
 import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
-import {bountyStatusLabel, bountyStatusTone, RefCell} from '@/components/bounties'
+import {bountyStatusTone, RefCell} from '@/components/bounties'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
-import {Card} from '@/components/ui/card'
-import {fmtBalance} from '@/lib/format'
+import {fmtBalance, humanize} from '@/lib/format'
 import {type BountyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
+import {NONE} from '@/components/Detail'
 
 const col = columnsFor<BountyRow>()
 
@@ -34,17 +34,13 @@ export function BountyTable({rows, chain}: {rows: BountyRow[]; chain: {ss58: num
             col.display({
                 id: 'curator',
                 header: 'Curator',
-                cell: ({row}) => (row.original.curator ? <AccountLink addr={ss58Encode(row.original.curator.id, chain.ss58)} acc={row.original.curator} /> : <span className="text-dim">—</span>),
+                cell: ({row}) => (row.original.curator ? <AccountLink addr={ss58Encode(row.original.curator.id, chain.ss58)} acc={row.original.curator} /> : NONE),
             }),
             col.display({id: 'referendum', header: 'Referendum', cell: ({row}) => <RefCell r={row.original.referendum} />}),
-            col.display({id: 'status', header: 'Status', cell: ({row}) => <Badge variant={bountyStatusTone(row.original.status)}>{bountyStatusLabel(row.original.status)}</Badge>}),
+            col.display({id: 'status', header: 'Status', cell: ({row}) => <Badge variant={bountyStatusTone(row.original.status)}>{humanize(row.original.status)}</Badge>}),
             col.display({id: 'updated', header: 'Updated', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.updatedAt} />}),
         ],
         [chain]
     )
-    return (
-        <Card size="flush">
-            <DataTable columns={columns} rows={rows} empty="No bounties yet." getRowId={b => b.id} />
-        </Card>
-    )
+    return <DataTable columns={columns} rows={rows} empty="No bounties yet." getRowId={b => b.id} />
 }

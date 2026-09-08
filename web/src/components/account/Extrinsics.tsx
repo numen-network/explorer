@@ -9,7 +9,7 @@ import {tabHref, type TabCtx} from './shared'
 
 
 export default async function Extrinsics({hex, addr, chain, sp}: TabCtx) {
-    const pg = paging(sp, 'epage')
+    const pg = paging(sp)
     const {rows, total, leaves} = await extrinsicsPage(pg.size, pg.offset, {signer: hex}, [])
 
     return (
@@ -21,7 +21,7 @@ export default async function Extrinsics({hex, addr, chain, sp}: TabCtx) {
                 <Link href={`/extrinsics?signer=${addr}`} className="text-primary hover:underline">
                     Search all extrinsics from this account <Jump />
                 </Link>
-                <Pager className="" paging={pg} total={total} href={tabHref(addr, 'extrinsics')} pageKey="epage" />
+                <Pager className="" paging={pg} total={total} href={tabHref(addr, 'extrinsics')} />
             </div>
         </>
     )

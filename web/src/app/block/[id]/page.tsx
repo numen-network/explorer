@@ -35,12 +35,8 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     if (!/^\d+$/.test(id) && !isH256(id)) notFound()
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')
-    const x = paging(sp, 'xpage')
-    const e = paging(sp, 'epage')
-    const [chain, data] = await Promise.all([
-        chainProps(),
-        blockDetail(id, {limit: x.size, offset: x.offset}, {limit: e.size, offset: e.offset}),
-    ])
+    const pg = paging(sp)
+    const [chain, data] = await Promise.all([chainProps(), blockDetail(id, {limit: pg.size, offset: pg.offset})])
     const block = data.blocks[0]
     if (!block) notFound()
     const leaves = await leafCalls(data.extrinsics.map(x => x.id))
@@ -55,7 +51,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
             <Card size="flush">
                 <ExtrinsicsTable rows={data.extrinsics} leaves={Object.fromEntries(leaves)} chain={chain} view="block" />
             </Card>
-            <Pager paging={x} total={block.extrinsicCount} href={`/block/${id}?tab=extrinsics`} pageKey="xpage" />
+            <Pager paging={pg} total={block.extrinsicCount} href={`/block/${id}?tab=extrinsics`} />
         </>
     )
 
@@ -64,7 +60,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
             <Card size="flush">
                 <EventsTable rows={data.events} view="block" />
             </Card>
-            <Pager paging={e} total={block.eventCount} href={`/block/${id}?tab=events`} pageKey="epage" />
+            <Pager paging={pg} total={block.eventCount} href={`/block/${id}?tab=events`} />
         </>
     )
 

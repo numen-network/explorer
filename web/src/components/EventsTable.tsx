@@ -2,7 +2,7 @@
 
 import {useMemo} from 'react'
 import {columnsFor, DataTable} from '@/components/DataTable'
-import {JsonBlock} from '@/components/Detail'
+import {JsonBlock, NONE} from '@/components/Detail'
 import {ExtrinsicLink} from '@/components/links'
 import type {CallRef, EventRow} from '@/lib/gql'
 
@@ -39,7 +39,7 @@ export function EventsTable({rows, view, parent}: {rows: EventRow[]; view: 'bloc
                 id: 'extrinsic',
                 header: 'Extrinsic',
                 meta: {className: 'min-w-[180px]', cellClassName: 'text-xs'},
-                cell: ({row}) => (row.original.extrinsic ? <ExtrinsicLink id={row.original.extrinsic.id} hash={row.original.extrinsic.hash} /> : <span className="text-dim">—</span>),
+                cell: ({row}) => (row.original.extrinsic ? <ExtrinsicLink id={row.original.extrinsic.id} hash={row.original.extrinsic.hash} /> : NONE),
             }),
         ])
     }, [view, parent])

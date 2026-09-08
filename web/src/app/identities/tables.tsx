@@ -10,6 +10,7 @@ import {fmtBalance, fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
 import type {IdentityRow, RegistrarRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
+import {NONE} from '@/components/Detail'
 
 const acc = (row: IdentityRow): IdentityRef => ({identityDisplay: row.identityDisplay, identityJson: row.identityJson})
 
@@ -58,7 +59,7 @@ export function RegistrarsTable({rows, chain}: {rows: RegistrarRow[]; chain: Cha
                 rcol.display({
                     id: 'registrar',
                     header: 'Registrar', meta: {className: 'w-full'},
-                    cell: ({row}) => (row.original.account ? <AccountLink addr={ss58Encode(row.original.account.id, chain.ss58)} acc={row.original.account} /> : <span className="text-dim">—</span>),
+                    cell: ({row}) => (row.original.account ? <AccountLink addr={ss58Encode(row.original.account.id, chain.ss58)} acc={row.original.account} /> : NONE),
                 }),
                 rcol.display({
                     id: 'time',

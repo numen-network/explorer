@@ -2,14 +2,14 @@ import type {ReactNode} from 'react'
 import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
-import {DetailCard, DetailRow} from '@/components/Detail'
+import {DetailCard, DetailRow, NONE} from '@/components/Detail'
 import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {CurvesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, ExtrinsicLink} from '@/components/links'
 import {Gauge, ProposalTree, StatusBadge} from '@/components/referenda'
-import {CROSS, RING, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps, sentenceCase} from '@/components/timeline'
+import {CROSS, RING, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
 import ActionList, {type ActionImpact, type ActionRow} from '@/components/actions'
 import VoteLists, {type VoteEntry} from '@/components/votes'
 import {Badge} from '@/components/ui/badge'
@@ -18,7 +18,8 @@ import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
-import {fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum} from '@/lib/format'
+import {fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum, sentenceCase, trackLabel} from '@/lib/format'
+import {isLive, phaseFraction} from '@/lib/referendum'
 import {accountRefs, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -39,8 +40,6 @@ const STATUS_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle' | 'primary'> =
     CANCELLED: 'idle',
     KILLED: 'neg',
 }
-
-const trackLabel = (name: string) => name.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
 
 const STEP_ICON = (status: string) =>
     status === 'APPROVED' ? TICK : /REJECTED|KILLED|CANCELLED|TIMEDOUT/.test(status) ? CROSS : RING
@@ -191,11 +190,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const deciding = r.decidingSince !== null && r.track.decisionPeriod > 0 ? {start: r.decidingSince, perHour: r.track.decisionPeriod / decisionHours} : null
     const approvalCurve = curveSamples(r.track.minApproval as Curve, decisionHours)
     const supportCurve = curveSamples(r.track.minSupport as Curve, decisionHours)
-    const live = r.status === 'DECIDING' || r.status === 'CONFIRMING'
-    const x =
-        live && r.decidingSince !== null && r.track.decisionPeriod > 0
-            ? Math.min(100, ((heads.best - r.decidingSince) / r.track.decisionPeriod) * 100)
-            : null
+    const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best)
+    const x = isLive(r.status) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
     const now = x !== null ? {at: (x / 100) * decisionHours, approval: approvalNow, support: supportNow} : null
 
     const currentApproval: [number, number][] = []
@@ -219,10 +215,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     }
 
     const ended = r.endedAt !== null
-    const prepareAt = r.track.preparePeriod > 0 ? (heads.best - r.submittedAt) / r.track.preparePeriod : null
-    const decisionAt = r.decidingSince !== null && r.track.decisionPeriod > 0 ? (heads.best - r.decidingSince) / r.track.decisionPeriod : null
-    const confirmAt = r.confirmingSince !== null && r.track.confirmPeriod > 0 ? (heads.best - r.confirmingSince) / r.track.confirmPeriod : null
-    const enactAt = r.status === 'APPROVED' && r.endedAt !== null && r.track.minEnactmentPeriod > 0 ? (heads.best - r.endedAt) / r.track.minEnactmentPeriod : null
+    const prepareAt = phaseFraction(r.submittedAt, r.track.preparePeriod, heads.best)
+    const confirmAt = phaseFraction(r.confirmingSince, r.track.confirmPeriod, heads.best)
+    const enactAt = r.status === 'APPROVED' ? phaseFraction(r.endedAt, r.track.minEnactmentPeriod, heads.best) : null
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
     const pct = (n: number) => `${n.toFixed(n < 1 ? 2 : 1)}%`
@@ -505,7 +500,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <Card size="flush" className="min-w-0 px-7 py-5">
                     <p className="text-base font-semibold">{r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : <span className="text-dim">—</span>}
+                        {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : NONE}
                         <span className="text-dim">·</span>
                         <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs text-muted-foreground">
                             {trackLabel(r.track.name)}

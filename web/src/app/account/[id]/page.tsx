@@ -1,11 +1,10 @@
 import Link from 'next/link'
-import type {ReactNode} from 'react'
 import {notFound} from 'next/navigation'
 import Balance from '@/components/Balance'
 import CopyBtn from '@/components/CopyBtn'
 import {AddrMark} from '@/components/addrHot'
 import {DetailCard, DetailRow} from '@/components/Detail'
-import {TabBar} from '@/components/Tabs'
+import {TabBar, type Panel} from '@/components/Tabs'
 import {BlockLink} from '@/components/links'
 import {Badge, type BadgeVariant} from '@/components/ui/badge'
 import Delegations from '@/components/account/Delegations'
@@ -45,12 +44,8 @@ export async function generateMetadata(props: PageProps<'/account/[id]'>) {
 
 // a tab is only built when the reader is on it, so the page runs one tab query
 // instead of one per tab. group ties the sub tabs to the strip above them
-interface Tab {
-    slug: string
-    label: string
-    count?: number
+interface Tab extends Panel {
     group?: string
-    body: () => ReactNode
 }
 
 export default async function AccountPage(props: PageProps<'/account/[id]'>) {

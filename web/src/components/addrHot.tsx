@@ -1,36 +1,20 @@
 'use client'
 
-import {useEffect, useSyncExternalStore, type ReactNode} from 'react'
+import {useEffect, type ReactNode} from 'react'
+import {create} from 'zustand'
 
 const HOT = 'rounded-[4px] bg-primary-soft ring-1 ring-primary/30'
 
-let hot: string | null = null
-const subs = new Set<() => void>()
-
-const subscribe = (f: () => void) => {
-    subs.add(f)
-    return () => {
-        subs.delete(f)
-    }
-}
-
-const set = (a: string | null) => {
-    if (a === hot) return
-    hot = a
-    subs.forEach(f => f())
-}
+const useHot = create<{addr: string | null; set: (addr: string | null) => void}>(set => ({addr: null, set: addr => set({addr})}))
 
 export function useAddrHot(addr: string) {
-    const on = useSyncExternalStore(
-        subscribe,
-        () => hot === addr,
-        () => false
-    )
+    const on = useHot(s => s.addr === addr)
+    const set = useHot(s => s.set)
     useEffect(
         () => () => {
-            if (hot === addr) set(null)
+            if (useHot.getState().addr === addr) set(null)
         },
-        [addr]
+        [addr, set]
     )
     return {
         cls: on ? HOT : '',

@@ -16,7 +16,6 @@ interface Props {
     paging: Paging
     total: number
     href: string
-    pageKey?: string
     className?: string
 }
 
@@ -25,13 +24,13 @@ const off = 'pointer-events-none opacity-50'
 const ACTIVE = 'border-primary bg-primary bg-clip-border text-primary-foreground hover:bg-primary hover:text-primary-foreground'
 
 // the url is the state, the machine only lays out the page window and its aria
-export default function Pager({paging: {page, size}, total, href, pageKey = 'page', className = 'mt-3'}: Props) {
+export default function Pager({paging: {page, size}, total, href, className = 'mt-3'}: Props) {
     const router = useRouter()
     const [goto, setGoto] = useState('')
     const url = (p: number, s: number) => {
         const [path, query] = href.split('?')
         const q = new URLSearchParams(query)
-        q.set(pageKey, String(p))
+        q.set('page', String(p))
         q.set('size', String(s))
         return `${path}?${q}`
     }
