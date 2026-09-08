@@ -1,3 +1,4 @@
+import {cache} from 'react'
 import {gql} from './gql'
 
 export interface ChainProps {
@@ -21,20 +22,17 @@ interface InfoRow extends Omit<ChainProps, 'chain'> {
     finalizedHead: number
 }
 
-async function chainInfo(): Promise<InfoRow> {
+const chainInfo = cache(async (): Promise<InfoRow> => {
     const {chainInfos} = await gql<{chainInfos: InfoRow[]}>(
         `query { chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod submissionDeposit head finalizedHead } }`
     )
     if (!chainInfos[0]) throw new Error('chain info row is missing, the indexer has not written it yet')
     return chainInfos[0]
-}
-
-let cached: ChainProps | undefined
+})
 
 export async function chainProps(): Promise<ChainProps> {
-    if (cached) return cached
     const {name, head, finalizedHead, ...props} = await chainInfo()
-    return (cached = {chain: name, ...props})
+    return {chain: name, ...props}
 }
 
 export async function chainHeads(): Promise<{best: number; finalized: number}> {
