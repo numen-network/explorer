@@ -1,6 +1,7 @@
 import {blake2b} from '@noble/hashes/blake2.js'
 import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
 import {RpcClient} from '@subsquid/rpc-client'
+import {decodeUtf8} from './utf8'
 
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 
@@ -140,9 +141,7 @@ function abiDecodeString(ret: string | undefined): string | undefined {
     try {
         const len = Number(BigInt('0x' + ret.slice(66, 130)))
         if (len === 0 || len > 256) return undefined
-        const raw = ret.slice(130, 130 + len * 2)
-        const text = Buffer.from(raw, 'hex').toString('utf8')
-        return /^[\x20-\x7e]+$/.test(text) ? text : undefined
+        return decodeUtf8('0x' + ret.slice(130, 130 + len * 2)) ?? undefined
     } catch {
         return undefined
     }

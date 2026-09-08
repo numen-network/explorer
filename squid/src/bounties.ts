@@ -3,6 +3,7 @@ import {Store} from '@subsquid/typeorm-store'
 import {Account, Bounty, ChildBounty, Referendum} from './model'
 import {BatchData} from './batch'
 import {storage} from './types'
+import {decodeUtf8} from './utf8'
 
 // events drive the lifecycle and the timeline, then chain storage at the batch
 // head fills value, fee, description and curator or beneficiary detail for
@@ -253,10 +254,4 @@ async function refreshFromStorage(batch: BatchData, lastHeader: any): Promise<vo
 
 function snake(kind: string): string {
     return kind.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase()
-}
-
-function decodeUtf8(hex: unknown): string | undefined {
-    if (typeof hex !== 'string' || !hex.startsWith('0x')) return undefined
-    const text = Buffer.from(hex.slice(2), 'hex').toString('utf8')
-    return text.length > 0 && !text.includes('�') ? text : undefined
 }

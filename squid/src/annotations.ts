@@ -4,6 +4,7 @@ import {Store} from '@subsquid/typeorm-store'
 import {Account, Delegation, IdentityStatus, Judgement, PrimeState, ProxyRelation, Registrar, Track} from './model'
 import {BatchData} from './batch'
 import {events, storage} from './types'
+import {decodeUtf8} from './utf8'
 
 type ChainEvent = Parameters<(typeof events.convictionVoting.delegated.v100)['is']>[0]
 
@@ -394,12 +395,4 @@ async function refreshPrime(batch: BatchData, lastHeader: any, store: Store): Pr
 function decodeIdentityData(data: any): string | null {
     if (data?.__kind == null || !data.__kind.startsWith('Raw')) return null
     return decodeUtf8(data.value)
-}
-
-// null rather than undefined because undefined tells upsert to leave the
-// column alone, which would strand the previous value
-function decodeUtf8(hex: unknown): string | null {
-    if (typeof hex !== 'string' || !hex.startsWith('0x')) return null
-    const text = Buffer.from(hex.slice(2), 'hex').toString('utf8')
-    return /^[\x20-\x7e]+$/.test(text) ? text : null
 }
