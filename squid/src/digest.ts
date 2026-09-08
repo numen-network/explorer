@@ -1,3 +1,5 @@
+import {Src} from '@subsquid/scale-codec'
+
 export interface PowSeal {
     nonce: string
     work: string
@@ -8,18 +10,6 @@ export interface PowDigest {
     seal?: PowSeal
 }
 
-function compactLen(bytes: Buffer, offset: number): {len: number; next: number} {
-    const b = bytes[offset]
-    const mode = b & 3
-    if (mode === 0) return {len: b >> 2, next: offset + 1}
-    if (mode === 1) return {len: (b | (bytes[offset + 1] << 8)) >> 2, next: offset + 2}
-    if (mode === 2) {
-        const v = (b | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0
-        return {len: v >>> 2, next: offset + 4}
-    }
-    throw new Error('digest payload length out of range')
-}
-
 /** `engine` is the four byte consensus tag the runtime publishes for its seal. */
 export function parsePowDigest(logs: string[], engine: Buffer): PowDigest {
     const out: PowDigest = {}
@@ -28,8 +18,8 @@ export function parsePowDigest(logs: string[], engine: Buffer): PowDigest {
         const type = bytes[0]
         if (type !== 5 && type !== 6) continue
         if (!bytes.subarray(1, 5).equals(engine)) continue
-        const {len, next} = compactLen(bytes, 5)
-        const payload = bytes.subarray(next, next + len)
+        const src = new Src(bytes.subarray(5))
+        const payload = Buffer.from(src.bytes(src.compactLength()))
         if (type === 6) {
             if (payload.length !== 32) throw new Error('pow pre runtime digest is not an AccountId32')
             out.author = '0x' + payload.toString('hex')

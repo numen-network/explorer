@@ -1,6 +1,7 @@
 import {blake2b} from '@noble/hashes/blake2.js'
 import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
 import {RpcClient} from '@subsquid/rpc-client'
+import {Src} from '@subsquid/scale-codec'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In} from 'typeorm'
 import {convictionLabel} from './annotations'
@@ -247,10 +248,10 @@ async function fetchPreimage(rpc: RpcClient, hash: string, height: number): Prom
     if (keys == null || keys.length === 0) return undefined
     const raw: string | null = await rpc.call('state_getStorage', [keys[0], at])
     if (raw == null) return undefined
-    const b = hexToBytes(raw.slice(2))
-    const len = decodeCompact(b, 0)
-    if (len == null || len.value > MAX_PREIMAGE_BYTES) return undefined
-    return b.subarray(len.next, len.next + Number(len.value))
+    const src = new Src(hexToBytes(raw.slice(2)))
+    const len = src.compactLength()
+    if (len > MAX_PREIMAGE_BYTES) return undefined
+    return src.bytes(len)
 }
 
 // the convention is a noted preimage holding commit shaped utf8 text, the
@@ -261,25 +262,6 @@ function readMetadataText(bytes: Uint8Array): {title: string | null; description
     const title = (cut === -1 ? dump : dump.slice(0, cut)).trim().slice(0, MAX_TITLE_CHARS)
     const description = cut === -1 ? '' : dump.slice(cut + 1).trim()
     return {title: title || null, description: description || null}
-}
-
-function decodeCompact(b: Uint8Array, at: number): {value: bigint; next: number} | undefined {
-    if (at >= b.length) return undefined
-    const mode = b[at] & 0b11
-    if (mode === 0b00) return {value: BigInt(b[at] >> 2), next: at + 1}
-    if (mode === 0b01) {
-        if (at + 2 > b.length) return undefined
-        return {value: BigInt(b[at] | (b[at + 1] << 8)) >> 2n, next: at + 2}
-    }
-    if (mode === 0b10) {
-        if (at + 4 > b.length) return undefined
-        return {value: BigInt(b[at] + b[at + 1] * 0x100 + b[at + 2] * 0x10000 + b[at + 3] * 0x1000000) >> 2n, next: at + 4}
-    }
-    const n = (b[at] >> 2) + 4
-    if (at + 1 + n > b.length) return undefined
-    let value = 0n
-    for (let i = n - 1; i >= 0; i--) value = (value << 8n) | BigInt(b[at + 1 + i])
-    return {value, next: at + 1 + n}
 }
 
 export function enactmentId(index: number): string {
