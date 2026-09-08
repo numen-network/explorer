@@ -12,13 +12,14 @@ import {
 import {Store, TypeormDatabase} from '@subsquid/typeorm-store'
 import {RpcClient} from '@subsquid/rpc-client'
 import {toJSON} from '@subsquid/util-internal-json'
+import pLimit from 'p-limit'
 import {In, LessThanOrEqual} from 'typeorm'
 import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EvmLog, EvmTransaction, Extrinsic, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer} from './model'
 import {constants, events, storage} from './types'
 import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
 import {parsePowDigest} from './digest'
-import {fetchObj, mapLimit, parseMesh} from './objects'
+import {fetchObj, parseMesh} from './objects'
 import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Metadata} from './evm'
 import {collectGovEvent, finalizeGovernance} from './governance'
 import {collectValidatorEvent, finalizeValidators} from './validators'
@@ -437,7 +438,8 @@ async function fetchObjects(ctx: Ctx, batch: BatchData, header: RuntimeCtx): Pro
     // the runtime carries the domain separation prefix as raw bytes
     const PROTOCOL = Buffer.from(published.get(header).slice(2), 'hex').toString('utf8')
     const targets = batch.blocks.filter(b => b.height > 0)
-    const meshes = await mapLimit(targets, OBJECT_FETCH_CONCURRENCY, async b => parseMesh(await fetchObj(rpc, b.hash)))
+    const limit = pLimit(OBJECT_FETCH_CONCURRENCY)
+    const meshes = await Promise.all(targets.map(b => limit(async () => parseMesh(await fetchObj(rpc, b.hash)))))
     topologyCache ??= await ctx.store.get(MeshTopology, PROTOCOL)
     for (let i = 0; i < targets.length; i++) {
         const m = meshes[i]
