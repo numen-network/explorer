@@ -87,12 +87,15 @@ UPDATE account SET identity_display = 'Hydra Pool', identity_json = pg_temp.idjs
 WHERE id = (SELECT author_id FROM block WHERE author_id IS NOT NULL GROUP BY 1 ORDER BY count(*) DESC LIMIT 1 OFFSET 1);
 
 INSERT INTO referendum (id, index, track_id, origin, proposal_hash, title, description,
-                        proposal_call, proposal_amount, proposal_beneficiary,
+                        proposal_pallet, proposal_method, proposal_calls, proposal_amount, proposal_beneficiary,
                         submitter_id, submitted_at, submitted_timestamp, status, deciding_since, confirming_since, ended_at,
                         ayes, nays, support, timeline)
 SELECT (:base + n)::text, :base + n, track, origin,
        '0x' || md5(n::text) || md5(origin), title, descr,
-       pcall, amtk * :P, CASE WHEN benef IS NULL THEN NULL ELSE pg_temp.pk(benef) END,
+       pallet, method,
+       jsonb_build_array(jsonb_build_object('pallet', pallet, 'method', method, 'depth', 0)
+           || CASE WHEN benef IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('amount', (amtk * :P)::text, 'beneficiary', pg_temp.pk(benef), 'validFrom', NULL) END),
+       amtk * :P, CASE WHEN benef IS NULL THEN NULL ELSE pg_temp.pk(benef) END,
        pg_temp.pk(1 + n % 6), :h - sub, pg_temp.stamp(:h - sub), status,
        CASE WHEN dec  IS NULL THEN NULL ELSE :h - dec  END,
        CASE WHEN conf IS NULL THEN NULL ELSE :h - conf END,
@@ -105,31 +108,31 @@ SELECT (:base + n)::text, :base + n, track, origin,
 FROM (VALUES
     (0, '0', 'SmallSpender',  'APPROVED',   'Fund the winter hackathon',
         E'Three day onsite event, 40 builders.\n\nBudget covers venue, travel grants and bounties. Receipts will be published after settlement.',
-        'treasury.spendLocal', 12000::numeric, 2, 52000, 50000, 42000, 40000, 380000, 20000, 310000),
+        'Treasury', 'spend_local', 12000::numeric, 2, 52000, 50000, 42000, 40000, 380000, 20000, 310000),
     (1, '0', 'SmallSpender',  'REJECTED',   'Marketing retainer for Q3',
         'Monthly retainer for a growth agency. No deliverables listed.',
-        'treasury.spendLocal', 45000, 5, 48000, 46000, NULL, 38000, 90000, 260000, 120000),
+        'Treasury', 'spend_local', 45000, 5, 48000, 46000, NULL, 38000, 90000, 260000, 120000),
     (2, '1', 'MediumSpender', 'APPROVED',   'Explorer infrastructure grant',
         E'Covers 12 months of archive node hosting, database storage and monitoring for the public explorer.\n\nPaid in one tranche to the ops multisig.',
-        'treasury.spendLocal', 180000, 1, 45000, 43000, 34000, 32000, 520000, 40000, 450000),
+        'Treasury', 'spend_local', 180000, 1, 45000, 43000, 34000, 32000, 520000, 40000, 450000),
     (3, '0', 'SmallSpender',  'TIMEDOUT',   NULL, NULL,
-        'system.remark', NULL, NULL, 40000, NULL, NULL, 9000, 0, 0, 0),
+        'System', 'remark', NULL, NULL, 40000, NULL, NULL, 9000, 0, 0, 0),
     (4, '1', 'MediumSpender', 'CANCELLED',  'Bridge audit budget',
         'Withdrawn by the submitter, superseded by a revised scope.',
-        'treasury.spendLocal', 95000, 4, 30000, 28000, NULL, 26000, 150000, 30000, 90000),
+        'Treasury', 'spend_local', 95000, 4, 30000, 28000, NULL, 26000, 150000, 30000, 90000),
     (5, '2', 'BigSpender',    'KILLED',     'Buy the dip with treasury',
         'Convert a third of the pot into exchange tokens.',
-        'treasury.spendLocal', 900000, 6, 24000, 22000, NULL, 21500, 10000, 700000, 30000),
+        'Treasury', 'spend_local', 900000, 6, 24000, 22000, NULL, 21500, 10000, 700000, 30000),
     (6, '0', 'SmallSpender',  'DECIDING',   'Community meetup sponsorship',
         'Recurring city meetups, six locations, swag and streaming gear.',
-        'treasury.spendLocal', 8000, 3, 26000, 24000, NULL, NULL, 120000, 210000, 95000),
+        'Treasury', 'spend_local', 8000, 3, 26000, 24000, NULL, NULL, 120000, 210000, 95000),
     (7, '1', 'MediumSpender', 'CONFIRMING', 'Node operator rebate program',
         E'Rebates archive node operators for bandwidth, metered monthly.\n\nFirst cohort of nine operators, addresses attached in the linked sheet.',
-        'treasury.spendLocal', 60000, 2, 60000, 58000, 3000, NULL, 640000, 55000, 510000),
+        'Treasury', 'spend_local', 60000, 2, 60000, 58000, 3000, NULL, 640000, 55000, 510000),
     (8, '2', 'BigSpender',    'SUBMITTED',  'Treasury diversification into a strategic reserve of obsidian asteroids with an unnecessarily long title to test overflow behaviour',
         'Stress test row for layout, wraps and truncation.',
-        'treasury.spendLocal', 2500000, 1, 1500, NULL, NULL, NULL, 0, 0, 0)
-) v(n, track, origin, status, title, descr, pcall, amtk, benef, sub, dec, conf, fin, ayesk, naysk, supk);
+        'Treasury', 'spend_local', 2500000, 1, 1500, NULL, NULL, NULL, 0, 0, 0)
+) v(n, track, origin, status, title, descr, pallet, method, amtk, benef, sub, dec, conf, fin, ayesk, naysk, supk);
 
 -- one set row behind every title, and an earlier version on the withdrawn one
 -- so the text history has something to show
@@ -225,7 +228,8 @@ UPDATE treasury_spend SET referendum_id = (:base + v.n)::text
 FROM (VALUES (900, 0), (901, 2)) v(sp, n)
 WHERE treasury_spend.id = 'local-' || v.sp;
 
-UPDATE referendum SET proposal_call = 'bounties.approveBounty', proposal_bounty_index = v.b,
+UPDATE referendum SET proposal_pallet = 'Bounties', proposal_method = 'approve_bounty', proposal_bounty_index = v.b,
+    proposal_calls = jsonb_build_array(jsonb_build_object('pallet', 'Bounties', 'method', 'approve_bounty', 'depth', 0, 'bounty', v.b)),
     proposal_amount = NULL, proposal_beneficiary = NULL
 FROM (VALUES (1, 0), (4, 1)) v(n, b)
 WHERE referendum.id = (:base + v.n)::text;
