@@ -423,6 +423,9 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
     // while extrinsics run is a share of a fee or a tip
     if (events.balances.deposit.v100.is(ev)) {
         const d = events.balances.deposit.v100.decode(ev)
+        // the treasury never signs, so its fee share is what keeps
+        // its account row current
+        if (d.who === treasury) batch.touch(treasury, block.height)
         if (d.who === author && ev.phase === 'Finalization') block.reward += d.amount
         else if (d.who === author && extrinsic) extrinsic.minerFee += d.amount
         else if (d.who === treasury && extrinsic) extrinsic.treasuryFee += d.amount
