@@ -27,19 +27,22 @@ export class DelegationAction {
     track!: Relation_<Track>
 
     /**
-     * delegate or undelegate, an undelegate row keeps the delegation it removed
+     * Delegated or Undelegated, an undelegate row keeps the delegation it removed
      */
     @StringColumn_({nullable: false})
-    kind!: string
+    method!: string
 
     @BigIntColumn_({nullable: false})
     balance!: bigint
 
+    /**
+     * the Conviction variant name
+     */
     @StringColumn_({nullable: false})
     conviction!: string
 
     /**
-     * conviction weighted sum delegated to the target after this action
+     * conviction weighted sum delegated to the target after this action, as the chain keeps it
      */
     @BigIntColumn_({nullable: false})
     delegatedVotes!: bigint

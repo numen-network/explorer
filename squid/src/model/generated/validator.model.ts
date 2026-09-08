@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, BooleanColumn as BooleanColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, StringColumn as StringColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, BooleanColumn as BooleanColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, JSONColumn as JSONColumn_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
 
 @Entity_()
@@ -31,8 +31,11 @@ export class Validator {
     @IntColumn_({nullable: false})
     equivocations!: number
 
-    @StringColumn_({nullable: true})
-    kicked!: string | undefined | null
+    /**
+     * the reason ValidatorKicked carried, whole
+     */
+    @JSONColumn_({nullable: true})
+    kicked!: unknown | undefined | null
 
     @IntColumn_({nullable: false})
     firstSeenBlock!: number

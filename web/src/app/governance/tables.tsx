@@ -8,10 +8,22 @@ import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {fmtBalance, fmtBlockSpan, fmtInt, trackLabel} from '@/lib/format'
+import {camelLabel, fmtBalance, fmtBlockSpan, fmtInt, trackLabel} from '@/lib/format'
 import type {TrackRow, TreasurySpendRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {NONE} from '@/components/Detail'
+
+const SPEND_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle'> = {
+    SpendApproved: 'warn',
+    AssetSpendApproved: 'warn',
+    Awarded: 'pos',
+    Paid: 'pos',
+    AssetSpendVoided: 'neg',
+    PaymentFailed: 'neg',
+    SpendProcessed: 'idle',
+}
+
+const SPEND_KIND_LABEL: Record<string, string> = {spend_local: 'Local', spend: 'Spend'}
 
 const scol = columnsFor<TreasurySpendRow>()
 
@@ -20,7 +32,7 @@ export function TreasuryTable({rows, chain}: {rows: TreasurySpendRow[]; chain: C
         () =>
             scol.columns([
                 scol.display({id: 'id', header: 'Id', meta: {cellClassName: 'font-mono text-xs'}, cell: ({row}) => `#${row.original.id.split('-')[1]}`}),
-                scol.display({id: 'kind', header: 'Kind', meta: {cellClassName: 'text-[13px]'}, cell: ({row}) => row.original.kind}),
+                scol.display({id: 'kind', header: 'Kind', meta: {cellClassName: 'text-[13px]'}, cell: ({row}) => SPEND_KIND_LABEL[row.original.kind] ?? row.original.kind}),
                 scol.display({
                     id: 'beneficiary',
                     header: 'Beneficiary', meta: {className: 'w-full'},
@@ -30,7 +42,7 @@ export function TreasuryTable({rows, chain}: {rows: TreasurySpendRow[]; chain: C
                 scol.display({
                     id: 'status',
                     header: 'Status',
-                    cell: ({row}) => <Badge variant={row.original.status === 'paid' ? 'pos' : row.original.status === 'approved' ? 'warn' : 'idle'}>{row.original.status}</Badge>,
+                    cell: ({row}) => <Badge variant={SPEND_TONE[row.original.status] ?? 'idle'}>{camelLabel(row.original.status)}</Badge>,
                 }),
                 scol.display({id: 'amount', header: 'Amount', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtBalance(row.original.amount, chain.decimals, chain.symbol)}),
                 scol.display({id: 'block', header: 'Block', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.block} />}),

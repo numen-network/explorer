@@ -13,6 +13,7 @@ import {fmtBalance} from '@/lib/format'
 import {evmAddressData} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {EvmTxsTable} from './tables'
+import {NONE} from '@/components/Detail'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,7 +39,7 @@ export default async function EvmAddressPage(props: PageProps<'/evm/address/[add
                         {h.token.name ?? <AddressText addr={h.token.id} />}
                     </Link>
                     <span className="text-xs text-muted-foreground">{h.token.symbol}</span>
-                    <span className="ml-auto font-mono">{fmtBalance(h.balance, h.token.decimals ?? 0, h.token.symbol ?? undefined)}</span>
+                    <span className="ml-auto font-mono">{h.balance != null ? fmtBalance(h.balance, h.token.decimals ?? 0, h.token.symbol ?? undefined) : NONE}</span>
                 </div>
             ))}
         </Card>

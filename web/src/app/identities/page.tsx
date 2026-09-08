@@ -1,3 +1,4 @@
+import {verdictOf} from '@/components/JudgementBadge'
 import {BlockLink} from '@/components/links'
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
@@ -19,6 +20,10 @@ export default async function IdentitiesPage(props: PageProps<'/identities'>) {
     const pg = paging(sp)
     const [chain, counts, registrars] = await Promise.all([chainProps(), identityCounts(), registrarsList()])
     const rows = tab === 'identities' ? (await identitiesPage(pg.size, pg.offset)).accounts : []
+    const verdicts = counts.registered.map(a => verdictOf(a.identityJson))
+    const direct = counts.registered.length
+    const verified = verdicts.filter(v => v === 'verified').length
+    const flagged = verdicts.filter(v => v === 'bad').length
 
     return (
         <div>
@@ -29,11 +34,11 @@ export default async function IdentitiesPage(props: PageProps<'/identities'>) {
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatTile
                     label="Direct identities"
-                    value={fmtInt(counts.direct.totalCount)}
+                    value={fmtInt(direct)}
                     chips={[
-                        {text: fmtInt(counts.verified.totalCount), note: 'verified', tone: 'pos'},
-                        {text: fmtInt(counts.unverified.totalCount), note: 'unverified', tone: 'idle'},
-                        {text: fmtInt(counts.flagged.totalCount), note: 'flagged', tone: 'neg'},
+                        {text: fmtInt(verified), note: 'verified', tone: 'pos'},
+                        {text: fmtInt(direct - verified - flagged), note: 'unverified', tone: 'idle'},
+                        {text: fmtInt(flagged), note: 'flagged', tone: 'neg'},
                     ]}
                 />
                 <StatTile label="Sub identities" value={fmtInt(counts.subs.totalCount)} />
@@ -53,7 +58,7 @@ export default async function IdentitiesPage(props: PageProps<'/identities'>) {
             <div className="mt-7">
                 <TabBar
                     items={[
-                        {label: 'Identities', count: counts.direct.totalCount, href: '/identities', active: tab === 'identities'},
+                        {label: 'Identities', count: direct, href: '/identities', active: tab === 'identities'},
                         {label: 'Registrars', count: registrars.registrars.length, href: '/identities?tab=registrars', active: tab === 'registrars'},
                     ]}
                 />
@@ -61,7 +66,7 @@ export default async function IdentitiesPage(props: PageProps<'/identities'>) {
                     {tab === 'identities' ? <IdentitiesTable rows={rows} ss58={chain.ss58} /> : <RegistrarsTable rows={registrars.registrars} chain={chain} />}
                 </Card>
                 {tab === 'identities' && (
-                    <Pager paging={pg} total={counts.direct.totalCount} href="/identities" />
+                    <Pager paging={pg} total={direct} href="/identities" />
                 )}
             </div>
         </div>

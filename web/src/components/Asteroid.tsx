@@ -25,7 +25,7 @@ export default function Asteroid({vertices, faces, size = 150, interactive = fal
             const [vBuf, fBuf] = await Promise.all([gunzipHex(vertices), gunzipHex(faces)])
             if (dead) return
             geo = new THREE.BufferGeometry()
-            geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vBuf), 3))
+            geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(new Float64Array(vBuf)), 3))
             geo.setIndex(new THREE.BufferAttribute(new Uint16Array(fBuf), 1))
             geo.computeVertexNormals()
             geo.center()

@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, ManyToOne as ManyToOne_, IntColumn as IntColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, BytesColumn as BytesColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, ManyToOne as ManyToOne_, IntColumn as IntColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, BytesColumn as BytesColumn_, JSONColumn as JSONColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
 import {Extrinsic} from "./extrinsic.model"
 import {Block} from "./block.model"
 
@@ -57,14 +57,23 @@ export class EvmTransaction {
     @BigIntColumn_({nullable: false})
     gasPrice!: bigint
 
-    @IntColumn_({nullable: false})
-    txType!: number
+    /**
+     * TransactionV2 variant name, Legacy, EIP2930, EIP1559 or EIP7702
+     */
+    @StringColumn_({nullable: false})
+    txType!: string
 
+    /**
+     * ExitReason variant name
+     */
     @StringColumn_({nullable: false})
     status!: string
 
-    @StringColumn_({nullable: true})
-    statusReason!: string | undefined | null
+    /**
+     * the ExitReason the runtime reported, whole
+     */
+    @JSONColumn_({nullable: false})
+    exitReason!: unknown
 
     @Index_("idx_evm_transaction_timestamp_2aa7be18")
     @DateTimeColumn_({nullable: false})

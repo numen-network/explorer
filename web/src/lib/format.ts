@@ -9,6 +9,9 @@ export const sentenceCase = (s: string) => s[0].toUpperCase() + s.slice(1)
 // snake_case status names read as a sentence
 export const humanize = (s: string) => sentenceCase(s.replaceAll('_', ' '))
 
+// a chain variant or event name reads as a sentence, BountyClaimed as Bounty claimed
+export const camelLabel = (s: string) => sentenceCase(s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase())
+
 // track names are snake_case and read as a title
 export const trackLabel = (name: string) => name.split('_').map(sentenceCase).join(' ')
 

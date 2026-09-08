@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BooleanColumn as BooleanColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
 import {Referendum} from "./referendum.model"
 import {Account} from "./account.model"
 
@@ -23,35 +23,56 @@ export class VoteAction {
     voter!: Relation_<Account>
 
     /**
-     * vote or remove, a remove row keeps the vote it took off the tally
+     * Voted or VoteRemoved, a remove row keeps the vote it took off the tally
+     */
+    @StringColumn_({nullable: false})
+    method!: string
+
+    /**
+     * AccountVote variant, Standard, Split or SplitAbstain
      */
     @StringColumn_({nullable: false})
     kind!: string
 
-    @StringColumn_({nullable: false})
-    decision!: string
-
-    @BigIntColumn_({nullable: false})
-    amount!: bigint
+    /**
+     * Standard only, the aye bit of the vote
+     */
+    @BooleanColumn_({nullable: true})
+    aye!: boolean | undefined | null
 
     /**
-     * the amount weighted by conviction, delegations come on top
+     * Standard only, the Conviction variant name
      */
-    @BigIntColumn_({nullable: false})
-    votes!: bigint
-
     @StringColumn_({nullable: true})
     conviction!: string | undefined | null
 
     /**
-     * capital delegated to the voter at this block, zero for split and abstain votes
+     * Standard only
+     */
+    @BigIntColumn_({nullable: true})
+    balance!: bigint | undefined | null
+
+    /**
+     * Split and SplitAbstain parts
+     */
+    @BigIntColumn_({nullable: true})
+    ayeAmount!: bigint | undefined | null
+
+    @BigIntColumn_({nullable: true})
+    nayAmount!: bigint | undefined | null
+
+    /**
+     * SplitAbstain only
+     */
+    @BigIntColumn_({nullable: true})
+    abstainAmount!: bigint | undefined | null
+
+    /**
+     * the delegations on the voter's casting record at this block, as the chain keeps them
      */
     @BigIntColumn_({nullable: false})
     delegatedCapital!: bigint
 
-    /**
-     * conviction weighted sum of the same delegations, the vote carries this weight onto the tally
-     */
     @BigIntColumn_({nullable: false})
     delegatedVotes!: bigint
 

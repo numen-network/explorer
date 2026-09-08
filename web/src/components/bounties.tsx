@@ -2,17 +2,21 @@ import Link from 'next/link'
 import type {BadgeVariant} from '@/components/ui/badge'
 import {NONE} from '@/components/Detail'
 
+// BountyStatus and ChildBountyStatus variants, then the events that drop one
 const TONES: Record<string, BadgeVariant> = {
-    proposed: 'idle',
-    approved: 'primary',
-    approved_with_curator: 'primary',
-    funded: 'primary',
-    curator_proposed: 'warn',
-    active: 'pos',
-    pending_payout: 'warn',
-    claimed: 'pos',
-    rejected: 'neg',
-    cancelled: 'idle',
+    Proposed: 'idle',
+    Approved: 'primary',
+    ApprovedWithCurator: 'primary',
+    Funded: 'primary',
+    CuratorProposed: 'warn',
+    Active: 'pos',
+    PendingPayout: 'warn',
+    BountyClaimed: 'pos',
+    BountyRejected: 'neg',
+    BountyCanceled: 'idle',
+    Added: 'idle',
+    Claimed: 'pos',
+    Canceled: 'idle',
 }
 
 export function bountyStatusTone(s: string): BadgeVariant {

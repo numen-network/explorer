@@ -1,10 +1,8 @@
 export enum ReferendumStatus {
-    SUBMITTED = "SUBMITTED",
-    DECIDING = "DECIDING",
-    CONFIRMING = "CONFIRMING",
-    APPROVED = "APPROVED",
-    REJECTED = "REJECTED",
-    TIMEDOUT = "TIMEDOUT",
-    CANCELLED = "CANCELLED",
-    KILLED = "KILLED",
+    Ongoing = "Ongoing",
+    Approved = "Approved",
+    Rejected = "Rejected",
+    Cancelled = "Cancelled",
+    TimedOut = "TimedOut",
+    Killed = "Killed",
 }

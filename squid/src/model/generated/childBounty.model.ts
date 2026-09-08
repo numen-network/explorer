@@ -41,6 +41,9 @@ export class ChildBounty {
     @StringColumn_({nullable: true})
     description!: string | undefined | null
 
+    /**
+     * ChildBountyStatus variant name while the chain holds the child, then the method of the event that dropped it
+     */
     @Index_("idx_child_bounty_status_0b783feb")
     @StringColumn_({nullable: false})
     status!: string

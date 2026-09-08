@@ -18,10 +18,10 @@ export class MetadataAction {
     referendum!: Relation_<Referendum>
 
     /**
-     * set or cleared, a cleared row carries no text
+     * MetadataSet or MetadataCleared, a cleared row carries no text
      */
     @StringColumn_({nullable: false})
-    kind!: string
+    method!: string
 
     /**
      * preimage the pointer moved to or came off

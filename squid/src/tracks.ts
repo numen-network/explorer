@@ -1,21 +1,7 @@
+import {toJSON} from '@subsquid/util-internal-json'
 import {Track} from './model'
 import {constants} from './types'
-import type {Curve} from './types/v100'
 import type {RuntimeCtx} from './types/support'
-
-// Perbill and FixedI64 both count in billionths, the charts want a fraction
-const BILLION = 1e9
-
-function curveJson(c: Curve) {
-    switch (c.__kind) {
-        case 'LinearDecreasing':
-            return {type: c.__kind, length: c.length / BILLION, floor: c.floor / BILLION, ceil: c.ceil / BILLION}
-        case 'Reciprocal':
-            return {type: c.__kind, factor: Number(c.factor) / BILLION, xOffset: Number(c.xOffset) / BILLION, yOffset: Number(c.yOffset) / BILLION}
-        case 'SteppedDecreasing':
-            return {type: c.__kind, begin: c.begin / BILLION, end: c.end / BILLION, step: c.step / BILLION, period: c.period / BILLION}
-    }
-}
 
 export function readTracks(block: RuntimeCtx): Track[] {
     const tracks = constants.referenda.tracks.v100
@@ -40,8 +26,8 @@ export function readTracks(block: RuntimeCtx): Track[] {
             decisionPeriod: t.decisionPeriod,
             confirmPeriod: t.confirmPeriod,
             minEnactmentPeriod: t.minEnactmentPeriod,
-            minApproval: curveJson(t.minApproval),
-            minSupport: curveJson(t.minSupport),
+            minApproval: toJSON(t.minApproval),
+            minSupport: toJSON(t.minSupport),
         })
     })
 }

@@ -19,7 +19,7 @@ export class MinedObject {
     protocol!: string
 
     /**
-     * gzip of little endian f32 xyz triples in node emission order
+     * gzip of little endian f64 xyz triples in node emission order
      */
     @BytesColumn_({nullable: false})
     vertices!: Uint8Array

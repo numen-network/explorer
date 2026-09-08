@@ -1,5 +1,6 @@
 import type {ChainProps} from '@/lib/chain'
 import type {AccountRow, AccountSummary, BountyDepositRow, ChildBountyDepositRow, GovDepositRow, ValidatorRow} from '@/lib/gql'
+import {variantName} from '@/lib/variant'
 
 export interface TabCtx {
     hex: string
@@ -174,7 +175,10 @@ export function lockRows(a: AccountRow, validator: ValidatorRow | undefined, s: 
         freedBy: LOCK_FREED[l.id],
     }))
     const named: LockRow[] = [
-        ...(a.holdsJson ?? []).map(h => reserved(`${h.id} hold`, BigInt(h.amount), HOLD_FREED[h.id])),
+        ...(a.holdsJson ?? []).map(h => {
+            const pallet = variantName(h.reason) ?? 'Unknown'
+            return reserved(`${pallet} hold`, BigInt(h.amount), HOLD_FREED[pallet])
+        }),
         ...identityRows(a),
         ...depositRows(a, s),
         ...govRows(s.govDeposits, a.id),

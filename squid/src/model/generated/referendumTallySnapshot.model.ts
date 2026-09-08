@@ -31,8 +31,11 @@ export class ReferendumTallySnapshot {
     support!: bigint
 
     /**
-     * support denominator at the same block
+     * issuance at the same block, the support denominator is total less inactive
      */
     @BigIntColumn_({nullable: false})
-    activeIssuance!: bigint
+    totalIssuance!: bigint
+
+    @BigIntColumn_({nullable: false})
+    inactiveIssuance!: bigint
 }

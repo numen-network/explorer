@@ -70,7 +70,7 @@ FROM (VALUES
 
 -- sub identities carry no registration of their own, label and judgement
 -- resolve through the super relation in the web layer
-UPDATE account SET identity_super_id = pg_temp.pk(p), identity_sub_name = sub
+UPDATE account SET identity_super_id = pg_temp.pk(p), identity_sub_name = sub, identity_sub_data = pg_temp.raw(sub)
 FROM (VALUES (8, 1, 'payouts'), (9, 1, 'ops'), (10, 4, 'intern')) v(n, p, sub)
 WHERE id = pg_temp.pk(n);
 
@@ -78,7 +78,9 @@ UPDATE account SET username = uname
 FROM (VALUES (2, 'orbit'), (7, 'whale')) v(n, uname)
 WHERE id = pg_temp.pk(n);
 
-INSERT INTO prime_state (id, since, account_id) VALUES ('prime', :h - 61000, pg_temp.pk(1));
+-- the clone carries the chain's own prime, the fixture takes the seat over
+INSERT INTO prime_state (id, since, account_id) VALUES ('prime', :h - 61000, pg_temp.pk(1))
+ON CONFLICT (id) DO UPDATE SET since = EXCLUDED.since, account_id = EXCLUDED.account_id;
 
 -- give the two busiest real miners an identity so block and transfer pages show badges
 UPDATE account SET identity_display = 'Foundry', identity_json = pg_temp.idjson('Foundry', 'Reasonable')
@@ -90,7 +92,7 @@ INSERT INTO referendum (id, index, track_id, origin, proposal_hash, title, descr
                         proposal_pallet, proposal_method, proposal_calls, proposal_amount, proposal_beneficiary,
                         submitter_id, submitted_at, submitted_timestamp, status, deciding_since, confirming_since, ended_at,
                         ayes, nays, support, timeline)
-SELECT (:base + n)::text, :base + n, track, origin,
+SELECT (:base + n)::text, :base + n, track, jsonb_build_object('__kind', 'Origins', 'value', jsonb_build_object('__kind', origin)),
        '0x' || md5(n::text) || md5(origin), title, descr,
        pallet, method,
        jsonb_build_array(jsonb_build_object('pallet', pallet, 'method', method, 'depth', 0)
@@ -101,67 +103,74 @@ SELECT (:base + n)::text, :base + n, track, origin,
        CASE WHEN conf IS NULL THEN NULL ELSE :h - conf END,
        CASE WHEN fin  IS NULL THEN NULL ELSE :h - fin  END,
        ayesk * :P, naysk * :P, supk * :P,
-       jsonb_build_array(jsonb_build_object('block', :h - sub, 'timestamp', pg_temp.iso(:h - sub), 'status', 'submitted'))
-           || CASE WHEN dec  IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('block', :h - dec,  'timestamp', pg_temp.iso(:h - dec),  'status', 'deciding'))   END
-           || CASE WHEN conf IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('block', :h - conf, 'timestamp', pg_temp.iso(:h - conf), 'status', 'confirming')) END
-           || CASE WHEN fin  IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('block', :h - fin,  'timestamp', pg_temp.iso(:h - fin),  'status', lower(status))) END
+       jsonb_build_array(jsonb_build_object('event', n || '-submitted', 'name', 'Referenda.Submitted', 'block', :h - sub, 'timestamp', pg_temp.iso(:h - sub)))
+           || CASE WHEN dec  IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('event', n || '-deciding', 'name', 'Referenda.DecisionStarted', 'block', :h - dec,  'timestamp', pg_temp.iso(:h - dec)))  END
+           || CASE WHEN conf IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('event', n || '-confirming', 'name', 'Referenda.ConfirmStarted', 'block', :h - conf, 'timestamp', pg_temp.iso(:h - conf))) END
+           || CASE WHEN fin  IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('event', n || '-ended', 'name', 'Referenda.' || status, 'block', :h - fin,  'timestamp', pg_temp.iso(:h - fin)))  END
 FROM (VALUES
-    (0, '0', 'SmallSpender',  'APPROVED',   'Fund the winter hackathon',
+    (0, '0', 'SmallSpender',  'Approved',   'Fund the winter hackathon',
         E'Three day onsite event, 40 builders.\n\nBudget covers venue, travel grants and bounties. Receipts will be published after settlement.',
         'Treasury', 'spend_local', 12000::numeric, 2, 52000, 50000, 42000, 40000, 380000, 20000, 310000),
-    (1, '0', 'SmallSpender',  'REJECTED',   'Marketing retainer for Q3',
+    (1, '0', 'SmallSpender',  'Rejected',   'Marketing retainer for Q3',
         'Monthly retainer for a growth agency. No deliverables listed.',
         'Treasury', 'spend_local', 45000, 5, 48000, 46000, NULL, 38000, 90000, 260000, 120000),
-    (2, '1', 'MediumSpender', 'APPROVED',   'Explorer infrastructure grant',
+    (2, '1', 'MediumSpender', 'Approved',   'Explorer infrastructure grant',
         E'Covers 12 months of archive node hosting, database storage and monitoring for the public explorer.\n\nPaid in one tranche to the ops multisig.',
         'Treasury', 'spend_local', 180000, 1, 45000, 43000, 34000, 32000, 520000, 40000, 450000),
-    (3, '0', 'SmallSpender',  'TIMEDOUT',   NULL, NULL,
+    (3, '0', 'SmallSpender',  'TimedOut',   NULL, NULL,
         'System', 'remark', NULL, NULL, 40000, NULL, NULL, 9000, 0, 0, 0),
-    (4, '1', 'MediumSpender', 'CANCELLED',  'Bridge audit budget',
+    (4, '1', 'MediumSpender', 'Cancelled',  'Bridge audit budget',
         'Withdrawn by the submitter, superseded by a revised scope.',
         'Treasury', 'spend_local', 95000, 4, 30000, 28000, NULL, 26000, 150000, 30000, 90000),
-    (5, '2', 'BigSpender',    'KILLED',     'Buy the dip with treasury',
+    (5, '2', 'BigSpender',    'Killed',     'Buy the dip with treasury',
         'Convert a third of the pot into exchange tokens.',
         'Treasury', 'spend_local', 900000, 6, 24000, 22000, NULL, 21500, 10000, 700000, 30000),
-    (6, '0', 'SmallSpender',  'DECIDING',   'Community meetup sponsorship',
+    (6, '0', 'SmallSpender',  'Ongoing',    'Community meetup sponsorship',
         'Recurring city meetups, six locations, swag and streaming gear.',
         'Treasury', 'spend_local', 8000, 3, 26000, 24000, NULL, NULL, 120000, 210000, 95000),
-    (7, '1', 'MediumSpender', 'CONFIRMING', 'Node operator rebate program',
+    (7, '1', 'MediumSpender', 'Ongoing',    'Node operator rebate program',
         E'Rebates archive node operators for bandwidth, metered monthly.\n\nFirst cohort of nine operators, addresses attached in the linked sheet.',
         'Treasury', 'spend_local', 60000, 2, 60000, 58000, 3000, NULL, 640000, 55000, 510000),
-    (8, '2', 'BigSpender',    'SUBMITTED',  'Treasury diversification into a strategic reserve of obsidian asteroids with an unnecessarily long title to test overflow behaviour',
+    (8, '2', 'BigSpender',    'Ongoing',    'Treasury diversification into a strategic reserve of obsidian asteroids with an unnecessarily long title to test overflow behaviour',
         'Stress test row for layout, wraps and truncation.',
         'Treasury', 'spend_local', 2500000, 1, 1500, NULL, NULL, NULL, 0, 0, 0)
 ) v(n, track, origin, status, title, descr, pallet, method, amtk, benef, sub, dec, conf, fin, ayesk, naysk, supk);
 
 -- one set row behind every title, and an earlier version on the withdrawn one
 -- so the text history has something to show
-INSERT INTO metadata_action (id, referendum_id, kind, hash, title, description, block, timestamp)
-SELECT id || '-meta', id, 'set', '0x' || md5(id || 'meta') || md5(id), title, description, submitted_at, submitted_timestamp
+INSERT INTO metadata_action (id, referendum_id, method, hash, title, description, block, timestamp)
+SELECT id || '-meta', id, 'MetadataSet', '0x' || md5(id || 'meta') || md5(id), title, description, submitted_at, submitted_timestamp
 FROM referendum WHERE index >= :base AND title IS NOT NULL AND index <> :base + 4;
 
-INSERT INTO metadata_action (id, referendum_id, kind, hash, title, description, block, timestamp)
+INSERT INTO metadata_action (id, referendum_id, method, hash, title, description, block, timestamp)
 VALUES
-    ((:base + 4)::text || '-meta-0', (:base + 4)::text, 'set', '0x' || md5('meta v1') || md5('4'),
+    ((:base + 4)::text || '-meta-0', (:base + 4)::text, 'MetadataSet', '0x' || md5('meta v1') || md5('4'),
      'Bridge audit budget', 'Full scope audit across both bridge contracts, fixed fee.', :h - 30000, pg_temp.stamp(:h - 30000)),
-    ((:base + 4)::text || '-meta-1', (:base + 4)::text, 'set', '0x' || md5('meta v2') || md5('4'),
+    ((:base + 4)::text || '-meta-1', (:base + 4)::text, 'MetadataSet', '0x' || md5('meta v2') || md5('4'),
      'Bridge audit budget', 'Withdrawn by the submitter, superseded by a revised scope.', :h - 27000, pg_temp.stamp(:h - 27000));
 
-INSERT INTO vote (id, referendum_id, voter_id, decision, conviction, amount, votes, block, removed)
+-- standard votes carry a balance, the abstain one is a SplitAbstain with only
+-- its abstain part filled
+INSERT INTO vote (id, referendum_id, voter_id, kind, aye, conviction, balance, aye_amount, nay_amount, abstain_amount, block, removed)
 SELECT (:base + refn)::text || '-' || pg_temp.pk(voter), (:base + refn)::text, pg_temp.pk(voter),
-       decision, conviction, amtk * :P, amtk * :P * coalesce(left(conviction, -1)::numeric, 1), :h - blk, false
+       kind, aye, conviction,
+       CASE WHEN kind = 'Standard' THEN amtk * :P END,
+       CASE WHEN kind = 'SplitAbstain' THEN 0 END,
+       CASE WHEN kind = 'SplitAbstain' THEN 0 END,
+       CASE WHEN kind = 'SplitAbstain' THEN amtk * :P END,
+       :h - blk, false
 FROM (VALUES
-    (6, 1, 'aye',     '2x', 40000, 20000),
-    (6, 2, 'nay',     '1x', 120000, 18000),
-    (6, 5, 'nay',     '3x', 60000, 15000),
-    (6, 4, 'abstain', NULL, 25000, 12000),
-    (6, 8, 'aye',     '1x', 15000, 9000),
-    (7, 10, 'nay',    '1x', 1200, 5000),
-    (7, 1, 'aye',     '1x', 300000, 30000),
-    (7, 2, 'aye',     '2x', 250000, 25000),
-    (7, 6, 'nay',     '1x', 45000, 8000),
-    (2, 1, 'aye',     '2x', 400000, 44000)
-) v(refn, voter, decision, conviction, amtk, blk);
+    (6, 1, 'Standard', true,  'Locked2x', 40000, 20000),
+    (6, 2, 'Standard', false, 'Locked1x', 120000, 18000),
+    (6, 5, 'Standard', false, 'Locked3x', 60000, 15000),
+    (6, 4, 'SplitAbstain', NULL, NULL, 25000, 12000),
+    (6, 8, 'Standard', true,  'Locked1x', 15000, 9000),
+    (7, 10, 'Standard', false, 'Locked1x', 1200, 5000),
+    (7, 1, 'Standard', true,  'Locked1x', 300000, 30000),
+    (7, 2, 'Standard', true,  'Locked2x', 250000, 25000),
+    (7, 6, 'Standard', false, 'Locked1x', 45000, 8000),
+    (2, 1, 'Standard', true,  'Locked2x', 400000, 44000)
+) v(refn, voter, kind, aye, conviction, amtk, blk);
 
 -- pk(11) plays a 3 of 4 multisig of pk(1) pk(2) pk(4) pk(7)
 INSERT INTO multisig_op (id, call_hash, approvals, threshold, signatories, status, result, created_block, updated_block, multisig_id, depositor_id)
@@ -170,9 +179,9 @@ SELECT pg_temp.pk(11) || '-' || ch || '-' || (:h - cre) || '-1', ch,
        ARRAY[pg_temp.pk(1), pg_temp.pk(2), pg_temp.pk(4), pg_temp.pk(7)],
        status, res, :h - cre, :h - upd, pg_temp.pk(11), pg_temp.pk(dep)
 FROM (VALUES
-    ('0x' || md5('ms1') || md5('op1'), ARRAY[1, 2, 4], 'executed', 'ok', 9000, 8600, 1),
-    ('0x' || md5('ms2') || md5('op2'), ARRAY[4, 7], 'pending', NULL, 2400, 1200, 4),
-    ('0x' || md5('ms3') || md5('op3'), ARRAY[2], 'cancelled', NULL, 16000, 15000, 2)
+    ('0x' || md5('ms1') || md5('op1'), ARRAY[1, 2, 4], 'MultisigExecuted', '{"__kind": "Ok"}'::jsonb, 9000, 8600, 1),
+    ('0x' || md5('ms2') || md5('op2'), ARRAY[4, 7], 'MultisigApproval', NULL, 2400, 1200, 4),
+    ('0x' || md5('ms3') || md5('op3'), ARRAY[2], 'MultisigCancelled', NULL, 16000, 15000, 2)
 ) v(ch, appr, status, res, cre, upd, dep);
 
 INSERT INTO proxy_relation (id, delegator_id, delegatee_id, proxy_type, delay)
@@ -183,34 +192,38 @@ FROM (VALUES
     (1, 2, 'NonTransfer', 0)
 ) v(dg, de, ptype, delay);
 
--- negative offsets put unlock and update deadlines in the future
+-- the fixture owns bounty indexes 0 to 5, a clone that already holds any of
+-- them hands them over. negative offsets put unlock and update deadlines in the future
+DELETE FROM child_bounty WHERE parent_id IN ('0', '1', '2', '3', '4', '5');
+DELETE FROM bounty WHERE id IN ('0', '1', '2', '3', '4', '5');
+
 INSERT INTO bounty (id, index, value, fee, description, status, unlock_at, update_due, payout,
                     created_at, updated_at, timeline, proposer_id, curator_id, beneficiary_id)
 SELECT n::text, n, valk * :P, feek * :P, descr, status,
        CASE WHEN unlk IS NULL THEN NULL ELSE :h - unlk END,
        CASE WHEN dued IS NULL THEN NULL ELSE :h - dued END,
        payk * :P, :h - cre, :h - upd,
-       (SELECT jsonb_agg(jsonb_build_object('status', s, 'block', :h - o, 'timestamp', pg_temp.iso(:h - o)) ORDER BY ord)
+       (SELECT jsonb_agg(jsonb_build_object('event', n || '-' || ord, 'name', 'Bounties.' || s, 'block', :h - o, 'timestamp', pg_temp.iso(:h - o)) ORDER BY ord)
           FROM unnest(stats, offs) WITH ORDINALITY AS t(s, o, ord)),
        pg_temp.pk(prop),
        CASE WHEN cur IS NULL THEN NULL ELSE pg_temp.pk(cur) END,
        CASE WHEN ben IS NULL THEN NULL ELSE pg_temp.pk(ben) END
 FROM (VALUES
-    (0, 'Port the wallet to mobile', 40000::numeric, 2000::numeric, 'claimed', NULL::int, NULL::int, 38000::numeric,
-        40000, 20000, ARRAY['proposed','approved','funded','curator proposed','curator accepted','awarded','claimed'],
+    (0, 'Port the wallet to mobile', 40000::numeric, 2000::numeric, 'BountyClaimed', NULL::int, NULL::int, 38000::numeric,
+        40000, 20000, ARRAY['BountyProposed','BountyApproved','BountyBecameActive','CuratorProposed','CuratorAccepted','BountyAwarded','BountyClaimed'],
         ARRAY[40000,38000,36000,35000,34000,22000,20000], 2, 2::int, 9::int),
-    (1, 'Explorer performance audit', 90000, 5000, 'active', NULL, -80000, NULL,
-        30000, 15000, ARRAY['proposed','approved','funded','curator proposed','curator accepted'],
+    (1, 'Explorer performance audit', 90000, 5000, 'Active', NULL, -80000, NULL,
+        30000, 15000, ARRAY['BountyProposed','BountyApproved','BountyBecameActive','CuratorProposed','CuratorAccepted'],
         ARRAY[30000,28000,26000,17000,15000], 1, 1, NULL),
-    (2, 'Numen brand illustration pack', 25000, 1500, 'pending_payout', -5000, NULL, NULL,
-        20000, 800, ARRAY['proposed','approved','funded','curator proposed','curator accepted','awarded'],
+    (2, 'Numen brand illustration pack', 25000, 1500, 'PendingPayout', -5000, NULL, NULL,
+        20000, 800, ARRAY['BountyProposed','BountyApproved','BountyBecameActive','CuratorProposed','CuratorAccepted','BountyAwarded'],
         ARRAY[20000,18000,16000,10000,9000,800], 2, 4, 10),
-    (3, 'Testnet faucet maintenance', 15000, NULL, 'funded', NULL, NULL, NULL,
-        8000, 4000, ARRAY['proposed','approved','funded'], ARRAY[8000,6000,4000], 3, NULL, NULL),
-    (4, 'Translate the docs into five languages', 30000, NULL, 'proposed', NULL, NULL, NULL,
-        2000, 2000, ARRAY['proposed'], ARRAY[2000], 3, NULL, NULL),
-    (5, 'Buy a yacht for team morale', 500000, NULL, 'rejected', NULL, NULL, NULL,
-        26000, 25000, ARRAY['proposed','rejected'], ARRAY[26000,25000], 5, NULL, NULL)
+    (3, 'Testnet faucet maintenance', 15000, NULL, 'Funded', NULL, NULL, NULL,
+        8000, 4000, ARRAY['BountyProposed','BountyApproved','BountyBecameActive'], ARRAY[8000,6000,4000], 3, NULL, NULL),
+    (4, 'Translate the docs into five languages', 30000, NULL, 'Proposed', NULL, NULL, NULL,
+        2000, 2000, ARRAY['BountyProposed'], ARRAY[2000], 3, NULL, NULL),
+    (5, 'Buy a yacht for team morale', 500000, NULL, 'BountyRejected', NULL, NULL, NULL,
+        26000, 25000, ARRAY['BountyProposed','BountyRejected'], ARRAY[26000,25000], 5, NULL, NULL)
 ) v(n, descr, valk, feek, status, unlk, dued, payk, cre, upd, stats, offs, prop, cur, ben);
 
 INSERT INTO child_bounty (id, child_index, value, fee, description, status, payout, created_at, updated_at, parent_id, curator_id, beneficiary_id)
@@ -218,9 +231,9 @@ SELECT '1-' || cn, cn, valk * :P, feek * :P, descr, status, payk * :P, :h - cre,
        CASE WHEN cur IS NULL THEN NULL ELSE pg_temp.pk(cur) END,
        CASE WHEN ben IS NULL THEN NULL ELSE pg_temp.pk(ben) END
 FROM (VALUES
-    (0, 'Profile the squid processor', 12000::numeric, 500::numeric, 'claimed', 12000::numeric, 14000, 12000, 1::int, 8::int),
-    (1, 'Optimize table rendering', 8000, 400, 'active', NULL, 13000, 11000, 4, NULL),
-    (2, 'Write regression benchmarks', 6000, NULL, 'added', NULL, 10000, 10000, NULL, NULL)
+    (0, 'Profile the squid processor', 12000::numeric, 500::numeric, 'Claimed', 12000::numeric, 14000, 12000, 1::int, 8::int),
+    (1, 'Optimize table rendering', 8000, 400, 'Active', NULL, 13000, 11000, 4, NULL),
+    (2, 'Write regression benchmarks', 6000, NULL, 'Added', NULL, 10000, 10000, NULL, NULL)
 ) v(cn, descr, valk, feek, status, payk, cre, upd, cur, ben);
 
 -- two approved referenda enacted a spend, two carried an approve_bounty call
@@ -238,18 +251,18 @@ UPDATE bounty SET referendum_id = (:base + v.n)::text
 FROM (VALUES (0, 1), (1, 4)) v(b, n)
 WHERE bounty.index = v.b;
 
-INSERT INTO delegation (id, who_id, target_id, track_id, conviction, balance, votes, block)
-SELECT pg_temp.pk(who) || '-' || track, pg_temp.pk(who), pg_temp.pk(tgt), track, conv, amtk * :P, amtk * :P * left(conv, -1)::numeric, :h - blk
+INSERT INTO delegation (id, who_id, target_id, track_id, conviction, balance, block)
+SELECT pg_temp.pk(who) || '-' || track, pg_temp.pk(who), pg_temp.pk(tgt), track, conv, amtk * :P, :h - blk
 FROM (VALUES
-    (9, 1, '0', '2x', 50000::numeric, 7000),
-    (7, 4, '1', '1x', 500000, 12000),
-    (3, 1, '0', '3x', 30000, 3000)
+    (9, 1, '0', 'Locked2x', 50000::numeric, 7000),
+    (7, 4, '1', 'Locked1x', 500000, 12000),
+    (3, 1, '0', 'Locked3x', 30000, 3000)
 ) v(who, tgt, track, conv, amtk, blk);
 
 -- a delegate with a real following on two tracks, enough to exercise the
 -- track filter, the paged list and the trimmed panel on the referendum page
-INSERT INTO delegation (id, who_id, target_id, track_id, conviction, balance, votes, block)
-SELECT 'seed-' || a.id || '-' || t.track, a.id, pg_temp.pk(1), t.track, '1x', (1000 + a.n) * :P, (1000 + a.n) * :P, :h - 9000
+INSERT INTO delegation (id, who_id, target_id, track_id, conviction, balance, block)
+SELECT 'seed-' || a.id || '-' || t.track, a.id, pg_temp.pk(1), t.track, 'Locked1x', (1000 + a.n) * :P, :h - 9000
 FROM (SELECT id, row_number() OVER (ORDER BY id) AS n FROM account
       WHERE id <> pg_temp.pk(1) AND id NOT IN (SELECT who_id FROM delegation) ORDER BY id LIMIT 30) a
 CROSS JOIN (VALUES ('0', 30), ('2', 12)) t(track, take)
@@ -259,11 +272,11 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO treasury_spend (id, kind, beneficiary_id, amount, status, block)
 SELECT 'local-' || (900 + n), kind, pg_temp.pk(benef), amtk * :P, status, :h - blk
 FROM (VALUES
-    (0, 'local', 2, 12000::numeric, 'paid', 40000),
-    (1, 'local', 1, 180000, 'paid', 32000),
-    (2, 'local', 2, 60000, 'approved', 500),
-    (3, 'spend', 4, 75000, 'approved', 300),
-    (4, 'local', 8, 4000, 'paid', 200)
+    (0, 'spend_local', 2, 12000::numeric, 'Awarded', 40000),
+    (1, 'spend_local', 1, 180000, 'Awarded', 32000),
+    (2, 'spend_local', 2, 60000, 'SpendApproved', 500),
+    (3, 'spend', 4, 75000, 'AssetSpendApproved', 300),
+    (4, 'spend_local', 8, 4000, 'Awarded', 200)
 ) v(n, kind, benef, amtk, status, blk);
 
 -- chain identity comes with the clone, only the heads move so the fixture
@@ -388,31 +401,31 @@ SELECT v.n, pg_temp.h256('evmtx' || v.n) AS hash, b.id AS block_id, b.height, b.
        v.val, v.sel, v.raw, v.gas, v.tx_type, v.status, v.reason,
        row_number() OVER (PARTITION BY v.sender ORDER BY v.blk DESC) - 1 AS nonce
 FROM (VALUES
-    ( 1, 'deployer'::text, NULL::text, 'token1'::text, 0::numeric, NULL::text, NULL::text, 1452000::numeric, 0, 'Succeed'::text, NULL::text, 56000),
-    ( 2, 'deployer', NULL,      'token2', 0, NULL, NULL, 1288000, 0, 'Succeed', NULL, 53000),
-    ( 3, 'deployer', NULL,      'token3', 0, NULL, NULL, 1104000, 2, 'Succeed', NULL, 51000),
-    ( 4, 'deployer', NULL,      'token4', 0, NULL, NULL,  986000, 0, 'Succeed', NULL, 48000),
-    ( 5, 'deployer', 'token1',  NULL,     0, '0x40c10f19', NULL,   68142, 0, 'Succeed', NULL, 55000),
-    ( 6, 'deployer', 'token2',  NULL,     0, '0x40c10f19', NULL,   68142, 0, 'Succeed', NULL, 52000),
-    ( 7, 'deployer', 'token3',  NULL,     0, '0x40c10f19', NULL,   68142, 2, 'Succeed', NULL, 50000),
-    ( 8, 'deployer', 'token4',  NULL,     0, '0x40c10f19', NULL,   51042, 0, 'Succeed', NULL, 47000),
-    ( 9, 'holder1',  'token1',  NULL,     0, '0xa9059cbb', NULL,   51823, 2, 'Succeed', NULL, 44000),
-    (10, 'holder1',  'token1',  NULL,     0, '0xa9059cbb', NULL,   34723, 2, 'Succeed', NULL, 41000),
-    (11, 'holder2',  'token1',  NULL,     0, '0xa9059cbb', NULL,   51823, 0, 'Succeed', NULL, 37000),
-    (12, 'holder1',  'token2',  NULL,     0, '0xa9059cbb', NULL,   51823, 2, 'Succeed', NULL, 36000),
-    (13, 'holder1',  'token2',  NULL,     0, '0xa9059cbb', NULL,   34723, 2, 'Succeed', NULL, 30000),
-    (14, 'holder3',  'token1',  NULL,     0, '0xa9059cbb', NULL,   51823, 0, 'Succeed', NULL, 31000),
-    (15, 'holder2',  'token3',  NULL,     0, '0xa9059cbb', NULL,   51823, 2, 'Succeed', NULL, 26000),
-    (16, 'holder4',  'router',  NULL,     0, NULL, '0x38ed1739' || repeat(md5('swap'), 6), 147204, 2, 'Succeed', NULL, 22000),
-    (17, 'holder6',  'token2',  NULL,     0, '0xa9059cbb', NULL,   34723, 0, 'Succeed', NULL, 18000),
-    (18, 'holder5',  'token1',  NULL,     0, NULL, '0x42966c68' || pg_temp.word(2000e6), 38406, 2, 'Succeed', NULL, 14000),
-    (19, 'holder2',  'token3',  NULL,     0, '0xa9059cbb', NULL,   34723, 2, 'Succeed', NULL, 6000),
-    (20, 'holder3',  'token4',  NULL,     0, '0xa9059cbb', NULL,   51823, 0, 'Succeed', NULL, 2500),
-    (21, 'holder2',  'token1',  NULL,     0, NULL, '0x095ea7b3' || pg_temp.pad(pg_temp.h160('holder4')) || pg_temp.word(1e30), 46212, 2, 'Succeed', NULL, 12000),
-    (22, 'holder5',  'token1',  NULL,     0, NULL, '0xa9059cbb' || pg_temp.pad(pg_temp.h160('holder1')) || pg_temp.word(999999e6), 29104, 2, 'Revert', 'Reverted', 8000),
-    (23, 'holder1',  'holder7', NULL, 2.5e18, NULL, '0x', 21000, 0, 'Succeed', NULL, 4000),
-    (24, 'holder1',  'router',  NULL,     0, '0x40c10f19', NULL, 128740, 2, 'Succeed', NULL, 34000),
-    (25, 'holder1',  'token5',  NULL,     0, '0xa9059cbb', NULL,  51823, 2, 'Succeed', NULL, 16000)
+    ( 1, 'deployer'::text, NULL::text, 'token1'::text, 0::numeric, NULL::text, NULL::text, 1452000::numeric, 'Legacy'::text, 'Succeed'::text, NULL::text, 56000),
+    ( 2, 'deployer', NULL,      'token2', 0, NULL, NULL, 1288000, 'Legacy', 'Succeed', NULL, 53000),
+    ( 3, 'deployer', NULL,      'token3', 0, NULL, NULL, 1104000, 'EIP1559', 'Succeed', NULL, 51000),
+    ( 4, 'deployer', NULL,      'token4', 0, NULL, NULL,  986000, 'Legacy', 'Succeed', NULL, 48000),
+    ( 5, 'deployer', 'token1',  NULL,     0, '0x40c10f19', NULL,   68142, 'Legacy', 'Succeed', NULL, 55000),
+    ( 6, 'deployer', 'token2',  NULL,     0, '0x40c10f19', NULL,   68142, 'Legacy', 'Succeed', NULL, 52000),
+    ( 7, 'deployer', 'token3',  NULL,     0, '0x40c10f19', NULL,   68142, 'EIP1559', 'Succeed', NULL, 50000),
+    ( 8, 'deployer', 'token4',  NULL,     0, '0x40c10f19', NULL,   51042, 'Legacy', 'Succeed', NULL, 47000),
+    ( 9, 'holder1',  'token1',  NULL,     0, '0xa9059cbb', NULL,   51823, 'EIP1559', 'Succeed', NULL, 44000),
+    (10, 'holder1',  'token1',  NULL,     0, '0xa9059cbb', NULL,   34723, 'EIP1559', 'Succeed', NULL, 41000),
+    (11, 'holder2',  'token1',  NULL,     0, '0xa9059cbb', NULL,   51823, 'Legacy', 'Succeed', NULL, 37000),
+    (12, 'holder1',  'token2',  NULL,     0, '0xa9059cbb', NULL,   51823, 'EIP1559', 'Succeed', NULL, 36000),
+    (13, 'holder1',  'token2',  NULL,     0, '0xa9059cbb', NULL,   34723, 'EIP1559', 'Succeed', NULL, 30000),
+    (14, 'holder3',  'token1',  NULL,     0, '0xa9059cbb', NULL,   51823, 'Legacy', 'Succeed', NULL, 31000),
+    (15, 'holder2',  'token3',  NULL,     0, '0xa9059cbb', NULL,   51823, 'EIP1559', 'Succeed', NULL, 26000),
+    (16, 'holder4',  'router',  NULL,     0, NULL, '0x38ed1739' || repeat(md5('swap'), 6), 147204, 'EIP1559', 'Succeed', NULL, 22000),
+    (17, 'holder6',  'token2',  NULL,     0, '0xa9059cbb', NULL,   34723, 'Legacy', 'Succeed', NULL, 18000),
+    (18, 'holder5',  'token1',  NULL,     0, NULL, '0x42966c68' || pg_temp.word(2000e6), 38406, 'EIP1559', 'Succeed', NULL, 14000),
+    (19, 'holder2',  'token3',  NULL,     0, '0xa9059cbb', NULL,   34723, 'EIP1559', 'Succeed', NULL, 6000),
+    (20, 'holder3',  'token4',  NULL,     0, '0xa9059cbb', NULL,   51823, 'Legacy', 'Succeed', NULL, 2500),
+    (21, 'holder2',  'token1',  NULL,     0, NULL, '0x095ea7b3' || pg_temp.pad(pg_temp.h160('holder4')) || pg_temp.word(1e30), 46212, 'EIP1559', 'Succeed', NULL, 12000),
+    (22, 'holder5',  'token1',  NULL,     0, NULL, '0xa9059cbb' || pg_temp.pad(pg_temp.h160('holder1')) || pg_temp.word(999999e6), 29104, 'EIP1559', 'Revert', 'Reverted', 8000),
+    (23, 'holder1',  'holder7', NULL, 2.5e18, NULL, '0x', 21000, 'Legacy', 'Succeed', NULL, 4000),
+    (24, 'holder1',  'router',  NULL,     0, '0x40c10f19', NULL, 128740, 'EIP1559', 'Succeed', NULL, 34000),
+    (25, 'holder1',  'token5',  NULL,     0, '0xa9059cbb', NULL,  51823, 'EIP1559', 'Succeed', NULL, 16000)
 ) v(n, sender, dest, creates, val, sel, raw, gas, tx_type, status, reason, blk)
 JOIN block b ON b.height = :h - v.blk;
 
@@ -424,22 +437,25 @@ UPDATE mock_evm_tx t SET input = coalesce(
     t.sel || (SELECT pg_temp.pad(x.dst) || pg_temp.word(x.amount) FROM mock_xfer x WHERE x.tx = t.n AND x.ord = 0),
     '0x');
 
-INSERT INTO extrinsic (id, block_id, index_in_block, hash, pallet, method, success)
+INSERT INTO extrinsic (id, block_id, index_in_block, hash, pallet, method, success, miner_fee, treasury_fee)
 SELECT lpad(t.height::text, 10, '0') || '-' || substr(b.hash, 3, 5) || '-' || lpad(idx.n::text, 6, '0'),
-       t.block_id, idx.n, pg_temp.h256('evmext' || t.n), 'Ethereum', 'transact', true
+       t.block_id, idx.n, pg_temp.h256('evmext' || t.n), 'Ethereum', 'transact', true, 0, 0
 FROM mock_evm_tx t
 JOIN block b ON b.id = t.block_id
 CROSS JOIN LATERAL (SELECT count(*)::int AS n FROM extrinsic e WHERE e.block_id = t.block_id) idx;
 
 INSERT INTO evm_transaction (id, extrinsic_id, block_id, tx_index, "from", "to", contract_address, value,
                              input, input_selector, nonce, gas_limit, gas_used, gas_price, tx_type,
-                             status, status_reason, timestamp)
+                             status, exit_reason, timestamp)
 SELECT t.hash, e.id, t.block_id, 0, t.src, t.dest, t.creates, t.val,
        decode(substr(t.input, 3), 'hex'),
        CASE WHEN length(t.input) >= 10 THEN substr(t.input, 1, 10) END,
        t.nonce, ceil(t.gas * 1.4), t.gas,
-       CASE WHEN t.tx_type = 2 THEN 1250000000 ELSE 1000000000 END,
-       t.tx_type, t.status, t.reason, t.ts
+       CASE WHEN t.tx_type = 'EIP1559' THEN 1250000000 ELSE 1000000000 END,
+       t.tx_type, t.status,
+       CASE WHEN t.reason IS NULL THEN jsonb_build_object('__kind', t.status)
+            ELSE jsonb_build_object('__kind', t.status, 'value', jsonb_build_object('__kind', t.reason)) END,
+       t.ts
 FROM mock_evm_tx t
 JOIN extrinsic e ON e.block_id = t.block_id AND e.pallet = 'Ethereum';
 
@@ -513,9 +529,9 @@ UPDATE daily_stat d SET evm_txs = d.evm_txs + c.n
 FROM (SELECT date_trunc('day', ts) AS day, count(*) AS n FROM mock_evm_tx GROUP BY 1) c
 WHERE d.date = c.day;
 
--- registrars and the judgement rollup the identities page reads. The status
--- follows the indexer rule, an erroneous verdict outranks a good one.
+-- registrars behind the judgements the identities page reads
 
+-- a registrar the clone already holds moves over to the fixture account
 INSERT INTO registrar (id, index, account_id, fee, fields, added_at, request_count, given_count)
 SELECT n::text, n, pg_temp.pk(who), fee, 0, :h - added, 0, 0
 FROM (VALUES
@@ -525,7 +541,8 @@ FROM (VALUES
     (3, 7, 2.5e18,      44000),
     (4, 11, 0.5e18,     30000),
     (5, 3, 10e18,        9000)
-) v(n, who, fee, added);
+) v(n, who, fee, added)
+ON CONFLICT (id) DO UPDATE SET account_id = EXCLUDED.account_id, fee = EXCLUDED.fee, added_at = EXCLUDED.added_at;
 
 -- one Identity event of every kind that can surface on an account timeline. The
 -- ones naming only a registrar, an authority or a username never match the
@@ -597,7 +614,7 @@ JOIN block b ON b.id = e.block_id
 JOIN account a ON a.id = e.args ->> 'target'
 CROSS JOIN LATERAL (SELECT x AS j FROM jsonb_array_elements(a.identity_json -> 'judgements') x
                     WHERE x -> 0 ->> 0 = e.args ->> 'registrarIndex') v
-WHERE e.pallet = 'Identity' AND e.method = 'JudgementGiven';
+WHERE e.id LIKE 'mock-jg-%';
 
 CREATE TEMP TABLE mock_id_ext AS
 SELECT e.id AS event_id, e.block_id,
@@ -614,9 +631,9 @@ JOIN block b ON b.id = e.block_id
 CROSS JOIN LATERAL (SELECT count(*)::int AS n FROM extrinsic x WHERE x.block_id = e.block_id) base
 WHERE e.id LIKE 'mock-%';
 
-INSERT INTO extrinsic (id, block_id, index_in_block, hash, pallet, method, success, signer_id, fee, tip)
+INSERT INTO extrinsic (id, block_id, index_in_block, hash, pallet, method, success, signer_id, fee, tip, miner_fee, treasury_fee)
 SELECT ext_id, block_id, idx, '0x' || md5(ext_id) || md5(ext_id || '~'), 'Identity', call, true, signer,
-       9000000000000 + (('x' || substr(md5(ext_id), 1, 6))::bit(24)::int)::numeric * 200000, 0
+       9000000000000 + (('x' || substr(md5(ext_id), 1, 6))::bit(24)::int)::numeric * 200000, 0, 0, 0
 FROM mock_id_ext;
 
 UPDATE event e SET extrinsic_id = m.ext_id FROM mock_id_ext m WHERE e.id = m.event_id;
@@ -647,18 +664,6 @@ FROM (SELECT registrar_id, count(*)::int AS n, (count(*) / 2 + 1)::int AS extra,
              max(block) AS last_block, max(timestamp) AS last_at
       FROM judgement GROUP BY registrar_id) c
 WHERE r.id = c.registrar_id;
-
-UPDATE account a SET identity_status = CASE WHEN k.bad THEN 'FLAGGED' WHEN k.good THEN 'VERIFIED' ELSE 'UNVERIFIED' END
-FROM (
-    SELECT a2.id,
-           bool_or(j -> 1 ->> '__kind' IN ('Erroneous', 'LowQuality')) AS bad,
-           bool_or(j -> 1 ->> '__kind' IN ('KnownGood', 'Reasonable')) AS good
-    FROM account a2
-    LEFT JOIN LATERAL jsonb_array_elements(coalesce(a2.identity_json -> 'judgements', '[]'::jsonb)) j ON true
-    WHERE a2.identity_json IS NOT NULL
-    GROUP BY a2.id
-) k
-WHERE a.id = k.id;
 
 -- the fixture adds extrinsics, so their call kinds have to exist in the lookup
 INSERT INTO call_kind (id, pallet, method)

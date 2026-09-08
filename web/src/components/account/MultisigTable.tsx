@@ -9,6 +9,7 @@ import type {ChainProps} from '@/lib/chain'
 import {shortHash} from '@/lib/format'
 import type {MultisigOpRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
+import {variantName} from '@/lib/variant'
 
 const col = columnsFor<MultisigOpRow>()
 
@@ -30,9 +31,12 @@ export function MultisigTable({rows, chain}: {rows: MultisigOpRow[]; chain: Chai
                     header: 'Status',
                     cell: ({row}) => {
                         const o = row.original
+                        const failed = variantName(o.result) === 'Err'
+                        const executed = o.status === 'MultisigExecuted'
+                        const open = o.status === 'NewMultisig' || o.status === 'MultisigApproval'
                         return (
-                            <Badge variant={o.status === 'executed' ? (o.result === 'err' ? 'neg' : 'pos') : o.status === 'pending' ? 'warn' : 'idle'}>
-                                {o.status === 'executed' ? (o.result === 'err' ? 'Exec failed' : 'Executed') : o.status === 'pending' ? 'Pending' : 'Cancelled'}
+                            <Badge variant={executed ? (failed ? 'neg' : 'pos') : open ? 'warn' : 'idle'}>
+                                {executed ? (failed ? 'Exec failed' : 'Executed') : open ? 'Pending' : 'Cancelled'}
                             </Badge>
                         )
                     },

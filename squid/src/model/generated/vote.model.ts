@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, BooleanColumn as BooleanColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BooleanColumn as BooleanColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_} from "@subsquid/typeorm-store"
 import {Referendum} from "./referendum.model"
 import {Account} from "./account.model"
 
@@ -19,20 +19,46 @@ export class Vote {
     @ManyToOne_(() => Account, {nullable: true})
     voter!: Relation_<Account>
 
+    /**
+     * AccountVote variant, Standard, Split or SplitAbstain
+     */
+    @Index_("idx_vote_kind_e7675916")
     @StringColumn_({nullable: false})
-    decision!: string
-
-    @BigIntColumn_({nullable: false})
-    amount!: bigint
+    kind!: string
 
     /**
-     * the amount weighted by conviction, what the vote itself puts on the tally
+     * Standard only, the aye bit of the vote
      */
-    @BigIntColumn_({nullable: false})
-    votes!: bigint
+    @Index_("idx_vote_aye_04855396")
+    @BooleanColumn_({nullable: true})
+    aye!: boolean | undefined | null
 
+    /**
+     * Standard only, the Conviction variant name
+     */
     @StringColumn_({nullable: true})
     conviction!: string | undefined | null
+
+    /**
+     * Standard only
+     */
+    @BigIntColumn_({nullable: true})
+    balance!: bigint | undefined | null
+
+    /**
+     * Split and SplitAbstain parts
+     */
+    @BigIntColumn_({nullable: true})
+    ayeAmount!: bigint | undefined | null
+
+    @BigIntColumn_({nullable: true})
+    nayAmount!: bigint | undefined | null
+
+    /**
+     * SplitAbstain only
+     */
+    @BigIntColumn_({nullable: true})
+    abstainAmount!: bigint | undefined | null
 
     @IntColumn_({nullable: false})
     block!: number

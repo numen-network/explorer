@@ -53,11 +53,14 @@ export class Block {
     @BigIntColumn_({nullable: false})
     treasuryFees!: bigint
 
-    @StringColumn_({nullable: false})
-    nonce!: string
+    /**
+     * the pow seal, which genesis has none of
+     */
+    @StringColumn_({nullable: true})
+    nonce!: string | undefined | null
 
-    @StringColumn_({nullable: false})
-    workHash!: string
+    @StringColumn_({nullable: true})
+    workHash!: string | undefined | null
 
     @Index_("idx_block_finalized_b535c2b5")
     @BooleanColumn_({nullable: false})

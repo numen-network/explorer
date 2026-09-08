@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, JSONColumn as JSONColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
 import {Track} from "./track.model"
 import {Account} from "./account.model"
 import {ReferendumStatus} from "./_referendumStatus"
@@ -20,8 +20,11 @@ export class Referendum {
     @ManyToOne_(() => Track, {nullable: true})
     track!: Relation_<Track>
 
-    @StringColumn_({nullable: true})
-    origin!: string | undefined | null
+    /**
+     * the proposal origin as the submit call carried it, whole
+     */
+    @JSONColumn_({nullable: true})
+    origin!: unknown | undefined | null
 
     @StringColumn_({nullable: true})
     proposalHash!: string | undefined | null
@@ -82,8 +85,11 @@ export class Referendum {
     @DateTimeColumn_({nullable: false})
     submittedTimestamp!: Date
 
+    /**
+     * an ongoing one keeps its phase in decidingSince and confirmingSince
+     */
     @Index_("idx_referendum_status_24792806")
-    @Column_("varchar", {length: 10, nullable: false})
+    @Column_("varchar", {length: 9, nullable: false})
     status!: ReferendumStatus
 
     @IntColumn_({nullable: true})
@@ -104,6 +110,9 @@ export class Referendum {
     @BigIntColumn_({nullable: false})
     support!: bigint
 
+    /**
+     * one step per lifecycle event, its id, qualified name, block and timestamp
+     */
     @JSONColumn_({nullable: false})
     timeline!: unknown
 

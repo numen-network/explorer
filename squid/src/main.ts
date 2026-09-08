@@ -20,9 +20,9 @@ import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
 import {parsePowDigest} from './digest'
 import {fetchObj, parseMesh} from './objects'
-import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Metadata} from './evm'
+import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply} from './evm'
 import {collectGovEvent, finalizeGovernance} from './governance'
-import {collectValidatorEvent, finalizeValidators} from './validators'
+import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from './validators'
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, seedGenesisVesting} from './annotations'
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig} from './multisig'
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
@@ -32,7 +32,6 @@ import {readTracks} from './tracks'
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT
 if (!RPC_ENDPOINT) throw new Error('RPC_ENDPOINT is not set')
 
-const ZERO_H256 = '0x' + '00'.repeat(32)
 const OBJECT_FETCH_CONCURRENCY = 8
 
 const rpc = new RpcClient({url: RPC_ENDPOINT})
@@ -69,16 +68,19 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     const batch = new BatchData()
     const lastHeader = ctx.blocks[ctx.blocks.length - 1].header
     for (const b of ctx.blocks) await mapBlock(batch, b, finalizedHeight)
-    if (ctx.blocks[0].header.height === 0) await seedGenesisVesting(batch, ctx.blocks[0].header)
+    if (ctx.blocks[0].header.height === 0) {
+        await seedGenesisVesting(batch, ctx.blocks[0].header)
+        await seedGenesisValidators(batch, ctx.blocks[0].header)
+    }
     await fetchObjects(ctx, batch, lastHeader)
-    await finalizeTokens(ctx, batch)
+    await finalizeTokens(ctx, batch, lastHeader)
     await finalizeGovernance(ctx, batch, lastHeader, rpc)
     await finalizeMultisig(batch, lastHeader, ctx.store)
     await finalizeBounties(batch, lastHeader, ctx.store)
     await finalizeValidators(ctx, batch, lastHeader)
     await finalizeRegistrars(batch, lastHeader, ctx.store)
     await finalizeAccounts(ctx, batch, lastHeader)
-    await finalizeStats(ctx, batch, lastHeader)
+    await finalizeStats(ctx, batch)
     await finalizeAnnotations(batch, lastHeader, ctx.store)
     await persist(ctx, batch)
     await markFinalized(ctx, finalizedHeight)
@@ -106,8 +108,8 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         reward: 0n,
         minerFees: 0n,
         treasuryFees: 0n,
-        nonce: seal?.nonce ?? ZERO_H256,
-        workHash: seal?.work ?? ZERO_H256,
+        nonce: seal?.nonce,
+        workHash: seal?.work,
         finalized: h.height <= finalizedHeight,
         extrinsicCount: b.extrinsics.length,
         eventCount: b.events.length,
@@ -133,22 +135,18 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     for (let i = transfersBefore; i < batch.transfers.length; i++) transferVolume += batch.transfers[i].amount
     let fees = 0n
     let signed = 0
-    // what the two accounts collected is what the extrinsic cost, and that
-    // measure covers the EVM side too. taking the tip out leaves the amount
-    // the 20/80 split runs on
+    // the tip lands in the miner's deposit next to the fee share, so it comes
+    // back out of the share
     for (const ext of b.extrinsics) {
         const x = batch.extrinsicById.get(ext.id)!
-        const paid = x.minerFee + x.treasuryFee
-        const tip = x.tip ?? 0n
         // the block keeps the whole take because that is what the miner earned
         block.minerFees += x.minerFee
         block.treasuryFees += x.treasuryFee
-        fees += paid
-        x.fee = paid > 0n ? paid - tip : undefined
-        x.minerFee -= tip
+        fees += x.minerFee + x.treasuryFee
+        x.minerFee -= x.tip ?? 0n
         if (ext.signature != null) signed += 1
     }
-    accumulateDay(batch, block, {
+    accumulateDay(batch, block, h, {
         extrinsicsSigned: signed,
         transfers: batch.transfers.length - transfersBefore,
         transferVolume,
@@ -194,8 +192,10 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Pro
         const gasUsed = cumGas - prevGas
         prevGas = cumGas
         const extrinsic = batch.extrinsicById.get(ext.id)!
-        // what the sender paid over the base fee is the EVM's own kind of tip,
-        // and the runtime hands it to the miner whole like a substrate one
+        // no fee event covers an EVM call, the base fee is what it cost and what
+        // the sender paid over it is the EVM's own kind of tip, handed to the
+        // miner whole like a substrate one
+        extrinsic.fee = gasUsed * baseFee
         extrinsic.tip = gasUsed * (decoded.gasPrice - baseFee)
         // canonical home of the tx payload is EvmTransaction, keep the call row lean
         batch.callById.get(ext.call!.id)!.args = undefined
@@ -217,7 +217,7 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Pro
             gasPrice: decoded.gasPrice,
             txType: decoded.txType,
             status: decoded.status,
-            statusReason: decoded.statusReason || undefined,
+            exitReason: toJSON(decoded.exitReason),
             timestamp: block.timestamp,
         })
         batch.evmTxs.push(evmTx)
@@ -243,8 +243,11 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Pro
     }
 }
 
-async function finalizeTokens(ctx: Ctx, batch: BatchData): Promise<void> {
+// supply and balances are what the contracts answer at the batch head, never a
+// running sum of their logs
+async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fields>): Promise<void> {
     if (batch.erc20Queue.length === 0) return
+    const at = '0x' + header.height.toString(16)
     const tokenIds = [...new Set(batch.erc20Queue.map(q => q.token))]
     const tokens = new Map((await ctx.store.findBy(Token, {id: In(tokenIds)})).map(t => [t.id, t]))
     const deploys = await deployBlocks(ctx, batch, tokenIds.filter(id => !tokens.has(id)))
@@ -264,13 +267,12 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData): Promise<void> {
     for (const q of batch.erc20Queue) {
         let token = tokens.get(q.token)
         if (token == null) {
-            const meta = await fetchErc20Metadata(rpc, q.token)
+            const meta = await fetchErc20Metadata(rpc, q.token, at)
             token = new Token({
                 id: q.token,
                 name: meta.name,
                 symbol: meta.symbol,
                 decimals: meta.decimals,
-                totalSupply: 0n,
                 holderCount: 0,
                 transferCount: 0,
                 deployBlock: deploys.get(q.token),
@@ -279,10 +281,6 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData): Promise<void> {
             tokens.set(q.token, token)
         }
         token.transferCount += 1
-        if (q.from === ZERO_ADDRESS) token.totalSupply += q.amount
-        if (q.to === ZERO_ADDRESS) token.totalSupply -= q.amount
-        adjustHolder(holders, token, q.from, -q.amount)
-        adjustHolder(holders, token, q.to, q.amount)
         batch.tokenTransfers.push(
             new TokenTransfer({
                 id: q.id,
@@ -296,6 +294,29 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData): Promise<void> {
             })
         )
     }
+    const limit = pLimit(OBJECT_FETCH_CONCURRENCY)
+    await Promise.all(
+        [...tokens.values()].map(token =>
+            limit(async () => {
+                token.totalSupply = await fetchErc20Supply(rpc, token.id, at)
+            })
+        )
+    )
+    await Promise.all(
+        [...holderIds].map(id =>
+            limit(async () => {
+                const [tokenId, addr] = id.split('-')
+                const token = tokens.get(tokenId)!
+                const holder = holders.get(id) ?? new TokenHolder({id, token, address: addr})
+                const before = holder.balance ?? 0n
+                holder.balance = await fetchErc20Balance(rpc, tokenId, addr, at)
+                const after = holder.balance ?? 0n
+                if (before === 0n && after > 0n) token.holderCount += 1
+                if (before > 0n && after === 0n) token.holderCount -= 1
+                holders.set(id, holder)
+            })
+        )
+    )
     batch.tokens = [...tokens.values()]
     batch.holders = [...holders.values()]
 }
@@ -315,20 +336,6 @@ async function deployBlocks(ctx: Ctx, batch: BatchData, ids: string[]): Promise<
     return out
 }
 
-function adjustHolder(holders: Map<string, TokenHolder>, token: Token, addr: string, delta: bigint): void {
-    if (addr === ZERO_ADDRESS) return
-    const id = `${token.id}-${addr}`
-    let holder = holders.get(id)
-    if (holder == null) {
-        holder = new TokenHolder({id, token, address: addr, balance: 0n})
-        holders.set(id, holder)
-    }
-    const before = holder.balance
-    holder.balance += delta
-    if (before === 0n && holder.balance > 0n) token.holderCount += 1
-    if (before > 0n && holder.balance === 0n) token.holderCount -= 1
-}
-
 function mapExtrinsic(batch: BatchData, block: Block, ext: ExtrinsicData<Fields>): void {
     const [pallet, method] = splitName(ext.call?.name)
     const signer = signerOf(ext)
@@ -336,11 +343,11 @@ function mapExtrinsic(batch: BatchData, block: Block, ext: ExtrinsicData<Fields>
         id: ext.id,
         block,
         indexInBlock: ext.index,
-        hash: ext.hash ?? ZERO_H256,
+        hash: ext.hash,
         pallet,
         method,
         signer: signer ? batch.touch(signer, block.height) : undefined,
-        success: ext.success ?? true,
+        success: ext.success,
         error: ext.error != null ? toJSON(ext.error) : undefined,
         tip: ext.tip,
         minerFee: 0n,
@@ -368,7 +375,7 @@ function mapCalls(batch: BatchData, block: Block, calls: CallData<Fields>[]): vo
             pallet,
             method,
             args: toJSON(call.args),
-            success: call.success ?? true,
+            success: call.success,
             origin: origin ? batch.touch(origin, block.height) : undefined,
         })
         batch.calls.push(c)
@@ -390,7 +397,7 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
             extrinsic,
             call,
             indexInBlock: ev.index,
-            phase: ev.phase ?? 'ApplyExtrinsic',
+            phase: ev.phase,
             pallet,
             method,
             args: toJSON(ev.args),
@@ -422,12 +429,16 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
     // a slash reaches the treasury through the pallet, and the pallet's own
     // event is what separates it from a fee share
     if (ev.name === 'Treasury.Deposit' && extrinsic) extrinsic.treasuryFee -= BigInt(ev.args.value)
+    if (ev.name === 'TransactionPayment.TransactionFeePaid' && extrinsic) {
+        extrinsic.fee = BigInt(ev.args.actualFee)
+        extrinsic.tip = BigInt(ev.args.tip)
+    }
     const name = ev.name ?? ''
     collectGovEvent(batch, ev.id, name, ev.args, block.height, ev.block, signerOf(ev.extrinsic), ev.call?.args)
     collectValidatorEvent(batch, name, ev.args, block.height)
     collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, block.timestamp, ev)
     collectMultisigEvent(batch, name, ev.args, block.height, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined)
-    collectBountyEvent(batch, name, ev.args, block.height, block.timestamp, signerOf(ev.extrinsic))
+    collectBountyEvent(batch, ev.id, name, ev.args, block.height, block.timestamp, signerOf(ev.extrinsic))
 }
 
 let topologyCache: MeshTopology | undefined
@@ -509,7 +520,7 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
         a.reserved = info?.data.reserved ?? 0n
         a.frozen = info?.data.frozen ?? 0n
         a.locksJson = (locks[i] ?? []).map(l => ({id: lockId(l.id), amount: l.amount.toString(), reasons: l.reasons.__kind}))
-        a.holdsJson = (holds[i] ?? []).map(h => ({id: h.id.__kind, amount: h.amount.toString()}))
+        a.holdsJson = (holds[i] ?? []).map(h => ({reason: toJSON(h.id), amount: h.amount.toString()}))
         a.depositsJson = deposits([
             ['subs', subs[i]?.[0]],
             ['proxy', proxies[i]?.[1]],

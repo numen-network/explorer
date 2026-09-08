@@ -1,5 +1,6 @@
 import {blake2b} from '@noble/hashes/blake2.js'
 import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
+import {variantName, variantValue} from './variant'
 
 export function isH160(s: string): boolean {
     return /^0x[0-9a-fA-F]{40}$/.test(s)
@@ -9,16 +10,11 @@ export function isH256(s: string): boolean {
     return /^0x[0-9a-fA-F]{64}$/.test(s)
 }
 
-const TX_TYPE_LABEL: Record<number, string> = {
-    0: 'Legacy',
-    1: 'EIP-2930',
-    2: 'EIP-1559',
-    4: 'EIP-7702',
-}
+// the TransactionV2 variant names read as the eips they implement
+export const evmTxTypeLabel = (t: string) => t.replace(/^EIP(\d+)$/, 'EIP-$1')
 
-export function evmTxTypeLabel(t: number): string {
-    return TX_TYPE_LABEL[t] ?? `Type ${t}`
-}
+/** What a failed call reported below its ExitReason variant, the ExitError or ExitFatal name. */
+export const exitDetail = (reason: unknown) => variantName(variantValue(reason))
 
 export function evmMappedAccount(h160: string): string {
     const prefix = new TextEncoder().encode('evm:')

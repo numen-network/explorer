@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, JSONColumn as JSONColumn_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
 
 @Entity_()
@@ -43,15 +43,18 @@ export class MultisigOp {
     @StringColumn_({array: true, nullable: true})
     signatories!: (string)[] | undefined | null
 
+    /**
+     * method of the last Multisig event the operation raised
+     */
     @Index_("idx_multisig_op_status_8aba75f3")
     @StringColumn_({nullable: false})
     status!: string
 
     /**
-     * dispatch outcome of an executed operation, ok or err
+     * DispatchResult of an executed operation, whole
      */
-    @StringColumn_({nullable: true})
-    result!: string | undefined | null
+    @JSONColumn_({nullable: true})
+    result!: unknown | undefined | null
 
     @IntColumn_({nullable: false})
     createdBlock!: number

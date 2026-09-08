@@ -27,8 +27,11 @@ export class Registrar {
     @BigIntColumn_({nullable: false})
     fields!: bigint
 
-    @IntColumn_({nullable: false})
-    addedAt!: number
+    /**
+     * block of the RegistrarAdded event, null for a registrar the chain started with
+     */
+    @IntColumn_({nullable: true})
+    addedAt!: number | undefined | null
 
     @IntColumn_({nullable: false})
     requestCount!: number

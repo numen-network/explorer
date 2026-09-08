@@ -8,7 +8,7 @@ import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
-import {fmtBalance, humanize} from '@/lib/format'
+import {camelLabel, fmtBalance} from '@/lib/format'
 import {type BountyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {NONE} from '@/components/Detail'
@@ -37,7 +37,7 @@ export function BountyTable({rows, chain}: {rows: BountyRow[]; chain: {ss58: num
                 cell: ({row}) => (row.original.curator ? <AccountLink addr={ss58Encode(row.original.curator.id, chain.ss58)} acc={row.original.curator} /> : NONE),
             }),
             col.display({id: 'referendum', header: 'Referendum', cell: ({row}) => <RefCell r={row.original.referendum} />}),
-            col.display({id: 'status', header: 'Status', cell: ({row}) => <Badge variant={bountyStatusTone(row.original.status)}>{humanize(row.original.status)}</Badge>}),
+            col.display({id: 'status', header: 'Status', cell: ({row}) => <Badge variant={bountyStatusTone(row.original.status)}>{camelLabel(row.original.status)}</Badge>}),
             col.display({id: 'updated', header: 'Updated', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.updatedAt} />}),
         ],
         [chain]

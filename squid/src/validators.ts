@@ -1,3 +1,4 @@
+import {toJSON} from '@subsquid/util-internal-json'
 import {In} from 'typeorm'
 import {BatchData} from './batch'
 import {Validator} from './model'
@@ -31,6 +32,28 @@ async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, h
     return v
 }
 
+// the genesis set never gets a NewSession of its own, so it is read where it
+// was written
+export async function seedGenesisValidators(batch: BatchData, genesisHeader: any): Promise<void> {
+    const s = storage.session.validators.v100
+    if (!s.is(genesisHeader)) throw new Error('unhandled spec version for session validators at genesis')
+    for (const who of (await s.get(genesisHeader)) ?? []) {
+        batch.validators.set(
+            who,
+            new Validator({
+                id: who,
+                account: batch.touch(who, 0),
+                active: true,
+                lockedAmount: 0n,
+                offlineSessions: 0,
+                equivocations: 0,
+                firstSeenBlock: 0,
+                lastActiveSession: 0,
+            })
+        )
+    }
+}
+
 export async function finalizeValidators(ctx: {store: any}, batch: BatchData, lastHeader: any): Promise<void> {
     for (const ev of batch.validatorEvents) {
         const method = ev.name.split('.')[1]
@@ -50,7 +73,7 @@ export async function finalizeValidators(ctx: {store: any}, batch: BatchData, la
             }
             case 'ValidatorKicked': {
                 const v = await loadValidator(ctx, batch, args.who, ev.height)
-                v.kicked = args.reason?.__kind ?? 'unknown'
+                v.kicked = toJSON(args.reason)
                 v.active = false
                 break
             }
@@ -71,8 +94,6 @@ async function syncActiveSet(ctx: {store: any}, batch: BatchData, lastHeader: an
     if (!s.is(lastHeader)) throw new Error('unhandled spec version for session validators')
     const current: string[] = (await s.get(lastHeader)) ?? []
     const set = new Set(current)
-    // session 0 emits no NewSession event, so anyone active at the first boundary dates from genesis
-    const seenAt = boundary.index <= 1 ? 0 : boundary.height
 
     const previouslyActive: Validator[] = await ctx.store.find(Validator, {
         where: {active: true},
@@ -85,7 +106,7 @@ async function syncActiveSet(ctx: {store: any}, batch: BatchData, lastHeader: an
         }
     }
     for (const who of current) {
-        const v = await loadValidator(ctx, batch, who, seenAt)
+        const v = await loadValidator(ctx, batch, who, boundary.height)
         v.active = true
         v.kicked = null
         v.lastActiveSession = boundary.index

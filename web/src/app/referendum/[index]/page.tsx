@@ -17,9 +17,10 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
+import {capitalOf, convictionLabel, decisionOf, votesOf, weigh} from '@/lib/conviction'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
-import {fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum, sentenceCase, trackLabel} from '@/lib/format'
-import {isLive, phaseFraction} from '@/lib/referendum'
+import {camelLabel, fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum, trackLabel} from '@/lib/format'
+import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
 import {accountRefs, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -30,19 +31,37 @@ export async function generateMetadata(props: PageProps<'/referendum/[index]'>) 
     return {title: `Referendum #${index}`}
 }
 
-const STATUS_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle' | 'primary'> = {
-    SUBMITTED: 'idle',
-    DECIDING: 'primary',
-    CONFIRMING: 'warn',
-    APPROVED: 'pos',
-    REJECTED: 'neg',
-    TIMEDOUT: 'idle',
-    CANCELLED: 'idle',
-    KILLED: 'neg',
+// the events a referendum raises on its way, read as steps on the rail
+const STEP_LABEL: Record<string, string> = {
+    'Referenda.Submitted': 'Submitted',
+    'Referenda.DecisionDepositPlaced': 'Decision deposit placed',
+    'Referenda.DecisionStarted': 'Deciding',
+    'Referenda.ConfirmStarted': 'Confirming',
+    'Referenda.ConfirmAborted': 'Confirm aborted',
+    'Referenda.Confirmed': 'Confirmed',
+    'Referenda.Approved': 'Approved',
+    'Referenda.Rejected': 'Rejected',
+    'Referenda.TimedOut': 'Timed out',
+    'Referenda.Cancelled': 'Cancelled',
+    'Referenda.Killed': 'Killed',
+    'Referenda.DepositSlashed': 'Deposit slashed',
+    'Referenda.SubmissionDepositRefunded': 'Submission deposit refunded',
+    'Referenda.DecisionDepositRefunded': 'Decision deposit refunded',
+    'Scheduler.Dispatched': 'Enacted',
 }
 
-const STEP_ICON = (status: string) =>
-    status === 'APPROVED' ? TICK : /REJECTED|KILLED|CANCELLED|TIMEDOUT/.test(status) ? CROSS : RING
+const STEP_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle' | 'primary'> = {
+    'Referenda.DecisionStarted': 'primary',
+    'Referenda.ConfirmStarted': 'warn',
+    'Referenda.Confirmed': 'pos',
+    'Referenda.Approved': 'pos',
+    'Referenda.Rejected': 'neg',
+    'Referenda.Killed': 'neg',
+    'Referenda.DepositSlashed': 'neg',
+    'Scheduler.Dispatched': 'pos',
+}
+
+const STEP_ICON = (name: string) => (name === 'Referenda.Approved' || name === 'Scheduler.Dispatched' ? TICK : /Rejected|Killed|Cancelled|TimedOut|Slashed/.test(name) ? CROSS : RING)
 
 function Mark({icon: Icon, className}: {icon: LucideIcon; className: string}) {
     return <Icon className={`size-3.5 shrink-0 ${className}`} strokeWidth={2.2} />
@@ -90,7 +109,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         accountRefs(partyIds),
         delegationsFor(voterIds, r.track.id),
         delegationActionsFor(r.track.id, r.submittedAt, r.endedAt),
-        eventsByIds(trail.flatMap(s => (s.event != null ? [s.event] : []))),
+        eventsByIds(trail.map(s => s.event)),
     ])
     const evBy = new Map(evs.events.map(e => [e.id, e]))
     const evWhos = evs.events.map(e => (e.args as {who?: unknown} | null)?.who).filter((w): w is string => typeof w === 'string')
@@ -110,7 +129,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             if (a.block > block || (a.block === block && a.id >= id)) break
             last = a
         }
-        return last?.kind === 'vote' && (last.decision === 'aye' || last.decision === 'nay') ? last : undefined
+        return last?.method === 'Voted' && last.kind === 'Standard' ? last : undefined
     }
     const dactRows = dacts.delegationActions.flatMap(a => {
         const vote = standingVoteAt(a.target.id, a.block, a.id)
@@ -126,21 +145,21 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             block: a.block,
             iso: a.timestamp,
             actor: {addr: ss58Encode(a.voter.id, chain.ss58), acc: a.voter},
-            amount: String(BigInt(a.votes) + BigInt(a.delegatedVotes)),
-            own: a.votes,
+            amount: String(votesOf(a) + BigInt(a.delegatedVotes)),
+            own: String(votesOf(a)),
             delegated: a.delegatedVotes,
-            kind: a.kind as 'vote' | 'remove',
-            decision: a.decision,
+            kind: (a.method === 'Voted' ? 'vote' : 'remove') as 'vote' | 'remove',
+            decision: decisionOf(a),
         })),
         ...dactRows.map(({a, vote}) => ({
             id: a.id,
             block: a.block,
             iso: a.timestamp,
             actor: {addr: ss58Encode(a.target.id, chain.ss58), acc: a.target},
-            amount: String(BigInt(vote.votes) + BigInt(a.delegatedVotes)),
-            own: vote.votes,
+            amount: String(votesOf(vote) + BigInt(a.delegatedVotes)),
+            own: String(votesOf(vote)),
             delegated: a.delegatedVotes,
-            kind: a.kind as 'delegate' | 'undelegate',
+            kind: (a.method === 'Delegated' ? 'delegate' : 'undelegate') as 'delegate' | 'undelegate',
             by: {addr: ss58Encode(a.who.id, chain.ss58), acc: a.who},
         })),
     ].sort((x, y) => y.block - x.block || y.id.localeCompare(x.id))
@@ -148,7 +167,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const snapPct = (s: (typeof data.snapshots)[number]) => {
         const a = planckToNum(s.ayes, chain.decimals)
         const n = planckToNum(s.nays, chain.decimals)
-        const act = planckToNum(s.activeIssuance, chain.decimals)
+        const act = planckToNum(BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance), chain.decimals)
         return {
             approval: a + n > 0 ? (a / (a + n)) * 100 : 0,
             support: act > 0 ? (planckToNum(s.support, chain.decimals) / act) * 100 : 0,
@@ -184,7 +203,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const approvalCurve = curveSamples(r.track.minApproval as Curve, decisionHours)
     const supportCurve = curveSamples(r.track.minSupport as Curve, decisionHours)
     const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best)
-    const x = isLive(r.status) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
+    const x = isLive(r) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
     const now = x !== null ? {at: (x / 100) * decisionHours, approval: approvalNow, support: supportNow} : null
 
     const currentApproval: [number, number][] = []
@@ -210,14 +229,14 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const ended = r.endedAt !== null
     const prepareAt = phaseFraction(r.submittedAt, r.track.preparePeriod, heads.best)
     const confirmAt = phaseFraction(r.confirmingSince, r.track.confirmPeriod, heads.best)
-    const enactAt = r.status === 'APPROVED' ? phaseFraction(r.endedAt, r.track.minEnactmentPeriod, heads.best) : null
+    const enactAt = r.status === 'Approved' ? phaseFraction(r.endedAt, r.track.minEnactmentPeriod, heads.best) : null
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
     const pct = (n: number) => `${n.toFixed(n < 1 ? 2 : 1)}%`
 
     // enactment only starts once the referendum is approved, keep the card
     // up through that phase
-    const status = (!ended || r.status === 'APPROVED') && (
+    const status = (!ended || r.status === 'Approved') && (
         <Card className="gap-3 py-4 [--card-spacing:--spacing(5)]">
             <CardHeader>
                 <CardTitle className="text-[15px] leading-normal font-semibold">Status</CardTitle>
@@ -229,7 +248,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <PhaseBar label="Enactment" span={fmtBlockSpan(r.track.minEnactmentPeriod, chain.blockTime)} at={enactAt} />
                 <div className="flex items-baseline justify-between border-t pt-3 text-sm">
                     <span className="text-muted-foreground">Attempts</span>
-                    <span className="font-mono">{trail.filter(s => s.status === 'confirming').length}</span>
+                    <span className="font-mono">{trail.filter(s => s.name === 'Referenda.ConfirmStarted').length}</span>
                 </div>
             </CardContent>
         </Card>
@@ -328,7 +347,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             <DetailRow label="Track">
                 {trackLabel(r.track.name)} <span className="text-muted-foreground">#{r.track.id}</span>
             </DetailRow>
-            <DetailRow label="Origin">{r.origin ?? '—'}</DetailRow>
+            <DetailRow label="Origin">{originName(r.origin) ?? '—'}</DetailRow>
             <DetailRow label="Proposal hash">
                 {r.proposalHash ? (
                     <>
@@ -375,13 +394,13 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             {data.metadataActions.map(a => (
                 <TimelineItem
                     key={a.id}
-                    tone={a.kind === 'set' ? 'primary' : 'idle'}
-                    icon={a.kind === 'set' ? RING : CROSS}
-                    title={a.kind === 'set' ? 'Text set' : 'Text cleared'}
+                    tone={a.method === 'MetadataSet' ? 'primary' : 'idle'}
+                    icon={a.method === 'MetadataSet' ? RING : CROSS}
+                    title={a.method === 'MetadataSet' ? 'Text set' : 'Text cleared'}
                     iso={a.timestamp}
                     links={<BlockLink height={a.block} />}
                     detail={
-                        a.kind === 'set' ? (
+                        a.method === 'MetadataSet' ? (
                             <div className="min-w-0">
                                 {a.title ? (
                                     <p className="text-sm font-semibold">{a.title}</p>
@@ -418,21 +437,20 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const timeline = (
         <TimelineList empty={trail.length === 0}>
             {[...trail].reverse().map((s, i) => {
-                const key = s.status.toUpperCase()
-                const e = s.event != null ? evBy.get(s.event) : undefined
-                const rows = stepRows(e?.args, s.status === 'decision deposit placed' ? 'Decision deposit' : 'Amount')
+                const e = evBy.get(s.event)
+                const rows = stepRows(e?.args, s.name === 'Referenda.DecisionDepositPlaced' ? 'Decision deposit' : 'Amount')
                 // the Submitted event names neither party nor deposit, the
                 // referendum record fills the step in
-                if (s.status === 'submitted') {
+                if (s.name === 'Referenda.Submitted') {
                     if (r.submitter) rows.unshift(['Who', <AccountLink key="s" addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} />])
                     if (r.submissionDeposit != null) rows.push(['Submission deposit', fmtBalance(r.submissionDeposit, chain.decimals, chain.symbol)])
                 }
                 return (
                     <TimelineItem
                         key={i}
-                        tone={STATUS_TONE[key] ?? 'idle'}
-                        icon={STEP_ICON(key)}
-                        title={sentenceCase(s.status)}
+                        tone={STEP_TONE[s.name] ?? 'idle'}
+                        icon={STEP_ICON(s.name)}
+                        title={STEP_LABEL[s.name] ?? camelLabel(s.name.split('.')[1])}
                         iso={s.timestamp}
                         links={
                             <>
@@ -449,28 +467,28 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const entry = (v: (typeof data.votes)[number]): VoteEntry => {
         const list = byTarget.get(v.voter!.id) ?? []
-        const num = (planck: string) => planckToNum(planck, chain.decimals)
+        const num = (planck: string | bigint) => planckToNum(planck, chain.decimals)
         return {
             id: v.id,
             addr: ss58Encode(v.voter!.id, chain.ss58),
             acc: v.voter,
-            conviction: v.conviction,
-            capital: num(v.amount),
-            selfVotes: num(v.votes),
+            conviction: v.kind === 'Standard' ? convictionLabel(v.conviction) : null,
+            capital: num(capitalOf(v)),
+            selfVotes: num(votesOf(v)),
             delegatorCount: list.length,
             delegatedCapital: list.reduce((n, d) => n + num(d.balance), 0),
-            delegatedVotes: list.reduce((n, d) => n + num(d.votes), 0),
+            delegatedVotes: list.reduce((n, d) => n + num(weigh(d.balance, d.conviction)), 0),
             delegators: list.slice(0, INLINE_DELEGATORS).map(d => ({
                 addr: ss58Encode(d.who.id, chain.ss58),
                 acc: whoRefs.get(d.who.id),
-                conviction: d.conviction,
+                conviction: convictionLabel(d.conviction),
                 capital: num(d.balance),
-                votes: num(d.votes),
+                votes: num(weigh(d.balance, d.conviction)),
             })),
         }
     }
 
-    const bucket = (decision: string) => data.votes.filter(v => v.voter != null && v.decision === decision).map(entry)
+    const bucket = (decision: string) => data.votes.filter(v => v.voter != null && decisionOf(v) === decision).map(entry)
     const groups = [
         {label: 'Aye', total: data.ayeCount.totalCount, rows: bucket('aye')},
         {label: 'Nay', total: data.nayCount.totalCount, rows: bucket('nay')},
@@ -501,7 +519,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         <span className="-ml-0.5 text-muted-foreground">
                             <TimeCell iso={r.submittedTimestamp} cycle />
                         </span>
-                        <StatusBadge status={r.status} className="ml-auto" />
+                        <StatusBadge phase={phaseOf(r)} className="ml-auto" />
                     </div>
                     <Separator className="my-4" />
                     {r.description ? (

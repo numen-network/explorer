@@ -23,7 +23,7 @@ export class Judgement {
     target!: Relation_<Account>
 
     /**
-     * the verdict read back from storage right after the event, absent when the same batch cleared the identity
+     * the verdict read back from storage at the event's block, absent when that block also cleared the identity
      */
     @StringColumn_({nullable: true})
     kind!: string | undefined | null

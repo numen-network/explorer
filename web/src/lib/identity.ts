@@ -4,6 +4,7 @@ export interface IdentityRef {
     identityDisplay?: string | null
     identityJson?: unknown
     identitySubName?: string | null
+    identitySubData?: unknown
     identitySuper?: {identityDisplay?: string | null; identityJson?: unknown} | null
 }
 
@@ -13,7 +14,8 @@ export interface IdentityRef {
 export function identityLabel(acc: IdentityRef | undefined): string | undefined {
     if (!acc) return undefined
     const sup = acc.identitySuper
-    if (acc.identityJson == null && acc.identitySubName != null && sup?.identityDisplay != null) return `${sup.identityDisplay}/${acc.identitySubName}`
+    const sub = acc.identitySubName ?? dataText(acc.identitySubData)
+    if (acc.identityJson == null && sub != null && sup?.identityDisplay != null) return `${sup.identityDisplay}/${sub}`
     return acc.identityDisplay ?? undefined
 }
 

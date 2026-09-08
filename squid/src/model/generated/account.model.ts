@@ -1,5 +1,4 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_, Index as Index_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, ManyToOne as ManyToOne_, Relation as Relation_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
-import {IdentityStatus} from "./_identityStatus"
 
 @Entity_()
 export class Account {
@@ -41,14 +40,16 @@ export class Account {
     identityJson!: unknown | undefined | null
 
     /**
-     * coarsens the judgement precedence the account badge uses, a flag from any registrar outranks approval from another
+     * the sub name as readable text, only a Raw Data variant decodes to one
      */
-    @Index_("idx_account_identity_status_8b941a81")
-    @Column_("varchar", {length: 10, nullable: true})
-    identityStatus!: IdentityStatus | undefined | null
-
     @StringColumn_({nullable: true})
     identitySubName!: string | undefined | null
+
+    /**
+     * the Data the super filed for this sub, whole
+     */
+    @JSONColumn_({nullable: true})
+    identitySubData!: unknown | undefined | null
 
     @Index_("idx_account_identity_super_6eb9fc9a")
     @ManyToOne_(() => Account, {nullable: true})
@@ -78,7 +79,7 @@ export class Account {
     locksJson!: unknown | undefined | null
 
     /**
-     * typed holds on the reserved balance
+     * holds on the reserved balance, each with its RuntimeHoldReason whole
      */
     @JSONColumn_({nullable: true})
     holdsJson!: unknown | undefined | null

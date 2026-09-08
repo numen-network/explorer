@@ -8,7 +8,7 @@ import Timeline, {CROSS, RING, TICK, rawSteps} from '@/components/timeline'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
-import {fmtBalance, humanize, sentenceCase} from '@/lib/format'
+import {camelLabel, fmtBalance} from '@/lib/format'
 import {bountyDetail, type AccountRef} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {ChildBountiesTable} from './table'
@@ -16,10 +16,25 @@ import {ChildBountiesTable} from './table'
 export const dynamic = 'force-dynamic'
 
 // the rail marks how a bounty ended, everything before that is a step along
-const STEP_TONE = (status: string): 'pos' | 'neg' | 'primary' | 'idle' =>
-    status === 'claimed' ? 'pos' : /rejected|cancelled|unassigned/.test(status) ? 'neg' : status === 'awarded' ? 'primary' : 'idle'
+const STEP_TONE = (name: string): 'pos' | 'neg' | 'primary' | 'idle' =>
+    name === 'Bounties.BountyClaimed' ? 'pos' : /Rejected|Canceled|Unassigned/.test(name) ? 'neg' : name === 'Bounties.BountyAwarded' ? 'primary' : 'idle'
 
-const STEP_ICON = (status: string) => (status === 'claimed' ? TICK : /rejected|cancelled|unassigned/.test(status) ? CROSS : RING)
+const STEP_ICON = (name: string) => (name === 'Bounties.BountyClaimed' ? TICK : /Rejected|Canceled|Unassigned/.test(name) ? CROSS : RING)
+
+// the event names read as what happened to the bounty
+const STEP_LABEL: Record<string, string> = {
+    'Bounties.BountyProposed': 'Proposed',
+    'Bounties.BountyApproved': 'Approved',
+    'Bounties.BountyBecameActive': 'Funded',
+    'Bounties.CuratorProposed': 'Curator proposed',
+    'Bounties.CuratorAccepted': 'Curator accepted',
+    'Bounties.CuratorUnassigned': 'Curator unassigned',
+    'Bounties.BountyAwarded': 'Awarded',
+    'Bounties.BountyClaimed': 'Claimed',
+    'Bounties.BountyRejected': 'Rejected',
+    'Bounties.BountyCanceled': 'Cancelled',
+    'Bounties.BountyExtended': 'Extended',
+}
 
 export async function generateMetadata(props: PageProps<'/bounty/[id]'>) {
     const {id} = await props.params
@@ -72,10 +87,10 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
         <Timeline
             steps={trail.map(s => ({
                 block: s.block,
-                label: sentenceCase(s.status),
+                label: STEP_LABEL[s.name] ?? camelLabel(s.name.split('.')[1]),
                 iso: s.timestamp,
-                tone: STEP_TONE(s.status),
-                icon: STEP_ICON(s.status),
+                tone: STEP_TONE(s.name),
+                icon: STEP_ICON(s.name),
             }))}
         />
     )
@@ -84,7 +99,7 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
         <div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
                 <h1 className="text-lg font-semibold">Bounty #{b.index}</h1>
-                <Badge variant={bountyStatusTone(b.status)}>{humanize(b.status)}</Badge>
+                <Badge variant={bountyStatusTone(b.status)}>{camelLabel(b.status)}</Badge>
             </div>
             {b.description && <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">{b.description}</p>}
 

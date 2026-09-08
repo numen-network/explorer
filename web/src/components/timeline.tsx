@@ -86,7 +86,14 @@ export default function Timeline({steps}: {steps: Step[]}) {
     )
 }
 
-export function rawSteps(timeline: unknown): {block: number; status: string; timestamp: string; event?: string}[] {
+export interface RawStep {
+    event: string
+    name: string
+    block: number
+    timestamp: string
+}
+
+export function rawSteps(timeline: unknown): RawStep[] {
     if (!Array.isArray(timeline)) return []
-    return (timeline as {block: number; status: string; timestamp: string; event?: string}[]).filter(s => typeof s?.block === 'number' && typeof s?.status === 'string' && typeof s?.timestamp === 'string')
+    return (timeline as RawStep[]).filter(s => typeof s?.block === 'number' && typeof s?.name === 'string' && typeof s?.timestamp === 'string')
 }

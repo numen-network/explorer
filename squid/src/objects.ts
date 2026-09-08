@@ -39,8 +39,8 @@ export function parseMesh(obj: string): ParsedMesh {
         if (!Number.isInteger(idx) || idx < 0 || idx >= vertexCount) throw new Error('face index out of range')
         if (idx >= 0x10000) throw new Error('face index does not fit u16')
     }
-    const vbuf = Buffer.alloc(vertices.length * 4)
-    vertices.forEach((f, i) => vbuf.writeFloatLE(f, i * 4))
+    const vbuf = Buffer.alloc(vertices.length * 8)
+    vertices.forEach((f, i) => vbuf.writeDoubleLE(f, i * 8))
     const fbuf = Buffer.alloc(faces.length * 2)
     faces.forEach((idx, i) => fbuf.writeUInt16LE(idx, i * 2))
     return {

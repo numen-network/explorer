@@ -96,8 +96,8 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                             <Asteroid vertices={object.vertices} faces={faces} size={290} interactive />
                             <div className="mt-auto pt-3 text-center font-mono text-[11px] text-muted-foreground">
                                 <div className="flex items-center justify-center gap-1">
-                                    OBJ {shortHash(block.workHash, 10, 8)}
-                                    <CopyBtn text={block.workHash} />
+                                    OBJ {shortHash(block.workHash!, 10, 8)}
+                                    <CopyBtn text={block.workHash!} />
                                     <DownloadObj vertices={object.vertices} faces={faces} name={`block-${block.height}.obj`} />
                                 </div>
                                 <div className="mt-1 text-dim">
@@ -142,10 +142,16 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                         <DetailRow label="Fees to treasury">{fmtBalance(block.treasuryFees, chain.decimals, chain.symbol)}</DetailRow>
                     )}
                     <DetailRow label="Difficulty">{fmtInt(block.difficulty)}</DetailRow>
-                    <DetailRow label="Nonce">{block.nonce}</DetailRow>
+                    <DetailRow label="Nonce">{block.nonce ?? '—'}</DetailRow>
                     <DetailRow label="Work hash">
-                        {block.workHash}
-                        <CopyBtn text={block.workHash} />
+                        {block.workHash ? (
+                            <>
+                                {block.workHash}
+                                <CopyBtn text={block.workHash} />
+                            </>
+                        ) : (
+                            '—'
+                        )}
                     </DetailRow>
                     <DetailRow label="Spec version">{block.specVersion ?? '—'}</DetailRow>
                     <DetailRow label="Extrinsics / events">

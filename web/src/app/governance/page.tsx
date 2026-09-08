@@ -15,8 +15,8 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainHeads, chainProps} from '@/lib/chain'
-import {fmtCompact, fmtCompact3, fmtInt, humanize, planckToNum, trackLabel} from '@/lib/format'
-import {isLive, phaseFraction} from '@/lib/referendum'
+import {camelLabel, fmtCompact, fmtCompact3, fmtInt, planckToNum, trackLabel} from '@/lib/format'
+import {isLive, phaseFraction, phaseOf} from '@/lib/referendum'
 import {bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
@@ -29,10 +29,12 @@ export const metadata = {title: 'Governance'}
 const TABS = ['referenda', 'treasury', 'bounties', 'tracks'] as const
 type Tab = (typeof TABS)[number]
 
-// closed sets written by the indexer, see squid governance.ts and bounties.ts
-const SPEND_KINDS = ['local', 'spend']
-const SPEND_STATUSES = ['approved', 'paid']
-const BOUNTY_STATUSES = ['proposed', 'approved', 'funded', 'curator_proposed', 'active', 'pending_payout', 'claimed', 'rejected', 'cancelled']
+// the Treasury call families, the Treasury events a spend can end on and the
+// BountyStatus variants plus the events that drop a bounty
+const SPEND_KINDS = ['spend_local', 'spend']
+const SPEND_STATUSES = ['SpendApproved', 'Awarded', 'AssetSpendApproved', 'Paid', 'AssetSpendVoided', 'PaymentFailed', 'SpendProcessed']
+const BOUNTY_STATUSES = ['Proposed', 'Approved', 'ApprovedWithCurator', 'Funded', 'CuratorProposed', 'Active', 'PendingPayout', 'BountyClaimed', 'BountyRejected', 'BountyCanceled']
+const SPEND_KIND_LABEL: Record<string, string> = {spend_local: 'Local', spend: 'Spend'}
 
 export default async function GovernancePage(props: PageProps<'/governance'>) {
     const sp = await props.searchParams
@@ -79,14 +81,14 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
 
     const spendFilter = spends && (
         <div className="mb-4 space-y-2">
-            <FacetRow label="Kind" field="kind" values={SPEND_KINDS} counts={spends.counts.kind ?? {}} labelOf={humanize} />
-            <FacetRow label="Status" field="status" values={SPEND_STATUSES} counts={spends.counts.status ?? {}} labelOf={humanize} />
+            <FacetRow label="Kind" field="kind" values={SPEND_KINDS} counts={spends.counts.kind ?? {}} labelOf={v => SPEND_KIND_LABEL[v]} />
+            <FacetRow label="Status" field="status" values={SPEND_STATUSES} counts={spends.counts.status ?? {}} labelOf={camelLabel} />
             <FacetRow label="Track" field="track" values={trackIds} counts={spends.counts.track ?? {}} labelOf={trackName} />
         </div>
     )
     const bountyFilter = bounties && (
         <div className="mb-4 space-y-2">
-            <FacetRow label="Status" field="status" values={BOUNTY_STATUSES} counts={bounties.counts.status ?? {}} labelOf={humanize} />
+            <FacetRow label="Status" field="status" values={BOUNTY_STATUSES} counts={bounties.counts.status ?? {}} labelOf={camelLabel} />
             <FacetRow label="Track" field="track" values={trackIds} counts={bounties.counts.track ?? {}} labelOf={trackName} />
         </div>
     )
@@ -111,7 +113,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
             {refs.referendums.map(r => {
                 const ayes = BigInt(r.ayes)
                 const nays = BigInt(r.nays)
-                const ran = isLive(r.status) ? phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best) : null
+                const ran = isLive(r) ? phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best) : null
                 const at = ran !== null ? Math.min(1, Math.max(0, ran)) : null
                 const approval = ayes + nays > 0n ? Number((ayes * 10000n) / (ayes + nays)) / 100 : 0
                 const support = activeIssuance > 0n ? Number((BigInt(r.support) * 1000000n) / activeIssuance) / 10000 : 0
@@ -164,7 +166,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     <TimeCell iso={r.submittedTimestamp} cycle />
                                 </span>
                             </div>
-                            <StatusBadge status={r.status} />
+                            <StatusBadge phase={phaseOf(r)} />
                         </div>
                         {at !== null && (
                             <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-3 sm:grid-cols-2">

@@ -58,6 +58,8 @@ export interface DayDelta {
     tsFirst: Date
     tsLast: Date
     difficultyClose: bigint
+    // the last block of the day this batch holds, storage reads for the day land there
+    header: any
 }
 
 export class BatchData {
@@ -94,7 +96,7 @@ export class BatchData {
     sessionBoundaries: {index: number; height: number}[] = []
     registrarsDirty = false
     registrarAdded = new Map<number, number>()
-    judgementsGiven: {id: string; registrar: number; target: string; block: number; at: Date}[] = []
+    judgementsGiven: {id: string; registrar: number; target: string; block: number; at: Date; header: any}[] = []
     judgements: Judgement[] = []
     registrarStats = new Map<number, {requests: number; given: number; block: number; at: Date}>()
     registrars: Registrar[] = []

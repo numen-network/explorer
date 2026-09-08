@@ -58,6 +58,9 @@ export class Bounty {
     @StringColumn_({nullable: true})
     description!: string | undefined | null
 
+    /**
+     * BountyStatus variant name while the chain holds the bounty, then the method of the event that dropped it
+     */
     @Index_("idx_bounty_status_d57f0f1c")
     @StringColumn_({nullable: false})
     status!: string
@@ -78,6 +81,9 @@ export class Bounty {
     @IntColumn_({nullable: false})
     updatedAt!: number
 
+    /**
+     * one step per lifecycle event, its id, qualified name, block and timestamp
+     */
     @JSONColumn_({nullable: false})
     timeline!: unknown
 }

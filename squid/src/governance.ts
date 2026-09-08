@@ -2,9 +2,9 @@ import {blake2b} from '@noble/hashes/blake2.js'
 import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
 import {RpcClient} from '@subsquid/rpc-client'
 import {Src} from '@subsquid/scale-codec'
+import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In} from 'typeorm'
-import {convictionLabel, convictionVotes} from './conviction'
 import {BatchData, GovEvent} from './batch'
 import {Delegation, DelegationAction, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VoteAction} from './model'
 import {storage} from './types'
@@ -22,7 +22,6 @@ const BATCH_CALLS = new Set(['Utility.batch', 'Utility.batch_all', 'Utility.forc
 // a preimage is bytes somebody paid to store, so a proposal nests as deep as it
 // likes and the walk has to stop on its own
 const MAX_PROPOSAL_DEPTH = 4
-const MAX_TITLE_CHARS = 200
 
 const stampOf = (ev: GovEvent) => new Date(ev.header.timestamp)
 
@@ -34,6 +33,7 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
     if (batch.govEvents.length > 0) {
         await loadTouchedReferenda(ctx, batch)
         await loadEnactments(ctx, batch)
+        await loadTouchedSpends(ctx, batch)
         for (const ev of batch.govEvents) applyGovEvent(batch, ev)
         await applyProposals(batch, rpc, lastHeader._runtime)
         await applyMetadata(batch, rpc)
@@ -44,12 +44,12 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
     await refreshOngoing(ctx, batch, lastHeader)
 }
 
-async function activeIssuanceAt(header: any): Promise<bigint> {
+async function issuanceAt(header: any): Promise<{total: bigint; inactive: bigint}> {
     const total = storage.balances.totalIssuance.v100
     const inactive = storage.balances.inactiveIssuance.v100
     if (!total.is(header) || !inactive.is(header)) throw new Error('unhandled spec version for issuance')
     const [t, i] = await Promise.all([total.get(header), inactive.get(header)])
-    return (t ?? 0n) - (i ?? 0n)
+    return {total: t ?? total.getDefault(header), inactive: i ?? inactive.getDefault(header)}
 }
 
 // these events clear the referendum storage at their own block, the tally
@@ -89,7 +89,7 @@ async function snapshotTallies(ctx: {store: any}, batch: BatchData): Promise<voi
     const byTrack = new Map<number, Set<number>>()
     if ([...points.values()].some(p => p.tracks.size > 0)) {
         const open: Referendum[] = await ctx.store.find(Referendum, {
-            where: {status: In([ReferendumStatus.SUBMITTED, ReferendumStatus.DECIDING, ReferendumStatus.CONFIRMING])},
+            where: {status: ReferendumStatus.Ongoing},
             relations: {track: true},
         })
         for (const r of [...open, ...batch.referenda.values()]) {
@@ -100,14 +100,15 @@ async function snapshotTallies(ctx: {store: any}, batch: BatchData): Promise<voi
     }
 
     const s = storage.referenda.referendumInfoFor.v100
-    const issuanceByHeight = new Map<number, bigint>()
-    const issuance = async (height: number, header: any): Promise<bigint> => {
+    const issuanceByHeight = new Map<number, {total: bigint; inactive: bigint}>()
+    const issuance = async (height: number, header: any) => {
         let v = issuanceByHeight.get(height)
-        if (v == null) issuanceByHeight.set(height, (v = await activeIssuanceAt(header)))
+        if (v == null) issuanceByHeight.set(height, (v = await issuanceAt(header)))
         return v
     }
     const put = async (index: number, height: number, header: any, tally: any): Promise<void> => {
         const id = `${index}-${height}`
+        const {total, inactive} = await issuance(height, header)
         batch.tallySnapshots.set(
             id,
             new ReferendumTallySnapshot({
@@ -117,7 +118,8 @@ async function snapshotTallies(ctx: {store: any}, batch: BatchData): Promise<voi
                 ayes: BigInt(tally.ayes),
                 nays: BigInt(tally.nays),
                 support: BigInt(tally.support),
-                activeIssuance: await issuance(height, header),
+                totalIssuance: total,
+                inactiveIssuance: inactive,
             })
         )
     }
@@ -144,7 +146,6 @@ async function stampDelegatedWeights(batch: BatchData): Promise<void> {
     const s = storage.convictionVoting.votingFor.v100
     const events = new Map(batch.govEvents.map(ev => [ev.id, ev]))
     for (const va of batch.voteActions) {
-        if (va.decision !== 'aye' && va.decision !== 'nay') continue
         const ev = events.get(va.id)
         const r = batch.referenda.get(Number(va.referendum.id))
         if (ev == null || r == null) throw new Error(`no event or referendum behind vote action ${va.id}`)
@@ -179,9 +180,9 @@ async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promis
                     who: batch.touch(who, ev.height),
                     target: batch.touch(v.value.target, ev.height),
                     track: new Track({id: String(track)}),
-                    kind: 'delegate',
+                    method,
                     balance: v.value.balance,
-                    conviction: convictionLabel(v.value.conviction),
+                    conviction: v.value.conviction.__kind,
                     delegatedVotes: await votesOn(ev.header, v.value.target, Number(track)),
                     block: ev.height,
                     timestamp: stampOf(ev),
@@ -190,7 +191,7 @@ async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promis
         } else if (method === 'Undelegated') {
             const [who, track] = ev.args as [string, number]
             if (!s.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
-            const inBatch = [...batch.delegationActions].reverse().find(a => a.kind === 'delegate' && a.who.id === who && a.track.id === String(track))
+            const inBatch = [...batch.delegationActions].reverse().find(a => a.method === 'Delegated' && a.who.id === who && a.track.id === String(track))
             const stored: Delegation | undefined = inBatch
                 ? undefined
                 : await ctx.store.get(Delegation, {where: {id: `${who}-${track}`}, relations: {target: true}})
@@ -202,7 +203,7 @@ async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promis
                     who: batch.touch(who, ev.height),
                     target: batch.touch(src.target.id, ev.height),
                     track: new Track({id: String(track)}),
-                    kind: 'undelegate',
+                    method,
                     balance: src.balance,
                     conviction: src.conviction,
                     delegatedVotes: await votesOn(ev.header, src.target.id, Number(track)),
@@ -230,7 +231,7 @@ async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
             new MetadataAction({
                 id: ev.id,
                 referendum: new Referendum({id: String(ev.args.index)}),
-                kind: cleared ? 'cleared' : 'set',
+                method: ev.name.split('.')[1],
                 hash: ev.args.hash,
                 title: meta.title,
                 description: meta.description,
@@ -259,7 +260,7 @@ async function fetchPreimage(rpc: RpcClient, hash: string, height: number): Prom
 function readMetadataText(bytes: Uint8Array): {title: string | null; description: string | null} {
     const dump = new TextDecoder().decode(bytes)
     const cut = dump.indexOf('\n')
-    const title = (cut === -1 ? dump : dump.slice(0, cut)).trim().slice(0, MAX_TITLE_CHARS)
+    const title = (cut === -1 ? dump : dump.slice(0, cut)).trim()
     const description = cut === -1 ? '' : dump.slice(cut + 1).trim()
     return {title: title || null, description: description || null}
 }
@@ -401,7 +402,7 @@ async function loadTouchedReferenda(ctx: {store: any}, batch: BatchData): Promis
 // a dispatch names a task id, only approved referenda can own one
 async function loadEnactments(ctx: {store: any}, batch: BatchData): Promise<void> {
     if (!batch.govEvents.some(e => e.name === 'Scheduler.Dispatched')) return
-    const rows: Referendum[] = await ctx.store.find(Referendum, {where: {status: ReferendumStatus.APPROVED}, relations: {track: true}})
+    const rows: Referendum[] = await ctx.store.find(Referendum, {where: {status: ReferendumStatus.Approved}, relations: {track: true}})
     for (const r of rows) {
         batch.enactments.set(enactmentId(r.index), r.index)
         if (!batch.referenda.has(r.index)) batch.referenda.set(r.index, r)
@@ -416,14 +417,8 @@ function applyGovEvent(batch: BatchData, ev: GovEvent): void {
     else if (pallet === 'Scheduler' && method === 'Dispatched') applyDispatch(batch, ev)
 }
 
-function pushTimeline(r: Referendum, status: string, ev: GovEvent): void {
-    r.timeline = [...((r.timeline as any[]) ?? []), {status, block: ev.height, timestamp: stampOf(ev).toISOString(), event: ev.id}]
-}
-
-// Referenda.submit args carry the origin as a nested variant, system origins
-// one level deep and custom origins two
-function originName(origin: any): string | undefined {
-    return origin?.value?.__kind ?? origin?.__kind
+function pushTimeline(r: Referendum, ev: GovEvent): void {
+    r.timeline = [...((r.timeline as any[]) ?? []), {event: ev.id, name: ev.name, block: ev.height, timestamp: stampOf(ev).toISOString()}]
 }
 
 function setTally(r: Referendum, tally: any): void {
@@ -440,77 +435,66 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
             id: String(args.index),
             index: args.index,
             track: new Track({id: String(args.track)}),
-            origin: originName(ev.callArgs?.proposalOrigin),
+            origin: toJSON(ev.callArgs?.proposalOrigin),
             proposalHash: proposalHash(args.proposal),
             submitter: ev.signer ? batch.touch(ev.signer, ev.height) : undefined,
             submittedAt: ev.height,
             submittedTimestamp: stampOf(ev),
-            status: ReferendumStatus.SUBMITTED,
+            status: ReferendumStatus.Ongoing,
             ayes: 0n,
             nays: 0n,
             support: 0n,
             timeline: [],
         })
-        pushTimeline(r, 'submitted', ev)
+        pushTimeline(r, ev)
         batch.referenda.set(r.index, r)
         return
     }
     const r = batch.referenda.get(args.index)
     if (r == null) return
+    // the text log keeps the metadata events, the rail is for the lifecycle
+    if (!method.startsWith('Metadata')) pushTimeline(r, ev)
     switch (method) {
         case 'DecisionDepositPlaced':
             r.decisionDepositor = args.who
             r.decisionDeposit = BigInt(args.amount)
-            pushTimeline(r, 'decision deposit placed', ev)
             break
         case 'DecisionStarted':
-            r.status = ReferendumStatus.DECIDING
             r.decidingSince = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'deciding', ev)
             break
         case 'ConfirmStarted':
-            r.status = ReferendumStatus.CONFIRMING
             r.confirmingSince = ev.height
-            pushTimeline(r, 'confirming', ev)
             break
         case 'ConfirmAborted':
-            r.status = ReferendumStatus.DECIDING
             r.confirmingSince = null
-            pushTimeline(r, 'confirm aborted', ev)
             break
         case 'Confirmed':
             setTally(r, args.tally)
-            pushTimeline(r, 'confirmed', ev)
             break
         case 'Approved':
-            r.status = ReferendumStatus.APPROVED
+            r.status = ReferendumStatus.Approved
             r.endedAt = ev.height
-            pushTimeline(r, 'approved', ev)
             break
         case 'Rejected':
-            r.status = ReferendumStatus.REJECTED
+            r.status = ReferendumStatus.Rejected
             r.endedAt = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'rejected', ev)
             break
         case 'TimedOut':
-            r.status = ReferendumStatus.TIMEDOUT
+            r.status = ReferendumStatus.TimedOut
             r.endedAt = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'timed out', ev)
             break
         case 'Cancelled':
-            r.status = ReferendumStatus.CANCELLED
+            r.status = ReferendumStatus.Cancelled
             r.endedAt = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'cancelled', ev)
             break
         case 'Killed':
-            r.status = ReferendumStatus.KILLED
+            r.status = ReferendumStatus.Killed
             r.endedAt = ev.height
             setTally(r, args.tally)
-            pushTimeline(r, 'killed', ev)
             // a kill slashes both deposits
             r.submissionDepositor = null
             r.submissionDeposit = null
@@ -522,12 +506,10 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
         case 'SubmissionDepositRefunded':
             r.submissionDepositor = null
             r.submissionDeposit = null
-            pushTimeline(r, 'submission deposit refunded', ev)
             break
         case 'DecisionDepositRefunded':
             r.decisionDepositor = null
             r.decisionDeposit = null
-            pushTimeline(r, 'decision deposit refunded', ev)
             break
     }
 }
@@ -550,10 +532,7 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
             id,
             referendum: new Referendum({id: String(pollIndex)}),
             voter: batch.touch(who, ev.height),
-            decision: decoded.decision,
-            amount: decoded.amount,
-            votes: decoded.votes,
-            conviction: decoded.conviction,
+            ...decoded,
             block: ev.height,
             removed: method === 'VoteRemoved',
         })
@@ -563,11 +542,8 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
             id: ev.id,
             referendum: new Referendum({id: String(pollIndex)}),
             voter: batch.touch(who, ev.height),
-            kind: method === 'Voted' ? 'vote' : 'remove',
-            decision: decoded.decision,
-            amount: decoded.amount,
-            votes: decoded.votes,
-            conviction: decoded.conviction,
+            method,
+            ...decoded,
             delegatedCapital: 0n,
             delegatedVotes: 0n,
             block: ev.height,
@@ -576,26 +552,31 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
     )
 }
 
-// a split or abstain carries no conviction, its votes are its amount
-function decodeAccountVote(vote: any): {decision: string; amount: bigint; votes: bigint; conviction?: string} | undefined {
+interface AccountVoteFields {
+    kind: string
+    aye: boolean | null
+    conviction: string | null
+    balance: bigint | null
+    ayeAmount: bigint | null
+    nayAmount: bigint | null
+    abstainAmount: bigint | null
+}
+
+// a standard vote packs the aye bit and the conviction index into one byte,
+// the index counts None then Locked1x up to Locked6x. a voter's row is reused
+// across recasts, so the parts the new shape lacks are cleared outright
+function decodeAccountVote(vote: any): AccountVoteFields | undefined {
+    const blank = {aye: null, conviction: null, balance: null, ayeAmount: null, nayAmount: null, abstainAmount: null}
     if (vote?.__kind === 'Standard') {
         const v = Number(vote.vote)
         const level = v & 0x7f
-        const amount = BigInt(vote.balance)
-        return {
-            decision: (v & 0x80) !== 0 ? 'aye' : 'nay',
-            amount,
-            votes: convictionVotes(amount, level),
-            conviction: `${level}x`,
-        }
+        return {...blank, kind: 'Standard', aye: (v & 0x80) !== 0, conviction: level === 0 ? 'None' : `Locked${level}x`, balance: BigInt(vote.balance)}
     }
     if (vote?.__kind === 'Split') {
-        const amount = BigInt(vote.aye) + BigInt(vote.nay)
-        return {decision: 'split', amount, votes: amount}
+        return {...blank, kind: 'Split', ayeAmount: BigInt(vote.aye), nayAmount: BigInt(vote.nay)}
     }
     if (vote?.__kind === 'SplitAbstain') {
-        const amount = BigInt(vote.aye) + BigInt(vote.nay) + BigInt(vote.abstain)
-        return {decision: 'abstain', amount, votes: amount}
+        return {...blank, kind: 'SplitAbstain', ayeAmount: BigInt(vote.aye), nayAmount: BigInt(vote.nay), abstainAmount: BigInt(vote.abstain)}
     }
     return undefined
 }
@@ -610,54 +591,63 @@ function applyDispatch(batch: BatchData, ev: GovEvent): void {
     const index = batch.enactments.get(id)
     if (index == null) return
     const r = batch.referenda.get(index)
-    if (r != null) pushTimeline(r, 'enacted', ev)
+    if (r != null) pushTimeline(r, ev)
     for (const spendId of pending) {
         const s = batch.spends.get(spendId)
         if (s != null) s.referendum = new Referendum({id: String(index)})
     }
 }
 
+// a spend_local is keyed by proposal index and a spend by its own index, the
+// id keeps the two apart
+function spendId(method: string, args: any): string | undefined {
+    switch (method) {
+        case 'SpendApproved':
+        case 'Awarded':
+            return `local-${args.proposalIndex}`
+        case 'AssetSpendApproved':
+        case 'Paid':
+        case 'AssetSpendVoided':
+        case 'PaymentFailed':
+        case 'SpendProcessed':
+            return `spend-${args.index}`
+    }
+    return undefined
+}
+
+async function loadTouchedSpends(ctx: {store: any}, batch: BatchData): Promise<void> {
+    const ids = new Set<string>()
+    for (const ev of batch.govEvents) {
+        const [pallet, method] = ev.name.split('.')
+        if (pallet !== 'Treasury') continue
+        const id = spendId(method, ev.args)
+        if (id != null) ids.add(id)
+    }
+    if (ids.size === 0) return
+    const rows: TreasurySpend[] = await ctx.store.find(TreasurySpend, {where: {id: In([...ids])}, relations: {beneficiary: true}})
+    for (const s of rows) batch.spends.set(s.id, s)
+}
+
 function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): void {
     const args = ev.args
+    const id = spendId(method, args)
+    if (id == null) return
     switch (method) {
-        case 'SpendApproved': {
-            const id = `local-${args.proposalIndex}`
+        case 'SpendApproved':
             batch.spendsAtHeight.set(ev.height, [...(batch.spendsAtHeight.get(ev.height) ?? []), id])
             batch.spends.set(
                 id,
                 new TreasurySpend({
                     id,
-                    kind: 'local',
+                    kind: 'spend_local',
                     beneficiary: batch.touch(args.beneficiary, ev.height),
                     amount: BigInt(args.amount),
-                    status: 'approved',
+                    status: method,
                     block: ev.height,
                 })
             )
             break
-        }
-        case 'Awarded': {
-            const id = `local-${args.proposalIndex}`
-            const s = batch.spends.get(id)
-            if (s != null) {
-                s.status = 'paid'
-            } else {
-                batch.spends.set(
-                    id,
-                    new TreasurySpend({
-                        id,
-                        kind: 'local',
-                        beneficiary: batch.touch(args.account, ev.height),
-                        amount: BigInt(args.award),
-                        status: 'paid',
-                        block: ev.height,
-                    })
-                )
-            }
-            break
-        }
-        case 'AssetSpendApproved': {
-            const id = `spend-${args.index}`
+        case 'AssetSpendApproved':
             batch.spends.set(
                 id,
                 new TreasurySpend({
@@ -665,24 +655,22 @@ function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): voi
                     kind: 'spend',
                     beneficiary: typeof args.beneficiary === 'string' ? batch.touch(args.beneficiary, ev.height) : undefined,
                     amount: BigInt(args.amount),
-                    status: 'approved',
+                    status: method,
                     block: ev.height,
                 })
             )
             break
-        }
-        case 'Paid': {
-            const id = `spend-${args.index}`
+        default: {
             const s = batch.spends.get(id)
-            if (s != null) s.status = 'paid'
-            break
+            if (s == null) throw new Error(`Treasury.${method} names spend ${id}, which was never approved`)
+            s.status = method
         }
     }
 }
 
 async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: any): Promise<void> {
     const open: Referendum[] = await ctx.store.find(Referendum, {
-        where: {status: In([ReferendumStatus.SUBMITTED, ReferendumStatus.DECIDING, ReferendumStatus.CONFIRMING])},
+        where: {status: ReferendumStatus.Ongoing},
         relations: {track: true},
     })
     const all = new Map<number, Referendum>()

@@ -14,7 +14,7 @@ export function treasuryAccount(block: RuntimeCtx): string {
     return ('0x' + TYPE_ID + palletId.get(block).slice(2)).padEnd(66, '0')
 }
 
-export function accumulateDay(batch: BatchData, block: Block, delta: Omit<DayDelta, 'tsFirst' | 'tsLast' | 'difficultyClose' | 'blocks' | 'rewards'>): void {
+export function accumulateDay(batch: BatchData, block: Block, header: RuntimeCtx, delta: Omit<DayDelta, 'tsFirst' | 'tsLast' | 'difficultyClose' | 'blocks' | 'rewards' | 'header'>): void {
     // genesis carries no timestamp, so there is no day to book it on
     if (block.height === 0) return
     const day = block.timestamp.toISOString().slice(0, 10)
@@ -32,6 +32,7 @@ export function accumulateDay(batch: BatchData, block: Block, delta: Omit<DayDel
             tsFirst: block.timestamp,
             tsLast: block.timestamp,
             difficultyClose: block.difficulty,
+            header,
         }
         batch.dayDeltas.set(day, d)
     }
@@ -45,6 +46,7 @@ export function accumulateDay(batch: BatchData, block: Block, delta: Omit<DayDel
     d.rewards += block.reward
     d.tsLast = block.timestamp
     d.difficultyClose = block.difficulty
+    d.header = header
 
     if (block.author != null) {
         const minerId = `${day}-${block.author.id}`
@@ -58,7 +60,7 @@ export function accumulateDay(batch: BatchData, block: Block, delta: Omit<DayDel
     }
 }
 
-export async function finalizeStats(ctx: {store: any}, batch: BatchData, lastHeader: any): Promise<void> {
+export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promise<void> {
     if (batch.dayDeltas.size === 0) return
     const dayIds = [...batch.dayDeltas.keys()].sort()
     const existing = new Map<string, DailyStat>(
@@ -100,17 +102,18 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData, lastHea
     const totalIssuanceStore = storage.balances.totalIssuance.v100
     const inactiveIssuanceStore = storage.balances.inactiveIssuance.v100
     const accountStore = storage.system.account.v100
-    if (!totalIssuanceStore.is(lastHeader) || !inactiveIssuanceStore.is(lastHeader) || !accountStore.is(lastHeader)) {
-        throw new Error('unhandled spec version for issuance')
-    }
-    const [issuanceTotal, issuanceInactive, treasury] = await Promise.all([
-        totalIssuanceStore.get(lastHeader),
-        inactiveIssuanceStore.get(lastHeader),
-        accountStore.get(lastHeader, treasuryAccount(lastHeader)),
-    ])
 
     for (const day of dayIds) {
         const delta = batch.dayDeltas.get(day)!
+        const at = delta.header
+        if (!totalIssuanceStore.is(at) || !inactiveIssuanceStore.is(at) || !accountStore.is(at)) {
+            throw new Error(`unhandled spec version for issuance at block ${at.height}`)
+        }
+        const [issuanceTotal, issuanceInactive, treasury] = await Promise.all([
+            totalIssuanceStore.get(at),
+            inactiveIssuanceStore.get(at),
+            accountStore.get(at, treasuryAccount(at)),
+        ])
         let row = existing.get(day)
         if (row == null) {
             row = new DailyStat({
@@ -159,9 +162,9 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData, lastHea
         cumTransferVolume = row.cumTransferVolume
         accountsTotal = row.accountsTotal
         referendaTotal = row.referendaTotal
-        row.issuanceTotal = issuanceTotal ?? 0n
-        row.issuanceInactive = issuanceInactive ?? 0n
-        row.treasuryPot = treasury?.data.free ?? 0n
+        row.issuanceTotal = issuanceTotal ?? totalIssuanceStore.getDefault(at)
+        row.issuanceInactive = issuanceInactive ?? inactiveIssuanceStore.getDefault(at)
+        row.treasuryPot = (treasury ?? accountStore.getDefault(at)).data.free
         batch.days.push(row)
     }
 

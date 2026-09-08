@@ -36,6 +36,9 @@ export class Track {
     @IntColumn_({nullable: false})
     minEnactmentPeriod!: number
 
+    /**
+     * pallet_referenda Curve as the runtime constant carries it, Perbill and FixedI64 fields count in billionths
+     */
     @JSONColumn_({nullable: false})
     minApproval!: unknown
 

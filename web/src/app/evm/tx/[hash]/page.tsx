@@ -11,7 +11,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import {chainProps} from '@/lib/chain'
-import {evmTxTypeLabel} from '@/lib/evm'
+import {evmTxTypeLabel, exitDetail} from '@/lib/evm'
 import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmTxDetail} from '@/lib/gql'
 
@@ -29,6 +29,7 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
     const tx = data.evmTransactionById
     if (!tx) notFound()
     const ok = tx.status === 'Succeed'
+    const detail = exitDetail(tx.exitReason)
     const fee = BigInt(tx.gasUsed) * BigInt(tx.gasPrice)
 
     const logs = (
@@ -73,7 +74,7 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
         <div>
             <div className="mt-6 flex items-center gap-3">
                 <h1 className="text-lg font-semibold">EVM Transaction</h1>
-                <Badge variant={ok ? 'pos' : 'neg'}>{ok ? 'Success' : `${tx.status}${tx.statusReason ? ` · ${tx.statusReason}` : ''}`}</Badge>
+                <Badge variant={ok ? 'pos' : 'neg'}>{ok ? 'Success' : `${tx.status}${detail ? ` · ${detail}` : ''}`}</Badge>
             </div>
 
             <div className="mt-3">

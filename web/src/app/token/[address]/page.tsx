@@ -70,7 +70,7 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
             </div>
 
             <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatTile label="Total supply" value={fmtBalance(token.totalSupply, dec, symbol)} />
+                <StatTile label="Total supply" value={token.totalSupply != null ? fmtBalance(token.totalSupply, dec, symbol) : '—'} />
                 <StatTile label="Holders" value={fmtInt(token.holderCount)} />
                 <StatTile label="Transfers" value={fmtInt(token.transferCount)} />
                 <StatTile

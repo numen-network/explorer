@@ -9,6 +9,7 @@ import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtInt} from '@/lib/format'
 import type {ValidatorRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
+import {variantName} from '@/lib/variant'
 
 const col = columnsFor<ValidatorRow>()
 const num = {align: 'right', cellClassName: 'font-mono'} as const
@@ -21,11 +22,14 @@ export function ValidatorsTable({rows, chain}: {rows: ValidatorRow[]; chain: Cha
                 col.display({
                     id: 'status',
                     header: 'Status',
-                    cell: ({row}) => (
-                        <Badge variant={row.original.kicked ? 'neg' : row.original.active ? 'pos' : 'idle'}>
-                            {row.original.kicked ? `Kicked · ${row.original.kicked}` : row.original.active ? 'Active' : 'Inactive'}
-                        </Badge>
-                    ),
+                    cell: ({row}) => {
+                        const kicked = variantName(row.original.kicked)
+                        return (
+                            <Badge variant={kicked ? 'neg' : row.original.active ? 'pos' : 'idle'}>
+                                {kicked ? `Kicked · ${kicked}` : row.original.active ? 'Active' : 'Inactive'}
+                            </Badge>
+                        )
+                    },
                 }),
                 col.display({id: 'locked', header: 'Locked', meta: num, cell: ({row}) => fmtBalance(row.original.lockedAmount, chain.decimals, chain.symbol)}),
                 col.display({id: 'expiry', header: 'Lock expiry', meta: num, cell: ({row}) => (row.original.lockExpiry ? fmtInt(row.original.lockExpiry) : '—')}),

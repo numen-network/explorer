@@ -1,9 +1,8 @@
 import {toJSON} from '@subsquid/util-internal-json'
 import {In} from 'typeorm'
 import {Store} from '@subsquid/typeorm-store'
-import {Account, Delegation, IdentityStatus, Judgement, PrimeState, ProxyRelation, Registrar, Track} from './model'
+import {Account, Delegation, Judgement, PrimeState, ProxyRelation, Registrar, Track} from './model'
 import {BatchData} from './batch'
-import {convictionLabel, convictionLevel, convictionVotes} from './conviction'
 import {events, storage} from './types'
 import {decodeUtf8} from './utf8'
 
@@ -37,7 +36,7 @@ export function collectAnnotationEvent(batch: BatchData, id: string, name: strin
                 s.given += 1
                 s.block = height
                 s.at = at
-                batch.judgementsGiven.push({id, registrar: args.registrarIndex, target: who, block: height, at})
+                batch.judgementsGiven.push({id, registrar: args.registrarIndex, target: who, block: height, at, header: ev.block})
             }
             break
         }
@@ -145,24 +144,10 @@ export function collectAnnotationCall(batch: BatchData, name: string, args: any,
     }
 }
 
-const GOOD = new Set(['KnownGood', 'Reasonable'])
-const FLAG = new Set(['Erroneous', 'LowQuality'])
-
 function judgementOf(json: unknown, registrar: number): {kind?: string; fee?: bigint} {
     const raw = (json as {judgements?: [number, {__kind: string; value?: string}][]})?.judgements ?? []
     const found = raw.find(([i]) => i === registrar)?.[1]
     return {kind: found?.__kind, fee: found?.value != null ? BigInt(found.value) : undefined}
-}
-
-// the three buckets coarsen the five state badge the web draws per account, so
-// a row can never sit in a bucket its own badge contradicts
-function judgementStatus(judgements: [number, {__kind: string}][] | undefined): IdentityStatus {
-    let good = false
-    for (const [, j] of judgements ?? []) {
-        if (FLAG.has(j.__kind)) return IdentityStatus.FLAGGED
-        if (GOOD.has(j.__kind)) good = true
-    }
-    return good ? IdentityStatus.VERIFIED : IdentityStatus.UNVERIFIED
 }
 
 // only the fee, the account and the field mask ever move, so the whole short
@@ -190,7 +175,7 @@ export async function finalizeRegistrars(batch: BatchData, lastHeader: any, stor
                     index,
                     fee: 0n,
                     fields: 0n,
-                    addedAt: batch.registrarAdded.get(index) ?? lastHeader.height,
+                    addedAt: batch.registrarAdded.get(index) ?? null,
                     requestCount: 0,
                     givenCount: 0,
                 })
@@ -251,6 +236,7 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
             // a column only clears on null, upsert skips it when undefined
             a.identitySuper = reg ? new Account({id: reg[0]}) : null
             a.identitySubName = reg ? decodeIdentityData(reg[1]) : null
+            a.identitySubData = reg ? toJSON(reg[1]) : null
         })
     }
     // a cleared identity is just an empty registration read back, so it rides
@@ -265,16 +251,18 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
             const reg = regs[i]
             a.identityDisplay = reg ? decodeUtf8(reg.info?.display) : null
             a.identityJson = reg ? toJSON(reg) : null
-            a.identityStatus = reg ? judgementStatus(reg.judgements) : null
         })
     }
+    // the event names no verdict, the registration at its own block does
     for (const g of batch.judgementsGiven) {
+        const s = storage.identity.identityOf.v100
+        if (!s.is(g.header)) throw new Error(`unhandled spec version for identity at block ${g.block}`)
         batch.judgements.push(
             new Judgement({
                 id: g.id,
                 registrar: new Registrar({id: String(g.registrar)}),
                 target: new Account({id: g.target}),
-                ...judgementOf(entity(g.target).identityJson, g.registrar),
+                ...judgementOf(await s.get(g.header, g.target), g.registrar),
                 block: g.block,
                 timestamp: g.at,
             })
@@ -327,9 +315,8 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
                         who: entity(who),
                         target: new Account({id: v.value.target}),
                         track: new Track({id: String(cls)}),
-                        conviction: convictionLabel(v.value.conviction),
+                        conviction: v.value.conviction.__kind,
                         balance: v.value.balance,
-                        votes: convictionVotes(v.value.balance, convictionLevel(v.value.conviction)),
                         block: height,
                     })
                 )

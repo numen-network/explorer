@@ -18,6 +18,9 @@ export class TokenHolder {
     @StringColumn_({nullable: false})
     address!: string
 
-    @BigIntColumn_({nullable: false})
-    balance!: bigint
+    /**
+     * what the contract answered to balanceOf at the last block that moved this holder, null when it answered nothing
+     */
+    @BigIntColumn_({nullable: true})
+    balance!: bigint | undefined | null
 }

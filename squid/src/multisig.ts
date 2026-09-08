@@ -1,3 +1,4 @@
+import {toJSON} from '@subsquid/util-internal-json'
 import {In} from 'typeorm'
 import {Store} from '@subsquid/typeorm-store'
 import {MultisigOp} from './model'
@@ -7,6 +8,10 @@ import {storage} from './types'
 // events drive the lifecycle, every state change since genesis emits
 // NewMultisig, MultisigApproval, MultisigExecuted or MultisigCancelled, then
 // storage at the batch head fills the deposit of whatever is still open
+
+// an operation stays open through NewMultisig and MultisigApproval, the two
+// closing events drop it from storage
+const OPEN = new Set(['NewMultisig', 'MultisigApproval'])
 
 export interface MsigEvent {
     name: string
@@ -61,7 +66,7 @@ export async function finalizeMultisig(batch: BatchData, lastHeader: any, store:
 async function loadPoked(batch: BatchData, store: Store): Promise<void> {
     if (batch.msigPokes.length === 0) return
     const rows = await store.find(MultisigOp, {
-        where: batch.msigPokes.map(p => ({depositor: {id: p.depositor}, callHash: p.callHash, status: 'pending'})),
+        where: batch.msigPokes.map(p => ({depositor: {id: p.depositor}, callHash: p.callHash, status: In([...OPEN])})),
         relations: {multisig: true, depositor: true},
     })
     for (const op of rows) if (!batch.msigOps.has(op.id)) batch.msigOps.set(op.id, op)
@@ -72,7 +77,7 @@ async function loadPoked(batch: BatchData, store: Store): Promise<void> {
 async function readDeposits(batch: BatchData, lastHeader: any): Promise<void> {
     const pending: MultisigOp[] = []
     for (const op of batch.msigOps.values()) {
-        if (op.status === 'pending') pending.push(op)
+        if (OPEN.has(op.status)) pending.push(op)
         else op.deposit = null
     }
     if (pending.length === 0) return
@@ -115,7 +120,7 @@ function applyMsigEvent(batch: BatchData, ev: MsigEvent): void {
                 approvals: [args.approving],
                 threshold: info?.threshold,
                 signatories: info?.signatories,
-                status: 'pending',
+                status: 'NewMultisig',
                 createdBlock: ev.height,
                 updatedBlock: ev.height,
             })
@@ -125,17 +130,14 @@ function applyMsigEvent(batch: BatchData, ev: MsigEvent): void {
     const op = batch.msigOps.get(id)
     if (op == null) return
     op.updatedBlock = ev.height
+    op.status = ev.name.split('.')[1]
     switch (ev.name) {
         case 'Multisig.MultisigApproval':
             if (!op.approvals.includes(args.approving)) op.approvals = [...op.approvals, args.approving]
             break
         case 'Multisig.MultisigExecuted':
             if (!op.approvals.includes(args.approving)) op.approvals = [...op.approvals, args.approving]
-            op.status = 'executed'
-            op.result = args.result?.__kind === 'Err' ? 'err' : 'ok'
-            break
-        case 'Multisig.MultisigCancelled':
-            op.status = 'cancelled'
+            op.result = toJSON(args.result)
             break
     }
 }

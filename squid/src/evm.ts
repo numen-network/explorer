@@ -1,14 +1,11 @@
 import {blake2b} from '@noble/hashes/blake2.js'
 import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
-import {RpcClient} from '@subsquid/rpc-client'
+import {RpcClient, RpcError} from '@subsquid/rpc-client'
 import {decodeUtf8} from './utf8'
 
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
-
-// Ethereum typed transaction ids, EIP7702 occupies 0x04
-const TX_TYPE: Record<string, number> = {Legacy: 0, EIP2930: 1, EIP1559: 2, EIP7702: 4}
 
 export interface DecodedEvmTx {
     hash: string
@@ -20,9 +17,9 @@ export interface DecodedEvmTx {
     nonce: number
     gasLimit: bigint
     gasPrice: bigint
-    txType: number
+    txType: string
     status: string
-    statusReason?: string
+    exitReason: unknown
 }
 
 export interface DecodedErc20Transfer {
@@ -55,10 +52,8 @@ function asBigInt(v: unknown): bigint {
 // Ethereum.Executed event args. The typed frontier helpers reject unknown tx
 // variants like EIP7702, the generic path survives runtime upgrades.
 export function decodeEvmTx(callArgs: any, executedArgs: any, baseFee: bigint): DecodedEvmTx {
-    const kind: string = callArgs.transaction.__kind
+    const txType: string = callArgs.transaction.__kind
     const t = callArgs.transaction.value
-    const txType = TX_TYPE[kind]
-    if (txType == null) throw new Error(`unknown evm tx variant ${kind}`)
     const isCreate = t.action.__kind === 'Create'
     let gasPrice: bigint
     if (t.maxFeePerGas != null) {
@@ -80,7 +75,7 @@ export function decodeEvmTx(callArgs: any, executedArgs: any, baseFee: bigint): 
         gasPrice,
         txType,
         status: executedArgs.exitReason.__kind as string,
-        statusReason: executedArgs.exitReason.value?.__kind,
+        exitReason: executedArgs.exitReason,
     }
 }
 
@@ -111,7 +106,7 @@ function topicToAddress(topic: string): string {
     return '0x' + topic.slice(26)
 }
 
-const SELECTORS = {name: '0x06fdde03', symbol: '0x95d89b41', decimals: '0x313ce567'}
+const SELECTORS = {name: '0x06fdde03', symbol: '0x95d89b41', decimals: '0x313ce567', totalSupply: '0x18160ddd', balanceOf: '0x70a08231'}
 
 export interface Erc20Metadata {
     name?: string
@@ -119,36 +114,47 @@ export interface Erc20Metadata {
     decimals?: number
 }
 
-export async function fetchErc20Metadata(rpc: RpcClient, token: string): Promise<Erc20Metadata> {
+/** `at` is the block the answers hold for, as an eth block number. */
+export async function fetchErc20Metadata(rpc: RpcClient, token: string, at: string): Promise<Erc20Metadata> {
     const [name, symbol, decimals] = await Promise.all([
-        ethCall(rpc, token, SELECTORS.name).then(abiDecodeString),
-        ethCall(rpc, token, SELECTORS.symbol).then(abiDecodeString),
-        ethCall(rpc, token, SELECTORS.decimals).then(abiDecodeUint8),
+        ethCall(rpc, token, SELECTORS.name, at).then(abiDecodeString),
+        ethCall(rpc, token, SELECTORS.symbol, at).then(abiDecodeString),
+        ethCall(rpc, token, SELECTORS.decimals, at).then(abiDecodeUint8),
     ])
     return {name, symbol, decimals}
 }
 
-async function ethCall(rpc: RpcClient, to: string, data: string): Promise<string | undefined> {
+export async function fetchErc20Supply(rpc: RpcClient, token: string, at: string): Promise<bigint | undefined> {
+    return abiDecodeUint(await ethCall(rpc, token, SELECTORS.totalSupply, at))
+}
+
+export async function fetchErc20Balance(rpc: RpcClient, token: string, holder: string, at: string): Promise<bigint | undefined> {
+    return abiDecodeUint(await ethCall(rpc, token, SELECTORS.balanceOf + holder.slice(2).padStart(64, '0'), at))
+}
+
+// a revert is the contract's own answer, anything else is the node failing us
+async function ethCall(rpc: RpcClient, to: string, data: string, at: string): Promise<string | undefined> {
     try {
-        return await rpc.call('eth_call', [{to, data}, 'latest'])
-    } catch {
-        return undefined
+        return await rpc.call('eth_call', [{to, data}, at])
+    } catch (e) {
+        if (e instanceof RpcError) return undefined
+        throw e
     }
 }
 
 function abiDecodeString(ret: string | undefined): string | undefined {
     if (!ret || ret === '0x' || ret.length < 130) return undefined
-    try {
-        const len = Number(BigInt('0x' + ret.slice(66, 130)))
-        if (len === 0 || len > 256) return undefined
-        return decodeUtf8('0x' + ret.slice(130, 130 + len * 2)) ?? undefined
-    } catch {
-        return undefined
-    }
+    const len = Number(BigInt('0x' + ret.slice(66, 130)))
+    if (len === 0 || ret.length < 130 + len * 2) return undefined
+    return decodeUtf8('0x' + ret.slice(130, 130 + len * 2)) ?? undefined
+}
+
+function abiDecodeUint(ret: string | undefined): bigint | undefined {
+    if (!ret || ret.length !== 66) return undefined
+    return BigInt(ret)
 }
 
 function abiDecodeUint8(ret: string | undefined): number | undefined {
-    if (!ret || ret === '0x' || ret.length !== 66) return undefined
-    const v = Number(BigInt(ret))
-    return v >= 0 && v <= 255 ? v : undefined
+    const v = abiDecodeUint(ret)
+    return v != null && v <= 255n ? Number(v) : undefined
 }

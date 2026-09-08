@@ -16,6 +16,7 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
+import {phaseOf} from '@/lib/referendum'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum, trackLabel} from '@/lib/format'
 import {homeData, type DailyRow} from '@/lib/gql'
@@ -73,7 +74,7 @@ export default async function Home() {
         finalized: o.block.finalized,
         extrinsicCount: o.block.extrinsicCount,
         eventCount: o.block.eventCount,
-        workHash: o.block.workHash,
+        workHash: o.block.workHash!,
         minerAddr: o.block.author ? ss58Encode(o.block.author.id, props.ss58) : null,
         minerAcc: o.block.author ?? null,
         protocol: o.protocol,
@@ -308,7 +309,7 @@ export default async function Home() {
                                         )}
                                     </div>
                                     <div className="mt-1 flex justify-end">
-                                        <StatusBadge status={r.status} />
+                                        <StatusBadge phase={phaseOf(r)} />
                                     </div>
                                 </div>
                             </div>

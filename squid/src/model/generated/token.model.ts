@@ -19,9 +19,15 @@ export class Token {
     @IntColumn_({nullable: true})
     decimals!: number | undefined | null
 
-    @BigIntColumn_({nullable: false})
-    totalSupply!: bigint
+    /**
+     * what the contract answered to totalSupply at the last block that moved it, null when it answered nothing
+     */
+    @BigIntColumn_({nullable: true})
+    totalSupply!: bigint | undefined | null
 
+    /**
+     * holders whose last balanceOf answer was above zero
+     */
     @IntColumn_({nullable: false})
     holderCount!: number
 

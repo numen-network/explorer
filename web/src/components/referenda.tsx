@@ -3,27 +3,24 @@ import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {fmtBalance, fmtCompact, fmtDaySpan, planckToNum} from '@/lib/format'
+import {camelLabel, fmtBalance, fmtCompact, fmtDaySpan, planckToNum} from '@/lib/format'
 import type {AccountRef, ProposalNode} from '@/lib/gql'
+import type {Phase} from '@/lib/referendum'
 import {ss58Encode} from '@/lib/ss58'
 
-const STATUS_BG: Record<string, string> = {
-    SUBMITTED: 'bg-muted-foreground',
-    DECIDING: 'bg-primary',
-    CONFIRMING: 'bg-good',
-    APPROVED: 'bg-good',
-    REJECTED: 'bg-destructive',
-    TIMEDOUT: 'bg-muted-foreground',
-    CANCELLED: 'bg-muted-foreground',
-    KILLED: 'bg-destructive',
+const PHASE_BG: Record<Phase, string> = {
+    Submitted: 'bg-muted-foreground',
+    Deciding: 'bg-primary',
+    Confirming: 'bg-good',
+    Approved: 'bg-good',
+    Rejected: 'bg-destructive',
+    TimedOut: 'bg-muted-foreground',
+    Cancelled: 'bg-muted-foreground',
+    Killed: 'bg-destructive',
 }
 
-export function StatusBadge({status, className}: {status: string; className?: string}) {
-    return (
-        <Badge className={cn('shrink-0 rounded-md px-3 py-1.5 text-xs leading-none font-semibold', STATUS_BG[status] ?? 'bg-muted-foreground', className)}>
-            {status[0] + status.slice(1).toLowerCase()}
-        </Badge>
-    )
+export function StatusBadge({phase, className}: {phase: Phase; className?: string}) {
+    return <Badge className={cn('shrink-0 rounded-md px-3 py-1.5 text-xs leading-none font-semibold', PHASE_BG[phase], className)}>{camelLabel(phase)}</Badge>
 }
 
 // split reads green aye against red nay with the tally line between them,

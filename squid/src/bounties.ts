@@ -10,6 +10,7 @@ import {decodeUtf8} from './utf8'
 // everything still alive, claimed and cancelled rows keep their event data
 
 export interface BountyEvent {
+    id: string
     name: string
     args: any
     height: number
@@ -17,15 +18,18 @@ export interface BountyEvent {
     signer?: string
 }
 
-const TERMINAL = new Set(['claimed', 'rejected', 'cancelled'])
+// the chain drops the entry once a bounty ends, the event that dropped it is
+// the status from then on
+const TERMINAL = new Set(['BountyClaimed', 'BountyRejected', 'BountyCanceled'])
+const CHILD_TERMINAL = new Set(['Claimed', 'Canceled'])
 
-export function collectBountyEvent(batch: BatchData, name: string, args: any, height: number, at: Date, signer?: string): void {
+export function collectBountyEvent(batch: BatchData, id: string, name: string, args: any, height: number, at: Date, signer?: string): void {
     const pallet = name.split('.')[0]
     if (pallet !== 'Bounties' && pallet !== 'ChildBounties') return
     for (const key of ['curator', 'beneficiary']) {
         if (typeof args?.[key] === 'string') batch.touch(args[key], height)
     }
-    batch.bountyEvents.push({name, args, height, at, signer})
+    batch.bountyEvents.push({id, name, args, height, at, signer})
 }
 
 // child bounty curator management emits no events at all
@@ -88,77 +92,67 @@ function parentIndex(ev: BountyEvent): number {
     return ev.args.index ?? ev.args.bountyId
 }
 
-function pushTimeline(b: Bounty, status: string, ev: BountyEvent): void {
-    b.timeline = [...((b.timeline as any[]) ?? []), {status, block: ev.height, timestamp: ev.at.toISOString()}]
+function pushTimeline(b: Bounty, ev: BountyEvent): void {
+    b.timeline = [...((b.timeline as any[]) ?? []), {event: ev.id, name: ev.name, block: ev.height, timestamp: ev.at.toISOString()}]
 }
 
+// the events only say which BountyStatus variant the chain moved to, storage
+// at the batch head fills the rest in for whatever is still alive
 function applyBountyEvent(batch: BatchData, ev: BountyEvent): void {
     if (ev.name.startsWith('ChildBounties.')) return applyChildEvent(batch, ev)
     const args = ev.args
     const id = String(parentIndex(ev))
-    if (ev.name === 'Bounties.BountyProposed') {
+    const method = ev.name.split('.')[1]
+    if (method === 'BountyProposed') {
         const b = new Bounty({
             id,
             index: args.index,
             proposer: ev.signer != null ? batch.touch(ev.signer, ev.height) : undefined,
             value: 0n,
-            status: 'proposed',
+            status: 'Proposed',
             createdAt: ev.height,
             updatedAt: ev.height,
             timeline: [],
         })
-        pushTimeline(b, 'proposed', ev)
+        pushTimeline(b, ev)
         batch.bounties.set(id, b)
         return
     }
     const b = batch.bounties.get(id)
     if (b == null) return
     b.updatedAt = ev.height
-    switch (ev.name) {
-        case 'Bounties.BountyApproved':
-            b.status = 'approved'
-            pushTimeline(b, 'approved', ev)
+    pushTimeline(b, ev)
+    switch (method) {
+        case 'BountyApproved':
+            b.status = 'Approved'
             break
-        case 'Bounties.BountyBecameActive':
-            b.status = 'funded'
-            pushTimeline(b, 'funded', ev)
+        case 'BountyBecameActive':
+            b.status = 'Funded'
             break
-        case 'Bounties.CuratorProposed':
-            b.status = 'curator_proposed'
+        case 'CuratorProposed':
+            b.status = 'CuratorProposed'
             b.curator = new Account({id: args.curator})
-            pushTimeline(b, 'curator proposed', ev)
             break
-        case 'Bounties.CuratorAccepted':
-            b.status = 'active'
+        case 'CuratorAccepted':
+            b.status = 'Active'
             b.curator = new Account({id: args.curator})
-            pushTimeline(b, 'curator accepted', ev)
             break
-        case 'Bounties.CuratorUnassigned':
-            b.status = 'funded'
+        case 'CuratorUnassigned':
+            b.status = 'Funded'
             b.curator = null
-            pushTimeline(b, 'curator unassigned', ev)
             break
-        case 'Bounties.BountyAwarded':
-            b.status = 'pending_payout'
+        case 'BountyAwarded':
+            b.status = 'PendingPayout'
             b.beneficiary = new Account({id: args.beneficiary})
-            pushTimeline(b, 'awarded', ev)
             break
-        case 'Bounties.BountyClaimed':
-            b.status = 'claimed'
+        case 'BountyClaimed':
+            b.status = method
             b.payout = BigInt(args.payout)
             b.beneficiary = new Account({id: args.beneficiary})
-            pushTimeline(b, 'claimed', ev)
             break
-        case 'Bounties.BountyRejected':
-            b.status = 'rejected'
-            pushTimeline(b, 'rejected', ev)
-            break
-        case 'Bounties.BountyCanceled':
-            b.status = 'cancelled'
-            pushTimeline(b, 'cancelled', ev)
-            break
-        case 'Bounties.BountyExtended':
-            pushTimeline(b, 'extended', ev)
+        case 'BountyRejected':
+        case 'BountyCanceled':
+            b.status = method
             break
     }
     // the chain drops the entry once the bounty ends and both deposits go home
@@ -179,7 +173,7 @@ function applyChildEvent(batch: BatchData, ev: BountyEvent): void {
                 parent: new Bounty({id: String(args.index)}),
                 childIndex: args.childIndex,
                 value: 0n,
-                status: 'added',
+                status: 'Added',
                 createdAt: ev.height,
                 updatedAt: ev.height,
             })
@@ -191,19 +185,19 @@ function applyChildEvent(batch: BatchData, ev: BountyEvent): void {
     c.updatedAt = ev.height
     switch (ev.name) {
         case 'ChildBounties.Awarded':
-            c.status = 'pending_payout'
+            c.status = 'PendingPayout'
             c.beneficiary = new Account({id: args.beneficiary})
             break
         case 'ChildBounties.Claimed':
-            c.status = 'claimed'
+            c.status = 'Claimed'
             c.payout = BigInt(args.payout)
             c.beneficiary = new Account({id: args.beneficiary})
             break
         case 'ChildBounties.Canceled':
-            c.status = 'cancelled'
+            c.status = 'Canceled'
             break
     }
-    if (TERMINAL.has(c.status)) c.curatorDeposit = null
+    if (CHILD_TERMINAL.has(c.status)) c.curatorDeposit = null
 }
 
 async function refreshFromStorage(batch: BatchData, lastHeader: any): Promise<void> {
@@ -224,14 +218,14 @@ async function refreshFromStorage(batch: BatchData, lastHeader: any): Promise<vo
             b.curatorDeposit = info.curatorDeposit
             b.description = decodeUtf8(descrs[i]) ?? b.description
             const st = info.status
-            b.status = snake(st.__kind)
+            b.status = st.__kind
             b.curator = 'curator' in st ? new Account({id: st.curator}) : null
             b.beneficiary = st.__kind === 'PendingPayout' ? new Account({id: st.beneficiary}) : b.beneficiary
             b.updateDue = st.__kind === 'Active' ? st.updateDue : null
             b.unlockAt = st.__kind === 'PendingPayout' ? st.unlockAt : null
         })
     }
-    const children = [...batch.childBounties.values()].filter(c => !TERMINAL.has(c.status))
+    const children = [...batch.childBounties.values()].filter(c => !CHILD_TERMINAL.has(c.status))
     if (children.length > 0) {
         const s = storage.childBounties.childBounties.v100
         const d = storage.childBounties.childBountyDescriptionsV1.v100
@@ -246,13 +240,9 @@ async function refreshFromStorage(batch: BatchData, lastHeader: any): Promise<vo
             c.curatorDeposit = info.curatorDeposit
             c.description = decodeUtf8(descrs[i]) ?? c.description
             const st = info.status
-            c.status = snake(st.__kind)
+            c.status = st.__kind
             c.curator = 'curator' in st ? new Account({id: st.curator}) : null
             c.beneficiary = st.__kind === 'PendingPayout' ? new Account({id: st.beneficiary}) : c.beneficiary
         })
     }
-}
-
-function snake(kind: string): string {
-    return kind.replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase()
 }

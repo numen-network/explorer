@@ -23,17 +23,14 @@ export class Delegation {
     @ManyToOne_(() => Track, {nullable: true})
     track!: Relation_<Track>
 
+    /**
+     * the Conviction variant name
+     */
     @StringColumn_({nullable: false})
     conviction!: string
 
     @BigIntColumn_({nullable: false})
     balance!: bigint
-
-    /**
-     * the balance weighted by conviction, what the delegation adds to the target's votes
-     */
-    @BigIntColumn_({nullable: false})
-    votes!: bigint
 
     @IntColumn_({nullable: false})
     block!: number

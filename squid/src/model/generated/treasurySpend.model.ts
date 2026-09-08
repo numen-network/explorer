@@ -18,6 +18,9 @@ export class TreasurySpend {
     @ManyToOne_(() => Referendum, {nullable: true})
     referendum!: Relation_<Referendum> | undefined | null
 
+    /**
+     * the Treasury call family, spend_local or spend
+     */
     @StringColumn_({nullable: false})
     kind!: string
 
@@ -28,6 +31,9 @@ export class TreasurySpend {
     @BigIntColumn_({nullable: false})
     amount!: bigint
 
+    /**
+     * method of the last Treasury event the spend raised
+     */
     @Index_("idx_treasury_spend_status_607b4e2e")
     @StringColumn_({nullable: false})
     status!: string

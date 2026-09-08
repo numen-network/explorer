@@ -13,8 +13,9 @@ type Block @entity {
   minerFees: BigInt!
   "fee share those same extrinsics paid to the treasury"
   treasuryFees: BigInt!
-  nonce: String!
-  workHash: String!
+  "the pow seal, which genesis has none of"
+  nonce: String
+  workHash: String
   finalized: Boolean! @index
   extrinsicCount: Int!
   eventCount: Int!
@@ -52,7 +53,7 @@ type MinedObject @entity {
   id: ID!
   block: Block! @unique
   protocol: String!
-  "gzip of little endian f32 xyz triples in node emission order"
+  "gzip of little endian f64 xyz triples in node emission order"
   vertices: Bytes!
   vertexCount: Int!
 }
@@ -75,9 +76,10 @@ type Account @entity {
   lastActiveBlock: Int! @index
   identityDisplay: String @index
   identityJson: JSON
-  "coarsens the judgement precedence the account badge uses, a flag from any registrar outranks approval from another"
-  identityStatus: IdentityStatus @index
+  "the sub name as readable text, only a Raw Data variant decodes to one"
   identitySubName: String
+  "the Data the super filed for this sub, whole"
+  identitySubData: JSON
   identitySuper: Account
   subs: [Account!]! @derivedFrom(field: "identitySuper")
   "primary username granted through a username authority"
@@ -86,7 +88,7 @@ type Account @entity {
   vestingJson: JSON
   "balance locks with the lock id decoded from its eight bytes"
   locksJson: JSON
-  "typed holds on the reserved balance"
+  "holds on the reserved balance, each with its RuntimeHoldReason whole"
   holdsJson: JSON
   "plain reserves the chain records no reason for, each read back from the pallet that took it"
   depositsJson: JSON
@@ -159,9 +161,12 @@ type EvmTransaction @entity {
   gasLimit: BigInt!
   gasUsed: BigInt!
   gasPrice: BigInt!
-  txType: Int!
+  "TransactionV2 variant name, Legacy, EIP2930, EIP1559 or EIP7702"
+  txType: String!
+  "ExitReason variant name"
   status: String!
-  statusReason: String
+  "the ExitReason the runtime reported, whole"
+  exitReason: JSON!
   timestamp: DateTime! @index
 }
 
@@ -181,7 +186,9 @@ type Token @entity {
   name: String
   symbol: String @index
   decimals: Int
-  totalSupply: BigInt!
+  "what the contract answered to totalSupply at the last block that moved it, null when it answered nothing"
+  totalSupply: BigInt
+  "holders whose last balanceOf answer was above zero"
   holderCount: Int!
   transferCount: Int!
   "block the create tx landed in, absent for factory built contracts and for deployments older than the index range"
@@ -205,13 +212,8 @@ type TokenHolder @entity @index(fields: ["token", "balance"]) {
   id: ID!
   token: Token! @index
   address: String! @index
-  balance: BigInt!
-}
-
-enum IdentityStatus {
-  VERIFIED
-  UNVERIFIED
-  FLAGGED
+  "what the contract answered to balanceOf at the last block that moved this holder, null when it answered nothing"
+  balance: BigInt
 }
 
 """every pallet and method the chain has actually seen, so a call picker offers real options instead of a hardcoded list"""
@@ -227,7 +229,7 @@ type Judgement @entity @index(fields: ["registrar", "block"]) {
   id: ID!
   registrar: Registrar! @index
   target: Account! @index
-  "the verdict read back from storage right after the event, absent when the same batch cleared the identity"
+  "the verdict read back from storage at the event's block, absent when that block also cleared the identity"
   kind: String
   "only a FeePaid verdict carries one, it is the amount the registrar was paid up front"
   fee: BigInt
@@ -242,7 +244,8 @@ type Registrar @entity {
   account: Account @index
   fee: BigInt!
   fields: BigInt!
-  addedAt: Int!
+  "block of the RegistrarAdded event, null for a registrar the chain started with"
+  addedAt: Int
   requestCount: Int!
   givenCount: Int!
   lastJudgementBlock: Int
@@ -260,26 +263,27 @@ type Track @entity {
   decisionPeriod: Int!
   confirmPeriod: Int!
   minEnactmentPeriod: Int!
+  "pallet_referenda Curve as the runtime constant carries it, Perbill and FixedI64 fields count in billionths"
   minApproval: JSON!
   minSupport: JSON!
 }
 
+"ReferendumInfo variant names"
 enum ReferendumStatus {
-  SUBMITTED
-  DECIDING
-  CONFIRMING
-  APPROVED
-  REJECTED
-  TIMEDOUT
-  CANCELLED
-  KILLED
+  Ongoing
+  Approved
+  Rejected
+  Cancelled
+  TimedOut
+  Killed
 }
 
 type Referendum @entity {
   id: ID!
   index: Int! @index @unique
   track: Track! @index
-  origin: String
+  "the proposal origin as the submit call carried it, whole"
+  origin: JSON
   proposalHash: String
   "first line of the noted metadata preimage, the rest of it is the description"
   title: String
@@ -298,6 +302,7 @@ type Referendum @entity {
   submitter: Account @index
   submittedAt: Int!
   submittedTimestamp: DateTime! @index
+  "an ongoing one keeps its phase in decidingSince and confirmingSince"
   status: ReferendumStatus! @index
   decidingSince: Int
   confirmingSince: Int
@@ -305,6 +310,7 @@ type Referendum @entity {
   ayes: BigInt!
   nays: BigInt!
   support: BigInt!
+  "one step per lifecycle event, its id, qualified name, block and timestamp"
   timeline: JSON!
   "plain reserves the chain records no reason for, cleared once refunded or slashed"
   submissionDepositor: String @index
@@ -317,11 +323,19 @@ type Vote @entity {
   id: ID!
   referendum: Referendum! @index
   voter: Account! @index
-  decision: String!
-  amount: BigInt!
-  "the amount weighted by conviction, what the vote itself puts on the tally"
-  votes: BigInt!
+  "AccountVote variant, Standard, Split or SplitAbstain"
+  kind: String! @index
+  "Standard only, the aye bit of the vote"
+  aye: Boolean @index
+  "Standard only, the Conviction variant name"
   conviction: String
+  "Standard only"
+  balance: BigInt
+  "Split and SplitAbstain parts"
+  ayeAmount: BigInt
+  nayAmount: BigInt
+  "SplitAbstain only"
+  abstainAmount: BigInt
   block: Int!
   removed: Boolean!
 }
@@ -331,16 +345,23 @@ type VoteAction @entity {
   id: ID!
   referendum: Referendum! @index
   voter: Account! @index
-  "vote or remove, a remove row keeps the vote it took off the tally"
+  "Voted or VoteRemoved, a remove row keeps the vote it took off the tally"
+  method: String!
+  "AccountVote variant, Standard, Split or SplitAbstain"
   kind: String!
-  decision: String!
-  amount: BigInt!
-  "the amount weighted by conviction, delegations come on top"
-  votes: BigInt!
+  "Standard only, the aye bit of the vote"
+  aye: Boolean
+  "Standard only, the Conviction variant name"
   conviction: String
-  "capital delegated to the voter at this block, zero for split and abstain votes"
+  "Standard only"
+  balance: BigInt
+  "Split and SplitAbstain parts"
+  ayeAmount: BigInt
+  nayAmount: BigInt
+  "SplitAbstain only"
+  abstainAmount: BigInt
+  "the delegations on the voter's casting record at this block, as the chain keeps them"
   delegatedCapital: BigInt!
-  "conviction weighted sum of the same delegations, the vote carries this weight onto the tally"
   delegatedVotes: BigInt!
   block: Int! @index
   timestamp: DateTime!
@@ -350,8 +371,8 @@ type VoteAction @entity {
 type MetadataAction @entity {
   id: ID!
   referendum: Referendum! @index
-  "set or cleared, a cleared row carries no text"
-  kind: String!
+  "MetadataSet or MetadataCleared, a cleared row carries no text"
+  method: String!
   "preimage the pointer moved to or came off"
   hash: String!
   "null when the preimage was missing or held no first line"
@@ -367,11 +388,12 @@ type DelegationAction @entity {
   who: Account! @index
   target: Account! @index
   track: Track!
-  "delegate or undelegate, an undelegate row keeps the delegation it removed"
-  kind: String!
+  "Delegated or Undelegated, an undelegate row keeps the delegation it removed"
+  method: String!
   balance: BigInt!
+  "the Conviction variant name"
   conviction: String!
-  "conviction weighted sum delegated to the target after this action"
+  "conviction weighted sum delegated to the target after this action, as the chain keeps it"
   delegatedVotes: BigInt!
   block: Int! @index
   timestamp: DateTime!
@@ -385,8 +407,9 @@ type ReferendumTallySnapshot @entity {
   ayes: BigInt!
   nays: BigInt!
   support: BigInt!
-  "support denominator at the same block"
-  activeIssuance: BigInt!
+  "issuance at the same block, the support denominator is total less inactive"
+  totalIssuance: BigInt!
+  inactiveIssuance: BigInt!
 }
 
 type Delegation @entity {
@@ -394,10 +417,9 @@ type Delegation @entity {
   who: Account! @index
   target: Account! @index
   track: Track!
+  "the Conviction variant name"
   conviction: String!
   balance: BigInt!
-  "the balance weighted by conviction, what the delegation adds to the target's votes"
-  votes: BigInt!
   block: Int!
 }
 
@@ -405,9 +427,11 @@ type TreasurySpend @entity {
   id: ID!
   "referendum whose enactment created this spend, matched by scheduler task"
   referendum: Referendum @index
+  "the Treasury call family, spend_local or spend"
   kind: String!
   beneficiary: Account
   amount: BigInt!
+  "method of the last Treasury event the spend raised"
   status: String! @index
   block: Int!
 }
@@ -428,12 +452,14 @@ type Bounty @entity {
   curator: Account @index
   beneficiary: Account
   description: String
+  "BountyStatus variant name while the chain holds the bounty, then the method of the event that dropped it"
   status: String! @index
   unlockAt: Int
   updateDue: Int
   payout: BigInt
   createdAt: Int!
   updatedAt: Int! @index
+  "one step per lifecycle event, its id, qualified name, block and timestamp"
   timeline: JSON!
 }
 
@@ -448,6 +474,7 @@ type ChildBounty @entity {
   curator: Account
   beneficiary: Account
   description: String
+  "ChildBountyStatus variant name while the chain holds the child, then the method of the event that dropped it"
   status: String! @index
   payout: BigInt
   createdAt: Int!
@@ -466,9 +493,10 @@ type MultisigOp @entity {
   threshold: Int
   "full signer set recovered from the opening call when unambiguous"
   signatories: [String!]
+  "method of the last Multisig event the operation raised"
   status: String! @index
-  "dispatch outcome of an executed operation, ok or err"
-  result: String
+  "DispatchResult of an executed operation, whole"
+  result: JSON
   createdBlock: Int!
   updatedBlock: Int! @index
 }
@@ -496,7 +524,8 @@ type Validator @entity {
   lockExpiry: Int
   offlineSessions: Int!
   equivocations: Int!
-  kicked: String
+  "the reason ValidatorKicked carried, whole"
+  kicked: JSON
   firstSeenBlock: Int!
   lastActiveSession: Int!
 }
