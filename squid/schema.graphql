@@ -44,6 +44,8 @@ type ChainInfo @entity {
   voteLockingPeriod: Int!
   "what a referendum submission reserves, the same on every track"
   submissionDeposit: BigInt!
+  "sovereign account built from the Treasury pallet id"
+  treasuryAccount: String!
   "chain head the indexer last saw, not the indexed head"
   head: Int!
   finalizedHead: Int!

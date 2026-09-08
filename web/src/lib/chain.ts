@@ -14,6 +14,7 @@ export interface ChainProps {
     sessionOffset: number
     voteLockingPeriod: number
     submissionDeposit: string
+    treasuryAccount: string
 }
 
 interface InfoRow extends Omit<ChainProps, 'chain'> {
@@ -24,7 +25,7 @@ interface InfoRow extends Omit<ChainProps, 'chain'> {
 
 const chainInfo = cache(async (): Promise<InfoRow> => {
     const {chainInfos} = await gql<{chainInfos: InfoRow[]}>(
-        `query { chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod submissionDeposit head finalizedHead } }`
+        `query { chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod submissionDeposit treasuryAccount head finalizedHead } }`
     )
     if (!chainInfos[0]) throw new Error('chain info row is missing, the indexer has not written it yet')
     return chainInfos[0]

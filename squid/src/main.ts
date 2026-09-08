@@ -667,6 +667,7 @@ async function refreshChainInfo(ctx: Ctx, h: BlockHeader<Fields>, finalizedHeigh
             sessionOffset: sessionOffset.get(h),
             voteLockingPeriod: voteLocking.get(h),
             submissionDeposit: submission.get(h),
+            treasuryAccount: treasuryAccount(h),
             head: parseInt(head.number, 16),
             finalizedHead: finalizedHeight,
         })

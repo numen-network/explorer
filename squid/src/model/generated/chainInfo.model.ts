@@ -67,6 +67,12 @@ export class ChainInfo {
     submissionDeposit!: bigint
 
     /**
+     * sovereign account built from the Treasury pallet id
+     */
+    @StringColumn_({nullable: false})
+    treasuryAccount!: string
+
+    /**
      * chain head the indexer last saw, not the indexed head
      */
     @IntColumn_({nullable: false})

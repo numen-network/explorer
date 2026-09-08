@@ -25,21 +25,27 @@ export default async function AccountsPage(props: PageProps<'/accounts'>) {
             <div className="mt-6">
                 <h1 className="text-lg font-semibold">Accounts</h1>
             </div>
-            {prime && (
-                <Card size="flush" className="mt-3 flex-row flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3.5">
-                    <span className="text-sm font-medium text-muted-foreground">Prime key</span>
-                    <AccountLink full addr={ss58Encode(prime.account.id, chain.ss58)} acc={prime.account} className="min-w-0" />
-                    <span className="ml-auto text-xs text-dim">
-                        {prime.since > 0 ? (
-                            <>
-                                since <BlockLink height={prime.since} />
-                            </>
-                        ) : (
-                            'since genesis'
-                        )}
-                    </span>
-                </Card>
-            )}
+            <Card size="flush" className="mt-3 divide-y">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3.5">
+                    <span className="w-20 shrink-0 text-sm font-medium text-muted-foreground">Treasury</span>
+                    <AccountLink full addr={ss58Encode(chain.treasuryAccount, chain.ss58)} className="min-w-0" />
+                </div>
+                {prime && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3.5">
+                        <span className="w-20 shrink-0 text-sm font-medium text-muted-foreground">Prime key</span>
+                        <AccountLink full addr={ss58Encode(prime.account.id, chain.ss58)} acc={prime.account} className="min-w-0" />
+                        <span className="ml-auto text-xs text-dim">
+                            {prime.since > 0 ? (
+                                <>
+                                    since <BlockLink height={prime.since} />
+                                </>
+                            ) : (
+                                'since genesis'
+                            )}
+                        </span>
+                    </div>
+                )}
+            </Card>
             <Card size="flush" className="mt-3">
                 <AccountsTable rows={accounts} chain={chain} issuance={dailyStats[0]?.issuanceTotal ?? '0'} />
             </Card>
