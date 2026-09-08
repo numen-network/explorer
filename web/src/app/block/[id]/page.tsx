@@ -16,6 +16,7 @@ import {Card} from '@/components/ui/card'
 import {Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious} from '@/components/ui/pagination'
 import {chainProps} from '@/lib/chain'
 import {parseDigest} from '@/lib/digest'
+import {isH256} from '@/lib/evm'
 import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {blockDetail, leafCalls} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -31,6 +32,7 @@ export async function generateMetadata(props: PageProps<'/block/[id]'>) {
 
 export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     const {id} = await props.params
+    if (!/^\d+$/.test(id) && !isH256(id)) notFound()
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')
     const x = paging(sp, 'xpage')

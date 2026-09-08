@@ -42,12 +42,13 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
     const sp = await props.searchParams
     const tab = (TABS as readonly string[]).includes(String(sp.tab)) ? (String(sp.tab) as Tab) : 'referenda'
     const pg = paging(sp)
-    const track = sp.track ? String(sp.track) : ''
-    const kind = sp.kind ? String(sp.kind) : ''
-    const status = sp.status ? String(sp.status) : ''
-    const on = {kind, status, track}
     const [chain, heads, sum] = await Promise.all([chainProps(), chainHeads(), governanceSummary()])
     const trackIds = sum.trackList.map(t => t.id)
+    const chosen = (v: unknown, values: string[]) => (values.includes(String(v)) ? String(v) : '')
+    const track = chosen(sp.track, trackIds)
+    const kind = chosen(sp.kind, SPEND_KINDS)
+    const status = chosen(sp.status, tab === 'bounties' ? BOUNTY_STATUSES : SPEND_STATUSES)
+    const on = {kind, status, track}
 
     const [refs, spends, bounties, tracks] = await Promise.all([
         tab === 'referenda' ? referendaPage(pg.size, pg.offset, track || undefined) : null,

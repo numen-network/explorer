@@ -246,7 +246,8 @@ export interface Slice {
 // the block row carries extrinsicCount and eventCount, so the totals the pagers
 // need come free and no connection query is required
 export function blockDetail(idOrHash: string, x: Slice, e: Slice) {
-    const where = /^\d+$/.test(idOrHash) ? `{height_eq: ${Number(idOrHash)}}` : `{hash_eq: "${idOrHash.toLowerCase()}"}`
+    const byHeight = /^\d+$/.test(idOrHash)
+    const where = byHeight ? '{height_eq: $height}' : '{hash_eq: $hash}'
     return gql<{
         blocks: BlockRow[]
         extrinsics: ExtrinsicRow[]
@@ -254,14 +255,14 @@ export function blockDetail(idOrHash: string, x: Slice, e: Slice) {
         minedObjects: {protocol: string; vertexCount: number; vertices: string}[]
         topology: TopologyRow[]
     }>(
-        `query ($xl: Int!, $xo: Int!, $el: Int!, $eo: Int!) {
+        `query (${byHeight ? '$height: Int!' : '$hash: String!'}, $xl: Int!, $xo: Int!, $el: Int!, $eo: Int!) {
             blocks(where: ${where}, limit: 1) { ${BLOCK_FIELDS} logs }
             extrinsics(where: {block: ${where}}, orderBy: indexInBlock_ASC, limit: $xl, offset: $xo) { ${EXTRINSIC_FIELDS} }
             events(where: {block: ${where}}, orderBy: indexInBlock_ASC, limit: $el, offset: $eo) { ${EVENT_FIELDS} }
             minedObjects(where: {block: ${where}}, limit: 1) { protocol vertexCount vertices }
             topology: meshTopologies(limit: 1) { id faces faceCount }
         }`,
-        {xl: x.limit, xo: x.offset, el: e.limit, eo: e.offset}
+        {...(byHeight ? {height: Number(idOrHash)} : {hash: idOrHash.toLowerCase()}), xl: x.limit, xo: x.offset, el: e.limit, eo: e.offset}
     )
 }
 

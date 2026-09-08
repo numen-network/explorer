@@ -10,9 +10,10 @@ import {tabHref, trackLabel, type TabCtx} from './shared'
 
 export default async function Delegations({hex, addr, chain, sp}: TabCtx) {
     const pg = paging(sp, 'dpage')
-    const track = sp.dtrack ? String(sp.dtrack) : ''
     const [{delegations: out}, {tracks}] = await Promise.all([delegationsOutFor(hex), trackList()])
-    const dIn = await delegationsInPage(hex, tracks.map(t => t.id), track, pg.size, pg.offset)
+    const trackIds = tracks.map(t => t.id)
+    const track = trackIds.includes(String(sp.dtrack)) ? String(sp.dtrack) : ''
+    const dIn = await delegationsInPage(hex, trackIds, track, pg.size, pg.offset)
 
     const href = (extra: Record<string, string | number>) => tabHref(addr, 'delegations', {dtrack: track, ...extra})
     const filter: ReactNode = dIn.all > 0 && (
