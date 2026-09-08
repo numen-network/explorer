@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
 import {Track} from "./track.model"
 
@@ -47,4 +47,7 @@ export class DelegationAction {
     @Index_("idx_delegation_action_block_5480dbe6")
     @IntColumn_({nullable: false})
     block!: number
+
+    @DateTimeColumn_({nullable: false})
+    timestamp!: Date
 }

@@ -86,9 +86,9 @@ export default function Timeline({steps}: {steps: Step[]}) {
     )
 }
 
-export function rawSteps(timeline: unknown): {block: number; status: string; event?: string}[] {
+export function rawSteps(timeline: unknown): {block: number; status: string; timestamp: string; event?: string}[] {
     if (!Array.isArray(timeline)) return []
-    return (timeline as {block: number; status: string; event?: string}[]).filter(s => typeof s?.block === 'number' && typeof s?.status === 'string')
+    return (timeline as {block: number; status: string; timestamp: string; event?: string}[]).filter(s => typeof s?.block === 'number' && typeof s?.status === 'string' && typeof s?.timestamp === 'string')
 }
 
 export const sentenceCase = (s: string) => s[0].toUpperCase() + s.slice(1)

@@ -18,7 +18,7 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum} from '@/lib/format'
-import {blockTimes, homeCounts, homeData, type DailyRow} from '@/lib/gql'
+import {homeData, type DailyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -52,20 +52,12 @@ function Bar({ratio}: {ratio: number}) {
 }
 
 export default async function Home() {
-    const sinceDay = new Date(Date.now() - 31 * 86400000).toISOString().slice(0, 10)
-    const [props, heads, data] = await Promise.all([chainProps(), chainHeads(), homeData(sinceDay)])
+    const ago = (days: number) => new Date(Date.now() - days * 86400000).toISOString()
+    const [props, heads, data] = await Promise.all([chainProps(), chainHeads(), homeData(ago(31).slice(0, 10), ago(1), ago(30))])
     const days = data.dailyStats.filter(d => !d.id.startsWith('1970'))
     const today: DailyRow | undefined = days[0]
     const yesterday: DailyRow | undefined = days[1]
     const dayAt = (i: number) => days[Math.min(i, days.length - 1)]
-
-    const fullDays = days.slice(1, 8)
-    const perDay = fullDays.length ? Math.round(fullDays.reduce((a, d) => a + d.blocks, 0) / fullDays.length) : Math.max(1, today?.blocks ?? 1)
-    const [counts, refTimes] = await Promise.all([
-        homeCounts(Math.max(0, heads.best - perDay), Math.max(0, heads.best - perDay * 30)),
-        blockTimes([...new Set(data.referendums.map(r => r.submittedAt))]),
-    ])
-    const refStamps = new Map(refTimes.blocks.map(b => [b.height, b.timestamp]))
 
     const blockTime = today && today.blocks > 1 ? (Date.parse(today.tsLast) - Date.parse(today.tsFirst)) / 1000 / (today.blocks - 1) : null
 
@@ -208,7 +200,7 @@ export default async function Home() {
                 <StatTile
                     label="Accounts" href="/charts/accounts"
                     value={fmtInt(data.accounts.totalCount)}
-                    chips={[chip(counts.fresh24.totalCount, '24h'), chip(counts.fresh30.totalCount, '30d')]}
+                    chips={[chip(data.fresh24.totalCount, '24h'), chip(data.fresh30.totalCount, '30d')]}
                 />
                 <StatTile
                     label="Miners" href="/charts/miners"
@@ -229,7 +221,7 @@ export default async function Home() {
                 <StatTile
                     label="Referenda" href="/charts/referenda"
                     value={fmtInt(data.refsTotal.totalCount)}
-                    chips={[chip(counts.refs24.totalCount, '24h'), chip(counts.refs30.totalCount, '30d')]}
+                    chips={[chip(data.refs24.totalCount, '24h'), chip(data.refs30.totalCount, '30d')]}
                 />
                 <StatTile
                     label="Difficulty" href="/charts/difficulty"
@@ -298,44 +290,37 @@ export default async function Home() {
                     </div>
                     <Card size="flush" className={`divide-y ${LIST_H}`}>
                         {data.referendums.length === 0 && <div className="px-5 py-6 text-sm text-muted-foreground">No referenda yet.</div>}
-                        {data.referendums.map(r => {
-                            const iso = refStamps.get(r.submittedAt)
-                            return (
-                                <div key={r.id} className={`${ROW_H} flex items-center gap-3 px-5`}>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex min-w-0 items-baseline gap-2">
-                                            <Link href={`/referendum/${r.index}`} className="shrink-0 font-mono text-primary hover:underline">
-                                                #{r.index}
-                                            </Link>
-                                            <span className="truncate text-[13px]">
-                                                {r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}
-                                            </span>
-                                        </div>
-                                        <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-[11px] text-muted-foreground">
-                                            <span className="truncate">{trackLabel(r.track.name)}</span>
-                                            {iso && (
-                                                <>
-                                                    <span className="text-dim">·</span>
-                                                    <TimeAgo iso={iso} />
-                                                </>
-                                            )}
-                                        </div>
+                        {data.referendums.map(r => (
+                            <div key={r.id} className={`${ROW_H} flex items-center gap-3 px-5`}>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex min-w-0 items-baseline gap-2">
+                                        <Link href={`/referendum/${r.index}`} className="shrink-0 font-mono text-primary hover:underline">
+                                            #{r.index}
+                                        </Link>
+                                        <span className="truncate text-[13px]">
+                                            {r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}
+                                        </span>
                                     </div>
-                                    <div className="shrink-0 text-right">
-                                        <div className="font-mono text-sm">
-                                            {r.proposalAmount != null ? (
-                                                fmtBalance(r.proposalAmount, props.decimals, props.symbol)
-                                            ) : (
-                                                <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>
-                                            )}
-                                        </div>
-                                        <div className="mt-1 flex justify-end">
-                                            <StatusBadge status={r.status} />
-                                        </div>
+                                    <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-[11px] text-muted-foreground">
+                                        <span className="truncate">{trackLabel(r.track.name)}</span>
+                                        <span className="text-dim">·</span>
+                                        <TimeAgo iso={r.submittedTimestamp} />
                                     </div>
                                 </div>
-                            )
-                        })}
+                                <div className="shrink-0 text-right">
+                                    <div className="font-mono text-sm">
+                                        {r.proposalAmount != null ? (
+                                            fmtBalance(r.proposalAmount, props.decimals, props.symbol)
+                                        ) : (
+                                            <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>
+                                        )}
+                                    </div>
+                                    <div className="mt-1 flex justify-end">
+                                        <StatusBadge status={r.status} />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </Card>
                 </div>
             </div>

@@ -23,6 +23,8 @@ const BATCH_CALLS = new Set(['Utility.batch', 'Utility.batch_all', 'Utility.forc
 const MAX_PROPOSAL_DEPTH = 4
 const MAX_TITLE_CHARS = 200
 
+const stampOf = (ev: GovEvent) => new Date(ev.header.timestamp)
+
 export function collectGovEvent(batch: BatchData, id: string, name: string, args: any, height: number, header: any, signer?: string, callArgs?: any): void {
     if (GOV_PALLETS.has(name.split('.')[0])) batch.govEvents.push({id, name, args, height, header, signer, callArgs})
 }
@@ -181,6 +183,7 @@ async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promis
                     conviction: convictionLabel(v.value.conviction),
                     delegatedVotes: await votesOn(ev.header, v.value.target, Number(track)),
                     block: ev.height,
+                    timestamp: stampOf(ev),
                 })
             )
         } else if (method === 'Undelegated') {
@@ -203,6 +206,7 @@ async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promis
                     conviction: src.conviction,
                     delegatedVotes: await votesOn(ev.header, src.target.id, Number(track)),
                     block: ev.height,
+                    timestamp: stampOf(ev),
                 })
             )
         }
@@ -230,6 +234,7 @@ async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
                 title: meta.title,
                 description: meta.description,
                 block: ev.height,
+                timestamp: stampOf(ev),
             })
         )
     }
@@ -430,7 +435,7 @@ function applyGovEvent(batch: BatchData, ev: GovEvent): void {
 }
 
 function pushTimeline(r: Referendum, status: string, ev: GovEvent): void {
-    r.timeline = [...((r.timeline as any[]) ?? []), {status, block: ev.height, event: ev.id}]
+    r.timeline = [...((r.timeline as any[]) ?? []), {status, block: ev.height, timestamp: stampOf(ev).toISOString(), event: ev.id}]
 }
 
 // Referenda.submit args carry the origin as a nested variant, system origins
@@ -457,6 +462,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
             proposalHash: proposalHash(args.proposal),
             submitter: ev.signer ? batch.touch(ev.signer, ev.height) : undefined,
             submittedAt: ev.height,
+            submittedTimestamp: stampOf(ev),
             status: ReferendumStatus.SUBMITTED,
             ayes: 0n,
             nays: 0n,
@@ -581,6 +587,7 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
             delegatedCapital: 0n,
             delegatedVotes: 0n,
             block: ev.height,
+            timestamp: stampOf(ev),
         })
     )
 }

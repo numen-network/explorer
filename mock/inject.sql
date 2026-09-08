@@ -25,6 +25,13 @@ CREATE FUNCTION pg_temp.pk(n int) RETURNS text LANGUAGE sql IMMUTABLE
 CREATE FUNCTION pg_temp.bytes(t text) RETURNS jsonb LANGUAGE sql IMMUTABLE
     AS $$ SELECT to_jsonb('0x' || encode(convert_to(t, 'UTF8'), 'hex')) $$;
 
+CREATE FUNCTION pg_temp.stamp(h int) RETURNS timestamptz LANGUAGE sql STABLE
+    AS $$ SELECT timestamp FROM block WHERE height = h $$;
+
+-- timeline steps carry the stamp the way javascript prints a date
+CREATE FUNCTION pg_temp.iso(h int) RETURNS text LANGUAGE sql STABLE
+    AS $$ SELECT to_char(pg_temp.stamp(h) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') $$;
+
 -- sub account names are the last thing still wearing pallet_identity's Data
 CREATE FUNCTION pg_temp.raw(t text) RETURNS jsonb LANGUAGE sql IMMUTABLE
     AS $$ SELECT jsonb_build_object('__kind', 'Raw' || length(convert_to(t, 'UTF8')), 'value', '0x' || encode(convert_to(t, 'UTF8'), 'hex')) $$;
@@ -44,8 +51,8 @@ CREATE FUNCTION pg_temp.idjson(name text, judge text) RETURNS jsonb LANGUAGE sql
 
 \set P '1000000000000000000::numeric'
 
-INSERT INTO account (id, free, reserved, frozen, nonce, first_seen_block, last_active_block, identity_display, identity_json)
-SELECT pg_temp.pk(n), numn * :P, 0, 0, n * 3, :h - 30000, :h - 500 * n,
+INSERT INTO account (id, free, reserved, frozen, nonce, first_seen_block, first_seen_timestamp, last_active_block, identity_display, identity_json)
+SELECT pg_temp.pk(n), numn * :P, 0, 0, n * 3, :h - 30000, pg_temp.stamp(:h - 30000), :h - 500 * n,
        name, CASE WHEN name IS NULL THEN NULL ELSE pg_temp.idjson(name, judge) END
 FROM (VALUES
     (1, 'Polaris Guild', 'KnownGood',  850000),
@@ -81,20 +88,20 @@ WHERE id = (SELECT author_id FROM block WHERE author_id IS NOT NULL GROUP BY 1 O
 
 INSERT INTO referendum (id, index, track_id, origin, proposal_hash, title, description,
                         proposal_call, proposal_amount, proposal_beneficiary,
-                        submitter_id, submitted_at, status, deciding_since, confirming_since, ended_at,
+                        submitter_id, submitted_at, submitted_timestamp, status, deciding_since, confirming_since, ended_at,
                         ayes, nays, support, timeline)
 SELECT (:base + n)::text, :base + n, track, origin,
        '0x' || md5(n::text) || md5(origin), title, descr,
        pcall, amtk * :P, CASE WHEN benef IS NULL THEN NULL ELSE pg_temp.pk(benef) END,
-       pg_temp.pk(1 + n % 6), :h - sub, status,
+       pg_temp.pk(1 + n % 6), :h - sub, pg_temp.stamp(:h - sub), status,
        CASE WHEN dec  IS NULL THEN NULL ELSE :h - dec  END,
        CASE WHEN conf IS NULL THEN NULL ELSE :h - conf END,
        CASE WHEN fin  IS NULL THEN NULL ELSE :h - fin  END,
        ayesk * :P, naysk * :P, supk * :P,
-       jsonb_build_array(jsonb_build_object('block', :h - sub, 'status', 'submitted'))
-           || CASE WHEN dec  IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('block', :h - dec,  'status', 'deciding'))   END
-           || CASE WHEN conf IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('block', :h - conf, 'status', 'confirming')) END
-           || CASE WHEN fin  IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('block', :h - fin,  'status', lower(status))) END
+       jsonb_build_array(jsonb_build_object('block', :h - sub, 'timestamp', pg_temp.iso(:h - sub), 'status', 'submitted'))
+           || CASE WHEN dec  IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('block', :h - dec,  'timestamp', pg_temp.iso(:h - dec),  'status', 'deciding'))   END
+           || CASE WHEN conf IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('block', :h - conf, 'timestamp', pg_temp.iso(:h - conf), 'status', 'confirming')) END
+           || CASE WHEN fin  IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('block', :h - fin,  'timestamp', pg_temp.iso(:h - fin),  'status', lower(status))) END
 FROM (VALUES
     (0, '0', 'SmallSpender',  'APPROVED',   'Fund the winter hackathon',
         E'Three day onsite event, 40 builders.\n\nBudget covers venue, travel grants and bounties. Receipts will be published after settlement.',
@@ -126,16 +133,16 @@ FROM (VALUES
 
 -- one set row behind every title, and an earlier version on the withdrawn one
 -- so the text history has something to show
-INSERT INTO metadata_action (id, referendum_id, kind, hash, title, description, block)
-SELECT id || '-meta', id, 'set', '0x' || md5(id || 'meta') || md5(id), title, description, submitted_at
+INSERT INTO metadata_action (id, referendum_id, kind, hash, title, description, block, timestamp)
+SELECT id || '-meta', id, 'set', '0x' || md5(id || 'meta') || md5(id), title, description, submitted_at, submitted_timestamp
 FROM referendum WHERE index >= :base AND title IS NOT NULL AND index <> :base + 4;
 
-INSERT INTO metadata_action (id, referendum_id, kind, hash, title, description, block)
+INSERT INTO metadata_action (id, referendum_id, kind, hash, title, description, block, timestamp)
 VALUES
     ((:base + 4)::text || '-meta-0', (:base + 4)::text, 'set', '0x' || md5('meta v1') || md5('4'),
-     'Bridge audit budget', 'Full scope audit across both bridge contracts, fixed fee.', :h - 30000),
+     'Bridge audit budget', 'Full scope audit across both bridge contracts, fixed fee.', :h - 30000, pg_temp.stamp(:h - 30000)),
     ((:base + 4)::text || '-meta-1', (:base + 4)::text, 'set', '0x' || md5('meta v2') || md5('4'),
-     'Bridge audit budget', 'Withdrawn by the submitter, superseded by a revised scope.', :h - 27000);
+     'Bridge audit budget', 'Withdrawn by the submitter, superseded by a revised scope.', :h - 27000, pg_temp.stamp(:h - 27000));
 
 INSERT INTO vote (id, referendum_id, voter_id, decision, conviction, amount, block, removed)
 SELECT (:base + refn)::text || '-' || pg_temp.pk(voter), (:base + refn)::text, pg_temp.pk(voter),
@@ -180,7 +187,7 @@ SELECT n::text, n, valk * :P, feek * :P, descr, status,
        CASE WHEN unlk IS NULL THEN NULL ELSE :h - unlk END,
        CASE WHEN dued IS NULL THEN NULL ELSE :h - dued END,
        payk * :P, :h - cre, :h - upd,
-       (SELECT jsonb_agg(jsonb_build_object('status', s, 'block', :h - o) ORDER BY ord)
+       (SELECT jsonb_agg(jsonb_build_object('status', s, 'block', :h - o, 'timestamp', pg_temp.iso(:h - o)) ORDER BY ord)
           FROM unnest(stats, offs) WITH ORDINALITY AS t(s, o, ord)),
        pg_temp.pk(prop),
        CASE WHEN cur IS NULL THEN NULL ELSE pg_temp.pk(cur) END,
@@ -484,8 +491,8 @@ WHERE token.id = a.addr;
 
 -- pallet_evm maps a sender to blake2_256("evm:" ++ H160), which postgres cannot
 -- compute, so the pairs are precomputed from the same h160 seeds used above
-INSERT INTO account (id, evm_address, free, reserved, frozen, nonce, first_seen_block, last_active_block)
-SELECT m.acct, pg_temp.h160(m.seed), m.numn * :P, 0, 0, t.txs, t.first_blk, t.last_blk
+INSERT INTO account (id, evm_address, free, reserved, frozen, nonce, first_seen_block, first_seen_timestamp, last_active_block)
+SELECT m.acct, pg_temp.h160(m.seed), m.numn * :P, 0, 0, t.txs, t.first_blk, pg_temp.stamp(t.first_blk), t.last_blk
 FROM (VALUES
     ('deployer', '0xd3c8428d9f04979615822fd0c603c36c946a9c0fc335ceb830096fcf5be54020', 91000::numeric),
     ('holder1',  '0xe28fa28b89ac2a24d510af67a4c36ab599ff552597de785d063ba36b5b489146',  47000),

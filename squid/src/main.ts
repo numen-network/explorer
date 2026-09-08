@@ -426,7 +426,7 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
     collectValidatorEvent(batch, ev.id, name, ev.args, block.height, ev.block)
     collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, block.timestamp, ev)
     collectMultisigEvent(batch, name, ev.args, block.height, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined)
-    collectBountyEvent(batch, name, ev.args, block.height, signerOf(ev.extrinsic))
+    collectBountyEvent(batch, name, ev.args, block.height, block.timestamp, signerOf(ev.extrinsic))
 }
 
 let topologyCache: MeshTopology | undefined
@@ -465,7 +465,16 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
     if (ids.length === 0) return
     const existing = await ctx.store.findBy(Account, {id: In(ids)})
     const known = new Set(existing.map(e => e.id))
-    for (const id of ids) if (!known.has(id)) batch.newAccounts.add(id)
+    const stampOf = new Map(batch.blocks.map(b => [b.height, b.timestamp]))
+    for (const id of ids) {
+        if (known.has(id)) continue
+        batch.newAccounts.add(id)
+        const a = batch.accounts.get(id)!
+        // genesis carries no timestamp inherent, so its block row sits at the epoch
+        const at = stampOf.get(a.firstSeenBlock) ?? (a.firstSeenBlock === 0 ? new Date(0) : undefined)
+        if (at == null) throw new Error(`account ${id} first seen at block ${a.firstSeenBlock}, which this batch does not hold`)
+        a.firstSeenTimestamp = at
+    }
     for (const e of existing) {
         const draft = batch.accounts.get(e.id)!
         e.lastActiveBlock = draft.lastActiveBlock

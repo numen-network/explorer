@@ -122,11 +122,15 @@ export interface HomeData {
     evmTotal: {totalCount: number}
     refsTotal: {totalCount: number}
     referendums: ReferendumRow[]
+    fresh24: {totalCount: number}
+    fresh30: {totalCount: number}
+    refs24: {totalCount: number}
+    refs30: {totalCount: number}
 }
 
-export function homeData(sinceDay: string) {
+export function homeData(sinceDay: string, since24: string, since30: string) {
     return gql<HomeData>(
-        `query ($sinceDay: String!) {
+        `query ($sinceDay: String!, $since24: DateTime!, $since30: DateTime!) {
             blocks(orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
             genesis: blocks(where: {height_eq: 0}, limit: 1) { hash }
             minedObjects(orderBy: id_DESC, limit: 5) { block { height hash timestamp finalized extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
@@ -140,27 +144,12 @@ export function homeData(sinceDay: string) {
             evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
             refsTotal: referendumsConnection(orderBy: index_ASC) { totalCount }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
+            fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since24}) { totalCount }
+            fresh30: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since30}) { totalCount }
+            refs24: referendumsConnection(orderBy: index_ASC, where: {submittedTimestamp_gt: $since24}) { totalCount }
+            refs30: referendumsConnection(orderBy: index_ASC, where: {submittedTimestamp_gt: $since30}) { totalCount }
         }`,
-        {sinceDay}
-    )
-}
-
-export interface HomeCounts {
-    fresh24: {totalCount: number}
-    fresh30: {totalCount: number}
-    refs24: {totalCount: number}
-    refs30: {totalCount: number}
-}
-
-export function homeCounts(since24: number, since30: number) {
-    return gql<HomeCounts>(
-        `query ($since24: Int!, $since30: Int!) {
-            fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenBlock_gt: $since24}) { totalCount }
-            fresh30: accountsConnection(orderBy: id_ASC, where: {firstSeenBlock_gt: $since30}) { totalCount }
-            refs24: referendumsConnection(orderBy: index_ASC, where: {submittedAt_gt: $since24}) { totalCount }
-            refs30: referendumsConnection(orderBy: index_ASC, where: {submittedAt_gt: $since30}) { totalCount }
-        }`,
-        {since24, since30}
+        {sinceDay, since24, since30}
     )
 }
 
@@ -311,6 +300,7 @@ export interface AccountRow {
     frozen: string
     nonce: number
     firstSeenBlock: number
+    firstSeenTimestamp: string
     lastActiveBlock: number
     identityDisplay: string | null
     identityJson: unknown
@@ -413,7 +403,7 @@ export function accountSummary(idHex: string) {
     const self = `{id_eq: $id}`
     return gql<AccountSummary>(
         `query ($id: String!) {
-            accountById(id: $id) { id free reserved frozen nonce firstSeenBlock lastActiveBlock identityDisplay identityJson identitySubName identitySuper { id identityDisplay identityJson } evmAddress vestingJson locksJson holdsJson depositsJson }
+            accountById(id: $id) { id free reserved frozen nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySuper { id identityDisplay identityJson } evmAddress vestingJson locksJson holdsJson depositsJson }
             validators(where: {account: ${self}}, limit: 1) { ${VALIDATOR_FIELDS} }
             registrar: registrars(where: {account: ${self}}, limit: 1) { index }
             prime: primeStates(where: {account: ${self}}, limit: 1) { id }
@@ -905,6 +895,7 @@ export interface ReferendumRow {
     proposalAmount: string | null
     proposalBeneficiary: string | null
     submittedAt: number
+    submittedTimestamp: string
     status: string
     decidingSince: number | null
     confirmingSince: number | null
@@ -922,7 +913,7 @@ export interface ReferendumRow {
 }
 
 const TRACK_FIELDS = `id name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
-const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalCalls proposalAmount proposalBeneficiary submittedAt status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } submissionDepositor submissionDeposit decisionDepositor decisionDeposit track { ${TRACK_FIELDS} }`
+const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalCalls proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } submissionDepositor submissionDeposit decisionDepositor decisionDeposit track { ${TRACK_FIELDS} }`
 
 export interface TreasurySpendRow {
     id: string
@@ -985,15 +976,6 @@ export function accountRefs(ids: string[]) {
             accounts(where: {id_in: $ids}, limit: ${Math.max(1, ids.length)}) { ${ACCOUNT_REF} }
         }`,
         {ids}
-    )
-}
-
-export function blockTimes(heights: number[]) {
-    return gql<{blocks: {height: number; timestamp: string}[]}>(
-        `query ($heights: [Int!]) {
-            blocks(where: {height_in: $heights}, limit: ${Math.max(1, heights.length)}) { height timestamp }
-        }`,
-        {heights}
     )
 }
 
@@ -1118,6 +1100,7 @@ export interface VoteActionRow {
     conviction: string | null
     delegatedVotes: string
     block: number
+    timestamp: string
     voter: AccountRef
 }
 
@@ -1128,6 +1111,7 @@ export interface DelegationActionRow {
     conviction: string
     delegatedVotes: string
     block: number
+    timestamp: string
     who: AccountRef
     target: AccountRef
 }
@@ -1139,6 +1123,7 @@ export interface MetadataActionRow {
     title: string | null
     description: string | null
     block: number
+    timestamp: string
 }
 
 export function referendumDetail(index: number) {
@@ -1160,8 +1145,8 @@ export function referendumDetail(index: number) {
         `query ($index: Int!) {
             referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} }
             votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: amount_DESC, limit: 200) { id decision amount conviction block removed voter { ${ACCOUNT_REF} } referendum { index } }
-            voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id kind decision amount conviction delegatedVotes block voter { ${ACCOUNT_REF} } }
-            metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 200) { id kind hash title description block }
+            voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id kind decision amount conviction delegatedVotes block timestamp voter { ${ACCOUNT_REF} } }
+            metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 200) { id kind hash title description block timestamp }
             snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}}, orderBy: block_ASC, limit: 5000) { block ayes nays support activeIssuance }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }
             voteCount: votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC) { totalCount }
@@ -1234,7 +1219,7 @@ export function delegationActionsFor(track: string, from: number, to: number | n
     const where = `{track: {id_eq: $track}, block_gte: $from${to === null ? '' : ', block_lte: $to'}}`
     return gql<{delegationActions: DelegationActionRow[]}>(
         `query ${decl} {
-            delegationActions(where: ${where}, orderBy: [block_DESC, id_DESC], limit: 500) { id kind balance conviction delegatedVotes block who { ${ACCOUNT_REF} } target { ${ACCOUNT_REF} } }
+            delegationActions(where: ${where}, orderBy: [block_DESC, id_DESC], limit: 500) { id kind balance conviction delegatedVotes block timestamp who { ${ACCOUNT_REF} } target { ${ACCOUNT_REF} } }
         }`,
         to === null ? {track, from} : {track, from, to}
     )

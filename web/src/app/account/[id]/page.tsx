@@ -27,7 +27,7 @@ import {lockRows, schedules, tabHref, type TabCtx} from '@/components/account/sh
 import {chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
 import {fmtAge, fmtInt} from '@/lib/format'
-import {accountSummary, blockTimes, evmDeployments, tokenTransferCount} from '@/lib/gql'
+import {accountSummary, evmDeployments, tokenTransferCount} from '@/lib/gql'
 import {identityLabel} from '@/lib/identity'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 
@@ -65,8 +65,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const a = s.accountById
     if (!a) notFound()
 
-    const [firstSeen, evm, nTokens] = await Promise.all([
-        blockTimes([a.firstSeenBlock]).then(r => r.blocks[0]),
+    const [evm, nTokens] = await Promise.all([
         a.evmAddress ? evmDeployments(a.evmAddress) : {contracts: 0, tokens: 0},
         a.evmAddress ? tokenTransferCount(a.evmAddress) : 0,
     ])
@@ -173,7 +172,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                         <DetailRow label="Nonce">{fmtInt(a.nonce)}</DetailRow>
                         <DetailRow label="First seen">
                             <BlockLink height={a.firstSeenBlock} />
-                            {firstSeen && <span className="ml-3 text-xs text-dim">active age {fmtAge(firstSeen.timestamp)}</span>}
+                            <span className="ml-3 text-xs text-dim">active age {fmtAge(a.firstSeenTimestamp)}</span>
                         </DetailRow>
                         <DetailRow label="Last active">
                             <BlockLink height={a.lastActiveBlock} />

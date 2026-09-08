@@ -23,8 +23,8 @@ export interface ActionImpact {
 }
 
 export type ActionRow =
-    | {id: string; block: number; iso?: string; actor: ActionActor; amount: string; own: string; delegated: string; impact?: ActionImpact; kind: 'vote' | 'remove'; decision: string}
-    | {id: string; block: number; iso?: string; actor: ActionActor; amount: string; own: string; delegated: string; impact?: ActionImpact; kind: 'delegate' | 'undelegate'; by: ActionActor}
+    | {id: string; block: number; iso: string; actor: ActionActor; amount: string; own: string; delegated: string; impact?: ActionImpact; kind: 'vote' | 'remove'; decision: string}
+    | {id: string; block: number; iso: string; actor: ActionActor; amount: string; own: string; delegated: string; impact?: ActionImpact; kind: 'delegate' | 'undelegate'; by: ActionActor}
 
 const TONE: Record<string, string> = {aye: 'text-good', nay: 'text-destructive'}
 
@@ -122,7 +122,7 @@ export default function ActionList({rows, decimals, symbol}: {rows: ActionRow[];
     const columns = useMemo(
         () => [
             col.display({id: 'block', header: 'Block', cell: ({row}) => <BlockLink height={row.original.block} />}),
-            col.display({id: 'time', header: () => <TimeModeButton />, cell: ({row}) => (row.original.iso ? <TimeCell iso={row.original.iso} /> : '—')}),
+            col.display({id: 'time', header: () => <TimeModeButton />, cell: ({row}) => <TimeCell iso={row.original.iso} />}),
             col.display({id: 'account', header: 'Account', cell: ({row}) => <AccountLink addr={row.original.actor.addr} acc={row.original.actor.acc} />}),
             col.display({id: 'action', header: 'Action', meta: {className: 'w-full'}, cell: ({row}) => <Action a={row.original} />}),
             col.display({

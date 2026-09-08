@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
 import {Referendum} from "./referendum.model"
 import {Account} from "./account.model"
 
@@ -52,4 +52,7 @@ export class VoteAction {
     @Index_("idx_vote_action_block_42e0cf2c")
     @IntColumn_({nullable: false})
     block!: number
+
+    @DateTimeColumn_({nullable: false})
+    timestamp!: Date
 }

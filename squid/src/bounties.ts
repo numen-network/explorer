@@ -13,18 +13,19 @@ export interface BountyEvent {
     name: string
     args: any
     height: number
+    at: Date
     signer?: string
 }
 
 const TERMINAL = new Set(['claimed', 'rejected', 'cancelled'])
 
-export function collectBountyEvent(batch: BatchData, name: string, args: any, height: number, signer?: string): void {
+export function collectBountyEvent(batch: BatchData, name: string, args: any, height: number, at: Date, signer?: string): void {
     const pallet = name.split('.')[0]
     if (pallet !== 'Bounties' && pallet !== 'ChildBounties') return
     for (const key of ['curator', 'beneficiary']) {
         if (typeof args?.[key] === 'string') batch.touch(args[key], height)
     }
-    batch.bountyEvents.push({name, args, height, signer})
+    batch.bountyEvents.push({name, args, height, at, signer})
 }
 
 // child bounty curator management emits no events at all
@@ -87,8 +88,8 @@ function parentIndex(ev: BountyEvent): number {
     return ev.args.index ?? ev.args.bountyId
 }
 
-function pushTimeline(b: Bounty, status: string, height: number): void {
-    b.timeline = [...((b.timeline as any[]) ?? []), {status, block: height}]
+function pushTimeline(b: Bounty, status: string, ev: BountyEvent): void {
+    b.timeline = [...((b.timeline as any[]) ?? []), {status, block: ev.height, timestamp: ev.at.toISOString()}]
 }
 
 function applyBountyEvent(batch: BatchData, ev: BountyEvent): void {
@@ -106,7 +107,7 @@ function applyBountyEvent(batch: BatchData, ev: BountyEvent): void {
             updatedAt: ev.height,
             timeline: [],
         })
-        pushTimeline(b, 'proposed', ev.height)
+        pushTimeline(b, 'proposed', ev)
         batch.bounties.set(id, b)
         return
     }
@@ -116,48 +117,48 @@ function applyBountyEvent(batch: BatchData, ev: BountyEvent): void {
     switch (ev.name) {
         case 'Bounties.BountyApproved':
             b.status = 'approved'
-            pushTimeline(b, 'approved', ev.height)
+            pushTimeline(b, 'approved', ev)
             break
         case 'Bounties.BountyBecameActive':
             b.status = 'funded'
-            pushTimeline(b, 'funded', ev.height)
+            pushTimeline(b, 'funded', ev)
             break
         case 'Bounties.CuratorProposed':
             b.status = 'curator_proposed'
             b.curator = new Account({id: args.curator})
-            pushTimeline(b, 'curator proposed', ev.height)
+            pushTimeline(b, 'curator proposed', ev)
             break
         case 'Bounties.CuratorAccepted':
             b.status = 'active'
             b.curator = new Account({id: args.curator})
-            pushTimeline(b, 'curator accepted', ev.height)
+            pushTimeline(b, 'curator accepted', ev)
             break
         case 'Bounties.CuratorUnassigned':
             b.status = 'funded'
             b.curator = null
-            pushTimeline(b, 'curator unassigned', ev.height)
+            pushTimeline(b, 'curator unassigned', ev)
             break
         case 'Bounties.BountyAwarded':
             b.status = 'pending_payout'
             b.beneficiary = new Account({id: args.beneficiary})
-            pushTimeline(b, 'awarded', ev.height)
+            pushTimeline(b, 'awarded', ev)
             break
         case 'Bounties.BountyClaimed':
             b.status = 'claimed'
             b.payout = BigInt(args.payout)
             b.beneficiary = new Account({id: args.beneficiary})
-            pushTimeline(b, 'claimed', ev.height)
+            pushTimeline(b, 'claimed', ev)
             break
         case 'Bounties.BountyRejected':
             b.status = 'rejected'
-            pushTimeline(b, 'rejected', ev.height)
+            pushTimeline(b, 'rejected', ev)
             break
         case 'Bounties.BountyCanceled':
             b.status = 'cancelled'
-            pushTimeline(b, 'cancelled', ev.height)
+            pushTimeline(b, 'cancelled', ev)
             break
         case 'Bounties.BountyExtended':
-            pushTimeline(b, 'extended', ev.height)
+            pushTimeline(b, 'extended', ev)
             break
     }
     // the chain drops the entry once the bounty ends and both deposits go home

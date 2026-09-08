@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, Index as Index_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, ManyToOne as ManyToOne_, Relation as Relation_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_, Index as Index_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, ManyToOne as ManyToOne_, Relation as Relation_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {IdentityStatus} from "./_identityStatus"
 
 @Entity_()
@@ -24,6 +24,10 @@ export class Account {
 
     @IntColumn_({nullable: false})
     firstSeenBlock!: number
+
+    @Index_("idx_account_first_seen_timestamp_00087e2f")
+    @DateTimeColumn_({nullable: false})
+    firstSeenTimestamp!: Date
 
     @Index_("idx_account_last_active_block_82d33d5a")
     @IntColumn_({nullable: false})

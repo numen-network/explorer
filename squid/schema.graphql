@@ -71,6 +71,7 @@ type Account @entity {
   frozen: BigInt!
   nonce: Int!
   firstSeenBlock: Int!
+  firstSeenTimestamp: DateTime! @index
   lastActiveBlock: Int! @index
   identityDisplay: String @index
   identityJson: JSON
@@ -280,7 +281,7 @@ type Referendum @entity {
   track: Track! @index
   origin: String
   proposalHash: String
-  "from the setMetadata preimage, a json object with title and description"
+  "first line of the noted metadata preimage, the rest of it is the description"
   title: String
   description: String
   "the call a proposal runs, read back from the runtime whether it sits inline or behind a preimage"
@@ -296,6 +297,7 @@ type Referendum @entity {
   proposalBountyIndex: Int @index
   submitter: Account @index
   submittedAt: Int!
+  submittedTimestamp: DateTime! @index
   status: ReferendumStatus! @index
   decidingSince: Int
   confirmingSince: Int
@@ -337,6 +339,7 @@ type VoteAction @entity {
   "conviction weighted sum of the same delegations, the vote carries this weight onto the tally"
   delegatedVotes: BigInt!
   block: Int! @index
+  timestamp: DateTime!
 }
 
 "append-only metadata log, one row per MetadataSet or MetadataCleared event, so every text a referendum ever carried stays readable"
@@ -351,6 +354,7 @@ type MetadataAction @entity {
   title: String
   description: String
   block: Int!
+  timestamp: DateTime!
 }
 
 "append-only delegation action log, one row per Delegated or Undelegated event"
@@ -366,6 +370,7 @@ type DelegationAction @entity {
   "conviction weighted sum delegated to the target after this action"
   delegatedVotes: BigInt!
   block: Int! @index
+  timestamp: DateTime!
 }
 
 "tally read back from chain storage at each block a voting action landed in"

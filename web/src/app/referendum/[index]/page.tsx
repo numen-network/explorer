@@ -19,7 +19,7 @@ import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
 import {fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum} from '@/lib/format'
-import {accountRefs, blockTimes, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail} from '@/lib/gql'
+import {accountRefs, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -125,16 +125,14 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         return vote ? [{a, vote}] : []
     })
 
-    const heights = [...new Set([r.submittedAt, ...trail.map(s => s.block), ...data.voteActions.map(a => a.block), ...dactRows.map(({a}) => a.block), ...data.metadataActions.map(a => a.block)])]
-    const [times, whoRefsRes] = await Promise.all([blockTimes(heights), accountRefs([...new Set([...shown, ...evWhos])])])
-    const stamps = new Map(times.blocks.map(b => [b.height, b.timestamp]))
+    const whoRefsRes = await accountRefs([...new Set([...shown, ...evWhos])])
     const whoRefs = new Map(whoRefsRes.accounts.map(a => [a.id, a]))
 
     const actions: ActionRow[] = [
         ...data.voteActions.map(a => ({
             id: a.id,
             block: a.block,
-            iso: stamps.get(a.block),
+            iso: a.timestamp,
             actor: {addr: ss58Encode(a.voter.id, chain.ss58), acc: a.voter},
             amount: String(weightOf(a.amount, a.conviction) + BigInt(a.delegatedVotes)),
             own: String(weightOf(a.amount, a.conviction)),
@@ -145,7 +143,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         ...dactRows.map(({a, vote}) => ({
             id: a.id,
             block: a.block,
-            iso: stamps.get(a.block),
+            iso: a.timestamp,
             actor: {addr: ss58Encode(a.target.id, chain.ss58), acc: a.target},
             amount: String(weightOf(vote.amount, vote.conviction) + BigInt(a.delegatedVotes)),
             own: String(weightOf(vote.amount, vote.conviction)),
@@ -392,7 +390,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     tone={a.kind === 'set' ? 'primary' : 'idle'}
                     icon={a.kind === 'set' ? RING : CROSS}
                     title={a.kind === 'set' ? 'Text set' : 'Text cleared'}
-                    iso={stamps.get(a.block)}
+                    iso={a.timestamp}
                     links={<BlockLink height={a.block} />}
                     detail={
                         a.kind === 'set' ? (
@@ -447,7 +445,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         tone={STATUS_TONE[key] ?? 'idle'}
                         icon={STEP_ICON(key)}
                         title={sentenceCase(s.status)}
-                        iso={stamps.get(s.block)}
+                        iso={s.timestamp}
                         links={
                             <>
                                 <BlockLink height={s.block} />
@@ -514,7 +512,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         </Badge>
                         <span className="text-dim">·</span>
                         <span className="-ml-0.5 text-muted-foreground">
-                            {stamps.has(r.submittedAt) ? <TimeCell iso={stamps.get(r.submittedAt)!} cycle /> : <BlockLink height={r.submittedAt} />}
+                            <TimeCell iso={r.submittedTimestamp} cycle />
                         </span>
                         <StatusBadge status={r.status} className="ml-auto" />
                     </div>

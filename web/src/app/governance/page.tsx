@@ -16,7 +16,7 @@ import {Separator} from '@/components/ui/separator'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {fmtCompact, fmtCompact3, fmtInt, planckToNum} from '@/lib/format'
-import {blockTimes, bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
+import {bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {TracksTable, TreasuryTable} from './tables'
@@ -56,9 +56,6 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
         tab === 'bounties' ? bountiesPage(pg.size, pg.offset, {status: BOUNTY_STATUSES, track: trackIds}, {status, track}) : null,
         tab === 'tracks' ? tracksPage(pg.size, pg.offset) : null,
     ])
-
-    const heights = refs ? [...new Set(refs.referendums.map(r => r.submittedAt))] : []
-    const stamps = new Map(heights.length ? (await blockTimes(heights)).blocks.map(b => [b.height, b.timestamp]) : [])
 
     const latest = sum.dailyStats[0]
     const activeIssuance = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
@@ -171,11 +168,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                 </Badge>
                                 <span className="text-dim">·</span>
                                 <span className="-ml-0.5 text-muted-foreground">
-                                    {stamps.has(r.submittedAt) ? (
-                                        <TimeCell iso={stamps.get(r.submittedAt)!} cycle />
-                                    ) : (
-                                        <Link href={`/block/${r.submittedAt}`} className="hover:text-primary">{`#${fmtInt(r.submittedAt)}`}</Link>
-                                    )}
+                                    <TimeCell iso={r.submittedTimestamp} cycle />
                                 </span>
                             </div>
                             <StatusBadge status={r.status} />

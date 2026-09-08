@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
 import {Track} from "./track.model"
 import {Account} from "./account.model"
 import {ReferendumStatus} from "./_referendumStatus"
@@ -27,7 +27,7 @@ export class Referendum {
     proposalHash!: string | undefined | null
 
     /**
-     * from the setMetadata preimage, a json object with title and description
+     * first line of the noted metadata preimage, the rest of it is the description
      */
     @StringColumn_({nullable: true})
     title!: string | undefined | null
@@ -77,6 +77,10 @@ export class Referendum {
 
     @IntColumn_({nullable: false})
     submittedAt!: number
+
+    @Index_("idx_referendum_submitted_timestamp_f1c3e7bf")
+    @DateTimeColumn_({nullable: false})
+    submittedTimestamp!: Date
 
     @Index_("idx_referendum_status_24792806")
     @Column_("varchar", {length: 10, nullable: false})

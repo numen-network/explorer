@@ -382,6 +382,7 @@ async function refreshPrime(batch: BatchData, lastHeader: any, store: Store): Pr
             frozen: info?.data.frozen ?? 0n,
             nonce: info?.nonce ?? 0,
             firstSeenBlock: 0,
+            firstSeenTimestamp: new Date(0),
             lastActiveBlock: 0,
         })
         batch.accounts.set(key, acc)

@@ -9,7 +9,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
-import {blockTimes, bountyDetail, type AccountRef} from '@/lib/gql'
+import {bountyDetail, type AccountRef} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {ChildBountiesTable} from './table'
 
@@ -35,7 +35,6 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
     if (!b) notFound()
 
     const trail = rawSteps(b.timeline)
-    const stamps = new Map((await blockTimes([...new Set(trail.map(s => s.block))])).blocks.map(bl => [bl.height, bl.timestamp]))
 
     const acc = (a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : <span className="text-dim">—</span>)
 
@@ -74,7 +73,7 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
             steps={trail.map(s => ({
                 block: s.block,
                 label: sentenceCase(s.status),
-                iso: stamps.get(s.block),
+                iso: s.timestamp,
                 tone: STEP_TONE(s.status),
                 icon: STEP_ICON(s.status),
             }))}
