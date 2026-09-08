@@ -41,6 +41,7 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
     const days = RANGES.find(([k]) => k === range)?.[2] ?? 0
     const after = custom ? str(sp.after) : days ? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) : ''
     const before = custom ? str(sp.before) : ''
+    const picked = custom ? after : ''
 
     const chain = await chainProps()
     const data = await chartSeries(DAY.test(after) ? after : '', DAY.test(before) ? before : '')
@@ -67,7 +68,7 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
                     <CardTitle className="text-[17px] leading-normal font-semibold">{def.title}</CardTitle>
                     <div className="flex flex-wrap items-center gap-2">
                         <form className="flex flex-wrap items-center gap-2 text-xs" action={`/charts/${slug}`}>
-                            <DateRange after={custom ? after : ''} before={before} />
+                            <DateRange key={`${picked}|${before}`} after={picked} before={before} />
                             <Button type="submit" variant="outline" className="h-auto rounded-lg bg-card px-2.5 py-1 text-xs font-normal hover:bg-card hover:text-primary">
                                 Apply
                             </Button>

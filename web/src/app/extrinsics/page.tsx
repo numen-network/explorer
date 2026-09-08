@@ -96,7 +96,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
                     <Field orientation="horizontal" className="flex-wrap gap-2 text-xs">
                         <Label className={LABEL}>Date</Label>
                         <Carry keep={{pallet, method, signer: rawSigner, result: result ?? ''}} />
-                        <DateRange after={after} before={before} />
+                        <DateRange key={`${after}|${before}`} after={after} before={before} />
                         <Button type="submit" variant="outline" className={FIELD}>
                             Apply
                         </Button>

@@ -19,17 +19,10 @@ const toRange = (after: string, before: string): Range | undefined => {
     return from || to ? {from, to} : undefined
 }
 
+// the parent keys this on the url, so a submit back to the same route mounts
+// a fresh draft
 export default function DateRange({after, before}: {after: string; before: string}) {
-    const url = `${after}|${before}`
-    const [applied, setApplied] = useState(url)
     const [range, setRange] = useState(() => toRange(after, before))
-
-    // react keeps this instance across a submit back to the same route, so the
-    // draft has to follow the url
-    if (applied !== url) {
-        setApplied(url)
-        setRange(toRange(after, before))
-    }
 
     const from = range?.from ? day(range.from) : ''
     const to = range?.to ? day(range.to) : ''
