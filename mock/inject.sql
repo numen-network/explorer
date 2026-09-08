@@ -663,8 +663,9 @@ ON CONFLICT (id) DO NOTHING;
 
 -- the fixture adds accounts and referenda, so the day totals have to be redone
 -- from the rows that now exist
+-- genesis accounts open the first day, the block they come from has no day of its own
 WITH per_day AS (
-    SELECT to_char(b.timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day, count(*) AS n
+    SELECT greatest(to_char(b.timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD'), (SELECT min(id) FROM daily_stat)) AS day, count(*) AS n
     FROM account t JOIN block b ON b.height = t.first_seen_block
     GROUP BY 1
 ), running AS (

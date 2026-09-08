@@ -52,7 +52,7 @@ function Bar({ratio}: {ratio: number}) {
 export default async function Home() {
     const ago = (days: number) => new Date(Date.now() - days * 86400000).toISOString()
     const [props, heads, data] = await Promise.all([chainProps(), chainHeads(), homeData(ago(1), ago(30))])
-    const days = data.dailyStats.filter(d => !d.id.startsWith('1970'))
+    const days = data.dailyStats
     const today: DailyRow | undefined = days[0]
     const yesterday: DailyRow | undefined = days[1]
     const dayAt = (i: number) => days[Math.min(i, days.length - 1)]

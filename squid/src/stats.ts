@@ -15,6 +15,8 @@ export function treasuryAccount(block: RuntimeCtx): string {
 }
 
 export function accumulateDay(batch: BatchData, block: Block, delta: Omit<DayDelta, 'tsFirst' | 'tsLast' | 'difficultyClose' | 'blocks' | 'rewards'>): void {
+    // genesis carries no timestamp, so there is no day to book it on
+    if (block.height === 0) return
     const day = block.timestamp.toISOString().slice(0, 10)
     let d = batch.dayDeltas.get(day)
     if (d == null) {
@@ -70,15 +72,18 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData, lastHea
     let cumExtrinsicsSigned = prior[0]?.cumExtrinsicsSigned ?? 0n
     let cumTransfers = prior[0]?.cumTransfers ?? 0n
     let cumTransferVolume = prior[0]?.cumTransferVolume ?? 0n
-    let accountsTotal = prior[0]?.accountsTotal ?? 0
+    // before the first day row exists, accounts a genesis-only batch persisted
+    // count toward it
+    let accountsTotal = prior[0]?.accountsTotal ?? (await ctx.store.countBy(Account, {firstSeenBlock: 0}))
     let referendaTotal = prior[0]?.referendaTotal ?? 0
 
-    // an account is born on the day of the block that first touched it
-    const dayOfHeight = new Map(batch.blocks.map(b => [b.height, b.timestamp.toISOString().slice(0, 10)]))
+    // an account is born on the day of the block that first touched it, and
+    // one genesis touched lands on the first dated day this batch holds
+    const dayOfHeight = new Map(batch.blocks.filter(b => b.height > 0).map(b => [b.height, b.timestamp.toISOString().slice(0, 10)]))
     const bornOn = new Map<string, number>()
     for (const id of batch.newAccounts) {
-        const day = dayOfHeight.get(batch.accounts.get(id)!.firstSeenBlock)
-        if (day != null) bornOn.set(day, (bornOn.get(day) ?? 0) + 1)
+        const day = dayOfHeight.get(batch.accounts.get(id)!.firstSeenBlock) ?? dayIds[0]
+        bornOn.set(day, (bornOn.get(day) ?? 0) + 1)
     }
 
     // a miner joins the day's count on the batch that first sees it seal a
