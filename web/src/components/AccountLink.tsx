@@ -5,6 +5,7 @@ import {Fragment} from 'react'
 import {useAddrHot} from '@/components/addrHot'
 import AddressText from '@/components/AddressText'
 import {JudgementBadge, verdictOf} from '@/components/JudgementBadge'
+import {useWellKnown} from '@/components/wellKnown'
 import {identityFields, identityInfoJson, identityLabel, type IdentityRef} from '@/lib/identity'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 
@@ -14,9 +15,11 @@ const SKIP = new Set(['display', 'avatar', 'bio'])
 // of its own reads as super/sub with the judgement of the super, falls back
 // to the address as one fixed middle elided string in the statescan manner,
 // full shows the whole address on list pages with room for it, hovering
-// floats the full address in a tooltip
-export default function AccountLink({addr, acc, className = '', full = false}: {addr: string; acc?: IdentityRef; className?: string; full?: boolean}) {
-    const display = identityLabel(acc)
+// floats the full address in a tooltip. plain is for the places that pin an
+// account down by address, where a name only repeats the label next to it
+export default function AccountLink({addr, acc, className = '', full = false, plain = false}: {addr: string; acc?: IdentityRef; className?: string; full?: boolean; plain?: boolean}) {
+    const known = useWellKnown(addr)
+    const label = plain ? undefined : (known?.label ?? identityLabel(acc))
     const info = identityInfoJson(acc)
     const verdict = verdictOf(info)
     const fields = identityFields(info).filter(f => !SKIP.has(f.key))
@@ -26,10 +29,16 @@ export default function AccountLink({addr, acc, className = '', full = false}: {
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Link href={`/account/${addr}`} className={`-mx-1 flex min-w-0 items-center gap-1 px-1 hover:text-primary ${cls}`} {...hot}>
-                        {display ? (
+                        {label ? (
                             <>
-                                {verdict && <JudgementBadge verdict={verdict} />}
-                                <span className="truncate font-medium">{display}</span>
+                                {known ? (
+                                    <span className="shrink-0" aria-hidden>
+                                        {known.emoji}
+                                    </span>
+                                ) : (
+                                    verdict && <JudgementBadge verdict={verdict} />
+                                )}
+                                <span className="truncate font-medium">{label}</span>
                             </>
                         ) : (
                             <span className="truncate font-mono font-medium"><AddressText addr={addr} full={full} /></span>

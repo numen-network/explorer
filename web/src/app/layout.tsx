@@ -6,7 +6,9 @@ import IndexerBanner from '@/components/IndexerBanner'
 import Nav from '@/components/Nav'
 import SearchBar from '@/components/SearchBar'
 import {TooltipProvider} from '@/components/ui/tooltip'
+import {WellKnownProvider} from '@/components/wellKnown'
 import {chainProps} from '@/lib/chain'
+import {ss58Encode} from '@/lib/ss58'
 import './globals.css'
 
 const inter = Inter({subsets: ['latin'], variable: '--font-inter'})
@@ -19,23 +21,25 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({children}: {children: ReactNode}) {
     const chain = await chainProps().then(
-        p => p.chain,
-        () => ''
+        p => p,
+        () => null
     )
     return (
         <html lang="en" className={inter.variable}>
             <body className="flex min-h-dvh flex-col">
-                <TooltipProvider>
-                    <Nav chain={chain} />
-                    <div className="mx-auto w-full max-w-[1400px] grow px-6 pb-16">
-                        <div className="mt-5">
-                            <SearchBar />
+                <WellKnownProvider treasury={chain ? ss58Encode(chain.treasuryAccount, chain.ss58) : ''}>
+                    <TooltipProvider>
+                        <Nav chain={chain?.chain ?? ''} />
+                        <div className="mx-auto w-full max-w-[1400px] grow px-6 pb-16">
+                            <div className="mt-5">
+                                <SearchBar />
+                            </div>
+                            <IndexerBanner />
+                            {children}
                         </div>
-                        <IndexerBanner />
-                        {children}
-                    </div>
-                    <Footer />
-                </TooltipProvider>
+                        <Footer />
+                    </TooltipProvider>
+                </WellKnownProvider>
             </body>
         </html>
     )

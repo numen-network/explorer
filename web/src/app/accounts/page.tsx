@@ -28,7 +28,7 @@ export default async function AccountsPage(props: PageProps<'/accounts'>) {
             <Card size="flush" className="mt-3 divide-y">
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3.5">
                     <span className="w-20 shrink-0 text-sm font-medium text-muted-foreground">Treasury</span>
-                    <AccountLink full addr={ss58Encode(chain.treasuryAccount, chain.ss58)} className="min-w-0" />
+                    <AccountLink full plain addr={ss58Encode(chain.treasuryAccount, chain.ss58)} className="min-w-0" />
                 </div>
                 {prime && (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3.5">
