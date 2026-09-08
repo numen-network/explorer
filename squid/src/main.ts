@@ -423,7 +423,7 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
     if (ev.name === 'Treasury.Deposit' && extrinsic) extrinsic.treasuryFee -= BigInt(ev.args.value)
     const name = ev.name ?? ''
     collectGovEvent(batch, ev.id, name, ev.args, block.height, ev.block, signerOf(ev.extrinsic), ev.call?.args)
-    collectValidatorEvent(batch, ev.id, name, ev.args, block.height, ev.block)
+    collectValidatorEvent(batch, name, ev.args, block.height)
     collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, block.timestamp, ev)
     collectMultisigEvent(batch, name, ev.args, block.height, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined)
     collectBountyEvent(batch, name, ev.args, block.height, block.timestamp, signerOf(ev.extrinsic))

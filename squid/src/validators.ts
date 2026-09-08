@@ -3,13 +3,12 @@ import {BatchData} from './batch'
 import {Validator} from './model'
 import {storage} from './types'
 
-export function collectValidatorEvent(batch: BatchData, id: string, name: string, args: any, height: number, header: any): void {
+export function collectValidatorEvent(batch: BatchData, name: string, args: any, height: number): void {
     if (name === 'Session.NewSession') {
         batch.sessionBoundaries.push({index: Number(args.sessionIndex), height})
         return
     }
-    if (!name.startsWith('Validator.')) return
-    batch.govEvents.push({id, name, args, height, header})
+    if (name.startsWith('Validator.')) batch.validatorEvents.push({name, args, height})
 }
 
 async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, height: number): Promise<Validator> {
@@ -33,8 +32,7 @@ async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, h
 }
 
 export async function finalizeValidators(ctx: {store: any}, batch: BatchData, lastHeader: any): Promise<void> {
-    for (const ev of batch.govEvents) {
-        if (!ev.name.startsWith('Validator.')) continue
+    for (const ev of batch.validatorEvents) {
         const method = ev.name.split('.')[1]
         const args = ev.args
         switch (method) {

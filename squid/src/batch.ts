@@ -90,6 +90,7 @@ export class BatchData {
     enactments = new Map<string, number>()
     spendsAtHeight = new Map<number, string[]>()
     validators = new Map<string, Validator>()
+    validatorEvents: {name: string; args: any; height: number}[] = []
     sessionBoundaries: {index: number; height: number}[] = []
     registrarsDirty = false
     registrarAdded = new Map<number, number>()
