@@ -319,6 +319,8 @@ type Vote @entity {
   voter: Account! @index
   decision: String!
   amount: BigInt!
+  "the amount weighted by conviction, what the vote itself puts on the tally"
+  votes: BigInt!
   conviction: String
   block: Int!
   removed: Boolean!
@@ -333,6 +335,8 @@ type VoteAction @entity {
   kind: String!
   decision: String!
   amount: BigInt!
+  "the amount weighted by conviction, delegations come on top"
+  votes: BigInt!
   conviction: String
   "capital delegated to the voter at this block, zero for split and abstain votes"
   delegatedCapital: BigInt!
@@ -392,6 +396,8 @@ type Delegation @entity {
   track: Track!
   conviction: String!
   balance: BigInt!
+  "the balance weighted by conviction, what the delegation adds to the target's votes"
+  votes: BigInt!
   block: Int!
 }
 

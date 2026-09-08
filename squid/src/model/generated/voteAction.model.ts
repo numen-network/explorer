@@ -34,6 +34,12 @@ export class VoteAction {
     @BigIntColumn_({nullable: false})
     amount!: bigint
 
+    /**
+     * the amount weighted by conviction, delegations come on top
+     */
+    @BigIntColumn_({nullable: false})
+    votes!: bigint
+
     @StringColumn_({nullable: true})
     conviction!: string | undefined | null
 

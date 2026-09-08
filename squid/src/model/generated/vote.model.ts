@@ -25,6 +25,12 @@ export class Vote {
     @BigIntColumn_({nullable: false})
     amount!: bigint
 
+    /**
+     * the amount weighted by conviction, what the vote itself puts on the tally
+     */
+    @BigIntColumn_({nullable: false})
+    votes!: bigint
+
     @StringColumn_({nullable: true})
     conviction!: string | undefined | null
 

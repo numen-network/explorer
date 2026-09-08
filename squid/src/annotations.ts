@@ -3,6 +3,7 @@ import {In} from 'typeorm'
 import {Store} from '@subsquid/typeorm-store'
 import {Account, Delegation, IdentityStatus, Judgement, PrimeState, ProxyRelation, Registrar, Track} from './model'
 import {BatchData} from './batch'
+import {convictionLabel, convictionLevel, convictionVotes} from './conviction'
 import {events, storage} from './types'
 import {decodeUtf8} from './utf8'
 
@@ -328,6 +329,7 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
                         track: new Track({id: String(cls)}),
                         conviction: convictionLabel(v.value.conviction),
                         balance: v.value.balance,
+                        votes: convictionVotes(v.value.balance, convictionLevel(v.value.conviction)),
                         block: height,
                     })
                 )
@@ -357,10 +359,6 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
         }
     }
     await refreshPrime(batch, lastHeader, store)
-}
-
-export function convictionLabel(c: {__kind: string}): string {
-    return c.__kind === 'None' ? '0x' : c.__kind.replace('Locked', '')
 }
 
 async function refreshPrime(batch: BatchData, lastHeader: any, store: Store): Promise<void> {

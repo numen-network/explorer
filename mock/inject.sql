@@ -144,9 +144,9 @@ VALUES
     ((:base + 4)::text || '-meta-1', (:base + 4)::text, 'set', '0x' || md5('meta v2') || md5('4'),
      'Bridge audit budget', 'Withdrawn by the submitter, superseded by a revised scope.', :h - 27000, pg_temp.stamp(:h - 27000));
 
-INSERT INTO vote (id, referendum_id, voter_id, decision, conviction, amount, block, removed)
+INSERT INTO vote (id, referendum_id, voter_id, decision, conviction, amount, votes, block, removed)
 SELECT (:base + refn)::text || '-' || pg_temp.pk(voter), (:base + refn)::text, pg_temp.pk(voter),
-       decision, conviction, amtk * :P, :h - blk, false
+       decision, conviction, amtk * :P, amtk * :P * coalesce(left(conviction, -1)::numeric, 1), :h - blk, false
 FROM (VALUES
     (6, 1, 'aye',     '2x', 40000, 20000),
     (6, 2, 'nay',     '1x', 120000, 18000),
@@ -234,8 +234,8 @@ UPDATE bounty SET referendum_id = (:base + v.n)::text
 FROM (VALUES (0, 1), (1, 4)) v(b, n)
 WHERE bounty.index = v.b;
 
-INSERT INTO delegation (id, who_id, target_id, track_id, conviction, balance, block)
-SELECT pg_temp.pk(who) || '-' || track, pg_temp.pk(who), pg_temp.pk(tgt), track, conv, amtk * :P, :h - blk
+INSERT INTO delegation (id, who_id, target_id, track_id, conviction, balance, votes, block)
+SELECT pg_temp.pk(who) || '-' || track, pg_temp.pk(who), pg_temp.pk(tgt), track, conv, amtk * :P, amtk * :P * left(conv, -1)::numeric, :h - blk
 FROM (VALUES
     (9, 1, '0', '2x', 50000::numeric, 7000),
     (7, 4, '1', '1x', 500000, 12000),
@@ -244,8 +244,8 @@ FROM (VALUES
 
 -- a delegate with a real following on two tracks, enough to exercise the
 -- track filter, the paged list and the trimmed panel on the referendum page
-INSERT INTO delegation (id, who_id, target_id, track_id, conviction, balance, block)
-SELECT 'seed-' || a.id || '-' || t.track, a.id, pg_temp.pk(1), t.track, '1x', (1000 + a.n) * :P, :h - 9000
+INSERT INTO delegation (id, who_id, target_id, track_id, conviction, balance, votes, block)
+SELECT 'seed-' || a.id || '-' || t.track, a.id, pg_temp.pk(1), t.track, '1x', (1000 + a.n) * :P, (1000 + a.n) * :P, :h - 9000
 FROM (SELECT id, row_number() OVER (ORDER BY id) AS n FROM account
       WHERE id <> pg_temp.pk(1) AND id NOT IN (SELECT who_id FROM delegation) ORDER BY id LIMIT 30) a
 CROSS JOIN (VALUES ('0', 30), ('2', 12)) t(track, take)

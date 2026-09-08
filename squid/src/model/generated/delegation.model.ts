@@ -29,6 +29,12 @@ export class Delegation {
     @BigIntColumn_({nullable: false})
     balance!: bigint
 
+    /**
+     * the balance weighted by conviction, what the delegation adds to the target's votes
+     */
+    @BigIntColumn_({nullable: false})
+    votes!: bigint
+
     @IntColumn_({nullable: false})
     block!: number
 }

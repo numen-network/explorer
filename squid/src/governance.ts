@@ -4,7 +4,7 @@ import {RpcClient} from '@subsquid/rpc-client'
 import {Src} from '@subsquid/scale-codec'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In} from 'typeorm'
-import {convictionLabel} from './annotations'
+import {convictionLabel, convictionVotes} from './conviction'
 import {BatchData, GovEvent} from './batch'
 import {Delegation, DelegationAction, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VoteAction} from './model'
 import {storage} from './types'
@@ -552,6 +552,7 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
             voter: batch.touch(who, ev.height),
             decision: decoded.decision,
             amount: decoded.amount,
+            votes: decoded.votes,
             conviction: decoded.conviction,
             block: ev.height,
             removed: method === 'VoteRemoved',
@@ -565,6 +566,7 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
             kind: method === 'Voted' ? 'vote' : 'remove',
             decision: decoded.decision,
             amount: decoded.amount,
+            votes: decoded.votes,
             conviction: decoded.conviction,
             delegatedCapital: 0n,
             delegatedVotes: 0n,
@@ -574,20 +576,26 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
     )
 }
 
-function decodeAccountVote(vote: any): {decision: string; amount: bigint; conviction?: string} | undefined {
+// a split or abstain carries no conviction, its votes are its amount
+function decodeAccountVote(vote: any): {decision: string; amount: bigint; votes: bigint; conviction?: string} | undefined {
     if (vote?.__kind === 'Standard') {
         const v = Number(vote.vote)
+        const level = v & 0x7f
+        const amount = BigInt(vote.balance)
         return {
             decision: (v & 0x80) !== 0 ? 'aye' : 'nay',
-            amount: BigInt(vote.balance),
-            conviction: `${v & 0x7f}x`,
+            amount,
+            votes: convictionVotes(amount, level),
+            conviction: `${level}x`,
         }
     }
     if (vote?.__kind === 'Split') {
-        return {decision: 'split', amount: BigInt(vote.aye) + BigInt(vote.nay)}
+        const amount = BigInt(vote.aye) + BigInt(vote.nay)
+        return {decision: 'split', amount, votes: amount}
     }
     if (vote?.__kind === 'SplitAbstain') {
-        return {decision: 'abstain', amount: BigInt(vote.aye) + BigInt(vote.nay) + BigInt(vote.abstain)}
+        const amount = BigInt(vote.aye) + BigInt(vote.nay) + BigInt(vote.abstain)
+        return {decision: 'abstain', amount, votes: amount}
     }
     return undefined
 }

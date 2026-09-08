@@ -69,13 +69,6 @@ function Slot({value, label, className = ''}: {value: string; label: string; cla
     )
 }
 
-// none locks nothing and counts a tenth, the rest count their own multiple
-const convictionMul = (c: string | null) => (c == null ? 1 : c === '0x' ? 0.1 : Number(c.slice(0, -1)))
-
-// the same multiples in planck arithmetic, split and abstain rows carry no
-// conviction and keep their raw amount
-const weightOf = (amount: string, c: string | null) => (c == null ? BigInt(amount) : (BigInt(amount) * BigInt(c === '0x' ? 1 : 10 * Number(c.slice(0, -1)))) / 10n)
-
 // the panel answers who is behind the vote, the full roster lives on the
 // delegate account page
 const INLINE_DELEGATORS = 10
@@ -133,8 +126,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             block: a.block,
             iso: a.timestamp,
             actor: {addr: ss58Encode(a.voter.id, chain.ss58), acc: a.voter},
-            amount: String(weightOf(a.amount, a.conviction) + BigInt(a.delegatedVotes)),
-            own: String(weightOf(a.amount, a.conviction)),
+            amount: String(BigInt(a.votes) + BigInt(a.delegatedVotes)),
+            own: a.votes,
             delegated: a.delegatedVotes,
             kind: a.kind as 'vote' | 'remove',
             decision: a.decision,
@@ -144,8 +137,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             block: a.block,
             iso: a.timestamp,
             actor: {addr: ss58Encode(a.target.id, chain.ss58), acc: a.target},
-            amount: String(weightOf(vote.amount, vote.conviction) + BigInt(a.delegatedVotes)),
-            own: String(weightOf(vote.amount, vote.conviction)),
+            amount: String(BigInt(vote.votes) + BigInt(a.delegatedVotes)),
+            own: vote.votes,
             delegated: a.delegatedVotes,
             kind: a.kind as 'delegate' | 'undelegate',
             by: {addr: ss58Encode(a.who.id, chain.ss58), acc: a.who},
@@ -455,25 +448,24 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     )
 
     const entry = (v: (typeof data.votes)[number]): VoteEntry => {
-        const capital = planckToNum(v.amount, chain.decimals)
         const list = byTarget.get(v.voter!.id) ?? []
-        const pledged = (d: (typeof list)[number]) => planckToNum(d.balance, chain.decimals)
+        const num = (planck: string) => planckToNum(planck, chain.decimals)
         return {
             id: v.id,
             addr: ss58Encode(v.voter!.id, chain.ss58),
             acc: v.voter,
             conviction: v.conviction,
-            capital,
-            selfVotes: capital * convictionMul(v.conviction),
+            capital: num(v.amount),
+            selfVotes: num(v.votes),
             delegatorCount: list.length,
-            delegatedCapital: list.reduce((n, d) => n + pledged(d), 0),
-            delegatedVotes: list.reduce((n, d) => n + pledged(d) * convictionMul(d.conviction), 0),
+            delegatedCapital: list.reduce((n, d) => n + num(d.balance), 0),
+            delegatedVotes: list.reduce((n, d) => n + num(d.votes), 0),
             delegators: list.slice(0, INLINE_DELEGATORS).map(d => ({
                 addr: ss58Encode(d.who.id, chain.ss58),
                 acc: whoRefs.get(d.who.id),
                 conviction: d.conviction,
-                capital: pledged(d),
-                votes: pledged(d) * convictionMul(d.conviction),
+                capital: num(d.balance),
+                votes: num(d.votes),
             })),
         }
     }

@@ -431,7 +431,7 @@ export async function tokenTransferCount(address: string) {
 
 export function votesFor(idHex: string) {
     return gql<{votes: VoteRow[]}>(
-        `query ($id: String!) { votes(where: {voter: {id_eq: $id}}, orderBy: block_DESC, limit: 100) { id decision amount conviction block removed referendum { index status endedAt } } }`,
+        `query ($id: String!) { votes(where: {voter: {id_eq: $id}}, orderBy: block_DESC, limit: 100) { id decision amount votes conviction block removed referendum { index status endedAt } } }`,
         {id: idHex}
     )
 }
@@ -1058,6 +1058,7 @@ export interface VoteRow {
     id: string
     decision: string
     amount: string
+    votes: string
     conviction: string | null
     block: number
     removed: boolean
@@ -1078,6 +1079,7 @@ export interface VoteActionRow {
     kind: string
     decision: string
     amount: string
+    votes: string
     conviction: string | null
     delegatedVotes: string
     block: number
@@ -1125,8 +1127,8 @@ export function referendumDetail(index: number) {
     }>(
         `query ($index: Int!) {
             referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} }
-            votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: amount_DESC, limit: 200) { id decision amount conviction block removed voter { ${ACCOUNT_REF} } referendum { index } }
-            voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id kind decision amount conviction delegatedVotes block timestamp voter { ${ACCOUNT_REF} } }
+            votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: amount_DESC, limit: 200) { id decision amount votes conviction block removed voter { ${ACCOUNT_REF} } referendum { index } }
+            voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id kind decision amount votes conviction delegatedVotes block timestamp voter { ${ACCOUNT_REF} } }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 200) { id kind hash title description block timestamp }
             snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}}, orderBy: block_ASC, limit: 5000) { block ayes nays support activeIssuance }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }
@@ -1182,11 +1184,11 @@ export async function delegationsInPage(id: string, tracks: string[], track: str
 export function delegationsFor(targets: string[], track: string) {
     const where = `where: {target: {id_in: $targets}, track: {id_eq: $track}}`
     return gql<{
-        delegations: {id: string; conviction: string; balance: string; who: {id: string}; target: {id: string}}[]
+        delegations: {id: string; conviction: string; balance: string; votes: string; who: {id: string}; target: {id: string}}[]
         conn: {totalCount: number}
     }>(
         `query ($targets: [String!], $track: String!) {
-            delegations(${where}, orderBy: balance_DESC, limit: 5000) { id conviction balance who { id } target { id } }
+            delegations(${where}, orderBy: balance_DESC, limit: 5000) { id conviction balance votes who { id } target { id } }
             conn: delegationsConnection(${where}, orderBy: id_ASC) { totalCount }
         }`,
         {targets, track}
