@@ -69,6 +69,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     const lastHeader = ctx.blocks[ctx.blocks.length - 1].header
     for (const b of ctx.blocks) await mapBlock(batch, b, finalizedHeight)
     if (ctx.blocks[0].header.height === 0) {
+        await seedGenesisBalances(batch, ctx.blocks[0].header)
         await seedGenesisVesting(batch, ctx.blocks[0].header)
         await seedGenesisValidators(batch, ctx.blocks[0].header)
     }
@@ -471,6 +472,14 @@ async function fetchObjects(ctx: Ctx, batch: BatchData, header: RuntimeCtx): Pro
             })
         )
     }
+}
+
+// genesis balances land in storage with no event to announce them, so the
+// endowed accounts are read where they were written
+async function seedGenesisBalances(batch: BatchData, h: BlockHeader<Fields>): Promise<void> {
+    const s = storage.system.account.v100
+    if (!s.is(h)) throw new Error('unhandled spec version for system accounts at genesis')
+    for (const [who] of await s.getPairs(h)) batch.touch(who, 0)
 }
 
 async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fields>): Promise<void> {
