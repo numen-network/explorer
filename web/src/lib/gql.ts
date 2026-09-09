@@ -833,7 +833,7 @@ export interface TrackRow {
     id: string
     name: string
     maxDeciding: number
-    maxSpend: string
+    maxSpend: string | null
     decisionDeposit: string
     preparePeriod: number
     decisionPeriod: number

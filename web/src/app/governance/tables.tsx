@@ -65,7 +65,7 @@ export function TracksTable({rows, chain}: {rows: TrackRow[]; chain: ChainProps}
         )
         return tcol.columns([
             tcol.display({id: 'track', header: 'Track', meta: {className: 'w-full', cellClassName: 'text-[13px] font-medium'}, cell: ({row}) => trackLabel(row.original.name)}),
-            tcol.display({id: 'spend', header: 'Max spend', meta: num, cell: ({row}) => fmtBalance(row.original.maxSpend, chain.decimals, chain.symbol)}),
+            tcol.display({id: 'spend', header: 'Max spend', meta: num, cell: ({row}) => (row.original.maxSpend ? fmtBalance(row.original.maxSpend, chain.decimals, chain.symbol) : '—')}),
             tcol.display({id: 'deciding', header: 'Max deciding', meta: num, cell: ({row}) => row.original.maxDeciding}),
             tcol.display({id: 'submission', header: 'Submission deposit', meta: num, cell: () => fmtBalance(chain.submissionDeposit, chain.decimals, chain.symbol)}),
             tcol.display({id: 'deposit', header: 'Decision deposit', meta: num, cell: ({row}) => fmtBalance(row.original.decisionDeposit, chain.decimals, chain.symbol)}),

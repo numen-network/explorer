@@ -16,10 +16,10 @@ export class Track {
     maxDeciding!: number
 
     /**
-     * ceiling the track origin can approve, set by pallet_custom_origins
+     * ceiling the track origin can approve, set by pallet_custom_origins, absent on tracks that release no funds
      */
-    @BigIntColumn_({nullable: false})
-    maxSpend!: bigint
+    @BigIntColumn_({nullable: true})
+    maxSpend!: bigint | undefined | null
 
     @BigIntColumn_({nullable: false})
     decisionDeposit!: bigint

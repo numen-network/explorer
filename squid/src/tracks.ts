@@ -9,17 +9,16 @@ export function readTracks(block: RuntimeCtx): Track[] {
     const caps = constants.origins.spendCaps.v100
     if (!caps.is(block)) throw new Error('unhandled Origins.SpendCaps shape')
     // the ceiling rides an EnsureOrigin success value, which the pallet
-    // republishes as a constant keyed by the track it belongs to
+    // republishes as a constant keyed by the track it belongs to, and only
+    // the spender tracks carry one
     const ceilings = new Map(caps.get(block).map(([track, , cap]) => [track, cap]))
     return tracks.get(block).map(([id, t]) => {
         // sp_runtime::str_array pads the name out to a fixed width
         const name = t.name.replace(/\0+$/, '')
-        const maxSpend = ceilings.get(id)
-        if (maxSpend === undefined) throw new Error(`no spend ceiling published for track ${name}`)
         return new Track({
             id: String(id),
             name,
-            maxSpend,
+            maxSpend: ceilings.get(id) ?? null,
             maxDeciding: t.maxDeciding,
             decisionDeposit: t.decisionDeposit,
             preparePeriod: t.preparePeriod,

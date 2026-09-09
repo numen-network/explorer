@@ -8,11 +8,15 @@ export const Origin: sts.Type<Origin> = sts.closedEnum(() => {
     return  {
         BigSpender: sts.unit(),
         MediumSpender: sts.unit(),
+        ReferendumCanceller: sts.unit(),
+        ReferendumKiller: sts.unit(),
+        RuntimeUpgrade: sts.unit(),
         SmallSpender: sts.unit(),
+        WishForChange: sts.unit(),
     }
 })
 
-export type Origin = Origin_BigSpender | Origin_MediumSpender | Origin_SmallSpender
+export type Origin = Origin_BigSpender | Origin_MediumSpender | Origin_ReferendumCanceller | Origin_ReferendumKiller | Origin_RuntimeUpgrade | Origin_SmallSpender | Origin_WishForChange
 
 export interface Origin_BigSpender {
     __kind: 'BigSpender'
@@ -22,8 +26,24 @@ export interface Origin_MediumSpender {
     __kind: 'MediumSpender'
 }
 
+export interface Origin_ReferendumCanceller {
+    __kind: 'ReferendumCanceller'
+}
+
+export interface Origin_ReferendumKiller {
+    __kind: 'ReferendumKiller'
+}
+
+export interface Origin_RuntimeUpgrade {
+    __kind: 'RuntimeUpgrade'
+}
+
 export interface Origin_SmallSpender {
     __kind: 'SmallSpender'
+}
+
+export interface Origin_WishForChange {
+    __kind: 'WishForChange'
 }
 
 export const TrackDetails: sts.Type<TrackDetails> = sts.struct(() => {
@@ -1003,7 +1023,7 @@ export interface IdentityInfo {
     avatar: Bytes
     bio: Bytes
     web: Bytes
-    email: Bytes
+    email: BoundedVec
     github: BoundedVec
     matrix: BoundedVec
     x: BoundedVec
@@ -1056,7 +1076,7 @@ export const IdentityInfo: sts.Type<IdentityInfo> = sts.struct(() => {
         avatar: sts.bytes(),
         bio: sts.bytes(),
         web: sts.bytes(),
-        email: sts.bytes(),
+        email: BoundedVec,
         github: BoundedVec,
         matrix: BoundedVec,
         x: BoundedVec,

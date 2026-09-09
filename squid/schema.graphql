@@ -258,8 +258,8 @@ type Track @entity {
   id: ID!
   name: String!
   maxDeciding: Int!
-  "ceiling the track origin can approve, set by pallet_custom_origins"
-  maxSpend: BigInt!
+  "ceiling the track origin can approve, set by pallet_custom_origins, absent on tracks that release no funds"
+  maxSpend: BigInt
   decisionDeposit: BigInt!
   preparePeriod: Int!
   decisionPeriod: Int!
