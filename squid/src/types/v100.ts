@@ -7,6 +7,7 @@ export const PalletId = sts.bytes()
 export const Origin: sts.Type<Origin> = sts.closedEnum(() => {
     return  {
         BigSpender: sts.unit(),
+        IdentityAdmin: sts.unit(),
         MediumSpender: sts.unit(),
         ReferendumCanceller: sts.unit(),
         ReferendumKiller: sts.unit(),
@@ -16,10 +17,14 @@ export const Origin: sts.Type<Origin> = sts.closedEnum(() => {
     }
 })
 
-export type Origin = Origin_BigSpender | Origin_MediumSpender | Origin_ReferendumCanceller | Origin_ReferendumKiller | Origin_RuntimeUpgrade | Origin_SmallSpender | Origin_WishForChange
+export type Origin = Origin_BigSpender | Origin_IdentityAdmin | Origin_MediumSpender | Origin_ReferendumCanceller | Origin_ReferendumKiller | Origin_RuntimeUpgrade | Origin_SmallSpender | Origin_WishForChange
 
 export interface Origin_BigSpender {
     __kind: 'BigSpender'
+}
+
+export interface Origin_IdentityAdmin {
+    __kind: 'IdentityAdmin'
 }
 
 export interface Origin_MediumSpender {
