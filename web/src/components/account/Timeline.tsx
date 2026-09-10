@@ -3,11 +3,12 @@ import {Star, User, Users} from 'lucide-react'
 import Pager from '@/components/Pager'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, ExtrinsicLink} from '@/components/links'
+import RetiredBadge from '@/components/RetiredBadge'
 import {Badge} from '@/components/ui/badge'
 import {TimelineItem, TimelineList, TimelineRows, type Tone} from '@/components/timeline'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
-import {identityTimeline, judgementsByEvent, registrarsList, type AccountRef} from '@/lib/gql'
+import {identityTimeline, judgementsByEvent, registrarsList, type RegistrarRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {callSubs, hexText, identityCallRows, type SubEntry} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
@@ -28,15 +29,16 @@ const rowLabel = (k: string) => {
 
 // the index is what the event carries, the account behind it is what a reader
 // wants. numberOfSubs is dropped because the Subs rows spell the same thing out
-const eventRows = (args: unknown, self: string, chain: ChainProps, registrars: Map<number, AccountRef>): [string, ReactNode][] =>
+const eventRows = (args: unknown, self: string, chain: ChainProps, registrars: Map<number, RegistrarRow>): [string, ReactNode][] =>
     Object.entries((args ?? {}) as Record<string, unknown>)
         .filter(([k, v]) => k !== 'numberOfSubs' && String(v).toLowerCase() !== self)
         .flatMap(([k, v]): [string, ReactNode][] => {
             const raw = String(v)
             if (k === 'registrarIndex') {
-                const acc = registrars.get(Number(raw))
-                const rows: [string, ReactNode][] = [[rowLabel(k), raw]]
-                if (acc) rows.push(['Registrar account', <AccountLink key={k} addr={ss58Encode(acc.id, chain.ss58)} acc={acc} />])
+                const reg = registrars.get(Number(raw))
+                const index = reg?.retiredAt != null ? <span key={k} className="flex items-center gap-2">{raw}<RetiredBadge /></span> : raw
+                const rows: [string, ReactNode][] = [[rowLabel(k), index]]
+                if (reg?.account) rows.push(['Registrar account', <AccountLink key={k} addr={ss58Encode(reg.account.id, chain.ss58)} acc={reg.account} />])
                 return rows
             }
             if (k === 'username' && raw.startsWith('0x')) return [[rowLabel(k), hexText(raw)]]
@@ -63,7 +65,7 @@ export default async function Timeline({hex, addr, chain, sp}: TabCtx) {
         events.some(e => (e.args as {registrarIndex?: unknown} | null)?.registrarIndex != null) ? registrarsList() : null,
         judgementsByEvent(events.filter(e => e.method === 'JudgementGiven').map(e => e.id)),
     ])
-    const registrarBy = new Map((regs?.registrars ?? []).filter(r => r.account).map(r => [r.index, r.account!]))
+    const registrarBy = new Map((regs?.registrars ?? []).map(r => [r.index, r]))
     const verdictBy = new Map(verdicts.judgements.map(j => [j.id, j]))
 
     return (

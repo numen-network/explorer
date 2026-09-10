@@ -108,7 +108,7 @@ function depositRows(a: AccountRow, s: AccountSummary): LockRow[] {
 }
 
 // asking a registrar for judgement puts their fee aside until they answer
-function identityRows(a: AccountRow): LockRow[] {
+function identityRows(a: AccountRow, retired: {index: number}[]): LockRow[] {
     const info = a.identityJson as {deposit?: string; judgements?: [number, {__kind: string; value?: string}][]} | null
     if (info == null) return []
     const rows: LockRow[] = []
@@ -117,7 +117,12 @@ function identityRows(a: AccountRow): LockRow[] {
     }
     for (const [index, j] of info.judgements ?? []) {
         if (j.__kind === 'FeePaid' && j.value != null) {
-            rows.push(reserved(`Registrar #${index} judgement fee`, BigInt(j.value), 'until the registrar answers or the request is withdrawn'))
+            const amount = BigInt(j.value)
+            rows.push(
+                retired.some(r => r.index === index)
+                    ? reserved(`Retired registrar #${index} judgement fee`, amount, 'until the request is withdrawn')
+                    : reserved(`Registrar #${index} judgement fee`, amount, 'until the registrar answers or the request is withdrawn')
+            )
         }
     }
     return rows
@@ -179,7 +184,7 @@ export function lockRows(a: AccountRow, validator: ValidatorRow | undefined, s: 
             const pallet = variantName(h.reason) ?? 'Unknown'
             return reserved(`${pallet} hold`, BigInt(h.amount), HOLD_FREED[pallet])
         }),
-        ...identityRows(a),
+        ...identityRows(a, s.retiredRegistrars),
         ...depositRows(a, s),
         ...govRows(s.govDeposits, a.id),
         ...bountyRows(s.bountyDeposits, s.childBountyDeposits, a.id),

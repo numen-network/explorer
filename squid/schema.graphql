@@ -244,11 +244,15 @@ type Registrar @entity {
   "the index into the registrar list, which is what judgements point at"
   id: ID!
   index: Int! @index @unique
+  "null once the seat is retired, along with fee and fields"
   account: Account @index
-  fee: BigInt!
-  fields: BigInt!
+  fee: BigInt
+  fields: BigInt
   "block of the RegistrarAdded event, null for a registrar the chain started with"
   addedAt: Int
+  "block of the RegistrarRemoved event, null while the seat is held"
+  retiredAt: Int
+  retiredTimestamp: DateTime
   requestCount: Int!
   givenCount: Int!
   lastJudgementBlock: Int

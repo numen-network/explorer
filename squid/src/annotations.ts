@@ -23,6 +23,12 @@ export function collectAnnotationEvent(batch: BatchData, id: string, name: strin
             batch.registrarAdded.set(args.registrarIndex, height)
             batch.registrarsDirty = true
             break
+        // older runtimes retire seats through the prime pallet
+        case 'Identity.RegistrarRemoved':
+        case 'Prime.RegistrarRemoved':
+            batch.registrarRetired.set(args.registrarIndex ?? args.index, {height, at})
+            batch.registrarsDirty = true
+            break
         case 'Identity.JudgementRequested':
             registrarStat(batch, args.registrarIndex, at).requests += 1
             break
@@ -166,24 +172,27 @@ export async function finalizeRegistrars(batch: BatchData, lastHeader: any, stor
         const list = (await s.get(lastHeader)) ?? []
         const stored = new Map((await store.find(Registrar, {})).map(r => [r.index, r]))
         list.forEach((info, index) => {
-            if (info == null) return
             const r =
                 stored.get(index) ??
                 known.get(index) ??
                 new Registrar({
                     id: String(index),
                     index,
-                    fee: 0n,
-                    fields: 0n,
                     addedAt: batch.registrarAdded.get(index) ?? null,
                     requestCount: 0,
                     givenCount: 0,
                 })
-            r.account = batch.touch(info.account, lastHeader.height)
-            r.fee = info.fee
-            r.fields = info.fields
+            r.account = info ? batch.touch(info.account, lastHeader.height) : null
+            r.fee = info?.fee ?? null
+            r.fields = info?.fields ?? null
             known.set(index, r)
         })
+    }
+    for (const [index, {height, at}] of batch.registrarRetired) {
+        const r = known.get(index)
+        if (r == null) throw new Error(`retirement of unknown registrar ${index}`)
+        r.retiredAt = height
+        r.retiredTimestamp = at
     }
     for (const [index, s] of stats) {
         const r = known.get(index)

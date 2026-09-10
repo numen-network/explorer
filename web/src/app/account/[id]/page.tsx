@@ -185,7 +185,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                     </DetailCard>
                     <div className="mt-2 px-1 text-xs text-dim">* computed from on-chain data, not raw on-chain data</div>
                 </div>
-                {hasIdentity && <Identity a={a} chain={chain} />}
+                {hasIdentity && <Identity a={a} chain={chain} retired={s.retiredRegistrars} />}
             </div>
 
             <div className="mt-7">

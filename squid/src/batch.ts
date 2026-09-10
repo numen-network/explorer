@@ -96,6 +96,7 @@ export class BatchData {
     sessionBoundaries: {index: number; height: number}[] = []
     registrarsDirty = false
     registrarAdded = new Map<number, number>()
+    registrarRetired = new Map<number, {height: number; at: Date}>()
     judgementsGiven: {id: string; registrar: number; target: string; block: number; at: Date; header: any}[] = []
     judgements: Judgement[] = []
     registrarStats = new Map<number, {requests: number; given: number; block: number; at: Date}>()

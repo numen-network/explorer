@@ -1,5 +1,6 @@
 import AccountLink from '@/components/AccountLink'
 import {DetailCard, DetailRow, NONE} from '@/components/Detail'
+import RetiredBadge from '@/components/RetiredBadge'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
@@ -14,7 +15,7 @@ const LABEL = 'w-20 shrink-0 text-muted-foreground'
 
 // the registration the account made itself, the sub card next to it only
 // names the super it hangs under
-function Registration({json, chain}: {json: unknown; chain: ChainProps}) {
+function Registration({json, chain, retired}: {json: unknown; chain: ChainProps; retired: {index: number}[]}) {
     const judgements = identityJudgements(json)
     return (
         <>
@@ -35,6 +36,7 @@ function Registration({json, chain}: {json: unknown; chain: ChainProps}) {
                             <span key={j.registrar} className="flex items-center gap-1.5">
                                 <Badge variant={JUDGEMENT_TONE[j.kind] ?? 'idle'}>{j.kind}</Badge>
                                 <span className="text-xs text-dim">registrar #{j.registrar}</span>
+                                {retired.some(r => r.index === j.registrar) && <RetiredBadge />}
                                 {j.fee && <span className="text-xs text-dim">fee {fmtBalance(j.fee, chain.decimals, chain.symbol)}</span>}
                             </span>
                         ))}
@@ -45,13 +47,13 @@ function Registration({json, chain}: {json: unknown; chain: ChainProps}) {
     )
 }
 
-export default function Identity({a, chain}: {a: AccountRow; chain: ChainProps}) {
+export default function Identity({a, chain, retired}: {a: AccountRow; chain: ChainProps; retired: {index: number}[]}) {
     const sup = a.identitySuper
     return (
         <div className="grid gap-4">
             {a.identityJson != null && (
                 <DetailCard title="Identity">
-                    <Registration json={a.identityJson} chain={chain} />
+                    <Registration json={a.identityJson} chain={chain} retired={retired} />
                 </DetailCard>
             )}
             {sup && (

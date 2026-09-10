@@ -336,6 +336,7 @@ export interface AccountSummary {
     accountById: AccountRow | null
     validators: ValidatorRow[]
     registrar: {index: number}[]
+    retiredRegistrars: {index: number}[]
     prime: {id: string}[]
     minerDays: {day: string; blocks: number}[]
     curated: {totalCount: number}
@@ -393,6 +394,7 @@ export function accountSummary(idHex: string) {
             accountById(id: $id) { id free reserved frozen nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData identitySuper { id identityDisplay identityJson } evmAddress vestingJson locksJson holdsJson depositsJson }
             validators(where: {account: ${self}}, limit: 1) { ${VALIDATOR_FIELDS} }
             registrar: registrars(where: {account: ${self}}, limit: 1) { index }
+            retiredRegistrars: registrars(where: {retiredAt_isNull: false}) { index }
             prime: primeStates(where: {account: ${self}}, limit: 1) { id }
             minerDays: minerDayStats(where: {account: ${self}}, orderBy: day_DESC, limit: 60) { day blocks }
             curated: bountiesConnection(orderBy: index_ASC, where: {curator: ${self}}) { totalCount }
@@ -531,8 +533,9 @@ export function identitiesPage(limit: number, offset: number) {
 export interface RegistrarRow {
     id: string
     index: number
-    fee: string
+    fee: string | null
     addedAt: number | null
+    retiredAt: number | null
     requestCount: number
     givenCount: number
     lastJudgementBlock: number | null
@@ -544,7 +547,7 @@ export function registrarsList() {
     return gql<{registrars: RegistrarRow[]}>(
         `query {
             registrars(orderBy: index_ASC, limit: 100) {
-                id index fee addedAt requestCount givenCount lastJudgementBlock lastJudgementAt
+                id index fee addedAt retiredAt requestCount givenCount lastJudgementBlock lastJudgementAt
                 account { ${ACCOUNT_REF} }
             }
         }`

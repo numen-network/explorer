@@ -24,6 +24,7 @@ export default async function IdentitiesPage(props: PageProps<'/identities'>) {
     const direct = counts.registered.length
     const verified = verdicts.filter(v => v === 'verified').length
     const flagged = verdicts.filter(v => v === 'bad').length
+    const retired = registrars.registrars.filter(r => r.retiredAt != null).length
 
     return (
         <div>
@@ -42,7 +43,7 @@ export default async function IdentitiesPage(props: PageProps<'/identities'>) {
                     ]}
                 />
                 <StatTile label="Sub identities" value={fmtInt(counts.subs.totalCount)} />
-                <StatTile label="Registrars" value={fmtInt(registrars.registrars.length)} />
+                <StatTile label="Registrars" value={fmtInt(registrars.registrars.length - retired)} chips={[{text: fmtInt(retired), note: 'retired', tone: 'idle'}]} />
                 <StatTile
                     label="Latest judgement"
                     value={
