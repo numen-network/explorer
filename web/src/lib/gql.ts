@@ -795,16 +795,20 @@ export interface EvmTxRow {
     extrinsic: {id: string; hash: string}
 }
 
+export interface EvmTxDetailRow extends EvmTxRow {
+    extrinsic: {id: string; hash: string; transfers: TransferRow[]}
+}
+
 const EVM_TX_FIELDS = `id txIndex from to contractAddress value input inputSelector nonce gasLimit gasUsed gasPrice txType status exitReason timestamp block { height } extrinsic { id hash }`
 
 export function evmTxDetail(hash: string) {
     return gql<{
-        evmTransactionById: EvmTxRow | null
+        evmTransactionById: EvmTxDetailRow | null
         evmLogs: {id: string; logIndex: number; address: string; topics: string[]; data: string}[]
         tokenTransfers: TokenTransferRow[]
     }>(
         `query ($id: String!) {
-            evmTransactionById(id: $id) { ${EVM_TX_FIELDS} }
+            evmTransactionById(id: $id) { ${EVM_TX_FIELDS} extrinsic { transfers(orderBy: id_ASC) { ${TRANSFER_FIELDS} } } }
             evmLogs(where: {transaction: {id_eq: $id}}, orderBy: logIndex_ASC, limit: 100) { id logIndex address topics data }
             tokenTransfers(where: {transaction: {id_eq: $id}}, limit: 50) { ${TOKEN_TRANSFER_FIELDS} }
         }`,

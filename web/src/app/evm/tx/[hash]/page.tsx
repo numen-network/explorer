@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import {ChevronRight} from 'lucide-react'
+import AccountLink from '@/components/AccountLink'
 import AddressText from '@/components/AddressText'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow} from '@/components/Detail'
@@ -14,6 +15,7 @@ import {chainProps} from '@/lib/chain'
 import {evmTxTypeLabel, exitDetail} from '@/lib/evm'
 import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmTxDetail} from '@/lib/gql'
+import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,6 +53,19 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
         </Card>
     )
 
+    const transfers = (
+        <Card size="flush" className="divide-y">
+            {tx.extrinsic.transfers.map(t => (
+                <div key={t.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
+                    <AccountLink addr={ss58Encode(t.from.id, chain.ss58)} acc={t.from} />
+                    <span className="text-muted-foreground">→</span>
+                    <AccountLink addr={ss58Encode(t.to.id, chain.ss58)} acc={t.to} />
+                    <span className="ml-auto font-mono">{fmtBalance(t.amount, chain.decimals, chain.symbol)}</span>
+                </div>
+            ))}
+        </Card>
+    )
+
     const tokenTransfers = (
         <Card size="flush" className="divide-y">
             {data.tokenTransfers.map(t => (
@@ -69,6 +84,7 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
 
     const panels: Panel[] = [{slug: 'logs', label: 'Logs', count: data.evmLogs.length, body: () => logs}]
     if (data.tokenTransfers.length > 0) panels.unshift({slug: 'transfers', label: 'Token transfers', count: data.tokenTransfers.length, body: () => tokenTransfers})
+    if (tx.extrinsic.transfers.length > 0) panels.unshift({slug: 'native', label: 'Native transfers', count: tx.extrinsic.transfers.length, body: () => transfers})
 
     return (
         <div>

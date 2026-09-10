@@ -105,6 +105,7 @@ type Extrinsic @entity {
   method: String! @index
   signer: Account @index
   calls: [Call!]! @derivedFrom(field: "extrinsic")
+  transfers: [Transfer!]! @derivedFrom(field: "extrinsic")
   success: Boolean!
   error: JSON
   "what running this extrinsic cost with the tip left out, null when it paid nothing"

@@ -2,6 +2,7 @@ import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, M
 import {Block} from "./block.model"
 import {Account} from "./account.model"
 import {Call} from "./call.model"
+import {Transfer} from "./transfer.model"
 
 @Entity_()
 export class Extrinsic {
@@ -37,6 +38,9 @@ export class Extrinsic {
 
     @OneToMany_(() => Call, e => e.extrinsic)
     calls!: Relation_<Call[]>
+
+    @OneToMany_(() => Transfer, e => e.extrinsic)
+    transfers!: Relation_<Transfer[]>
 
     @BooleanColumn_({nullable: false})
     success!: boolean
