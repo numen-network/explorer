@@ -31,7 +31,10 @@ export function collectAnnotationEvent(batch: BatchData, id: string, name: strin
             break
         case 'Identity.JudgementRequested':
             registrarStat(batch, args.registrarIndex, at).requests += 1
+            batch.touch(args.who, height)
+            batch.identityRefresh.add(args.who)
             break
+        case 'Identity.JudgementUnrequested':
         case 'Identity.IdentitySet':
         case 'Identity.JudgementGiven': {
             const who = args.who ?? args.target
