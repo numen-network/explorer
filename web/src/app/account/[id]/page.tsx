@@ -29,7 +29,7 @@ import {fmtAge, fmtInt} from '@/lib/format'
 import {accountSummary, evmDeployments, tokenTransferCount} from '@/lib/gql'
 import {identityLabel} from '@/lib/identity'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
-import {TREASURY} from '@/lib/wellKnown'
+import {PRIME, TREASURY} from '@/lib/wellKnown'
 
 export const dynamic = 'force-dynamic'
 
@@ -90,7 +90,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
 
     const roles: {text: string; tone: BadgeVariant}[] = []
     if (hex === chain.treasuryAccount) roles.push({text: TREASURY.label, tone: 'primary'})
-    if (s.prime.length > 0) roles.push({text: 'Prime', tone: 'warn'})
+    if (s.prime.length > 0) roles.push({text: PRIME.label, tone: 'warn'})
     if (validator) roles.push({text: validator.active ? 'Active validator' : 'Validator', tone: validator.active ? 'pos' : 'idle'})
     if (minedBlocks > 0) roles.push({text: 'Miner', tone: 'primary'})
     if (registrar) roles.push({text: `Registrar #${registrar.index}`, tone: 'primary'})

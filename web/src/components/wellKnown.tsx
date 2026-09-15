@@ -1,15 +1,17 @@
 'use client'
 
 import {createContext, useContext, type ReactNode} from 'react'
-import {TREASURY, type WellKnown} from '@/lib/wellKnown'
+import {PRIME, TREASURY, type WellKnown} from '@/lib/wellKnown'
 
-const Ctx = createContext<string>('')
+const Ctx = createContext({treasury: '', prime: ''})
 
-export function WellKnownProvider({treasury, children}: {treasury: string; children: ReactNode}) {
-    return <Ctx value={treasury}>{children}</Ctx>
+export function WellKnownProvider({treasury, prime, children}: {treasury: string; prime: string; children: ReactNode}) {
+    return <Ctx value={{treasury, prime}}>{children}</Ctx>
 }
 
 export function useWellKnown(addr: string): WellKnown | null {
-    const treasury = useContext(Ctx)
-    return addr === treasury ? TREASURY : null
+    const {treasury, prime} = useContext(Ctx)
+    if (addr === treasury) return TREASURY
+    if (addr === prime) return PRIME
+    return null
 }

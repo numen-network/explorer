@@ -33,7 +33,7 @@ export default async function AccountsPage(props: PageProps<'/accounts'>) {
                 {prime && (
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3.5">
                         <span className="w-20 shrink-0 text-sm font-medium text-muted-foreground">Prime key</span>
-                        <AccountLink full addr={ss58Encode(prime.account.id, chain.ss58)} acc={prime.account} className="min-w-0" />
+                        <AccountLink full plain addr={ss58Encode(prime.account.id, chain.ss58)} acc={prime.account} className="min-w-0" />
                         <span className="ml-auto text-xs text-dim">
                             {prime.since > 0 ? (
                                 <>

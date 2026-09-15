@@ -8,6 +8,7 @@ import SearchBar from '@/components/SearchBar'
 import {TooltipProvider} from '@/components/ui/tooltip'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {chainProps} from '@/lib/chain'
+import {primeState} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import './globals.css'
 
@@ -20,14 +21,21 @@ export const metadata: Metadata = {
 }
 
 export default async function RootLayout({children}: {children: ReactNode}) {
-    const chain = await chainProps().then(
-        p => p,
-        () => null
-    )
+    const [chain, prime] = await Promise.all([
+        chainProps().then(
+            p => p,
+            () => null
+        ),
+        primeState().then(
+            r => r.primeStates[0]?.account.id,
+            () => undefined
+        ),
+    ])
+    const addr = (hex: string | undefined) => (chain && hex ? ss58Encode(hex, chain.ss58) : '')
     return (
         <html lang="en" className={inter.variable}>
             <body className="flex min-h-dvh flex-col">
-                <WellKnownProvider treasury={chain ? ss58Encode(chain.treasuryAccount, chain.ss58) : ''}>
+                <WellKnownProvider treasury={addr(chain?.treasuryAccount)} prime={addr(prime)}>
                     <TooltipProvider>
                         <Nav chain={chain?.chain ?? ''} />
                         <div className="mx-auto w-full max-w-[1400px] grow px-6 pb-16">
