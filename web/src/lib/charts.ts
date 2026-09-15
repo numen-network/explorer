@@ -199,6 +199,16 @@ export const CHARTS: ChartDef[] = [
         format: token,
     },
     {
+        slug: 'transferable-issuance',
+        group: 'Supply',
+        title: 'Transferable Issuance',
+        about: 'Active issuance minus everything locked or reserved. Vested coins only count once claimed.',
+        kind: 'line',
+        unit: 'Issuance',
+        values: input => input.days.map(d => planckToNum(BigInt(d.issuanceTransferable) - BigInt(d.issuanceInactive), input.decimals)),
+        format: token,
+    },
+    {
         slug: 'treasury',
         group: 'Supply',
         title: 'Treasury Pot',

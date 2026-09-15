@@ -95,6 +95,7 @@ export interface DailyRow {
     tsLast: string
     issuanceTotal: string
     issuanceInactive: string
+    issuanceTransferable: string
     treasuryPot: string
     cumExtrinsicsSigned: string
     cumTransfers: string
@@ -111,7 +112,7 @@ const ACCOUNT_REF = `id identityDisplay identityJson identitySubName identitySub
 
 const BLOCK_FIELDS = `id height hash parentHash timestamp finalized extrinsicCount eventCount difficulty reward minerFees treasuryFees nonce workHash specVersion author { ${ACCOUNT_REF} }`
 const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACCOUNT_REF} } to { ${ACCOUNT_REF} } block { height } extrinsic { id hash }`
-const DAILY_FIELDS = `id date blocks extrinsicsSigned transfers transferVolume evmTxs fees tsFirst tsLast issuanceTotal issuanceInactive treasuryPot cumExtrinsicsSigned cumTransfers cumTransferVolume difficultyClose accountsTotal referendaTotal minersActive rewards`
+const DAILY_FIELDS = `id date blocks extrinsicsSigned transfers transferVolume evmTxs fees tsFirst tsLast issuanceTotal issuanceInactive issuanceTransferable treasuryPot cumExtrinsicsSigned cumTransfers cumTransferVolume difficultyClose accountsTotal referendaTotal minersActive rewards`
 
 export interface HomeData {
     blocks: BlockRow[]
@@ -124,12 +125,9 @@ export interface HomeData {
     sessionHead: {lastActiveSession: number}[]
     topology: TopologyRow[]
     evmTotal: {totalCount: number}
-    refsTotal: {totalCount: number}
     referendums: ReferendumRow[]
     fresh24: {totalCount: number}
     fresh30: {totalCount: number}
-    refs24: {totalCount: number}
-    refs30: {totalCount: number}
 }
 
 export function homeData(since24: string, since30: string) {
@@ -145,12 +143,9 @@ export function homeData(since24: string, since30: string) {
             sessionHead: validators(orderBy: lastActiveSession_DESC, limit: 1) { lastActiveSession }
             topology: meshTopologies(limit: 1) { id faces faceCount }
             evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
-            refsTotal: referendumsConnection(orderBy: index_ASC) { totalCount }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
             fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since24}) { totalCount }
             fresh30: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since30}) { totalCount }
-            refs24: referendumsConnection(orderBy: index_ASC, where: {submittedTimestamp_gt: $since24}) { totalCount }
-            refs30: referendumsConnection(orderBy: index_ASC, where: {submittedTimestamp_gt: $since30}) { totalCount }
         }`,
         {since24, since30}
     )

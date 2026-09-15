@@ -46,6 +46,12 @@ export class DailyStat {
     @BigIntColumn_({nullable: false})
     issuanceInactive!: bigint
 
+    /**
+     * every account's transferable balance summed at the day's last block, inactive issuance included
+     */
+    @BigIntColumn_({nullable: false})
+    issuanceTransferable!: bigint
+
     @BigIntColumn_({nullable: false})
     treasuryPot!: bigint
 

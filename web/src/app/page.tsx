@@ -104,6 +104,7 @@ export default async function Home() {
         today ? [chip(yesterday ? get(today) - get(yesterday) : 0, '24h'), chip(get(today) - get(dayAt(30)), '30d')] : undefined
     const iss = (d: DailyRow) => planckToNum(d.issuanceTotal, props.decimals)
     const act = (d: DailyRow) => iss(d) - planckToNum(d.issuanceInactive, props.decimals)
+    const tra = (d: DailyRow) => planckToNum(d.issuanceTransferable, props.decimals) - planckToNum(d.issuanceInactive, props.decimals)
     const pot = (d: DailyRow) => planckToNum(d.treasuryPot, props.decimals)
 
     const minersOn = (d?: DailyRow) => d?.minersActive ?? 0
@@ -210,12 +211,12 @@ export default async function Home() {
                     value={fmtCompact3(today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
                     chips={stockChips(act)}
                 />
-                <StatTile label="Treasury pot" href="/charts/treasury" value={fmtCompact3(today?.treasuryPot ?? '0', props.decimals, props.symbol)} chips={stockChips(pot)} />
                 <StatTile
-                    label="Referenda" href="/charts/referenda"
-                    value={fmtInt(data.refsTotal.totalCount)}
-                    chips={[chip(data.refs24.totalCount, '24h'), chip(data.refs30.totalCount, '30d')]}
+                    label="Transferable issuance" href="/charts/transferable-issuance"
+                    value={fmtCompact3(today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
+                    chips={stockChips(tra)}
                 />
+                <StatTile label="Treasury pot" href="/charts/treasury" value={fmtCompact3(today?.treasuryPot ?? '0', props.decimals, props.symbol)} chips={stockChips(pot)} />
                 <StatTile
                     label="Difficulty" href="/charts/difficulty"
                     value={curDifficulty > 0 ? fmtCompact(curDifficulty) : '—'}

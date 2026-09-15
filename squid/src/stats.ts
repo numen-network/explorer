@@ -1,12 +1,33 @@
 import {In, LessThan} from 'typeorm'
 import {BatchData, DayDelta} from './batch'
 import {Account, Block, DailyStat, MinerDayStat} from './model'
-import {constants, storage} from './types'
+import {constants, storage, v100} from './types'
 import type {RuntimeCtx} from './types/support'
 
 // PalletId::into_account_truncating builds a sovereign account out of the type
 // tag, the pallet id, and trailing zeros
 const TYPE_ID = Buffer.from('modl').toString('hex')
+
+// the largest page state_getKeysPaged accepts
+const ACCOUNT_PAGE = 1000
+
+const bigMax = (a: bigint, b: bigint) => (a > b ? a : b)
+
+// how much transfer_allow_death can move, the way Balances::reducible_balance
+// counts it
+function transferable({consumers, providers, data: {free, reserved, frozen}}: v100.AccountInfo, ed: bigint): bigint {
+    const keepsEd = free > 0n && consumers > 0 && providers <= 1
+    const untouchable = bigMax(frozen - reserved, keepsEd ? ed : 0n)
+    return bigMax(free - untouchable, 0n)
+}
+
+async function sumTransferable(at: DayDelta['header'], ed: bigint): Promise<bigint> {
+    let sum = 0n
+    for await (const page of storage.system.account.v100.getPairsPaged(ACCOUNT_PAGE, at)) {
+        for (const [, info] of page) sum += transferable(info!, ed)
+    }
+    return sum
+}
 
 export function treasuryAccount(block: RuntimeCtx): string {
     const palletId = constants.treasury.palletId.v100
@@ -102,17 +123,19 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promis
     const totalIssuanceStore = storage.balances.totalIssuance.v100
     const inactiveIssuanceStore = storage.balances.inactiveIssuance.v100
     const accountStore = storage.system.account.v100
+    const edConst = constants.balances.existentialDeposit.v100
 
     for (const day of dayIds) {
         const delta = batch.dayDeltas.get(day)!
         const at = delta.header
-        if (!totalIssuanceStore.is(at) || !inactiveIssuanceStore.is(at) || !accountStore.is(at)) {
+        if (!totalIssuanceStore.is(at) || !inactiveIssuanceStore.is(at) || !accountStore.is(at) || !edConst.is(at)) {
             throw new Error(`unhandled spec version for issuance at block ${at.height}`)
         }
-        const [issuanceTotal, issuanceInactive, treasury] = await Promise.all([
+        const [issuanceTotal, issuanceInactive, treasury, issuanceTransferable] = await Promise.all([
             totalIssuanceStore.get(at),
             inactiveIssuanceStore.get(at),
             accountStore.get(at, treasuryAccount(at)),
+            sumTransferable(at, edConst.get(at)),
         ])
         let row = existing.get(day)
         if (row == null) {
@@ -130,6 +153,7 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promis
                 difficultyClose: delta.difficultyClose,
                 issuanceTotal: 0n,
                 issuanceInactive: 0n,
+                issuanceTransferable: 0n,
                 treasuryPot: 0n,
                 cumExtrinsicsSigned: cumExtrinsicsSigned,
                 cumTransfers: cumTransfers,
@@ -164,6 +188,7 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promis
         referendaTotal = row.referendaTotal
         row.issuanceTotal = issuanceTotal ?? totalIssuanceStore.getDefault(at)
         row.issuanceInactive = issuanceInactive ?? inactiveIssuanceStore.getDefault(at)
+        row.issuanceTransferable = issuanceTransferable
         row.treasuryPot = (treasury ?? accountStore.getDefault(at)).data.free
         batch.days.push(row)
     }

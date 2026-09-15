@@ -551,6 +551,8 @@ type DailyStat @entity {
   difficultyClose: BigInt!
   issuanceTotal: BigInt!
   issuanceInactive: BigInt!
+  "every account's transferable balance summed at the day's last block, inactive issuance included"
+  issuanceTransferable: BigInt!
   treasuryPot: BigInt!
   cumExtrinsicsSigned: BigInt!
   cumTransfers: BigInt!
