@@ -16,6 +16,9 @@ export class Account {
     reserved!: bigint
 
     @BigIntColumn_({nullable: false})
+    balance!: bigint
+
+    @BigIntColumn_({nullable: false})
     frozen!: bigint
 
     @IntColumn_({nullable: false})

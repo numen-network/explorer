@@ -36,7 +36,7 @@ export function AccountsTable({rows, chain, issuance}: {rows: AccountListRow[]; 
                 header: 'Balance',
                 meta: {align: 'right', cellClassName: 'font-mono'},
                 cell: ({row}) => {
-                    const held = BigInt(row.original.free) + BigInt(row.original.reserved)
+                    const held = BigInt(row.original.balance)
                     const pct = share(held)
                     const mark = held > 0n ? tier(pct) : ''
                     return (

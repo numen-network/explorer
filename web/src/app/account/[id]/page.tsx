@@ -149,7 +149,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                 <div>
                     <DetailCard>
                         <DetailRow label="Balance">
-                            <Balance planck={free + reserved} chain={chain} />
+                            <Balance planck={a.balance} chain={chain} />
                         </DetailRow>
                         <DetailRow label="Transferable *">
                             <Balance planck={transferable} chain={chain} />

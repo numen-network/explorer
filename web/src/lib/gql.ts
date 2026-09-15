@@ -162,8 +162,7 @@ export function blocksPage(limit: number, offset: number) {
 }
 
 export interface AccountListRow extends AccountRef {
-    free: string
-    reserved: string
+    balance: string
     nonce: number
     firstSeenBlock: number
     lastActiveBlock: number
@@ -172,7 +171,7 @@ export interface AccountListRow extends AccountRef {
 export function accountsPage(limit: number, offset: number) {
     return gql<{accounts: AccountListRow[]; conn: {totalCount: number}; dailyStats: {issuanceTotal: string}[]}>(
         `query ($limit: Int!, $offset: Int!) {
-            accounts(orderBy: [free_DESC, id_ASC], limit: $limit, offset: $offset) { ${ACCOUNT_REF} free reserved nonce firstSeenBlock lastActiveBlock }
+            accounts(orderBy: [balance_DESC, id_ASC], limit: $limit, offset: $offset) { ${ACCOUNT_REF} balance nonce firstSeenBlock lastActiveBlock }
             conn: accountsConnection(orderBy: id_ASC) { totalCount }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal }
         }`,
@@ -281,6 +280,7 @@ export function extrinsicDetail(height: number, index: number) {
 export interface AccountRow extends AccountRef {
     free: string
     reserved: string
+    balance: string
     frozen: string
     nonce: number
     firstSeenBlock: number
@@ -386,7 +386,7 @@ export function accountSummary(idHex: string) {
     const self = `{id_eq: $id}`
     return gql<AccountSummary>(
         `query ($id: String!) {
-            accountById(id: $id) { id free reserved frozen nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData identitySuper { id identityDisplay identityJson } evmAddress vestingJson locksJson holdsJson depositsJson }
+            accountById(id: $id) { id free reserved balance frozen nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData identitySuper { id identityDisplay identityJson } evmAddress vestingJson locksJson holdsJson depositsJson }
             validators(where: {account: ${self}}, limit: 1) { ${VALIDATOR_FIELDS} }
             registrar: registrars(where: {account: ${self}}, limit: 1) { index }
             retiredRegistrars: registrars(where: {retiredAt_isNull: false}) { index }

@@ -51,8 +51,8 @@ CREATE FUNCTION pg_temp.idjson(name text, judge text) RETURNS jsonb LANGUAGE sql
 
 \set P '1000000000000000000::numeric'
 
-INSERT INTO account (id, free, reserved, frozen, nonce, first_seen_block, first_seen_timestamp, last_active_block, identity_display, identity_json)
-SELECT pg_temp.pk(n), numn * :P, 0, 0, n * 3, :h - 30000, pg_temp.stamp(:h - 30000), :h - 500 * n,
+INSERT INTO account (id, free, reserved, balance, frozen, nonce, first_seen_block, first_seen_timestamp, last_active_block, identity_display, identity_json)
+SELECT pg_temp.pk(n), numn * :P, 0, numn * :P, 0, n * 3, :h - 30000, pg_temp.stamp(:h - 30000), :h - 500 * n,
        name, CASE WHEN name IS NULL THEN NULL ELSE pg_temp.idjson(name, judge) END
 FROM (VALUES
     (1, 'Polaris Guild', 'KnownGood',  850000),
@@ -511,8 +511,8 @@ WHERE token.id = a.addr;
 
 -- pallet_evm maps a sender to blake2_256("evm:" ++ H160), which postgres cannot
 -- compute, so the pairs are precomputed from the same h160 seeds used above
-INSERT INTO account (id, evm_address, free, reserved, frozen, nonce, first_seen_block, first_seen_timestamp, last_active_block)
-SELECT m.acct, pg_temp.h160(m.seed), m.numn * :P, 0, 0, t.txs, t.first_blk, pg_temp.stamp(t.first_blk), t.last_blk
+INSERT INTO account (id, evm_address, free, reserved, balance, frozen, nonce, first_seen_block, first_seen_timestamp, last_active_block)
+SELECT m.acct, pg_temp.h160(m.seed), m.numn * :P, 0, m.numn * :P, 0, t.txs, t.first_blk, pg_temp.stamp(t.first_blk), t.last_blk
 FROM (VALUES
     ('deployer', '0xd3c8428d9f04979615822fd0c603c36c946a9c0fc335ceb830096fcf5be54020', 91000::numeric),
     ('holder1',  '0xe28fa28b89ac2a24d510af67a4c36ab599ff552597de785d063ba36b5b489146',  47000),

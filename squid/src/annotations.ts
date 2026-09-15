@@ -382,6 +382,7 @@ async function refreshPrime(batch: BatchData, lastHeader: any, store: Store): Pr
             firstSeenTimestamp: new Date(0),
             lastActiveBlock: 0,
         })
+        acc.balance = acc.free + acc.reserved
         batch.accounts.set(key, acc)
     }
     batch.prime = new PrimeState({id: 'prime', account: acc, since: batch.primeChanged ?? prev?.since ?? 0})

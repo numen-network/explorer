@@ -134,7 +134,7 @@ export class BatchData {
     touch(id: string, height: number): Account {
         let a = this.accounts.get(id)
         if (a == null) {
-            a = new Account({id, free: 0n, reserved: 0n, frozen: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: height})
+            a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: height})
             this.accounts.set(id, a)
         }
         a.lastActiveBlock = height

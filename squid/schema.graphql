@@ -71,6 +71,7 @@ type Account @entity {
   id: ID!
   free: BigInt!
   reserved: BigInt!
+  balance: BigInt!
   frozen: BigInt!
   nonce: Int!
   firstSeenBlock: Int!

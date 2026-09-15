@@ -2,7 +2,7 @@ module.exports = class Data1788861337863 {
     name = 'Data1788861337863'
 
     async up(db) {
-        await db.query(`CREATE TABLE "account" ("id" character varying NOT NULL, "free" numeric NOT NULL, "reserved" numeric NOT NULL, "frozen" numeric NOT NULL, "nonce" integer NOT NULL, "first_seen_block" integer NOT NULL, "first_seen_timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "last_active_block" integer NOT NULL, "identity_display" text, "identity_json" jsonb, "identity_sub_name" text, "identity_sub_data" jsonb, "username" text, "evm_address" text, "vesting_json" jsonb, "locks_json" jsonb, "holds_json" jsonb, "deposits_json" jsonb, "identity_super_id" character varying, CONSTRAINT "PK_54115ee388cdb6d86bb4bf5b2ea" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "account" ("id" character varying NOT NULL, "free" numeric NOT NULL, "reserved" numeric NOT NULL, "balance" numeric NOT NULL, "frozen" numeric NOT NULL, "nonce" integer NOT NULL, "first_seen_block" integer NOT NULL, "first_seen_timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "last_active_block" integer NOT NULL, "identity_display" text, "identity_json" jsonb, "identity_sub_name" text, "identity_sub_data" jsonb, "username" text, "evm_address" text, "vesting_json" jsonb, "locks_json" jsonb, "holds_json" jsonb, "deposits_json" jsonb, "identity_super_id" character varying, CONSTRAINT "PK_54115ee388cdb6d86bb4bf5b2ea" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_account_first_seen_timestamp_00087e2f" ON "account" ("first_seen_timestamp") `)
         await db.query(`CREATE INDEX "idx_account_last_active_block_82d33d5a" ON "account" ("last_active_block") `)
         await db.query(`CREATE INDEX "idx_account_identity_display_842c1051" ON "account" ("identity_display") `)

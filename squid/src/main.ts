@@ -541,6 +541,7 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
         a.nonce = info?.nonce ?? 0
         a.free = info?.data.free ?? 0n
         a.reserved = info?.data.reserved ?? 0n
+        a.balance = a.free + a.reserved
         a.frozen = info?.data.frozen ?? 0n
         a.locksJson = (locks[i] ?? []).map(l => ({id: lockId(l.id), amount: l.amount.toString(), reasons: l.reasons.__kind}))
         a.holdsJson = (holds[i] ?? []).map(h => ({reason: toJSON(h.id), amount: h.amount.toString()}))
