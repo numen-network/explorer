@@ -24,7 +24,7 @@ export default async function Multisig({hex, chain}: TabCtx) {
                 </Card>
             )}
             <Card size="flush">
-                <MultisigTable rows={multisigOps} chain={chain} />
+                <MultisigTable rows={multisigOps} hex={hex} chain={chain} />
             </Card>
         </div>
     )

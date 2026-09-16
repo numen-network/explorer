@@ -2,6 +2,7 @@ import {ReactNode} from 'react'
 import {Card} from '@/components/ui/card'
 
 export const NONE = <span className="text-dim">—</span>
+export const SELF = <span className="text-dim">self</span>
 
 export function DetailCard({title, children}: {title?: string; children: ReactNode}) {
     return (

@@ -7,7 +7,7 @@ import {TransfersTable} from './TransfersTable'
 import {tabHref, type TabCtx} from './shared'
 
 
-export default async function Transfers({hex, addr, label, chain, sp}: TabCtx) {
+export default async function Transfers({hex, addr, chain, sp}: TabCtx) {
     const dir = sp.dir === 'in' || sp.dir === 'out' ? sp.dir : ''
     const pg = paging(sp)
     const {transfers, conn} = await transfersFor(hex, dir, pg.size, pg.offset)
@@ -22,7 +22,7 @@ export default async function Transfers({hex, addr, label, chain, sp}: TabCtx) {
                 <FilterChip label="In" href={dirHref('in')} active={dir === 'in'} />
             </div>
             <Card size="flush">
-                <TransfersTable rows={transfers} hex={hex} label={label} chain={chain} />
+                <TransfersTable rows={transfers} hex={hex} chain={chain} />
             </Card>
             <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'transfers', {dir})} />
         </>

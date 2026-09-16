@@ -27,7 +27,6 @@ import {chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
 import {fmtAge, fmtInt} from '@/lib/format'
 import {accountSummary, evmDeployments, tokenTransferCount} from '@/lib/gql'
-import {identityLabel} from '@/lib/identity'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {PRIME, TREASURY} from '@/lib/wellKnown'
 
@@ -66,7 +65,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
         a.evmAddress ? tokenTransferCount(a.evmAddress) : 0,
     ])
 
-    const ctx: TabCtx = {hex, addr, label: identityLabel(a) ?? shortAddr(addr), chain, sp}
+    const ctx: TabCtx = {hex, addr, chain, sp}
     const validator = s.validators[0]
     const minedBlocks = s.minerDays.reduce((n, d) => n + d.blocks, 0)
     const locks = lockRows(a, validator, s)

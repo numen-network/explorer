@@ -5,8 +5,6 @@ import {variantName} from '@/lib/variant'
 export interface TabCtx {
     hex: string
     addr: string
-    // how this account reads when a row points back at itself
-    label: string
     chain: ChainProps
     sp: Record<string, string | string[] | undefined>
 }

@@ -47,7 +47,7 @@ export default async function EvmAddressPage(props: PageProps<'/evm/address/[add
 
     const txs = (
         <Card size="flush">
-            <EvmTxsTable rows={data.txs} chain={chain} />
+            <EvmTxsTable rows={data.txs} addr={address} chain={chain} />
         </Card>
     )
 
