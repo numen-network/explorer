@@ -35,6 +35,13 @@ export class Account {
     @IntColumn_({nullable: false})
     lastActiveBlock!: number
 
+    /**
+     * when this account last sealed a block
+     */
+    @Index_("idx_account_last_mined_timestamp_f3118da7")
+    @DateTimeColumn_({nullable: true})
+    lastMinedTimestamp!: Date | undefined | null
+
     @Index_("idx_account_identity_display_842c1051")
     @StringColumn_({nullable: true})
     identityDisplay!: string | undefined | null

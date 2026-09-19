@@ -53,6 +53,15 @@ export class Block {
     @BigIntColumn_({nullable: false})
     treasuryFees!: bigint
 
+    @BigIntColumn_({nullable: false})
+    issuanceTotal!: bigint
+
+    @BigIntColumn_({nullable: false})
+    issuanceInactive!: bigint
+
+    @BigIntColumn_({nullable: false})
+    treasuryPot!: bigint
+
     /**
      * the pow seal, which genesis has none of
      */

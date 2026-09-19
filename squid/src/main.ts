@@ -98,6 +98,9 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         Buffer.from(engine.get(h).slice(2), 'hex')
     )
     if (h.height > 0 && !seal) throw new Error(`block ${h.height} has no pow seal`)
+    const [difficulty, balances] = await Promise.all([currentDifficulty(h), balanceSnapshot(h)])
+    const miner = author ? batch.touch(author, h.height) : undefined
+    if (miner != null) miner.lastMinedTimestamp = new Date(h.timestamp ?? 0)
     const block = new Block({
         id: h.id,
         height: h.height,
@@ -105,11 +108,14 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         parentHash: h.parentHash,
         timestamp: new Date(h.timestamp ?? 0),
         specVersion: h.specVersion,
-        author: author ? batch.touch(author, h.height) : undefined,
-        difficulty: await currentDifficulty(h),
+        author: miner,
+        difficulty,
         reward: 0n,
         minerFees: 0n,
         treasuryFees: 0n,
+        issuanceTotal: balances.issuanceTotal,
+        issuanceInactive: balances.issuanceInactive,
+        treasuryPot: balances.treasuryPot,
         nonce: seal?.nonce,
         workHash: seal?.work,
         finalized: h.height <= finalizedHeight,
@@ -514,6 +520,7 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
     for (const e of existing) {
         const draft = batch.accounts.get(e.id)!
         e.lastActiveBlock = draft.lastActiveBlock
+        if (draft.lastMinedTimestamp != null) e.lastMinedTimestamp = draft.lastMinedTimestamp
         if (draft.evmAddress != null) e.evmAddress = draft.evmAddress
         batch.accounts.set(e.id, e)
     }
@@ -620,6 +627,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert([...batch.spends.values()])
     await ctx.store.upsert([...batch.validators.values()])
     await ctx.store.upsert(batch.days)
+    await ctx.store.upsert(batch.hours)
     await ctx.store.upsert(batch.minerDays)
     if (batch.prime != null) await ctx.store.upsert(batch.prime)
     await ctx.store.upsert(batch.delegations)
@@ -690,6 +698,19 @@ async function currentDifficulty(h: BlockHeader<Fields>): Promise<bigint> {
     const s = storage.difficulty.currentDifficulty.v100
     if (!s.is(h)) throw new Error(`unhandled spec version at block ${h.height}`)
     return (await s.get(h)) ?? s.getDefault(h)
+}
+
+async function balanceSnapshot(h: BlockHeader<Fields>): Promise<{issuanceTotal: bigint; issuanceInactive: bigint; treasuryPot: bigint}> {
+    const total = storage.balances.totalIssuance.v100
+    const inactive = storage.balances.inactiveIssuance.v100
+    const account = storage.system.account.v100
+    if (!total.is(h) || !inactive.is(h) || !account.is(h)) throw new Error(`unhandled spec version at block ${h.height}`)
+    const [issuanceTotal, issuanceInactive, treasury] = await Promise.all([total.get(h), inactive.get(h), account.get(h, treasuryAccount(h))])
+    return {
+        issuanceTotal: issuanceTotal ?? total.getDefault(h),
+        issuanceInactive: issuanceInactive ?? inactive.getDefault(h),
+        treasuryPot: (treasury ?? account.getDefault(h)).data.free,
+    }
 }
 
 function signerOf(ext: ExtrinsicData<Fields> | undefined): string | undefined {

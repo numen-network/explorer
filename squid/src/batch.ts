@@ -12,6 +12,7 @@ import {
     EvmLog,
     EvmTransaction,
     Extrinsic,
+    HourlyStat,
     MetadataAction,
     MinedObject,
     MinerDayStat,
@@ -60,6 +61,12 @@ export interface DayDelta {
     difficultyClose: bigint
     // the last block of the day this batch holds, storage reads for the day land there
     header: any
+}
+
+export interface HourDelta {
+    // the last block of the hour this batch holds, the account scan lands there
+    header: any
+    block: Block
 }
 
 export class BatchData {
@@ -128,6 +135,8 @@ export class BatchData {
     newAccounts = new Set<string>()
     dayDeltas = new Map<string, DayDelta>()
     days: DailyStat[] = []
+    hourDeltas = new Map<string, HourDelta>()
+    hours: HourlyStat[] = []
     minerDayDeltas = new Map<string, {day: string; account: string; blocks: number; rewards: bigint}>()
     minerDays: MinerDayStat[] = []
 

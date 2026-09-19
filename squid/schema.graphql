@@ -13,6 +13,9 @@ type Block @entity {
   minerFees: BigInt!
   "fee share those same extrinsics paid to the treasury"
   treasuryFees: BigInt!
+  issuanceTotal: BigInt!
+  issuanceInactive: BigInt!
+  treasuryPot: BigInt!
   "the pow seal, which genesis has none of"
   nonce: String
   workHash: String
@@ -77,6 +80,8 @@ type Account @entity {
   firstSeenBlock: Int!
   firstSeenTimestamp: DateTime! @index
   lastActiveBlock: Int! @index
+  "when this account last sealed a block"
+  lastMinedTimestamp: DateTime @index
   identityDisplay: String @index
   identityJson: JSON
   "the sub name as readable text, only a Raw Data variant decodes to one"
@@ -566,6 +571,15 @@ type DailyStat @entity {
   minersActive: Int!
   "minted for the miners of that day's blocks"
   rewards: BigInt!
+}
+
+type HourlyStat @entity {
+  id: ID!
+  hour: DateTime! @index
+  block: Block! @index
+  "every account's transferable balance summed at the hour's last block, inactive issuance included"
+  issuanceTransferable: BigInt!
+  issuanceInactive: BigInt!
 }
 
 type MinerDayStat @entity @index(fields: ["day", "blocks"]) {

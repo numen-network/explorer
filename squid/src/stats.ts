@@ -1,6 +1,6 @@
 import {In, LessThan} from 'typeorm'
-import {BatchData, DayDelta} from './batch'
-import {Account, Block, DailyStat, MinerDayStat} from './model'
+import {BatchData, DayDelta, HourDelta} from './batch'
+import {Account, Block, DailyStat, HourlyStat, MinerDayStat} from './model'
 import {constants, storage, v100} from './types'
 import type {RuntimeCtx} from './types/support'
 
@@ -21,7 +21,7 @@ function transferable({consumers, providers, data: {free, reserved, frozen}}: v1
     return bigMax(free - untouchable, 0n)
 }
 
-async function sumTransferable(at: DayDelta['header'], ed: bigint): Promise<bigint> {
+async function sumTransferable(at: HourDelta['header'], ed: bigint): Promise<bigint> {
     let sum = 0n
     for await (const page of storage.system.account.v100.getPairsPaged(ACCOUNT_PAGE, at)) {
         for (const [, info] of page) sum += transferable(info!, ed)
@@ -68,6 +68,7 @@ export function accumulateDay(batch: BatchData, block: Block, header: RuntimeCtx
     d.tsLast = block.timestamp
     d.difficultyClose = block.difficulty
     d.header = header
+    batch.hourDeltas.set(block.timestamp.toISOString().slice(0, 13), {header, block})
 
     if (block.author != null) {
         const minerId = `${day}-${block.author.id}`
@@ -125,17 +126,40 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promis
     const accountStore = storage.system.account.v100
     const edConst = constants.balances.existentialDeposit.v100
 
+    const hourRows = new Map<string, HourlyStat>()
+    const closingHour = new Map<string, string>()
+    for (const id of [...batch.hourDeltas.keys()].sort()) {
+        const {header: at, block} = batch.hourDeltas.get(id)!
+        if (!inactiveIssuanceStore.is(at) || !accountStore.is(at) || !edConst.is(at)) {
+            throw new Error(`unhandled spec version for issuance at block ${at.height}`)
+        }
+        const [issuanceInactive, issuanceTransferable] = await Promise.all([
+            inactiveIssuanceStore.get(at),
+            sumTransferable(at, edConst.get(at)),
+        ])
+        const row = new HourlyStat({
+            id,
+            hour: new Date(`${id}:00:00Z`),
+            block,
+            issuanceTransferable,
+            issuanceInactive: issuanceInactive ?? inactiveIssuanceStore.getDefault(at),
+        })
+        hourRows.set(id, row)
+        // the ids are sorted, so the last one written for a day is its close
+        closingHour.set(id.slice(0, 10), id)
+        batch.hours.push(row)
+    }
+
     for (const day of dayIds) {
         const delta = batch.dayDeltas.get(day)!
         const at = delta.header
-        if (!totalIssuanceStore.is(at) || !inactiveIssuanceStore.is(at) || !accountStore.is(at) || !edConst.is(at)) {
+        if (!totalIssuanceStore.is(at) || !inactiveIssuanceStore.is(at) || !accountStore.is(at)) {
             throw new Error(`unhandled spec version for issuance at block ${at.height}`)
         }
-        const [issuanceTotal, issuanceInactive, treasury, issuanceTransferable] = await Promise.all([
+        const [issuanceTotal, issuanceInactive, treasury] = await Promise.all([
             totalIssuanceStore.get(at),
             inactiveIssuanceStore.get(at),
             accountStore.get(at, treasuryAccount(at)),
-            sumTransferable(at, edConst.get(at)),
         ])
         let row = existing.get(day)
         if (row == null) {
@@ -188,7 +212,7 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promis
         referendaTotal = row.referendaTotal
         row.issuanceTotal = issuanceTotal ?? totalIssuanceStore.getDefault(at)
         row.issuanceInactive = issuanceInactive ?? inactiveIssuanceStore.getDefault(at)
-        row.issuanceTransferable = issuanceTransferable
+        row.issuanceTransferable = hourRows.get(closingHour.get(day)!)!.issuanceTransferable
         row.treasuryPot = (treasury ?? accountStore.getDefault(at)).data.free
         batch.days.push(row)
     }
