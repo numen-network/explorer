@@ -19,7 +19,7 @@ import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum, trackLabel} from '@/lib/format'
-import {homeData, type DailyRow} from '@/lib/gql'
+import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -55,8 +55,6 @@ export default async function Home() {
     const [props, heads, data] = await Promise.all([chainProps(), chainHeads(), homeData(ago(1), ago(30))])
     const days = data.dailyStats
     const today: DailyRow | undefined = days[0]
-    const yesterday: DailyRow | undefined = days[1]
-    const dayAt = (i: number) => days[Math.min(i, days.length - 1)]
 
     const blockTime = today && today.blocks > 1 ? (Date.parse(today.tsLast) - Date.parse(today.tsFirst)) / 1000 / (today.blocks - 1) : null
 
@@ -95,20 +93,25 @@ export default async function Home() {
         tone: n > 0 ? 'pos' : n < 0 ? 'neg' : 'idle',
     })
     const pctChip = (cur: number, prev: number, note: string): StatChip => {
-        const p = prev > 0 ? ((cur - prev) / prev) * 100 : 0
+        if (prev <= 0) return {text: '—', note, tone: 'idle'}
+        const p = ((cur - prev) / prev) * 100
         if (Math.abs(p) < 0.05) return {text: '0%', note, tone: 'idle'}
         return {text: `${p > 0 ? '+' : ''}${p.toFixed(1)}%`, note, tone: p > 0 ? 'pos' : 'neg'}
     }
-    const sum30 = (get: (d: DailyRow) => number) => days.slice(0, 30).reduce((a, d) => a + get(d), 0)
-    const stockChips = (get: (d: DailyRow) => number) =>
-        today ? [chip(yesterday ? get(today) - get(yesterday) : 0, '24h'), chip(get(today) - get(dayAt(30)), '30d')] : undefined
-    const iss = (d: DailyRow) => planckToNum(d.issuanceTotal, props.decimals)
-    const act = (d: DailyRow) => iss(d) - planckToNum(d.issuanceInactive, props.decimals)
-    const tra = (d: DailyRow) => planckToNum(d.issuanceTransferable, props.decimals) - planckToNum(d.issuanceInactive, props.decimals)
-    const pot = (d: DailyRow) => planckToNum(d.treasuryPot, props.decimals)
-
-    const minersOn = (d?: DailyRow) => d?.minersActive ?? 0
+    const countChip = (n: number, note: string): StatChip => ({text: fmtCompact(n), note, tone: 'idle'})
+    const num = (v: string) => planckToNum(v, props.decimals)
     const curDifficulty = data.blocks[0] ? Number(data.blocks[0].difficulty) : today ? Number(today.difficultyClose) : 0
+
+    const base24 = data.base24[0]
+    const base30 = data.base30[0]
+    // no baseline means the window opens before the chain did, and zero stands in for no reading
+    const at = (r: BaselineRow | undefined, get: (r: BaselineRow) => number) => (r ? get(r) : 0)
+    const stockChips = (now: number, get: (r: BaselineRow) => number) => [chip(now - at(base24, get), '24h'), chip(now - at(base30, get), '30d')]
+    const traAt = (r: HourlyRow | undefined) => (r ? num(r.issuanceTransferable) - num(r.issuanceInactive) : 0)
+    const diffAt = (r: BaselineRow | undefined) => at(r, b => Number(b.difficulty))
+    const issNow = today ? num(today.issuanceTotal) : 0
+    const inactiveNow = today ? num(today.issuanceInactive) : 0
+    const traNow = today ? num(today.issuanceTransferable) - inactiveNow : 0
 
     return (
         <div>
@@ -179,17 +182,17 @@ export default async function Home() {
                 <StatTile
                     label="Signed extrinsics" href="/charts/extrinsics-total"
                     value={fmtInt(today?.cumExtrinsicsSigned ?? '0')}
-                    chips={today ? [chip(today.extrinsicsSigned, '24h'), chip(sum30(d => d.extrinsicsSigned), '30d')] : undefined}
+                    chips={[chip(data.ext24.totalCount, '24h'), chip(data.ext30.totalCount, '30d')]}
                 />
                 <StatTile
                     label="Transfers" href="/charts/transfers-total"
                     value={fmtInt(today?.cumTransfers ?? '0')}
-                    chips={today ? [chip(today.transfers, '24h'), chip(sum30(d => d.transfers), '30d')] : undefined}
+                    chips={[chip(data.transfers24.totalCount, '24h'), chip(data.transfers30.totalCount, '30d')]}
                 />
                 <StatTile
                     label="EVM txs" href="/charts/evm-transactions"
                     value={fmtInt(data.evmTotal.totalCount)}
-                    chips={today ? [chip(today.evmTxs, '24h'), chip(sum30(d => d.evmTxs), '30d')] : undefined}
+                    chips={[chip(data.evm24.totalCount, '24h'), chip(data.evm30.totalCount, '30d')]}
                 />
                 <StatTile
                     label="Accounts" href="/charts/accounts"
@@ -198,36 +201,33 @@ export default async function Home() {
                 />
                 <StatTile
                     label="Miners" href="/charts/miners"
-                    value={fmtInt(minersOn(today))}
-                    chips={today ? [chip(minersOn(today) - minersOn(yesterday), '24h'), chip(minersOn(today) - minersOn(dayAt(30)), '30d')] : undefined}
+                    value={fmtInt(data.miners24.totalCount)}
+                    chips={[countChip(data.miners30.totalCount, '30d'), countChip(data.minersTotal.totalCount, 'total')]}
                 />
                 <StatTile
                     label="Total issuance" href="/charts/issuance"
                     value={fmtCompact3(today?.issuanceTotal ?? '0', props.decimals, props.symbol)}
-                    chips={stockChips(iss)}
+                    chips={stockChips(issNow, r => num(r.issuanceTotal))}
                 />
                 <StatTile
                     label="Active issuance" href="/charts/active-issuance"
                     value={fmtCompact3(today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
-                    chips={stockChips(act)}
+                    chips={stockChips(issNow - inactiveNow, r => num(r.issuanceTotal) - num(r.issuanceInactive))}
                 />
                 <StatTile
                     label="Transferable issuance" href="/charts/transferable-issuance"
                     value={fmtCompact3(today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
-                    chips={stockChips(tra)}
+                    chips={[chip(traNow - traAt(data.tra24[0]), '24h'), chip(traNow - traAt(data.tra30[0]), '30d')]}
                 />
-                <StatTile label="Treasury pot" href="/charts/treasury" value={fmtCompact3(today?.treasuryPot ?? '0', props.decimals, props.symbol)} chips={stockChips(pot)} />
+                <StatTile
+                    label="Treasury pot" href="/charts/treasury"
+                    value={fmtCompact3(today?.treasuryPot ?? '0', props.decimals, props.symbol)}
+                    chips={stockChips(today ? num(today.treasuryPot) : 0, r => num(r.treasuryPot))}
+                />
                 <StatTile
                     label="Difficulty" href="/charts/difficulty"
                     value={curDifficulty > 0 ? fmtCompact(curDifficulty) : '—'}
-                    chips={
-                        today
-                            ? [
-                                  pctChip(curDifficulty, yesterday ? Number(yesterday.difficultyClose) : curDifficulty, '24h'),
-                                  pctChip(curDifficulty, Number(dayAt(30).difficultyClose), '30d'),
-                              ]
-                            : undefined
-                    }
+                    chips={[pctChip(curDifficulty, diffAt(base24), '24h'), pctChip(curDifficulty, diffAt(base30), '30d')]}
                 />
             </div>
 

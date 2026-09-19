@@ -112,7 +112,20 @@ const ACCOUNT_REF = `id identityDisplay identityJson identitySubName identitySub
 
 const BLOCK_FIELDS = `id height hash parentHash timestamp finalized extrinsicCount eventCount difficulty reward minerFees treasuryFees nonce workHash specVersion author { ${ACCOUNT_REF} }`
 const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACCOUNT_REF} } to { ${ACCOUNT_REF} } block { height } extrinsic { id hash }`
+const BASELINE_FIELDS = `difficulty issuanceTotal issuanceInactive treasuryPot`
 const DAILY_FIELDS = `id date blocks extrinsicsSigned transfers transferVolume evmTxs fees tsFirst tsLast issuanceTotal issuanceInactive issuanceTransferable treasuryPot cumExtrinsicsSigned cumTransfers cumTransferVolume difficultyClose accountsTotal referendaTotal minersActive rewards`
+
+export interface BaselineRow {
+    difficulty: string
+    issuanceTotal: string
+    issuanceInactive: string
+    treasuryPot: string
+}
+
+export interface HourlyRow {
+    issuanceTransferable: string
+    issuanceInactive: string
+}
 
 export interface HomeData {
     blocks: BlockRow[]
@@ -128,6 +141,19 @@ export interface HomeData {
     referendums: ReferendumRow[]
     fresh24: {totalCount: number}
     fresh30: {totalCount: number}
+    base24: BaselineRow[]
+    base30: BaselineRow[]
+    tra24: HourlyRow[]
+    tra30: HourlyRow[]
+    miners24: {totalCount: number}
+    miners30: {totalCount: number}
+    minersTotal: {totalCount: number}
+    ext24: {totalCount: number}
+    ext30: {totalCount: number}
+    transfers24: {totalCount: number}
+    transfers30: {totalCount: number}
+    evm24: {totalCount: number}
+    evm30: {totalCount: number}
 }
 
 export function homeData(since24: string, since30: string) {
@@ -146,6 +172,19 @@ export function homeData(since24: string, since30: string) {
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
             fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since24}) { totalCount }
             fresh30: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since30}) { totalCount }
+            base24: blocks(orderBy: timestamp_DESC, limit: 1, where: {timestamp_lte: $since24, height_gt: 0}) { ${BASELINE_FIELDS} }
+            base30: blocks(orderBy: timestamp_DESC, limit: 1, where: {timestamp_lte: $since30, height_gt: 0}) { ${BASELINE_FIELDS} }
+            tra24: hourlyStats(orderBy: hour_DESC, limit: 1, where: {block: {timestamp_lte: $since24}}) { issuanceTransferable issuanceInactive }
+            tra30: hourlyStats(orderBy: hour_DESC, limit: 1, where: {block: {timestamp_lte: $since30}}) { issuanceTransferable issuanceInactive }
+            miners24: accountsConnection(orderBy: id_ASC, where: {lastMinedTimestamp_gt: $since24}) { totalCount }
+            miners30: accountsConnection(orderBy: id_ASC, where: {lastMinedTimestamp_gt: $since30}) { totalCount }
+            minersTotal: accountsConnection(orderBy: id_ASC, where: {lastMinedTimestamp_isNull: false}) { totalCount }
+            ext24: extrinsicsConnection(orderBy: id_ASC, where: {signer_isNull: false, block: {timestamp_gt: $since24}}) { totalCount }
+            ext30: extrinsicsConnection(orderBy: id_ASC, where: {signer_isNull: false, block: {timestamp_gt: $since30}}) { totalCount }
+            transfers24: transfersConnection(orderBy: id_ASC, where: {timestamp_gt: $since24}) { totalCount }
+            transfers30: transfersConnection(orderBy: id_ASC, where: {timestamp_gt: $since30}) { totalCount }
+            evm24: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since24}) { totalCount }
+            evm30: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since30}) { totalCount }
         }`,
         {since24, since30}
     )
