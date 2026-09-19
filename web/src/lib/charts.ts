@@ -1,4 +1,4 @@
-import {fmtInt, planckToNum} from './format'
+import {fmtInt, planckToNum, truncFixed} from './format'
 import type {DailyRow} from './gql'
 
 export interface ChartInput {
@@ -21,7 +21,7 @@ export interface ChartDef {
 
 const num = (v: number) => fmtInt(Math.round(v))
 const fixed = (digits: number) => (v: number) => v.toFixed(digits)
-const token = (v: number, {symbol}: ChartInput) => `${fmtInt(v.toFixed(v < 1000 ? 2 : 0))} ${symbol}`
+const token = (v: number, {symbol}: ChartInput) => `${fmtInt(truncFixed(v, v < 1000 ? 2 : 0))} ${symbol}`
 
 const planck = (pick: (d: DailyRow) => string) => (input: ChartInput) => input.days.map(d => planckToNum(pick(d), input.decimals))
 const count = (pick: (d: DailyRow) => number) => (input: ChartInput) => input.days.map(pick)

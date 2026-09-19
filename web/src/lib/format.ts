@@ -38,8 +38,14 @@ export function planckToNum(planck: string | bigint, decimals: number): number {
     return Number(BigInt(planck) / 10n ** BigInt(shift)) / 10 ** (decimals - shift)
 }
 
+// shortening never rounds up, the reader is never shown more than there is
+export function truncFixed(x: number, digits: number): string {
+    const p = 10 ** digits
+    return (Math.trunc(x * p) / p).toFixed(digits)
+}
+
 function trimNum(x: number): string {
-    const fixed = Math.abs(x) >= 100 ? x.toFixed(0) : Math.abs(x) >= 10 ? x.toFixed(1) : x.toFixed(2)
+    const fixed = Math.abs(x) >= 100 ? truncFixed(x, 0) : Math.abs(x) >= 10 ? truncFixed(x, 1) : truncFixed(x, 2)
     return fixed.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
 }
 

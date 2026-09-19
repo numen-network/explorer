@@ -140,7 +140,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                             <span className="shrink-0 text-sm">
                                 {r.proposalAmount != null ? (
                                     <>
-                                        <span className="font-semibold">{fmtInt(Math.round(planckToNum(r.proposalAmount, chain.decimals)))}</span>{' '}
+                                        <span className="font-semibold">{fmtInt(Math.trunc(planckToNum(r.proposalAmount, chain.decimals)))}</span>{' '}
                                         <span className="font-medium text-dim">{chain.symbol}</span>
                                         {payouts(r.proposalCalls) > 1 && <span className="text-muted-foreground"> · {payouts(r.proposalCalls)} payouts</span>}
                                     </>
