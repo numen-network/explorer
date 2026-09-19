@@ -23,20 +23,33 @@ interface InfoRow extends Omit<ChainProps, 'chain'> {
     finalizedHead: number
 }
 
-const chainInfo = cache(async (): Promise<InfoRow> => {
-    const {chainInfos} = await gql<{chainInfos: InfoRow[]}>(
-        `query { chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod submissionDeposit treasuryAccount head finalizedHead } }`
+export interface DbHead {
+    height: number
+    timestamp: string
+}
+
+const chainInfo = cache(async (): Promise<{info: InfoRow; dbHead: DbHead}> => {
+    const {chainInfos, dbHead} = await gql<{chainInfos: InfoRow[]; dbHead: DbHead[]}>(
+        `query {
+            chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod submissionDeposit treasuryAccount head finalizedHead }
+            dbHead: blocks(orderBy: height_DESC, limit: 1) { height timestamp }
+        }`
     )
     if (!chainInfos[0]) throw new Error('chain info row is missing, the indexer has not written it yet')
-    return chainInfos[0]
+    if (!dbHead[0]) throw new Error('the block table is empty, the indexer has not written it yet')
+    return {info: chainInfos[0], dbHead: dbHead[0]}
 })
 
 export async function chainProps(): Promise<ChainProps> {
-    const {name, head, finalizedHead, ...props} = await chainInfo()
+    const {name, head, finalizedHead, ...props} = (await chainInfo()).info
     return {chain: name, ...props}
 }
 
 export async function chainHeads(): Promise<{best: number; finalized: number}> {
-    const row = await chainInfo()
-    return {best: row.head, finalized: row.finalizedHead}
+    const {info} = await chainInfo()
+    return {best: info.head, finalized: info.finalizedHead}
+}
+
+export async function chainDbHead(): Promise<DbHead> {
+    return (await chainInfo()).dbHead
 }

@@ -17,7 +17,7 @@ import {Progress} from '@/components/ui/progress'
 import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
-import {chainHeads, chainProps} from '@/lib/chain'
+import {chainDbHead, chainHeads, chainProps} from '@/lib/chain'
 import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum, trackLabel} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
@@ -51,8 +51,10 @@ function Bar({ratio}: {ratio: number}) {
 }
 
 export default async function Home() {
-    const ago = (days: number) => new Date(Date.now() - days * 86400000).toISOString()
-    const [props, heads, data] = await Promise.all([chainProps(), chainHeads(), homeData(ago(1), ago(30))])
+    const [props, heads, head] = await Promise.all([chainProps(), chainHeads(), chainDbHead()])
+    // windows run back from the last indexed block, so a lagging indexer still spans a real day
+    const ago = (days: number) => new Date(Date.parse(head.timestamp) - days * 86400000).toISOString()
+    const data = await homeData(ago(1), ago(30))
     const days = data.dailyStats
     const today: DailyRow | undefined = days[0]
 
@@ -62,8 +64,7 @@ export default async function Home() {
     const period = props.sessionLength
     const inSession = period > 0 ? ((heads.best - props.sessionOffset) % period) + 1 : 0
 
-    const dbHead = data.blocks[0]?.height ?? 0
-    const indexing = heads.best - dbHead > 50
+    const indexing = heads.best - head.height > 50
 
     const cards: BlockCard[] = data.minedObjects.map(o => ({
         height: o.block.height,
@@ -148,10 +149,10 @@ export default async function Home() {
                             <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>Catching up</span>
                                 <span className="font-mono">
-                                    {fmtInt(dbHead)} / {fmtInt(heads.best)}
+                                    {fmtInt(head.height)} / {fmtInt(heads.best)}
                                 </span>
                             </div>
-                            <Bar ratio={dbHead / Math.max(1, heads.best)} />
+                            <Bar ratio={head.height / Math.max(1, heads.best)} />
                         </div>
                     )}
                     <dl className="mt-1 divide-y">
