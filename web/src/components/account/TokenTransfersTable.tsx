@@ -6,6 +6,7 @@ import AddressText from '@/components/AddressText'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {EvmAddrLink, EvmTxLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
+import TokenIcon from '@/components/TokenIcon'
 import {fmtBalance} from '@/lib/format'
 import type {TokenTransferRow} from '@/lib/gql'
 import {SELF} from '@/components/Detail'
@@ -25,6 +26,7 @@ export function TokenTransfersTable({rows, evm}: {rows: TokenTransferRow[]; evm:
                 header: 'Token',
                 cell: ({row}) => (
                     <Link href={`/token/${row.original.token.id}`} className="text-primary hover:underline">
+                        <TokenIcon addr={row.original.token.id} />
                         {row.original.token.symbol ?? <AddressText addr={row.original.token.id} />}
                     </Link>
                 ),

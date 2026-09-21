@@ -35,7 +35,7 @@ export default async function RootLayout({children}: {children: ReactNode}) {
     return (
         <html lang="en" className={inter.variable}>
             <body className="flex min-h-dvh flex-col">
-                <WellKnownProvider treasury={addr(chain?.treasuryAccount)} prime={addr(prime)}>
+                <WellKnownProvider treasury={addr(chain?.treasuryAccount)} prime={addr(prime)} evmChainId={chain?.evmChainId ?? 0}>
                     <TooltipProvider>
                         <Nav chain={chain?.chain ?? ''} />
                         <div className="mx-auto w-full max-w-[1400px] grow px-6 pb-16">

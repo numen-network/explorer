@@ -3,6 +3,7 @@ import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import {AddrMark} from '@/components/addrHot'
 import {TabPanels, type Panel} from '@/components/Tabs'
+import TokenIcon from '@/components/TokenIcon'
 import {Jump} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
@@ -36,6 +37,7 @@ export default async function EvmAddressPage(props: PageProps<'/evm/address/[add
             {data.holdings.map(h => (
                 <div key={h.token.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
                     <Link href={`/token/${h.token.id}`} className="font-medium text-primary hover:underline">
+                        <TokenIcon addr={h.token.id} />
                         {h.token.name ?? <AddressText addr={h.token.id} />}
                     </Link>
                     <span className="text-xs text-muted-foreground">{h.token.symbol}</span>
@@ -62,6 +64,7 @@ export default async function EvmAddressPage(props: PageProps<'/evm/address/[add
                     {isContract && <Badge variant="primary">Contract</Badge>}
                     {data.asToken && (
                         <Link href={`/token/${address}`} className="text-sm text-primary hover:underline">
+                            <TokenIcon addr={address} />
                             {data.asToken.name ?? 'Token'} {data.asToken.symbol ? `(${data.asToken.symbol})` : ''} <Jump />
                         </Link>
                     )}

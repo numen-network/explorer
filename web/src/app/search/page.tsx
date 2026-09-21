@@ -7,6 +7,7 @@ import {Item} from '@/components/ui/item'
 import {chainProps} from '@/lib/chain'
 import {isH160, isH256} from '@/lib/evm'
 import AddressText from '@/components/AddressText'
+import TokenIcon from '@/components/TokenIcon'
 import {isTokenAddress, searchLookups, searchNames} from '@/lib/gql'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 
@@ -69,7 +70,10 @@ export default async function SearchPage(props: PageProps<'/search'>) {
                     <Item key={t.id} asChild className={ROW}>
                         <Link href={`/token/${t.id}`}>
                             <Badge variant="idle">Token</Badge>
-                            <span className="font-medium">{t.name ?? 'Unknown'}</span>
+                            <span className="font-medium">
+                                <TokenIcon addr={t.id} />
+                                {t.name ?? 'Unknown'}
+                            </span>
                             {t.symbol && <span className="text-xs text-muted-foreground">{t.symbol}</span>}
                             <span className="ml-auto font-mono text-xs text-muted-foreground">
                                 <AddressText addr={t.id} />

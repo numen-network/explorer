@@ -4,6 +4,7 @@ import Link from 'next/link'
 import {useMemo} from 'react'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink, EvmAddrLink} from '@/components/links'
+import TokenIcon from '@/components/TokenIcon'
 import {fmtBalance, fmtInt} from '@/lib/format'
 import type {TokenRow} from '@/lib/gql'
 import {NONE} from '@/components/Detail'
@@ -19,6 +20,7 @@ export function TokensTable({rows}: {rows: TokenRow[]}) {
                     header: 'Token', meta: {className: 'w-full'},
                     cell: ({row}) => (
                         <Link href={`/token/${row.original.id}`} className="text-primary hover:underline">
+                            <TokenIcon addr={row.original.id} />
                             <span className="font-medium">{row.original.name ?? 'Unknown'}</span>
                             {row.original.symbol && <span className="ml-1.5 text-xs">{row.original.symbol}</span>}
                         </Link>

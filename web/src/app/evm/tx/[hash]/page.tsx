@@ -8,6 +8,7 @@ import {DetailCard, DetailRow} from '@/components/Detail'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
 import {TabPanels, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
+import TokenIcon from '@/components/TokenIcon'
 import {BlockLink, EvmAddrLink, ExtrinsicLink} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
@@ -88,6 +89,7 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
                 >
                     <span className="font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
                     <Link href={`/token/${t.token.id}`} className="font-mono text-xs text-primary hover:underline">
+                        <TokenIcon addr={t.token.id} />
                         <AddressText addr={t.token.id} />
                     </Link>
                 </SplitRow>
