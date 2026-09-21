@@ -18,6 +18,13 @@ export class Block {
     @StringColumn_({nullable: false})
     hash!: string
 
+    /**
+     * hash the EVM side knows this block by, null at genesis
+     */
+    @Index_("idx_block_evm_hash_feb31750")
+    @StringColumn_({nullable: true})
+    evmHash!: string | undefined | null
+
     @StringColumn_({nullable: false})
     parentHash!: string
 

@@ -1,5 +1,5 @@
-module.exports = class Data1789795872622 {
-    name = 'Data1789795872622'
+module.exports = class Data1789984491159 {
+    name = 'Data1789984491159'
 
     async up(db) {
         await db.query(`CREATE TABLE "account" ("id" character varying NOT NULL, "free" numeric NOT NULL, "reserved" numeric NOT NULL, "balance" numeric NOT NULL, "frozen" numeric NOT NULL, "nonce" integer NOT NULL, "first_seen_block" integer NOT NULL, "first_seen_timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "last_active_block" integer NOT NULL, "last_mined_timestamp" TIMESTAMP WITH TIME ZONE, "identity_display" text, "identity_json" jsonb, "identity_sub_name" text, "identity_sub_data" jsonb, "username" text, "evm_address" text, "vesting_json" jsonb, "locks_json" jsonb, "holds_json" jsonb, "deposits_json" jsonb, "identity_super_id" character varying, CONSTRAINT "PK_54115ee388cdb6d86bb4bf5b2ea" PRIMARY KEY ("id"))`)
@@ -10,9 +10,10 @@ module.exports = class Data1789795872622 {
         await db.query(`CREATE INDEX "idx_account_identity_super_6eb9fc9a" ON "account" ("identity_super_id") `)
         await db.query(`CREATE INDEX "idx_account_username_e1e37d55" ON "account" ("username") `)
         await db.query(`CREATE INDEX "idx_account_evm_address_66f5172b" ON "account" ("evm_address") `)
-        await db.query(`CREATE TABLE "block" ("id" character varying NOT NULL, "height" integer NOT NULL, "hash" text NOT NULL, "parent_hash" text NOT NULL, "timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "spec_version" integer NOT NULL, "difficulty" numeric NOT NULL, "reward" numeric NOT NULL, "miner_fees" numeric NOT NULL, "treasury_fees" numeric NOT NULL, "issuance_total" numeric NOT NULL, "issuance_inactive" numeric NOT NULL, "treasury_pot" numeric NOT NULL, "nonce" text, "work_hash" text, "finalized" boolean NOT NULL, "extrinsic_count" integer NOT NULL, "event_count" integer NOT NULL, "logs" text array NOT NULL, "author_id" character varying, CONSTRAINT "PK_d0925763efb591c2e2ffb267572" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "block" ("id" character varying NOT NULL, "height" integer NOT NULL, "hash" text NOT NULL, "evm_hash" text, "parent_hash" text NOT NULL, "timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "spec_version" integer NOT NULL, "difficulty" numeric NOT NULL, "reward" numeric NOT NULL, "miner_fees" numeric NOT NULL, "treasury_fees" numeric NOT NULL, "issuance_total" numeric NOT NULL, "issuance_inactive" numeric NOT NULL, "treasury_pot" numeric NOT NULL, "nonce" text, "work_hash" text, "finalized" boolean NOT NULL, "extrinsic_count" integer NOT NULL, "event_count" integer NOT NULL, "logs" text array NOT NULL, "author_id" character varying, CONSTRAINT "PK_d0925763efb591c2e2ffb267572" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_block_height_b20720ad" ON "block" ("height") `)
         await db.query(`CREATE UNIQUE INDEX "idx_block_hash_b194b635" ON "block" ("hash") `)
+        await db.query(`CREATE INDEX "idx_block_evm_hash_feb31750" ON "block" ("evm_hash") `)
         await db.query(`CREATE INDEX "idx_block_timestamp_82806c7c" ON "block" ("timestamp") `)
         await db.query(`CREATE INDEX "idx_block_author_c116954b" ON "block" ("author_id") `)
         await db.query(`CREATE INDEX "idx_block_finalized_b535c2b5" ON "block" ("finalized") `)
@@ -416,6 +417,7 @@ module.exports = class Data1789795872622 {
         await db.query(`DROP INDEX "public"."idx_block_finalized_b535c2b5"`)
         await db.query(`DROP INDEX "public"."idx_block_author_c116954b"`)
         await db.query(`DROP INDEX "public"."idx_block_timestamp_82806c7c"`)
+        await db.query(`DROP INDEX "public"."idx_block_evm_hash_feb31750"`)
         await db.query(`DROP INDEX "public"."idx_block_hash_b194b635"`)
         await db.query(`DROP INDEX "public"."idx_block_height_b20720ad"`)
         await db.query(`DROP TABLE "block"`)

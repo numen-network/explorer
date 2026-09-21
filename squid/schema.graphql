@@ -2,6 +2,8 @@ type Block @entity {
   id: ID!
   height: Int! @index
   hash: String! @index @unique
+  "hash the EVM side knows this block by, null at genesis"
+  evmHash: String @index
   parentHash: String!
   timestamp: DateTime! @index
   specVersion: Int!

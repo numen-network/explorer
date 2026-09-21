@@ -267,7 +267,7 @@ export interface Slice {
 // need come free and no connection query is required
 export function blockDetail(idOrHash: string, page: Slice) {
     const byHeight = /^\d+$/.test(idOrHash)
-    const where = byHeight ? '{height_eq: $height}' : '{hash_eq: $hash}'
+    const where = byHeight ? '{height_eq: $height}' : '{OR: [{hash_eq: $hash}, {evmHash_eq: $hash}]}'
     return gql<{
         blocks: BlockRow[]
         extrinsics: ExtrinsicRow[]
@@ -1291,7 +1291,7 @@ export function chartSeries(after: string, before: string) {
 export function searchLookups(hex66: string) {
     return gql<{byHash: {height: number}[]; ext: {id: string}[]; evm: {id: string}[]}>(
         `query ($h: String!) {
-            byHash: blocks(where: {hash_eq: $h}, limit: 1) { height }
+            byHash: blocks(where: {OR: [{hash_eq: $h}, {evmHash_eq: $h}]}, limit: 1) { height }
             ext: extrinsics(where: {hash_eq: $h}, limit: 1) { id }
             evm: evmTransactions(where: {id_eq: $h}, limit: 1) { id }
         }`,

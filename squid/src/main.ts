@@ -18,7 +18,7 @@ import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EvmLog, Ev
 import {constants, events, storage} from './types'
 import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
-import {parsePowDigest} from './digest'
+import {parseEvmBlockHash, parsePowDigest} from './digest'
 import {fetchObj, parseMesh} from './objects'
 import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply} from './evm'
 import {collectGovEvent, finalizeGovernance} from './governance'
@@ -93,11 +93,11 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     const h = b.header
     const engine = constants.poscan.engine.v100
     if (!engine.is(h)) throw new Error(`unhandled Poscan.Engine shape at block ${h.height}`)
-    const {author, seal} = parsePowDigest(
-        h.digest?.logs ?? [],
-        Buffer.from(engine.get(h).slice(2), 'hex')
-    )
+    const logs = h.digest?.logs ?? []
+    const {author, seal} = parsePowDigest(logs, Buffer.from(engine.get(h).slice(2), 'hex'))
     if (h.height > 0 && !seal) throw new Error(`block ${h.height} has no pow seal`)
+    const evmHash = parseEvmBlockHash(logs)
+    if (h.height > 0 && !evmHash) throw new Error(`block ${h.height} has no frontier post log`)
     const [difficulty, balances] = await Promise.all([currentDifficulty(h), balanceSnapshot(h)])
     const miner = author ? batch.touch(author, h.height) : undefined
     if (miner != null) miner.lastMinedTimestamp = new Date(h.timestamp ?? 0)
@@ -105,6 +105,7 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         id: h.id,
         height: h.height,
         hash: h.hash,
+        evmHash,
         parentHash: h.parentHash,
         timestamp: new Date(h.timestamp ?? 0),
         specVersion: h.specVersion,
@@ -121,7 +122,7 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         finalized: h.height <= finalizedHeight,
         extrinsicCount: b.extrinsics.length,
         eventCount: b.events.length,
-        logs: h.digest?.logs ?? [],
+        logs,
     })
     batch.blocks.push(block)
     const transfersBefore = batch.transfers.length

@@ -35,3 +35,17 @@ export function parsePowDigest(logs: string[], engine: Buffer): PowDigest {
     }
     return out
 }
+
+const FRONTIER_ENGINE = Buffer.from('fron')
+
+export function parseEvmBlockHash(logs: string[]): string | undefined {
+    for (const log of logs) {
+        const bytes = Buffer.from(log.slice(2), 'hex')
+        if (bytes[0] !== 4 || !bytes.subarray(1, 5).equals(FRONTIER_ENGINE)) continue
+        const src = new Src(bytes.subarray(5))
+        const payload = Buffer.from(src.bytes(src.compactLength()))
+        if (payload[0] !== 1) throw new Error('frontier post log is not PostLog::Hashes')
+        return '0x' + payload.subarray(1, 33).toString('hex')
+    }
+    return undefined
+}
