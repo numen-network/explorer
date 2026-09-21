@@ -5,6 +5,7 @@ import AccountLink from '@/components/AccountLink'
 import AddressText from '@/components/AddressText'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow} from '@/components/Detail'
+import {SplitRow, SplitRows} from '@/components/SplitRows'
 import {TabPanels, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {BlockLink, EvmAddrLink, ExtrinsicLink} from '@/components/links'
@@ -54,32 +55,44 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
     )
 
     const transfers = (
-        <Card size="flush" className="divide-y">
+        <SplitRows>
             {tx.extrinsic.transfers.map(t => (
-                <div key={t.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
-                    <AccountLink addr={ss58Encode(t.from.id, chain.ss58)} acc={t.from} />
-                    <span className="text-muted-foreground">→</span>
-                    <AccountLink addr={ss58Encode(t.to.id, chain.ss58)} acc={t.to} />
-                    <span className="ml-auto font-mono">{fmtBalance(t.amount, chain.decimals, chain.symbol)}</span>
-                </div>
+                <SplitRow
+                    key={t.id}
+                    lead={
+                        <>
+                            <AccountLink addr={ss58Encode(t.from.id, chain.ss58)} acc={t.from} />
+                            <span className="text-muted-foreground">→</span>
+                            <AccountLink addr={ss58Encode(t.to.id, chain.ss58)} acc={t.to} />
+                        </>
+                    }
+                >
+                    <span className="font-mono">{fmtBalance(t.amount, chain.decimals, chain.symbol)}</span>
+                </SplitRow>
             ))}
-        </Card>
+        </SplitRows>
     )
 
     const tokenTransfers = (
-        <Card size="flush" className="divide-y">
+        <SplitRows>
             {data.tokenTransfers.map(t => (
-                <div key={t.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
-                    <EvmAddrLink addr={t.from} />
-                    <span className="text-muted-foreground">→</span>
-                    <EvmAddrLink addr={t.to} />
-                    <span className="ml-auto font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
+                <SplitRow
+                    key={t.id}
+                    lead={
+                        <>
+                            <EvmAddrLink addr={t.from} />
+                            <span className="text-muted-foreground">→</span>
+                            <EvmAddrLink addr={t.to} />
+                        </>
+                    }
+                >
+                    <span className="font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
                     <Link href={`/token/${t.token.id}`} className="font-mono text-xs text-primary hover:underline">
                         <AddressText addr={t.token.id} />
                     </Link>
-                </div>
+                </SplitRow>
             ))}
-        </Card>
+        </SplitRows>
     )
 
     const panels: Panel[] = [{slug: 'logs', label: 'Logs', count: data.evmLogs.length, body: () => logs}]

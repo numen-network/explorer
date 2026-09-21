@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
+import {SplitRow, SplitRows} from '@/components/SplitRows'
 import StatTile from '@/components/StatTile'
 import {TabPanels} from '@/components/Tabs'
 import {BlockLink, EvmTxLink} from '@/components/links'
@@ -37,22 +38,28 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
     )
 
     const transfers = (
-        <Card size="flush" className="divide-y">
+        <SplitRows>
             {data.tokenTransfers.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
             {data.tokenTransfers.map(t => (
-                <div key={t.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
-                    <BlockLink height={t.block.height} />
-                    <EvmTxLink hash={t.transaction.id} />
-                    <span className="font-mono text-xs text-muted-foreground">
-                        <AddressText addr={t.from} /> → <AddressText addr={t.to} />
-                    </span>
-                    <span className="ml-auto font-mono">{fmtBalance(t.amount, dec, symbol)}</span>
+                <SplitRow
+                    key={t.id}
+                    lead={
+                        <>
+                            <BlockLink height={t.block.height} />
+                            <EvmTxLink hash={t.transaction.id} />
+                            <span className="font-mono text-xs text-muted-foreground">
+                                <AddressText addr={t.from} /> → <AddressText addr={t.to} />
+                            </span>
+                        </>
+                    }
+                >
+                    <span className="font-mono">{fmtBalance(t.amount, dec, symbol)}</span>
                     <span className="shrink-0 text-right text-xs text-muted-foreground">
                         <TimeCell iso={t.timestamp} cycle />
                     </span>
-                </div>
+                </SplitRow>
             ))}
-        </Card>
+        </SplitRows>
     )
 
     return (
