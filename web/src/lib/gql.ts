@@ -460,12 +460,15 @@ export function accountSummary(idHex: string) {
     )
 }
 
-export async function tokenTransferCount(address: string) {
-    const {conn} = await gql<{conn: {totalCount: number}}>(
-        `query ($a: String!) { conn: tokenTransfersConnection(orderBy: id_ASC, where: {OR: [{from_eq: $a}, {to_eq: $a}]}) { totalCount } }`,
+export async function tokenCounts(address: string) {
+    const {transfers, holdings} = await gql<{transfers: {totalCount: number}; holdings: {totalCount: number}}>(
+        `query ($a: String!) {
+            transfers: tokenTransfersConnection(orderBy: id_ASC, where: {OR: [{from_eq: $a}, {to_eq: $a}]}) { totalCount }
+            holdings: tokenHoldersConnection(orderBy: id_ASC, where: {address_eq: $a}) { totalCount }
+        }`,
         {a: address}
     )
-    return conn.totalCount
+    return {transfers: transfers.totalCount, holdings: holdings.totalCount}
 }
 
 export function votesFor(idHex: string) {
@@ -604,6 +607,16 @@ export function tokenTransfersFor(address: string, limit: number, offset: number
         `query ($a: String!, $limit: Int!, $offset: Int!) {
             tokenTransfers(where: {OR: [{from_eq: $a}, {to_eq: $a}]}, orderBy: timestamp_DESC, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
             conn: tokenTransfersConnection(where: {OR: [{from_eq: $a}, {to_eq: $a}]}, orderBy: id_ASC) { totalCount }
+        }`,
+        {a: address, limit, offset}
+    )
+}
+
+export function tokenHoldingsFor(address: string, limit: number, offset: number) {
+    return gql<{holdings: HoldingRow[]; conn: {totalCount: number}}>(
+        `query ($a: String!, $limit: Int!, $offset: Int!) {
+            holdings: tokenHolders(where: {address_eq: $a}, orderBy: balance_DESC_NULLS_LAST, limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
+            conn: tokenHoldersConnection(where: {address_eq: $a}, orderBy: id_ASC) { totalCount }
         }`,
         {a: address, limit, offset}
     )
@@ -771,6 +784,11 @@ export interface TokenRow {
     firstBlock: number
 }
 
+export interface HoldingRow {
+    balance: string | null
+    token: TokenRow
+}
+
 const TOKEN_FIELDS = `id name symbol decimals totalSupply holderCount transferCount deployBlock firstBlock`
 
 export function tokensPage(limit: number, offset: number) {
@@ -856,7 +874,7 @@ export function evmTxDetail(hash: string) {
 export function evmAddressData(address: string) {
     return gql<{
         txs: EvmTxRow[]
-        holdings: {balance: string | null; token: TokenRow}[]
+        holdings: HoldingRow[]
         created: {id: string}[]
         asToken: TokenRow | null
     }>(

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
+import HoldingsList from '@/components/HoldingsList'
 import {AddrMark} from '@/components/addrHot'
 import {TabPanels, type Panel} from '@/components/Tabs'
 import TokenIcon from '@/components/TokenIcon'
@@ -9,12 +10,10 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {evmMappedAccount, isH160} from '@/lib/evm'
-import AddressText, {shortAddr} from '@/components/AddressText'
-import {fmtBalance} from '@/lib/format'
+import {shortAddr} from '@/components/AddressText'
 import {evmAddressData} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {EvmTxsTable} from './tables'
-import {NONE} from '@/components/Detail'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,21 +31,6 @@ export default async function EvmAddressPage(props: PageProps<'/evm/address/[add
     const mapped = ss58Encode(evmMappedAccount(address), chain.ss58)
     const isContract = data.created.length > 0 || data.asToken !== null
 
-    const holdings = (
-        <Card size="flush" className="divide-y">
-            {data.holdings.map(h => (
-                <div key={h.token.id} className="flex items-center gap-3 px-5 py-2.5 text-sm">
-                    <Link href={`/token/${h.token.id}`} className="font-medium text-primary hover:underline">
-                        <TokenIcon addr={h.token.id} />
-                        {h.token.name ?? <AddressText addr={h.token.id} />}
-                    </Link>
-                    <span className="text-xs text-muted-foreground">{h.token.symbol}</span>
-                    <span className="ml-auto font-mono">{h.balance != null ? fmtBalance(h.balance, h.token.decimals ?? 0, h.token.symbol ?? undefined) : NONE}</span>
-                </div>
-            ))}
-        </Card>
-    )
-
     const txs = (
         <Card size="flush">
             <EvmTxsTable rows={data.txs} addr={address} chain={chain} />
@@ -54,7 +38,7 @@ export default async function EvmAddressPage(props: PageProps<'/evm/address/[add
     )
 
     const panels: Panel[] = [{slug: 'txs', label: 'Transactions', count: data.txs.length, body: () => txs}]
-    if (data.holdings.length > 0) panels.push({slug: 'holdings', label: 'Token holdings', count: data.holdings.length, body: () => holdings})
+    if (data.holdings.length > 0) panels.push({slug: 'holdings', label: 'Tokens', count: data.holdings.length, body: () => <HoldingsList rows={data.holdings} />})
 
     return (
         <div>
