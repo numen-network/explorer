@@ -34,7 +34,7 @@ export function EvmAddrLink({addr, full = false}: {addr: string; full?: boolean}
     return (
         <AddrMark addr={addr}>
             <Tip text={full ? undefined : addr}>
-                <Link href={`/evm/address/${addr}`} className="font-mono text-primary hover:underline">
+                <Link href={`/address/${addr}`} className="font-mono text-primary hover:underline">
                     <AddressText addr={addr} full={full} />
                 </Link>
             </Tip>
@@ -45,7 +45,7 @@ export function EvmAddrLink({addr, full = false}: {addr: string; full?: boolean}
 export function EvmTxLink({hash, full = false}: {hash: string; full?: boolean}) {
     return (
         <Tip text={full ? undefined : hash}>
-            <Link href={`/evm/tx/${hash}`} className="font-mono text-primary hover:underline">
+            <Link href={`/tx/${hash}`} className="font-mono text-primary hover:underline">
                 {full ? hash : shortHash(hash, 10, 6)}
             </Link>
         </Tip>

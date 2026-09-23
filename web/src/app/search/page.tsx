@@ -34,7 +34,7 @@ export default async function SearchPage(props: PageProps<'/search'>) {
     if (isH160(q)) {
         const addr = q.toLowerCase()
         // a token contract has a page of its own, everything else is a plain evm address
-        redirect((await isTokenAddress(addr)) ? `/token/${addr}` : `/evm/address/${addr}`)
+        redirect((await isTokenAddress(addr)) ? `/token/${addr}` : `/address/${addr}`)
     }
 
     const chain = await chainProps()
@@ -44,7 +44,7 @@ export default async function SearchPage(props: PageProps<'/search'>) {
         const hit = await searchLookups(hex)
         if (hit.byHash[0]) redirect(`/block/${hit.byHash[0].height}`)
         if (hit.ext[0]) redirect(`/extrinsic/${hex}`)
-        if (hit.evm[0]) redirect(`/evm/tx/${hit.evm[0].id}`)
+        if (hit.evm[0]) redirect(`/tx/${hit.evm[0].id}`)
         const asAccount = ss58Encode(hex, chain.ss58)
         redirect(`/account/${asAccount}`)
     }

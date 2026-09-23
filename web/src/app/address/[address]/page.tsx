@@ -17,12 +17,12 @@ import {EvmTxsTable} from './tables'
 
 export const dynamic = 'force-dynamic'
 
-export async function generateMetadata(props: PageProps<'/evm/address/[address]'>) {
+export async function generateMetadata(props: PageProps<'/address/[address]'>) {
     const {address} = await props.params
     return {title: `EVM ${shortAddr(address)}`}
 }
 
-export default async function EvmAddressPage(props: PageProps<'/evm/address/[address]'>) {
+export default async function EvmAddressPage(props: PageProps<'/address/[address]'>) {
     const {address: raw} = await props.params
     const tab = String((await props.searchParams).tab ?? '')
     if (!isH160(raw)) notFound()
@@ -66,7 +66,7 @@ export default async function EvmAddressPage(props: PageProps<'/evm/address/[add
                 </div>
             </div>
 
-            <TabPanels at={tab} href={s => `/evm/address/${address}?tab=${s}`} panels={panels} />
+            <TabPanels at={tab} href={s => `/address/${address}?tab=${s}`} panels={panels} />
         </div>
     )
 }

@@ -21,12 +21,12 @@ import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
 
-export async function generateMetadata(props: PageProps<'/evm/tx/[hash]'>) {
+export async function generateMetadata(props: PageProps<'/tx/[hash]'>) {
     const {hash} = await props.params
     return {title: `EVM Tx ${shortHash(hash, 10, 6)}`}
 }
 
-export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
+export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
     const {hash} = await props.params
     const tab = String((await props.searchParams).tab ?? '')
     const [chain, data] = await Promise.all([chainProps(), evmTxDetail(hash.toLowerCase())])
@@ -160,7 +160,7 @@ export default async function EvmTxPage(props: PageProps<'/evm/tx/[hash]'>) {
                 </DetailCard>
             </div>
 
-            <TabPanels at={tab} href={s => `/evm/tx/${hash}?tab=${s}`} panels={panels} />
+            <TabPanels at={tab} href={s => `/tx/${hash}?tab=${s}`} panels={panels} />
         </div>
     )
 }

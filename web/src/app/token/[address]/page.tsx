@@ -81,7 +81,7 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                     {token.name ?? 'Token'} {token.symbol && <span className="text-sm font-normal text-muted-foreground">{token.symbol}</span>}
                 </h1>
                 <div className="mt-1 font-mono text-[13px] break-all text-muted-foreground">
-                    <Link href={`/evm/address/${token.id}`} className="text-primary hover:underline">
+                    <Link href={`/address/${token.id}`} className="text-primary hover:underline">
                         {token.id}
                     </Link>
                     <CopyBtn text={token.id} />
