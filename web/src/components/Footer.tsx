@@ -5,7 +5,7 @@ import {Button} from '@/components/ui/button'
 const SOCIAL: [label: string, href: string, Mark: IconType][] = [
     ['GitHub', 'https://github.com/numen-network/explorer', SiGithub],
     ['Discord', 'https://discord.gg/ajPKdvrvJK', SiDiscord],
-    ['X', 'https://x.com/numen_network', SiX],
+    ['X', 'https://x.com/_NumenNetwork_', SiX],
     ['Telegram', 'https://t.me/numen_network', SiTelegram],
     ['Bitcointalk', 'https://bitcointalk.org/index.php?action=profile;u=3763959', SiBitcoin],
     ['YouTube', 'https://www.youtube.com/@numen_network', SiYoutube],
