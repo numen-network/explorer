@@ -15,11 +15,11 @@ export interface Holder {
 
 const hcol = columnsFor<Holder>()
 
-export function HoldersTable({rows, supply, decimals, symbol}: {rows: Holder[]; supply: string | null; decimals: number; symbol?: string}) {
+export function HoldersTable({rows, offset, supply, decimals, symbol}: {rows: Holder[]; offset: number; supply: string | null; decimals: number; symbol?: string}) {
     const columns = useMemo(() => {
         const total = BigInt(supply ?? 0)
         return hcol.columns([
-            hcol.display({id: 'rank', header: '#', meta: {cellClassName: 'font-mono text-muted-foreground'}, cell: ({row}) => row.index + 1}),
+            hcol.display({id: 'rank', header: '#', meta: {cellClassName: 'font-mono text-muted-foreground'}, cell: ({row}) => offset + row.index + 1}),
             hcol.display({id: 'address', header: 'Address', meta: {className: 'w-full'}, cell: ({row}) => <EvmAddrLink addr={row.original.address} full />}),
             hcol.display({id: 'balance', header: 'Balance', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => (row.original.balance != null ? fmtBalance(row.original.balance, decimals, symbol) : NONE)}),
             hcol.display({
@@ -37,6 +37,6 @@ export function HoldersTable({rows, supply, decimals, symbol}: {rows: Holder[]; 
                 },
             }),
         ])
-    }, [supply, decimals, symbol])
+    }, [offset, supply, decimals, symbol])
     return <DataTable columns={columns} rows={rows} getRowId={h => h.id} />
 }

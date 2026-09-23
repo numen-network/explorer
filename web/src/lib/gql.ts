@@ -814,18 +814,18 @@ export interface TokenTransferRow {
 
 const TOKEN_TRANSFER_FIELDS = `id from to amount timestamp token { id symbol decimals } transaction { id } block { height }`
 
-export function tokenDetail(address: string) {
+export function tokenDetail(address: string, page: Slice) {
     return gql<{
         tokenById: TokenRow | null
         tokenHolders: {id: string; address: string; balance: string | null}[]
         tokenTransfers: TokenTransferRow[]
     }>(
-        `query ($id: String!) {
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
             tokenById(id: $id) { ${TOKEN_FIELDS} }
-            tokenHolders(where: {token: {id_eq: $id}}, orderBy: balance_DESC_NULLS_LAST, limit: 25) { id address balance }
-            tokenTransfers(where: {token: {id_eq: $id}}, orderBy: timestamp_DESC, limit: 20) { ${TOKEN_TRANSFER_FIELDS} }
+            tokenHolders(where: {token: {id_eq: $id}, balance_gt: 0}, orderBy: balance_DESC_NULLS_LAST, limit: $limit, offset: $offset) { id address balance }
+            tokenTransfers(where: {token: {id_eq: $id}}, orderBy: timestamp_DESC, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
         }`,
-        {id: address}
+        {id: address, limit: page.limit, offset: page.offset}
     )
 }
 

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
+import Pager from '@/components/Pager'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
 import StatTile from '@/components/StatTile'
 import {TabPanels} from '@/components/Tabs'
@@ -12,6 +13,7 @@ import {isH160} from '@/lib/evm'
 import AddressText, {shortAddr} from '@/components/AddressText'
 import {fmtBalance, fmtInt} from '@/lib/format'
 import {tokenDetail} from '@/lib/gql'
+import {paging} from '@/lib/paging'
 import {HoldersTable} from './tables'
 
 export const dynamic = 'force-dynamic'
@@ -23,44 +25,52 @@ export async function generateMetadata(props: PageProps<'/token/[address]'>) {
 
 export default async function TokenPage(props: PageProps<'/token/[address]'>) {
     const {address: raw} = await props.params
-    const tab = String((await props.searchParams).tab ?? '')
+    const sp = await props.searchParams
+    const tab = String(sp.tab ?? '')
+    const pg = paging(sp)
     if (!isH160(raw)) notFound()
     const address = raw.toLowerCase()
-    const data = await tokenDetail(address)
+    const data = await tokenDetail(address, {limit: pg.size, offset: pg.offset})
     const token = data.tokenById
     if (!token) notFound()
     const dec = token.decimals ?? 0
     const symbol = token.symbol ?? undefined
 
     const holders = (
-        <Card size="flush">
-            <HoldersTable rows={data.tokenHolders} supply={token.totalSupply} decimals={dec} symbol={symbol} />
-        </Card>
+        <>
+            <Card size="flush">
+                <HoldersTable rows={data.tokenHolders} offset={pg.offset} supply={token.totalSupply} decimals={dec} symbol={symbol} />
+            </Card>
+            <Pager paging={pg} total={token.holderCount} href={`/token/${address}?tab=holders`} />
+        </>
     )
 
     const transfers = (
-        <SplitRows>
-            {data.tokenTransfers.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
-            {data.tokenTransfers.map(t => (
-                <SplitRow
-                    key={t.id}
-                    lead={
-                        <>
-                            <BlockLink height={t.block.height} />
-                            <EvmTxLink hash={t.transaction.id} />
-                            <span className="font-mono text-xs text-muted-foreground">
-                                <AddressText addr={t.from} /> → <AddressText addr={t.to} />
-                            </span>
-                        </>
-                    }
-                >
-                    <span className="font-mono">{fmtBalance(t.amount, dec, symbol)}</span>
-                    <span className="shrink-0 text-right text-xs text-muted-foreground">
-                        <TimeCell iso={t.timestamp} cycle />
-                    </span>
-                </SplitRow>
-            ))}
-        </SplitRows>
+        <>
+            <SplitRows>
+                {data.tokenTransfers.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
+                {data.tokenTransfers.map(t => (
+                    <SplitRow
+                        key={t.id}
+                        lead={
+                            <>
+                                <BlockLink height={t.block.height} />
+                                <EvmTxLink hash={t.transaction.id} />
+                                <span className="font-mono text-xs text-muted-foreground">
+                                    <AddressText addr={t.from} /> → <AddressText addr={t.to} />
+                                </span>
+                            </>
+                        }
+                    >
+                        <span className="font-mono">{fmtBalance(t.amount, dec, symbol)}</span>
+                        <span className="shrink-0 text-right text-xs text-muted-foreground">
+                            <TimeCell iso={t.timestamp} cycle />
+                        </span>
+                    </SplitRow>
+                ))}
+            </SplitRows>
+            <Pager paging={pg} total={token.transferCount} href={`/token/${address}?tab=transfers`} />
+        </>
     )
 
     return (
@@ -92,8 +102,8 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                 at={tab}
                 href={s => `/token/${address}?tab=${s}`}
                 panels={[
-                    {slug: 'holders', label: 'Top holders', count: data.tokenHolders.length, body: () => holders},
-                    {slug: 'transfers', label: 'Recent transfers', count: data.tokenTransfers.length, body: () => transfers},
+                    {slug: 'holders', label: 'Holders', count: token.holderCount, body: () => holders},
+                    {slug: 'transfers', label: 'Transfers', count: token.transferCount, body: () => transfers},
                 ]}
             />
         </div>
