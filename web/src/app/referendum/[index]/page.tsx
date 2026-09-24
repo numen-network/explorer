@@ -191,11 +191,12 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     // tally snapshots record end of block state, so a block's whole move
     // lands on its latest action row
     const impactByBlock = new Map<number, ActionImpact>()
-    let prevPct = {approval: 0, support: 0}
+    let prev: (typeof data.snapshots)[number] | undefined
     for (const s of data.snapshots) {
         const p = snapPct(s)
-        impactByBlock.set(s.block, {approval: p.approval - prevPct.approval, support: p.support - prevPct.support})
-        prevPct = p
+        const before = prev ? snapPct({...prev, totalIssuance: s.totalIssuance, inactiveIssuance: s.inactiveIssuance}) : {approval: 0, support: 0}
+        impactByBlock.set(s.block, {approval: p.approval - before.approval, support: p.support - before.support})
+        prev = s
     }
     const seen = new Set<number>()
     for (const a of actions) {
