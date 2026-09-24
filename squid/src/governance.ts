@@ -311,6 +311,7 @@ async function applyProposals(batch: BatchData, rpc: RpcClient, runtime: Runtime
         walkProposal(call, runtime, nodes, 0)
         r.proposalPallet = nodes[0].pallet
         r.proposalMethod = nodes[0].method
+        r.proposalArgs = toJSON(call.args)
         r.proposalCalls = nodes
 
         const bounty = nodes.find(node => node.bounty != null)

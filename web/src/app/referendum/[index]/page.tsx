@@ -2,7 +2,7 @@ import type {ReactNode} from 'react'
 import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
-import {DetailCard, DetailRow, NONE} from '@/components/Detail'
+import {DetailCard, DetailRow, JsonBlock, NONE} from '@/components/Detail'
 import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {CurvesChart} from '@/components/charts'
@@ -333,10 +333,15 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     <span className="text-dim">Nothing here reads back as a call</span>
                 </DetailRow>
             ) : (
-                <ProposalTree nodes={nodes} chain={chain} best={heads.best} party={party} />
-            )}
-            {spends.length > 1 && r.proposalAmount != null && (
-                <DetailRow label="Total">{fmtBalance(r.proposalAmount, chain.decimals, chain.symbol)}</DetailRow>
+                <>
+                    <ProposalTree nodes={nodes} chain={chain} best={heads.best} party={party} />
+                    {spends.length > 1 && r.proposalAmount != null && (
+                        <DetailRow label="Total">{fmtBalance(r.proposalAmount, chain.decimals, chain.symbol)}</DetailRow>
+                    )}
+                    <DetailRow label="Args">
+                        <JsonBlock value={r.proposalArgs} />
+                    </DetailRow>
+                </>
             )}
         </DetailCard>
     )

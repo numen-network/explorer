@@ -49,6 +49,9 @@ export class Referendum {
     @StringColumn_({nullable: true})
     proposalMethod!: string | undefined | null
 
+    @JSONColumn_({nullable: true})
+    proposalArgs!: unknown | undefined | null
+
     /**
      * the proposal call tree flattened in preorder, spend nodes carrying what they pay and when
      */

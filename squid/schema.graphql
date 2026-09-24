@@ -306,6 +306,7 @@ type Referendum @entity {
   "the call a proposal runs, read back from the runtime whether it sits inline or behind a preimage"
   proposalPallet: String @index
   proposalMethod: String @index
+  proposalArgs: JSON
   "the proposal call tree flattened in preorder, spend nodes carrying what they pay and when"
   proposalCalls: JSON
   "what the proposal asks the treasury for, summed over its spends"

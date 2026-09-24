@@ -89,12 +89,14 @@ UPDATE account SET identity_display = 'Hydra Pool', identity_json = pg_temp.idjs
 WHERE id = (SELECT author_id FROM block WHERE author_id IS NOT NULL GROUP BY 1 ORDER BY count(*) DESC LIMIT 1 OFFSET 1);
 
 INSERT INTO referendum (id, index, track_id, origin, proposal_hash, title, description,
-                        proposal_pallet, proposal_method, proposal_calls, proposal_amount, proposal_beneficiary,
+                        proposal_pallet, proposal_method, proposal_args, proposal_calls, proposal_amount, proposal_beneficiary,
                         submitter_id, submitted_at, submitted_timestamp, status, deciding_since, confirming_since, ended_at,
                         ayes, nays, support, timeline)
 SELECT (:base + n)::text, :base + n, track, jsonb_build_object('__kind', 'Origins', 'value', jsonb_build_object('__kind', origin)),
        '0x' || md5(n::text) || md5(origin), title, descr,
        pallet, method,
+       CASE WHEN benef IS NULL THEN jsonb_build_object('remark', pg_temp.bytes('ping'))
+           ELSE jsonb_build_object('amount', (amtk * :P)::text, 'beneficiary', jsonb_build_object('__kind', 'Id', 'value', pg_temp.pk(benef))) END,
        jsonb_build_array(jsonb_build_object('pallet', pallet, 'method', method, 'depth', 0)
            || CASE WHEN benef IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('amount', (amtk * :P)::text, 'beneficiary', pg_temp.pk(benef), 'validFrom', NULL) END),
        amtk * :P, CASE WHEN benef IS NULL THEN NULL ELSE pg_temp.pk(benef) END,
@@ -242,6 +244,7 @@ FROM (VALUES (900, 0), (901, 2)) v(sp, n)
 WHERE treasury_spend.id = 'local-' || v.sp;
 
 UPDATE referendum SET proposal_pallet = 'Bounties', proposal_method = 'approve_bounty', proposal_bounty_index = v.b,
+    proposal_args = jsonb_build_object('bountyId', v.b),
     proposal_calls = jsonb_build_array(jsonb_build_object('pallet', 'Bounties', 'method', 'approve_bounty', 'depth', 0, 'bounty', v.b)),
     proposal_amount = NULL, proposal_beneficiary = NULL
 FROM (VALUES (1, 0), (4, 1)) v(n, b)

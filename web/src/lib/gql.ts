@@ -946,6 +946,10 @@ export interface ReferendumRow {
     track: TrackRow
 }
 
+export interface ReferendumDetailRow extends ReferendumRow {
+    proposalArgs: unknown
+}
+
 const TRACK_FIELDS = `id name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
 const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalCalls proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } submissionDepositor submissionDeposit decisionDepositor decisionDeposit track { ${TRACK_FIELDS} }`
 
@@ -1159,7 +1163,7 @@ export interface MetadataActionRow {
 export function referendumDetail(index: number) {
     const tally = (shape: string) => `votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false, ${shape}}, orderBy: id_ASC) { totalCount }`
     return gql<{
-        referendums: ReferendumRow[]
+        referendums: ReferendumDetailRow[]
         votes: VoteRow[]
         voteActions: VoteActionRow[]
         metadataActions: MetadataActionRow[]
@@ -1172,7 +1176,7 @@ export function referendumDetail(index: number) {
         splitCount: {totalCount: number}
     }>(
         `query ($index: Int!) {
-            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} }
+            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalArgs }
             votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: balance_DESC_NULLS_LAST, limit: 200) { ${VOTE_FIELDS} voter { ${ACCOUNT_REF} } referendum { index } }
             voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id method kind aye conviction balance ayeAmount nayAmount abstainAmount delegatedVotes block timestamp voter { ${ACCOUNT_REF} } }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 200) { id method hash title description block timestamp }
