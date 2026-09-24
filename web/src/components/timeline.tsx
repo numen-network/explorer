@@ -1,7 +1,7 @@
 import type {ReactNode} from 'react'
-import {Check, Circle, X, type LucideIcon} from 'lucide-react'
+import {Box, Check, Circle, ScrollText, X, Zap, type LucideIcon} from 'lucide-react'
 import {TimeCell} from '@/components/TimeCell'
-import {BlockLink} from '@/components/links'
+import {BlockLink, EventLink, ExtrinsicLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
 
 export const TICK: LucideIcon = Check
@@ -24,6 +24,7 @@ export interface Step {
     iso?: string
     tone: Tone
     icon: LucideIcon
+    event: {indexInBlock: number; extrinsic: {id: string; hash: string} | null}
 }
 
 // the rail shell every timeline shares
@@ -54,7 +55,7 @@ export function TimelineItem({tone, icon: Icon, title, iso, links, detail}: {ton
                         <TimeCell iso={iso} cycle />
                     </div>
                 )}
-                {links && <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs">{links}</div>}
+                {links && <div className="mt-1.5 flex flex-col items-start gap-1 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">{links}</div>}
             </div>
             {detail}
         </li>
@@ -66,12 +67,39 @@ export function TimelineRows({rows}: {rows: [string, ReactNode][]}) {
     return (
         <dl className="space-y-2 text-sm">
             {rows.map(([label, value]) => (
-                <div key={label} className="flex gap-4">
-                    <dt className="w-40 shrink-0 text-muted-foreground">{label}</dt>
+                <div key={label} className="flex flex-col gap-0.5 sm:flex-row sm:gap-4">
+                    <dt className="shrink-0 text-muted-foreground sm:w-40">{label}</dt>
                     <dd className="min-w-0 break-all">{value}</dd>
                 </div>
             ))}
         </dl>
+    )
+}
+
+function Tagged({icon: Icon, children}: {icon: LucideIcon; children: ReactNode}) {
+    return (
+        <span className="inline-flex items-center gap-1">
+            <Icon className="size-3 shrink-0 text-muted-foreground" />
+            {children}
+        </span>
+    )
+}
+
+export function StepLinks({block, event}: Pick<Step, 'block' | 'event'>) {
+    return (
+        <>
+            <Tagged icon={Box}>
+                <BlockLink height={block} />
+            </Tagged>
+            {event.extrinsic && (
+                <Tagged icon={ScrollText}>
+                    <ExtrinsicLink id={event.extrinsic.id} hash={event.extrinsic.hash} />
+                </Tagged>
+            )}
+            <Tagged icon={Zap}>
+                <EventLink height={block} index={event.indexInBlock} />
+            </Tagged>
+        </>
     )
 }
 
@@ -80,7 +108,7 @@ export default function Timeline({steps}: {steps: Step[]}) {
     return (
         <TimelineList empty={steps.length === 0}>
             {[...steps].reverse().map((s, i) => (
-                <TimelineItem key={i} tone={s.tone} icon={s.icon} title={s.label} iso={s.iso} links={<BlockLink height={s.block} />} />
+                <TimelineItem key={i} tone={s.tone} icon={s.icon} title={s.label} iso={s.iso} links={<StepLinks block={s.block} event={s.event} />} />
             ))}
         </TimelineList>
     )

@@ -316,6 +316,15 @@ export function extrinsicDetail(height: number, index: number) {
     )
 }
 
+export function eventDetail(height: number, index: number) {
+    return gql<{events: (EventRow & {block: {height: number; timestamp: string}})[]}>(
+        `query ($height: Int!, $index: Int!) {
+            events(where: {block: {height_eq: $height}, indexInBlock_eq: $index}, limit: 1) { ${EVENT_FIELDS} block { height timestamp } }
+        }`,
+        {height, index}
+    )
+}
+
 export interface AccountRow extends AccountRef {
     free: string
     reserved: string
@@ -710,6 +719,7 @@ export async function leafCalls(ids: string[]): Promise<Map<string, CallRef[]>> 
 
 export interface IdentityEventRow {
     id: string
+    indexInBlock: number
     method: string
     args: unknown
     block: {height: number; timestamp: string}
@@ -727,7 +737,7 @@ export function identityTimeline(idHex: string, limit: number, offset: number) {
     const where = identityWhere(idHex)
     return gql<{events: IdentityEventRow[]; conn: {totalCount: number}}>(
         `query ($limit: Int!, $offset: Int!) {
-            events(where: ${where}, orderBy: block_height_DESC, limit: $limit, offset: $offset) { id method args block { height timestamp } call { method args } extrinsic { id hash } }
+            events(where: ${where}, orderBy: block_height_DESC, limit: $limit, offset: $offset) { id indexInBlock method args block { height timestamp } call { method args } extrinsic { id hash } }
             conn: eventsConnection(orderBy: block_height_DESC, where: ${where}) { totalCount }
         }`,
         {limit, offset}
@@ -1194,13 +1204,14 @@ export function referendumDetail(index: number) {
 
 export interface TimelineEventRow {
     id: string
+    indexInBlock: number
     args: unknown
     extrinsic: {id: string; hash: string} | null
 }
 
 export function eventsByIds(ids: string[]): Promise<{events: TimelineEventRow[]}> {
     if (ids.length === 0) return Promise.resolve({events: []})
-    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, limit: 500) { id args extrinsic { id hash } } }`, {ids})
+    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, limit: 500) { id indexInBlock args extrinsic { id hash } } }`, {ids})
 }
 
 export function trackList() {

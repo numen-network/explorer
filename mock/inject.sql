@@ -228,6 +228,25 @@ FROM (VALUES
         26000, 25000, ARRAY['BountyProposed','BountyRejected'], ARRAY[26000,25000], 5, NULL, NULL)
 ) v(n, descr, valk, feek, status, unlk, dued, payk, cre, upd, stats, offs, prop, cur, ben);
 
+-- every timeline step is an event on chain, the timeline links to it
+INSERT INTO event (id, block_id, index_in_block, phase, pallet, method, args)
+SELECT s.id, b.id, 200 + row_number() OVER (PARTITION BY b.id ORDER BY s.id)::int, 'Initialization',
+       split_part(s.name, '.', 1), split_part(s.name, '.', 2), s.args
+FROM (
+    SELECT step ->> 'event' AS id, step ->> 'name' AS name, (step ->> 'block')::int AS height, jsonb_build_object('index', r.index) AS args
+    FROM referendum r CROSS JOIN LATERAL jsonb_array_elements(r.timeline) step
+    WHERE r.index >= :base
+    UNION ALL
+    SELECT step ->> 'event', step ->> 'name', (step ->> 'block')::int, jsonb_build_object('index', x.index)
+    FROM bounty x CROSS JOIN LATERAL jsonb_array_elements(x.timeline) step
+    WHERE x.id IN ('0', '1', '2', '3', '4', '5')
+    UNION ALL
+    SELECT m.id, 'Referenda.' || m.method, m.block, jsonb_build_object('index', r.index, 'hash', m.hash)
+    FROM metadata_action m JOIN referendum r ON r.id = m.referendum_id
+    WHERE r.index >= :base
+) s
+JOIN block b ON b.height = s.height;
+
 INSERT INTO child_bounty (id, child_index, value, fee, description, status, payout, created_at, updated_at, parent_id, curator_id, beneficiary_id)
 SELECT '1-' || cn, cn, valk * :P, feek * :P, descr, status, payk * :P, :h - cre, :h - upd, '1',
        CASE WHEN cur IS NULL THEN NULL ELSE pg_temp.pk(cur) END,

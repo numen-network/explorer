@@ -7,9 +7,9 @@ import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {CurvesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
-import {BlockLink, ExtrinsicLink} from '@/components/links'
+import {BlockLink} from '@/components/links'
 import {Gauge, ProposalTree, StatusBadge} from '@/components/referenda'
-import {CROSS, RING, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
+import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
 import ActionList, {type ActionImpact, type ActionRow} from '@/components/actions'
 import VoteLists, {type VoteEntry} from '@/components/votes'
 import {Badge} from '@/components/ui/badge'
@@ -109,7 +109,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         accountRefs(partyIds),
         delegationsFor(voterIds, r.track.id),
         delegationActionsFor(r.track.id, r.submittedAt, r.endedAt),
-        eventsByIds(trail.map(s => s.event)),
+        eventsByIds([...trail.map(s => s.event), ...data.metadataActions.map(a => a.id)]),
     ])
     const evBy = new Map(evs.events.map(e => [e.id, e]))
     const evWhos = evs.events.map(e => (e.args as {who?: unknown} | null)?.who).filter((w): w is string => typeof w === 'string')
@@ -403,7 +403,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     icon={a.method === 'MetadataSet' ? RING : CROSS}
                     title={a.method === 'MetadataSet' ? 'Text set' : 'Text cleared'}
                     iso={a.timestamp}
-                    links={<BlockLink height={a.block} />}
+                    links={<StepLinks block={a.block} event={evBy.get(a.id)!} />}
                     detail={
                         a.method === 'MetadataSet' ? (
                             <div className="min-w-0">
@@ -442,8 +442,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const timeline = (
         <TimelineList empty={trail.length === 0}>
             {[...trail].reverse().map((s, i) => {
-                const e = evBy.get(s.event)
-                const rows = stepRows(e?.args, s.name === 'Referenda.DecisionDepositPlaced' ? 'Decision deposit' : 'Amount')
+                const e = evBy.get(s.event)!
+                const rows = stepRows(e.args, s.name === 'Referenda.DecisionDepositPlaced' ? 'Decision deposit' : 'Amount')
                 // the Submitted event names neither party nor deposit, the
                 // referendum record fills the step in
                 if (s.name === 'Referenda.Submitted') {
@@ -457,12 +457,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         icon={STEP_ICON(s.name)}
                         title={STEP_LABEL[s.name] ?? camelLabel(s.name.split('.')[1])}
                         iso={s.timestamp}
-                        links={
-                            <>
-                                <BlockLink height={s.block} />
-                                {e?.extrinsic && <ExtrinsicLink id={e.extrinsic.id} hash={e.extrinsic.hash} />}
-                            </>
-                        }
+                        links={<StepLinks block={s.block} event={e} />}
                         detail={rows.length > 0 ? <TimelineRows rows={rows} /> : undefined}
                     />
                 )

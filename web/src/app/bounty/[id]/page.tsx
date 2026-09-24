@@ -9,7 +9,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {camelLabel, fmtBalance} from '@/lib/format'
-import {bountyDetail, type AccountRef} from '@/lib/gql'
+import {bountyDetail, eventsByIds, type AccountRef} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {ChildBountiesTable} from './table'
 
@@ -50,8 +50,9 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
     if (!b) notFound()
 
     const trail = rawSteps(b.timeline)
+    const evBy = new Map((await eventsByIds(trail.map(s => s.event))).events.map(e => [e.id, e]))
 
-    const acc = (a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : NONE)
+    const acc =(a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : NONE)
 
     const children = (
         <Card size="flush">
@@ -91,6 +92,7 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
                 iso: s.timestamp,
                 tone: STEP_TONE(s.name),
                 icon: STEP_ICON(s.name),
+                event: evBy.get(s.event)!,
             }))}
         />
     )

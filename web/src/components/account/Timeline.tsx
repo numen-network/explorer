@@ -2,10 +2,9 @@ import type {ReactNode} from 'react'
 import {Star, User, Users} from 'lucide-react'
 import Pager from '@/components/Pager'
 import AccountLink from '@/components/AccountLink'
-import {BlockLink, ExtrinsicLink} from '@/components/links'
 import RetiredBadge from '@/components/RetiredBadge'
 import {Badge} from '@/components/ui/badge'
-import {TimelineItem, TimelineList, TimelineRows, type Tone} from '@/components/timeline'
+import {StepLinks, TimelineItem, TimelineList, TimelineRows, type Tone} from '@/components/timeline'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
 import {identityTimeline, judgementsByEvent, registrarsList, type RegistrarRow} from '@/lib/gql'
@@ -92,12 +91,7 @@ export default async function Timeline({hex, addr, chain, sp}: TabCtx) {
                             icon={ICON(e.method)}
                             title={e.method}
                             iso={e.block.timestamp}
-                            links={
-                                <>
-                                    <BlockLink height={e.block.height} />
-                                    {e.extrinsic && <ExtrinsicLink id={e.extrinsic.id} hash={e.extrinsic.hash} />}
-                                </>
-                            }
+                            links={<StepLinks block={e.block.height} event={e} />}
                             detail={rows.length > 0 ? <TimelineRows rows={rows} /> : undefined}
                         />
                     )

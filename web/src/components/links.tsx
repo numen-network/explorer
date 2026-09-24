@@ -30,6 +30,14 @@ export function ExtrinsicLink({id, hash}: {id: string; hash: string}) {
     )
 }
 
+export function EventLink({height, index}: {height: number; index: number}) {
+    return (
+        <Link href={`/event/${height}-${index}`} className="font-mono text-primary hover:underline">
+            {height}-{index}
+        </Link>
+    )
+}
+
 export function EvmAddrLink({addr, full = false}: {addr: string; full?: boolean}) {
     return (
         <AddrMark addr={addr}>
