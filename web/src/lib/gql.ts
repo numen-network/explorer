@@ -79,7 +79,7 @@ export interface TransferRow {
     from: AccountRef
     to: AccountRef
     block: {height: number}
-    extrinsic: {id: string; hash: string} | null
+    extrinsic: {id: string} | null
 }
 
 export interface DailyRow {
@@ -111,7 +111,7 @@ export interface DailyRow {
 const ACCOUNT_REF = `id identityDisplay identityJson identitySubName identitySubData identitySuper { identityDisplay identityJson }`
 
 const BLOCK_FIELDS = `id height hash parentHash timestamp finalized extrinsicCount eventCount difficulty reward minerFees treasuryFees nonce workHash specVersion author { ${ACCOUNT_REF} }`
-const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACCOUNT_REF} } to { ${ACCOUNT_REF} } block { height } extrinsic { id hash }`
+const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACCOUNT_REF} } to { ${ACCOUNT_REF} } block { height } extrinsic { id }`
 const BASELINE_FIELDS = `difficulty issuanceTotal issuanceInactive treasuryPot`
 const DAILY_FIELDS = `id date blocks extrinsicsSigned transfers transferVolume evmTxs fees tsFirst tsLast issuanceTotal issuanceInactive issuanceTransferable treasuryPot cumExtrinsicsSigned cumTransfers cumTransferVolume difficultyClose accountsTotal referendaTotal minersActive rewards`
 
@@ -252,11 +252,11 @@ export interface EventRow {
     method: string
     args: unknown
     call: {id: string} & CallRef | null
-    extrinsic: {id: string; hash: string} | null
+    extrinsic: {id: string} | null
 }
 
 const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp }`
-const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id hash }`
+const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id }`
 
 // newest first by chain position. event indices run across the whole
 // block, so they already follow the extrinsic order
@@ -728,7 +728,7 @@ export interface IdentityEventRow {
     args: unknown
     block: {height: number; timestamp: string}
     call: {method: string; args: unknown} | null
-    extrinsic: {id: string; hash: string} | null
+    extrinsic: {id: string} | null
 }
 
 // pallet identity names its subject under four different keys
@@ -741,7 +741,7 @@ export function identityTimeline(idHex: string, limit: number, offset: number) {
     const where = identityWhere(idHex)
     return gql<{events: IdentityEventRow[]; conn: {totalCount: number}}>(
         `query ($limit: Int!, $offset: Int!) {
-            events(where: ${where}, orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { id indexInBlock method args block { height timestamp } call { method args } extrinsic { id hash } }
+            events(where: ${where}, orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { id indexInBlock method args block { height timestamp } call { method args } extrinsic { id } }
             conn: eventsConnection(orderBy: ${TIMELINE_ORDER}, where: ${where}) { totalCount }
         }`,
         {limit, offset}
@@ -861,14 +861,14 @@ export interface EvmTxRow {
     exitReason: unknown
     timestamp: string
     block: {height: number}
-    extrinsic: {id: string; hash: string}
+    extrinsic: {id: string}
 }
 
 export interface EvmTxDetailRow extends EvmTxRow {
-    extrinsic: {id: string; hash: string; transfers: TransferRow[]}
+    extrinsic: {id: string; transfers: TransferRow[]}
 }
 
-const EVM_TX_FIELDS = `id txIndex from to contractAddress value input inputSelector nonce gasLimit gasUsed gasPrice txType status exitReason timestamp block { height } extrinsic { id hash }`
+const EVM_TX_FIELDS = `id txIndex from to contractAddress value input inputSelector nonce gasLimit gasUsed gasPrice txType status exitReason timestamp block { height } extrinsic { id }`
 
 export function evmTxDetail(hash: string) {
     return gql<{
@@ -1210,12 +1210,12 @@ export interface TimelineEventRow {
     id: string
     indexInBlock: number
     args: unknown
-    extrinsic: {id: string; hash: string} | null
+    extrinsic: {id: string} | null
 }
 
 export function eventsByIds(ids: string[]): Promise<{events: TimelineEventRow[]}> {
     if (ids.length === 0) return Promise.resolve({events: []})
-    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, orderBy: ${TIMELINE_ORDER}, limit: 500) { id indexInBlock args extrinsic { id hash } } }`, {ids})
+    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, orderBy: ${TIMELINE_ORDER}, limit: 500) { id indexInBlock args extrinsic { id } } }`, {ids})
 }
 
 export function trackList() {

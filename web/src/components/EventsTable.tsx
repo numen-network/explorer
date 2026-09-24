@@ -39,7 +39,7 @@ export function EventsTable({rows, view, parent}: {rows: EventRow[]; view: 'bloc
                 id: 'extrinsic',
                 header: 'Extrinsic',
                 meta: {className: 'min-w-[180px]', cellClassName: 'text-xs'},
-                cell: ({row}) => (row.original.extrinsic ? <ExtrinsicLink id={row.original.extrinsic.id} hash={row.original.extrinsic.hash} /> : NONE),
+                cell: ({row}) => (row.original.extrinsic ? <ExtrinsicLink id={row.original.extrinsic.id} /> : NONE),
             }),
         ])
     }, [view, parent])

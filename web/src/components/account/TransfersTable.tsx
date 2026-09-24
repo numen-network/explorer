@@ -18,7 +18,7 @@ export function TransfersTable({rows, hex, chain}: {rows: TransferRow[]; hex: st
     const columns = useMemo(() => {
         const side = (acc: AccountRef) => (acc.id === hex ? SELF : <AccountLink addr={ss58Encode(acc.id, chain.ss58)} acc={acc} />)
         return col.columns([
-            col.display({id: 'extrinsic', header: 'Extrinsic', cell: ({row}) => (row.original.extrinsic ? <ExtrinsicLink id={row.original.extrinsic.id} hash={row.original.extrinsic.hash} /> : NONE)}),
+            col.display({id: 'extrinsic', header: 'Extrinsic', cell: ({row}) => (row.original.extrinsic ? <ExtrinsicLink id={row.original.extrinsic.id} /> : NONE)}),
             col.display({id: 'time', header: () => <TimeModeButton />, meta: {cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.timestamp} />}),
             col.display({id: 'call', header: 'Call', cell: ({row}) => <CallPill call={row.original.call} />}),
             col.display({id: 'from', header: 'From', cell: ({row}) => side(row.original.from)}),

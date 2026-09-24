@@ -142,7 +142,7 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
                         {evmTxTypeLabel(tx.txType)} · nonce {tx.nonce}
                     </DetailRow>
                     <DetailRow label="Substrate view">
-                        <ExtrinsicLink id={tx.extrinsic.id} hash={tx.extrinsic.hash} />
+                        <ExtrinsicLink id={tx.extrinsic.id} />
                     </DetailRow>
                     <DetailRow label="Input">
                         {tx.input === '0x' ? (

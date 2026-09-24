@@ -21,7 +21,7 @@ export function TransfersTable({rows, chain}: {rows: TransferRow[]; chain: Chain
                 col.display({
                     id: 'extrinsic',
                     header: 'Extrinsic',
-                    cell: ({row}) => (row.original.extrinsic ? <ExtrinsicLink id={row.original.extrinsic.id} hash={row.original.extrinsic.hash} /> : NONE),
+                    cell: ({row}) => (row.original.extrinsic ? <ExtrinsicLink id={row.original.extrinsic.id} /> : NONE),
                 }),
                 col.display({id: 'block', header: 'Block', cell: ({row}) => <BlockLink height={row.original.block.height} />}),
                 col.display({id: 'time', header: () => <TimeModeButton />, meta: {cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.timestamp} />}),

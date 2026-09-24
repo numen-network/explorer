@@ -19,14 +19,12 @@ export function BlockLink({height}: {height: number}) {
 }
 
 // the hash still resolves, but our own links never leave it ambiguous
-export function ExtrinsicLink({id, hash}: {id: string; hash: string}) {
+export function ExtrinsicLink({id}: {id: string}) {
     const path = extrinsicPath(id)
     return (
-        <Tip text={hash}>
-            <Link href={`/extrinsic/${path}`} className="font-mono text-primary hover:underline">
-                {path}
-            </Link>
-        </Tip>
+        <Link href={`/extrinsic/${path}`} className="font-mono text-primary hover:underline">
+            {path}
+        </Link>
     )
 }
 

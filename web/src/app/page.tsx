@@ -250,7 +250,7 @@ export default async function Home() {
                             <div key={t.id} className="flex flex-col justify-center gap-1.5 px-5 py-3 sm:h-[66px] sm:flex-row sm:items-center sm:gap-3 sm:py-0">
                                 <div className="flex min-w-0 items-baseline justify-between gap-3 sm:block sm:w-[230px] sm:shrink-0">
                                     <span className="shrink-0">
-                                        {t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} hash={t.extrinsic.hash} /> : <span className="font-mono text-muted-foreground">—</span>}
+                                        {t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} /> : <span className="font-mono text-muted-foreground">—</span>}
                                     </span>
                                     <div className="text-[11px] whitespace-nowrap text-muted-foreground sm:mt-0.5">
                                         <TimeCell iso={t.timestamp} cycle />

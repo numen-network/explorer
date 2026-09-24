@@ -42,7 +42,7 @@ export default async function EventPage(props: PageProps<'/event/[id]'>) {
                         <TimeCell iso={ev.block.timestamp} cycle />
                     </DetailRow>
                     <DetailRow label="Phase">{ev.phase}</DetailRow>
-                    <DetailRow label="Extrinsic">{ev.extrinsic ? <ExtrinsicLink id={ev.extrinsic.id} hash={ev.extrinsic.hash} /> : NONE}</DetailRow>
+                    <DetailRow label="Extrinsic">{ev.extrinsic ? <ExtrinsicLink id={ev.extrinsic.id} /> : NONE}</DetailRow>
                     <DetailRow label="Call">{ev.call ? `${ev.call.pallet}.${ev.call.method}` : NONE}</DetailRow>
                     <DetailRow label="Args">
                         <JsonBlock value={ev.args} />

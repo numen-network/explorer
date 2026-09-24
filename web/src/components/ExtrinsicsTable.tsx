@@ -27,7 +27,7 @@ const VIEW: Record<ExtrinsicsView, string[]> = {
 export function ExtrinsicsTable({rows, leaves, chain, view, empty}: {rows: ExtrinsicRow[]; leaves: Record<string, CallRef[]>; chain: ChainProps; view: ExtrinsicsView; empty?: string}) {
     const columns = useMemo(() => {
         const all = {
-            extrinsic: col.display({id: 'extrinsic', header: 'Extrinsic', cell: ({row}) => <ExtrinsicLink id={row.original.id} hash={row.original.hash} />}),
+            extrinsic: col.display({id: 'extrinsic', header: 'Extrinsic', cell: ({row}) => <ExtrinsicLink id={row.original.id} />}),
             block: col.display({id: 'block', header: 'Block', cell: ({row}) => <BlockLink height={row.original.block.height} />}),
             time: col.display({id: 'time', header: () => <TimeModeButton />, meta: {cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.block.timestamp} />}),
             call: col.display({id: 'call', header: 'Call', meta: view === 'account' ? {className: 'w-full'} : undefined, cell: ({row}) => <CallCell call={row.original} leaves={leaves[row.original.id]} />}),
