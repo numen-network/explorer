@@ -691,10 +691,6 @@ async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: a
         r.submissionDeposit = info.value.submissionDeposit.amount
         r.decisionDepositor = info.value.decisionDeposit?.who ?? null
         r.decisionDeposit = info.value.decisionDeposit?.amount ?? null
-        if (info.value.deciding != null) {
-            r.decidingSince = info.value.deciding.since
-            r.confirmingSince = info.value.deciding.confirming ?? undefined
-        }
         batch.referenda.set(idx, r)
     })
 }
