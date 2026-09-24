@@ -1,3 +1,5 @@
+import wtmr from '@/assets/tokens/wtmr.svg'
+
 export interface WellKnown {
     emoji: string
     label: string
@@ -13,5 +15,5 @@ export const PRIME: WellKnown = {emoji: '\u{1F511}', label: 'Prime'}
 // give. keyed by EVM chain id since the same address can hold a different
 // contract on another chain
 export const TOKEN_ICONS: Record<number, Record<string, string>> = {
-    32026: {'0xa1795b3c6f74866c7def1df390f9e2e403dca2e9': '/wtmr.svg'},
+    32026: {'0xa1795b3c6f74866c7def1df390f9e2e403dca2e9': wtmr.src},
 }

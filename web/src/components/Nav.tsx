@@ -3,6 +3,7 @@ import Link from 'next/link'
 import {usePathname} from 'next/navigation'
 import {useState} from 'react'
 import {Menu} from 'lucide-react'
+import logo from '@/app/icon.svg'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
 import {Sheet, SheetContent, SheetTitle, SheetTrigger} from '@/components/ui/sheet'
@@ -47,7 +48,7 @@ export default function Nav({chain}: {chain: string}) {
                         </SheetContent>
                     </Sheet>
                     <Link href="/" className="flex items-center gap-2">
-                        <img src="/logo.svg" width={18} height={18} alt="" />
+                        <img src={logo.src} width={18} height={18} alt="" />
                         <span className="text-[16px] font-bold tracking-tight">
                             Numen<span className="font-normal text-muted-foreground"> Explorer</span>
                         </span>

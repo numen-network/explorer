@@ -17,7 +17,6 @@ const inter = Inter({subsets: ['latin'], variable: '--font-inter'})
 export const metadata: Metadata = {
     title: {default: 'Numen Explorer', template: '%s · Numen Explorer'},
     description: 'Block explorer for the Numen chain',
-    icons: '/logo.svg',
 }
 
 export default async function RootLayout({children}: {children: ReactNode}) {
