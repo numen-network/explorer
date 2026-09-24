@@ -18,15 +18,6 @@ const DOT_TONE = {
 
 export type Tone = keyof typeof DOT_TONE
 
-export interface Step {
-    block: number
-    label: string
-    iso?: string
-    tone: Tone
-    icon: LucideIcon
-    event: {indexInBlock: number; extrinsic: {id: string; hash: string} | null}
-}
-
 // the rail shell every timeline shares
 export function TimelineList({empty, children}: {empty?: boolean; children: ReactNode}) {
     return (
@@ -85,7 +76,7 @@ function Tagged({icon: Icon, children}: {icon: LucideIcon; children: ReactNode})
     )
 }
 
-export function StepLinks({block, event}: Pick<Step, 'block' | 'event'>) {
+export function StepLinks({block, event}: {block: number; event: {indexInBlock: number; extrinsic: {id: string; hash: string} | null}}) {
     return (
         <>
             <Tagged icon={Box}>
@@ -100,17 +91,6 @@ export function StepLinks({block, event}: Pick<Step, 'block' | 'event'>) {
                 <EventLink height={block} index={event.indexInBlock} />
             </Tagged>
         </>
-    )
-}
-
-// newest first, the rail reads down from what just happened
-export default function Timeline({steps}: {steps: Step[]}) {
-    return (
-        <TimelineList empty={steps.length === 0}>
-            {[...steps].reverse().map((s, i) => (
-                <TimelineItem key={i} tone={s.tone} icon={s.icon} title={s.label} iso={s.iso} links={<StepLinks block={s.block} event={s.event} />} />
-            ))}
-        </TimelineList>
     )
 }
 

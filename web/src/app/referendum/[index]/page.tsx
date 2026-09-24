@@ -21,7 +21,7 @@ import {capitalOf, convictionLabel, decisionOf, votesOf, weigh} from '@/lib/conv
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum, trackLabel} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
-import {accountRefs, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail} from '@/lib/gql'
+import {accountRefs, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail, type TimelineEventRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -49,6 +49,10 @@ const STEP_LABEL: Record<string, string> = {
     'Referenda.DecisionDepositRefunded': 'Decision deposit refunded',
     'Scheduler.Dispatched': 'Enacted',
 }
+
+// steps from one extrinsic follow this order, since place_decision_deposit
+// raises DecisionStarted before DecisionDepositPlaced
+const EXTRINSIC_ORDER = ['Referenda.Submitted', 'Referenda.DecisionDepositPlaced', 'Referenda.DecisionStarted', 'Referenda.ConfirmStarted']
 
 const STEP_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle' | 'primary'> = {
     'Referenda.DecisionStarted': 'primary',
@@ -105,13 +109,24 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const nodes = r.proposalCalls ?? []
     const payees = nodes.map(node => node.beneficiary)
     const partyIds = [...new Set([...payees, r.proposalBeneficiary, r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
-    const [refs, dels, dacts, evs] = await Promise.all([
+    const [refs, dels, dacts, evs, textEvs] = await Promise.all([
         accountRefs(partyIds),
         delegationsFor(voterIds, r.track.id),
         delegationActionsFor(r.track.id, r.submittedAt, r.endedAt),
-        eventsByIds([...trail.map(s => s.event), ...data.metadataActions.map(a => a.id)]),
+        eventsByIds(trail.map(s => s.event)),
+        eventsByIds(data.metadataActions.map(a => a.id)),
     ])
-    const evBy = new Map(evs.events.map(e => [e.id, e]))
+    const stepOf = new Map(trail.map(s => [s.event, s]))
+    const rank = (e: TimelineEventRow) => EXTRINSIC_ORDER.indexOf(stepOf.get(e.id)!.name)
+    const runs: TimelineEventRow[][] = []
+    for (const e of evs.events) {
+        const run = runs.at(-1)
+        if (run && e.extrinsic && run[0].extrinsic?.id === e.extrinsic.id) run.push(e)
+        else runs.push([e])
+    }
+    const rail = runs.flatMap(run => run.sort((a, b) => rank(b) - rank(a)))
+    const actionOf = new Map(data.metadataActions.map(a => [a.id, a]))
+    const textRail = textEvs.events.map(e => ({a: actionOf.get(e.id)!, e}))
     const evWhos = evs.events.map(e => (e.args as {who?: unknown} | null)?.who).filter((w): w is string => typeof w === 'string')
     const party = new Map(refs.accounts.map(a => [a.id, a]))
 
@@ -395,15 +410,15 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     // every text the referendum ever carried, newest first, since the pointer
     // may move while people are voting and the earlier pitch should stay readable
     const texts = (
-        <TimelineList empty={data.metadataActions.length === 0}>
-            {data.metadataActions.map(a => (
+        <TimelineList empty={textRail.length === 0}>
+            {textRail.map(({a, e}) => (
                 <TimelineItem
                     key={a.id}
                     tone={a.method === 'MetadataSet' ? 'primary' : 'idle'}
                     icon={a.method === 'MetadataSet' ? RING : CROSS}
                     title={a.method === 'MetadataSet' ? 'Text set' : 'Text cleared'}
                     iso={a.timestamp}
-                    links={<StepLinks block={a.block} event={evBy.get(a.id)!} />}
+                    links={<StepLinks block={a.block} event={e} />}
                     detail={
                         a.method === 'MetadataSet' ? (
                             <div className="min-w-0">
@@ -440,9 +455,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     }
 
     const timeline = (
-        <TimelineList empty={trail.length === 0}>
-            {[...trail].reverse().map((s, i) => {
-                const e = evBy.get(s.event)!
+        <TimelineList empty={rail.length === 0}>
+            {rail.map(e => {
+                const s = stepOf.get(e.id)!
                 const rows = stepRows(e.args, s.name === 'Referenda.DecisionDepositPlaced' ? 'Decision deposit' : 'Amount')
                 // the Submitted event names neither party nor deposit, the
                 // referendum record fills the step in
@@ -452,7 +467,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 }
                 return (
                     <TimelineItem
-                        key={i}
+                        key={e.id}
                         tone={STEP_TONE[s.name] ?? 'idle'}
                         icon={STEP_ICON(s.name)}
                         title={STEP_LABEL[s.name] ?? camelLabel(s.name.split('.')[1])}

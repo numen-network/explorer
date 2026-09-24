@@ -258,6 +258,10 @@ export interface EventRow {
 const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp }`
 const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id hash }`
 
+// newest first by chain position. event indices run across the whole
+// block, so they already follow the extrinsic order
+const TIMELINE_ORDER = '[block_height_DESC, indexInBlock_DESC]'
+
 export interface Slice {
     limit: number
     offset: number
@@ -737,8 +741,8 @@ export function identityTimeline(idHex: string, limit: number, offset: number) {
     const where = identityWhere(idHex)
     return gql<{events: IdentityEventRow[]; conn: {totalCount: number}}>(
         `query ($limit: Int!, $offset: Int!) {
-            events(where: ${where}, orderBy: block_height_DESC, limit: $limit, offset: $offset) { id indexInBlock method args block { height timestamp } call { method args } extrinsic { id hash } }
-            conn: eventsConnection(orderBy: block_height_DESC, where: ${where}) { totalCount }
+            events(where: ${where}, orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { id indexInBlock method args block { height timestamp } call { method args } extrinsic { id hash } }
+            conn: eventsConnection(orderBy: ${TIMELINE_ORDER}, where: ${where}) { totalCount }
         }`,
         {limit, offset}
     )
@@ -1211,7 +1215,7 @@ export interface TimelineEventRow {
 
 export function eventsByIds(ids: string[]): Promise<{events: TimelineEventRow[]}> {
     if (ids.length === 0) return Promise.resolve({events: []})
-    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, limit: 500) { id indexInBlock args extrinsic { id hash } } }`, {ids})
+    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, orderBy: ${TIMELINE_ORDER}, limit: 500) { id indexInBlock args extrinsic { id hash } } }`, {ids})
 }
 
 export function trackList() {

@@ -4,7 +4,7 @@ import {TabPanels, type Panel} from '@/components/Tabs'
 import {DetailCard, DetailRow, NONE} from '@/components/Detail'
 import {BlockLink} from '@/components/links'
 import {bountyStatusTone} from '@/components/bounties'
-import Timeline, {CROSS, RING, TICK, rawSteps} from '@/components/timeline'
+import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, rawSteps} from '@/components/timeline'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
@@ -50,7 +50,8 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
     if (!b) notFound()
 
     const trail = rawSteps(b.timeline)
-    const evBy = new Map((await eventsByIds(trail.map(s => s.event))).events.map(e => [e.id, e]))
+    const stepOf = new Map(trail.map(s => [s.event, s]))
+    const {events} = await eventsByIds(trail.map(s => s.event))
 
     const acc =(a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : NONE)
 
@@ -85,16 +86,21 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
     )
 
     const timeline = (
-        <Timeline
-            steps={trail.map(s => ({
-                block: s.block,
-                label: STEP_LABEL[s.name] ?? camelLabel(s.name.split('.')[1]),
-                iso: s.timestamp,
-                tone: STEP_TONE(s.name),
-                icon: STEP_ICON(s.name),
-                event: evBy.get(s.event)!,
-            }))}
-        />
+        <TimelineList empty={events.length === 0}>
+            {events.map(e => {
+                const s = stepOf.get(e.id)!
+                return (
+                    <TimelineItem
+                        key={e.id}
+                        tone={STEP_TONE(s.name)}
+                        icon={STEP_ICON(s.name)}
+                        title={STEP_LABEL[s.name] ?? camelLabel(s.name.split('.')[1])}
+                        iso={s.timestamp}
+                        links={<StepLinks block={s.block} event={e} />}
+                    />
+                )
+            })}
+        </TimelineList>
     )
 
     return (
