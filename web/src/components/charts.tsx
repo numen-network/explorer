@@ -1,5 +1,5 @@
 'use client'
-import {curveSamples, type Curve} from '@/lib/curves'
+import {curveAt, curveSamples, type Curve} from '@/lib/curves'
 import {fmtCompact, fmtInt} from '@/lib/format'
 import * as echarts from 'echarts'
 import {useEffect, useRef} from 'react'
@@ -169,6 +169,21 @@ function ticksIn(from: number, to: number): number[] {
     return Array.from({length: Math.max(0, Math.floor((to - first) / step) + 1)}, (_, i) => first + i * step)
 }
 
+// the hover snaps to the nearest point and lists only the lines that have one
+// there, so every line is read at the same hours: an even grid over the whole
+// axis, a finer one over the window in view, and every step the tally took
+const GRID = 600
+const evenly = (from: number, to: number) => Array.from({length: GRID + 1}, (_, k) => from + ((to - from) * k) / GRID)
+
+// a step line holds the last recorded value at each hour
+function heldAt(steps: [number, number][], grid: number[]): [number, number][] {
+    let i = 0
+    return grid.map(h => {
+        while (i + 1 < steps.length && steps[i + 1][0] <= h) i++
+        return [h, steps[i][1]]
+    })
+}
+
 // the threshold curves run the whole decision period, the dashed pair steps
 // through the recorded tally history
 export function CurvesChart({
@@ -183,8 +198,8 @@ export function CurvesChart({
     deciding,
     height = 320,
 }: {
-    approval: [number, number][]
-    support: [number, number][]
+    approval: Curve
+    support: Curve
     currentApproval: [number, number][]
     currentSupport: [number, number][]
     now: {at: number; approval: number; support: number} | null
@@ -204,13 +219,26 @@ export function CurvesChart({
         data,
     })
     const hasCurrent = currentApproval.length > 0 || currentSupport.length > 0
+    // the tally runs up to its last step
+    const lines = (from: number, to: number) => {
+        const grid = [...new Set([...evenly(0, hours), ...evenly(from, to), ...currentApproval.map(([h]) => h)])].sort((a, b) => a - b)
+        const tallied = hasCurrent ? grid.filter(h => h <= currentApproval.at(-1)![0]) : []
+        return {
+            approval: grid.map((h): [number, number] => [h, curveAt(approval, h / hours) * 100]),
+            support: grid.map((h): [number, number] => [h, curveAt(support, h / hours) * 100]),
+            currentApproval: heldAt(currentApproval, tallied),
+            currentSupport: heldAt(currentSupport, tallied),
+        }
+    }
+    const shown = lines(0, hours)
     const opt: echarts.EChartsOption = {
         tooltip: {
             ...TOOLTIP,
             formatter: (params: unknown) => {
-                const list = params as {seriesName?: string; marker?: string; value: [number, number]}[]
-                const h = Math.round(list[0].value[0])
-                const head = deciding ? `${h}h · #${fmtInt(deciding.start + Math.round(h * deciding.perHour))}` : `${h}h`
+                const list = params as {axisValue: number; seriesName?: string; marker?: string; value: [number, number]}[]
+                const at = list[0].axisValue
+                const h = Math.round(at)
+                const head = deciding ? `${h}h · #${fmtInt(deciding.start + Math.round(at * deciding.perHour))}` : `${h}h`
                 const rows = [...list]
                     .sort((a, b) => Number(b.seriesName?.toLowerCase().includes('approval')) - Number(a.seriesName?.toLowerCase().includes('approval')))
                     .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${p.value[1].toFixed(2)}%</span></div>`)
@@ -278,14 +306,14 @@ export function CurvesChart({
                 symbol: 'none',
                 lineStyle: {width: 2, color: SUPPORT},
                 itemStyle: {color: SUPPORT},
-                data: support,
+                data: shown.support,
                 markLine: now
                     ? {silent: true, symbol: 'none', label: {show: false}, lineStyle: {color: GRAY, type: 'dashed', width: 1}, data: [{xAxis: now.at}]}
                     : undefined,
             },
-            ...(hasCurrent ? [walked('Current support', currentSupport, SUPPORT)] : []),
-            {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: approval},
-            ...(hasCurrent ? [walked('Current approval', currentApproval, GREEN)] : []),
+            ...(hasCurrent ? [walked('Current support', shown.currentSupport, SUPPORT)] : []),
+            {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: shown.approval},
+            ...(hasCurrent ? [walked('Current approval', shown.currentApproval, GREEN)] : []),
             windows('Confirmation', GREEN, GREEN_FILL, confirmations),
             windows(now ? 'Ends early' : 'Ended early', SUB, SUB_FILL, earlyEnd !== null ? [[earlyEnd, hours]] : []),
         ],
@@ -300,23 +328,34 @@ export function CurvesChart({
             {option: {legend: {width: 'auto'}}},
         ],
     })
-    // the hour labels follow a zoom a frame later, relabelling inside the
-    // event strands the window labels where the zoom found them
+    // the hour labels and the line readings follow a zoom a frame later,
+    // updating inside the event strands the window labels where the zoom
+    // found them
     useEffect(() => {
         const chart = echarts.getInstanceByDom(ref.current!)!
-        const relabel = () => {
+        const refocus = () => {
             requestAnimationFrame(() => {
                 const [zoom] = chart.getOption().dataZoom as {start: number; end: number}[]
                 const at = (pct: number) => (hours * pct) / 100
-                chart.setOption({xAxis: {axisLabel: {customValues: ticksIn(at(zoom.start), at(zoom.end))}}})
+                const [from, to] = [at(zoom.start), at(zoom.end)]
+                const next = lines(from, to)
+                chart.setOption({
+                    xAxis: {axisLabel: {customValues: ticksIn(from, to)}},
+                    series: [
+                        {name: 'Support', data: next.support},
+                        ...(hasCurrent ? [{name: 'Current support', data: next.currentSupport}] : []),
+                        {name: 'Approval', data: next.approval},
+                        ...(hasCurrent ? [{name: 'Current approval', data: next.currentApproval}] : []),
+                    ],
+                })
             })
         }
-        chart.on('datazoom', relabel)
+        chart.on('datazoom', refocus)
         // useChart has already disposed the chart when this runs on unmount
         return () => {
-            if (!chart.isDisposed()) chart.off('datazoom', relabel)
+            if (!chart.isDisposed()) chart.off('datazoom', refocus)
         }
-    }, [ref, hours])
+    }, [ref, lines, hasCurrent, hours])
     return <div ref={ref} style={{height}} />
 }
 

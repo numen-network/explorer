@@ -18,7 +18,7 @@ import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {capitalOf, convictionLabel, decisionOf, votesOf, weigh} from '@/lib/conviction'
-import {curveAt, curveSamples, type Curve} from '@/lib/curves'
+import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum, trackLabel} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
 import {accountRefs, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail, type TimelineEventRow} from '@/lib/gql'
@@ -216,8 +216,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const decisionHours = Math.max(1, Math.round((r.track.decisionPeriod * chain.blockTime) / 3600))
     const deciding = r.decidingSince !== null && r.track.decisionPeriod > 0 ? {start: r.decidingSince, perHour: r.track.decisionPeriod / decisionHours} : null
-    const approvalCurve = curveSamples(r.track.minApproval as Curve, decisionHours)
-    const supportCurve = curveSamples(r.track.minSupport as Curve, decisionHours)
     const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best)
     const x = isLive(r) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
     const now = x !== null ? {at: (x / 100) * decisionHours, approval: approvalNow, support: supportNow} : null
@@ -350,8 +348,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         <div className="space-y-4">
             <Card size="flush" className="px-5 py-4">
                 <CurvesChart
-                    approval={approvalCurve}
-                    support={supportCurve}
+                    approval={r.track.minApproval as Curve}
+                    support={r.track.minSupport as Curve}
                     currentApproval={currentApproval}
                     currentSupport={currentSupport}
                     now={now}
