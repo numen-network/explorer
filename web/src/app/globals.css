@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@bprogress/core/css";
 @import "./shadcn.css";
 
 /* the generated parts carry dark: classes, this keeps them off the system
@@ -40,6 +41,8 @@
     --warn-soft: #fdf3e2;
     --destructive-soft: #fdeeee;
     --radius: 0.625rem;
+    --bprogress-color: var(--primary);
+    --bprogress-box-shadow: none;
 }
 
 @theme inline {
