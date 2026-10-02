@@ -224,6 +224,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const currentApproval: [number, number][] = []
     const currentSupport: [number, number][] = []
+    const confirmations: [number, number][] = []
+    let earlyEnd: number | null = null
     const decidingStart = r.decidingSince
     if (decidingStart !== null && r.track.decisionPeriod > 0) {
         // votes cast before the decision clock started all collapse to hour
@@ -236,6 +238,17 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             currentApproval.push([toX(s.block), p.approval])
             currentSupport.push([toX(s.block), p.support])
         }
+        // a kill, a cancellation or a rejection past the decision period cuts
+        // a confirmation off with no abort event, an open one runs to the
+        // block the pallet schedules it to pass at
+        for (const [i, s] of trail.entries()) {
+            if (s.name !== 'Referenda.ConfirmStarted') continue
+            const close = trail.slice(i + 1).find(t => t.name === 'Referenda.ConfirmAborted' || t.name === 'Referenda.Confirmed')
+            confirmations.push([toX(s.block), toX(close?.block ?? r.endedAt ?? s.block + r.track.confirmPeriod)])
+        }
+        // a referendum still confirming ends where its open window passes
+        const end = r.endedAt !== null ? toX(r.endedAt) : phaseOf(r) === 'Confirming' ? confirmations.at(-1)?.[1] : undefined
+        if (end !== undefined && end < decisionHours) earlyEnd = end
     }
     if (now) {
         currentApproval.push([now.at, now.approval])
@@ -335,7 +348,17 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const curves = (
         <div className="space-y-4">
             <Card size="flush" className="px-5 py-4">
-                <CurvesChart approval={approvalCurve} support={supportCurve} currentApproval={currentApproval} currentSupport={currentSupport} now={now} hours={decisionHours} deciding={deciding} />
+                <CurvesChart
+                    approval={approvalCurve}
+                    support={supportCurve}
+                    currentApproval={currentApproval}
+                    currentSupport={currentSupport}
+                    now={now}
+                    confirmations={confirmations}
+                    earlyEnd={earlyEnd}
+                    hours={decisionHours}
+                    deciding={deciding}
+                />
             </Card>
             <ActionList rows={actions} decimals={chain.decimals} symbol={chain.symbol} />
         </div>

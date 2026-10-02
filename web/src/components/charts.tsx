@@ -11,6 +11,8 @@ const ACCENT_SOFT = '#c4e5ed'
 const GRAY = '#9aa1ad'
 const GREEN = '#4caf50'
 const SUPPORT = '#7c3aed'
+const GREEN_FILL = 'rgba(76,175,80,.11)'
+const SUB_FILL = 'rgba(124,130,142,.08)'
 
 function useChart(option: echarts.EChartsOption) {
     const ref = useRef<HTMLDivElement>(null)
@@ -130,6 +132,35 @@ export function ThresholdChart({approval, support, hours, height = 180}: {approv
     return <div ref={ref} style={{height}} />
 }
 
+// a window shades the plot behind the curves and runs a pill along the top,
+// its label sitting in a gap once the pill is wide enough to hold it
+function windows(label: string, color: string, fill: string, spans: [number, number][]): echarts.CustomSeriesOption {
+    return {
+        type: 'custom',
+        z: 1,
+        silent: true,
+        tooltip: {show: false},
+        encode: {x: [0, 1]},
+        data: spans,
+        renderItem: (params, api) => {
+            const sys = params.coordSys as {type: string; x: number; y: number; width: number; height: number}
+            const x1 = Math.max(api.coord([api.value(0), 0])[0], sys.x)
+            const x2 = Math.min(api.coord([api.value(1), 0])[0], sys.x + sys.width)
+            if (x2 <= x1) return
+            const y = sys.y - 12
+            const fits = x2 - x1 >= echarts.format.getTextRect(label, '11px sans-serif').width + 24
+            return {
+                type: 'group',
+                children: [
+                    {type: 'rect', shape: {x: x1, y: sys.y, width: x2 - x1, height: sys.height}, style: {fill}},
+                    {type: 'rect', shape: {x: x1 + 1, y: y - 2, width: Math.max(2, x2 - x1 - 2), height: 4, r: 2}, style: {fill: color}},
+                    {type: 'text', ignore: !fits, x: (x1 + x2) / 2, y, style: {text: label, fill: color, fontSize: 11, align: 'center', verticalAlign: 'middle', backgroundColor: '#fff', padding: [0, 4]}},
+                ],
+            }
+        },
+    }
+}
+
 // the threshold curves run the whole decision period, the dashed pair steps
 // through the recorded tally history
 export function CurvesChart({
@@ -138,6 +169,8 @@ export function CurvesChart({
     currentApproval,
     currentSupport,
     now,
+    confirmations,
+    earlyEnd,
     hours,
     deciding,
     height = 320,
@@ -147,6 +180,8 @@ export function CurvesChart({
     currentApproval: [number, number][]
     currentSupport: [number, number][]
     now: {at: number; approval: number; support: number} | null
+    confirmations: [number, number][]
+    earlyEnd: number | null
     hours: number
     deciding: {start: number; perHour: number} | null
     height?: number
@@ -191,7 +226,7 @@ export function CurvesChart({
                   ]
                 : [{name: 'Approval'}, {name: 'Support'}],
         },
-        grid: {left: 8, right: 20, top: 16, bottom: 70, containLabel: true},
+        grid: {left: 8, right: 20, top: confirmations.length > 0 || earlyEnd !== null ? 32 : 16, bottom: 70, containLabel: true},
         // filter mode would drop the points behind the window edge and cut
         // the step lines off with them
         dataZoom: [
@@ -244,6 +279,8 @@ export function CurvesChart({
             ...(hasCurrent ? [walked('Current support', currentSupport, SUPPORT)] : []),
             {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: approval},
             ...(hasCurrent ? [walked('Current approval', currentApproval, GREEN)] : []),
+            windows('Confirmation', GREEN, GREEN_FILL, confirmations),
+            windows(now ? 'Ends early' : 'Ended early', SUB, SUB_FILL, earlyEnd !== null ? [[earlyEnd, hours]] : []),
         ],
     }
     // a width cap folds the four legend entries into balanced pairs when
