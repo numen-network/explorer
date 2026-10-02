@@ -38,8 +38,7 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: 5432
-      # GQL_DB_NAME lets graphql serve a mock database while the processor keeps indexing the real one
-      DB_NAME: ${GQL_DB_NAME:-${DB_NAME:-squid}}
+      DB_NAME: ${DB_NAME:-squid}
       DB_USER: ${DB_USER:-squid}
       DB_PASS: ${DB_PASS:-squid}
       GQL_PORT: 4350

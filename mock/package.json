@@ -1,0 +1,15 @@
+{
+  "name": "mock",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "start": "node --watch server.js"
+  },
+  "dependencies": {
+    "@graphql-tools/mock": "^9.1.16",
+    "@subsquid/openreader": "5.5.1",
+    "graphql": "^15.10.3",
+    "graphql-yoga": "^5.24.1"
+  }
+}

@@ -21,7 +21,7 @@ It covers blocks with their mined 3D objects, extrinsics with a chain wide call 
 | -------------------- | ----------------------------------- |
 | `squid/`             | indexer, migrations, GraphQL server |
 | `web/`               | Next.js frontend                    |
-| `mock/`              | mock database seeding for UI work   |
+| `mock/`              | fake GraphQL server for UI work     |
 | `docker-compose.yml` | full stack orchestration            |
 
 ## Requirements
@@ -40,7 +40,6 @@ Brings up Postgres, the processor, GraphQL and the web. Only the web is publishe
 | -------------- | ---------------------------------- |
 | `RPC_ENDPOINT` | `ws://host.docker.internal:9944`   |
 | `DB_NAME`      | `squid`                            |
-| `GQL_DB_NAME`  | same as `DB_NAME`                  |
 | `DB_PASS`      | `squid`                            |
 
 Switching networks means pointing the indexer at another node and using a fresh database. Postgres creates only `squid` on its first start, so any other `DB_NAME` has to exist before the processor can reach it, otherwise it restarts forever.
@@ -75,15 +74,17 @@ docker compose up -d --build
 
 `squid/.env.example` lists every variable the processor reads. Compose passes them in, so nothing on disk has to hold them.
 
-Mock data. The seed script clones the live index into a `squid_mock` database and injects synthetic rows on top. It reads the source by its default name `squid`, so a run under any other `DB_NAME` clones an empty database. Real blocks, transfers and mined objects come with the clone, and injected heights all sit below the cloned tip so block links and timestamps resolve.
+Mock data. `mock/` is a fake GraphQL server for UI work, no database or node involved. Its schema comes from `squid/schema.graphql` through openreader, the builder behind the squid GraphQL server. It listens on 127.0.0.1:4350, where the web looks when `GQL_HTTP` is unset.
 
 ```bash
-mock/seed.sh
-echo "GQL_DB_NAME=squid_mock" > .env
-docker compose up -d
+cd mock && pnpm install && pnpm start
 ```
 
-GraphQL now serves the mock while the processor keeps indexing the real chain into the main database. The frontend needs no changes, it renders whatever GraphQL serves. Delete `.env` and `docker compose up -d` again to switch back. Rerun `mock/seed.sh` any time, it drops and rebuilds the whole mock database from a fresh clone.
+```bash
+cd web && pnpm dev
+```
+
+`mock/data.js` maps each GraphQL root field to what it returns, and the server restarts on every save. Arguments are ignored, so every query on a field gets the same answer. A field left out returns an empty list or null, and whatever an object leaves out gets a default. A field that has to answer differently per query can be a function that receives the query arguments. GraphiQL on the same address lists the root fields.
 
 After a runtime upgrade regenerate the typed accessors.
 
@@ -109,3 +110,5 @@ The explorer refuses to append to a file that holds another chain, so delete `sp
 ## Things that must move together
 
 `web/src/lib/gql.ts` mirrors `squid/schema.graphql`.
+
+`mock/package.json` pins the `@subsquid/openreader` that `squid/pnpm-lock.yaml` resolves for the GraphQL server.
