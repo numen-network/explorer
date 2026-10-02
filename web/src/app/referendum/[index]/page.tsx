@@ -215,44 +215,47 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const supportNow = activeIssuance > 0 ? (supportVal / activeIssuance) * 100 : 0
 
     const decisionHours = Math.max(1, Math.round((r.track.decisionPeriod * chain.blockTime) / 3600))
-    const deciding = r.decidingSince !== null && r.track.decisionPeriod > 0 ? {start: r.decidingSince, perHour: r.track.decisionPeriod / decisionHours} : null
     const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best)
     const x = isLive(r) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
-    const now = x !== null ? {at: (x / 100) * decisionHours, approval: approvalNow, support: supportNow} : null
 
-    const currentApproval: [number, number][] = []
-    const currentSupport: [number, number][] = []
-    const confirmations: [number, number][] = []
-    let earlyEnd: number | null = null
-    const decidingStart = r.decidingSince
-    if (decidingStart !== null && r.track.decisionPeriod > 0) {
-        // votes cast before the decision clock started all collapse to hour
-        // zero, only the last of them still holds there
-        const pre = data.snapshots.filter(s => s.block <= decidingStart)
-        const kept = [...pre.slice(-1), ...data.snapshots.filter(s => s.block > decidingStart)]
-        const toX = (b: number) => Math.min(decisionHours, Math.max(0, ((b - decidingStart) / r.track.decisionPeriod) * decisionHours))
-        for (const s of kept) {
-            const p = snapPct(s)
-            currentApproval.push([toX(s.block), p.approval])
-            currentSupport.push([toX(s.block), p.support])
-        }
-        // a kill, a cancellation or a rejection past the decision period cuts
-        // a confirmation off with no abort event, an open one runs to the
-        // block the pallet schedules it to pass at
-        for (const [i, s] of trail.entries()) {
-            if (s.name !== 'Referenda.ConfirmStarted') continue
-            const close = trail.slice(i + 1).find(t => t.name === 'Referenda.ConfirmAborted' || t.name === 'Referenda.Confirmed')
-            confirmations.push([toX(s.block), toX(close?.block ?? r.endedAt ?? s.block + r.track.confirmPeriod)])
-        }
-        // only a pass ends a referendum early, one still confirming passes
-        // where its open window closes
-        const end = r.status === 'Approved' ? toX(r.endedAt!) : phaseOf(r) === 'Confirming' ? confirmations.at(-1)?.[1] : undefined
-        if (end !== undefined && end < decisionHours) earlyEnd = end
+    // hour zero is where the decision clock started, or where it can start
+    // soonest, or where a referendum that never got there ended. the lead-in
+    // before it keeps its true length
+    const clock = {
+        zero: r.decidingSince ?? r.endedAt ?? Math.max(heads.best, r.submittedAt + r.track.preparePeriod),
+        perHour: r.track.decisionPeriod / decisionHours,
+        blockTime: chain.blockTime,
+        started: r.decidingSince !== null,
+    }
+    const toX = (b: number) => Math.min(decisionHours, (b - clock.zero) / clock.perHour)
+    const lead = {from: toX(r.submittedAt), submitted: r.submittedAt}
+    const now = r.status === 'Ongoing' ? {at: toX(heads.best), approval: approvalNow, support: supportNow} : null
+
+    // a tally starts empty at submission
+    const currentApproval: [number, number][] = [[lead.from, 0]]
+    const currentSupport: [number, number][] = [[lead.from, 0]]
+    for (const s of data.snapshots) {
+        const p = snapPct(s)
+        currentApproval.push([toX(s.block), p.approval])
+        currentSupport.push([toX(s.block), p.support])
     }
     if (now) {
         currentApproval.push([now.at, now.approval])
         currentSupport.push([now.at, now.support])
     }
+    // a kill, a cancellation or a rejection past the decision period cuts a
+    // confirmation off with no abort event, an open one runs to the block the
+    // pallet schedules it to pass at
+    const confirmations: [number, number][] = []
+    for (const [i, s] of trail.entries()) {
+        if (s.name !== 'Referenda.ConfirmStarted') continue
+        const close = trail.slice(i + 1).find(t => t.name === 'Referenda.ConfirmAborted' || t.name === 'Referenda.Confirmed')
+        confirmations.push([toX(s.block), toX(close?.block ?? r.endedAt ?? s.block + r.track.confirmPeriod)])
+    }
+    // only a pass ends a referendum early, one still confirming passes where
+    // its open window closes
+    const end = r.status === 'Approved' ? toX(r.endedAt!) : phaseOf(r) === 'Confirming' ? confirmations.at(-1)?.[1] : undefined
+    const earlyEnd = end !== undefined && end < decisionHours ? end : null
 
     const ended = r.endedAt !== null
     const prepareAt = phaseFraction(r.submittedAt, r.track.preparePeriod, heads.best)
@@ -356,7 +359,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     confirmations={confirmations}
                     earlyEnd={earlyEnd}
                     hours={decisionHours}
-                    deciding={deciding}
+                    clock={clock}
+                    lead={lead}
                 />
             </Card>
             <ActionList rows={actions} decimals={chain.decimals} symbol={chain.symbol} />

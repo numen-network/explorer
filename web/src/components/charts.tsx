@@ -1,6 +1,6 @@
 'use client'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
-import {fmtCompact, fmtInt} from '@/lib/format'
+import {fmtBlockSpan, fmtCompact, fmtInt} from '@/lib/format'
 import * as echarts from 'echarts'
 import {useEffect, useRef} from 'react'
 
@@ -133,8 +133,8 @@ export function ThresholdChart({approval, support, hours, height = 180}: {approv
 }
 
 // a window shades the plot behind the curves and runs a pill along the top,
-// its label sitting in a gap once the pill is wide enough to hold it
-function windows(label: string, color: string, fill: string, spans: [number, number][]): echarts.CustomSeriesOption {
+// the first label the pill is wide enough to hold sitting in a gap of it
+function windows(label: string | string[], color: string, fill: string, spans: [number, number][]): echarts.CustomSeriesOption {
     return {
         type: 'custom',
         z: 1,
@@ -148,24 +148,25 @@ function windows(label: string, color: string, fill: string, spans: [number, num
             const x2 = Math.min(api.coord([api.value(1), 0])[0], sys.x + sys.width)
             if (x2 <= x1) return
             const y = sys.y - 12
-            const fits = x2 - x1 >= echarts.format.getTextRect(label, '11px sans-serif').width + 24
+            const text = [label].flat().find(t => x2 - x1 >= echarts.format.getTextRect(t, '11px sans-serif').width + 24)
             return {
                 type: 'group',
                 children: [
                     {type: 'rect', shape: {x: x1, y: sys.y, width: x2 - x1, height: sys.height}, style: {fill}},
                     {type: 'rect', shape: {x: x1 + 1, y: y - 2, width: Math.max(2, x2 - x1 - 2), height: 4, r: 2}, style: {fill: color}},
-                    {type: 'text', ignore: !fits, x: (x1 + x2) / 2, y, style: {text: label, fill: color, fontSize: 11, align: 'center', verticalAlign: 'middle', backgroundColor: '#fff', padding: [0, 4]}},
+                    {type: 'text', ignore: text === undefined, x: (x1 + x2) / 2, y, style: {text, fill: color, fontSize: 11, align: 'center', verticalAlign: 'middle', backgroundColor: '#fff', padding: [0, 4]}},
                 ],
             }
         },
     }
 }
 
-// about eight hour labels in view, whole days once a step reaches a day
+// about eight hour labels in view, whole days once a step reaches a day. the
+// lead-in left of hour zero takes none, its window names it
 function ticksIn(from: number, to: number): number[] {
     const span = to - from
     const step = span > 96 ? 24 * Math.ceil(span / 192) : [1, 2, 3, 6, 12].find(s => span / s <= 8)!
-    const first = Math.ceil(from / step) * step
+    const first = Math.max(0, Math.ceil(from / step) * step)
     return Array.from({length: Math.max(0, Math.floor((to - first) / step) + 1)}, (_, i) => first + i * step)
 }
 
@@ -185,7 +186,9 @@ function heldAt(steps: [number, number][], grid: number[]): [number, number][] {
 }
 
 // the threshold curves run the whole decision period, the dashed pair steps
-// through the recorded tally history
+// through the recorded tally history from submission on. x counts hours from
+// the clock's zero block, so the lead-in sits left of hour zero at its true
+// length
 export function CurvesChart({
     approval,
     support,
@@ -195,7 +198,8 @@ export function CurvesChart({
     confirmations,
     earlyEnd,
     hours,
-    deciding,
+    clock,
+    lead,
     height = 320,
 }: {
     approval: Curve
@@ -206,7 +210,8 @@ export function CurvesChart({
     confirmations: [number, number][]
     earlyEnd: number | null
     hours: number
-    deciding: {start: number; perHour: number} | null
+    clock: {zero: number; perHour: number; blockTime: number; started: boolean}
+    lead: {from: number; submitted: number}
     height?: number
 }) {
     const walked = (name: string, data: [number, number][], color: string) => ({
@@ -218,19 +223,20 @@ export function CurvesChart({
         itemStyle: {color},
         data,
     })
-    const hasCurrent = currentApproval.length > 0 || currentSupport.length > 0
-    // the tally runs up to its last step
+    const blockAt = (h: number) => clock.zero + Math.round(h * clock.perHour)
+    // thresholds exist from hour zero on, the tally up to its last step
     const lines = (from: number, to: number) => {
-        const grid = [...new Set([...evenly(0, hours), ...evenly(from, to), ...currentApproval.map(([h]) => h)])].sort((a, b) => a - b)
-        const tallied = hasCurrent ? grid.filter(h => h <= currentApproval.at(-1)![0]) : []
+        const grid = [...new Set([...evenly(lead.from, hours), ...evenly(from, to), ...currentApproval.map(([h]) => h)])].sort((a, b) => a - b)
+        const deciding = grid.filter(h => h >= 0)
+        const tallied = grid.filter(h => h <= currentApproval.at(-1)![0])
         return {
-            approval: grid.map((h): [number, number] => [h, curveAt(approval, h / hours) * 100]),
-            support: grid.map((h): [number, number] => [h, curveAt(support, h / hours) * 100]),
+            approval: deciding.map((h): [number, number] => [h, curveAt(approval, h / hours) * 100]),
+            support: deciding.map((h): [number, number] => [h, curveAt(support, h / hours) * 100]),
             currentApproval: heldAt(currentApproval, tallied),
             currentSupport: heldAt(currentSupport, tallied),
         }
     }
-    const shown = lines(0, hours)
+    const shown = lines(lead.from, hours)
     const opt: echarts.EChartsOption = {
         tooltip: {
             ...TOOLTIP,
@@ -238,7 +244,12 @@ export function CurvesChart({
                 const list = params as {axisValue: number; seriesName?: string; marker?: string; value: [number, number]}[]
                 const at = list[0].axisValue
                 const h = Math.round(at)
-                const head = deciding ? `${h}h · #${fmtInt(deciding.start + Math.round(at * deciding.perHour))}` : `${h}h`
+                const head =
+                    at < 0
+                        ? `Lead-in ${fmtBlockSpan(blockAt(at) - lead.submitted, clock.blockTime)} · #${fmtInt(blockAt(at))}`
+                        : clock.started
+                          ? `${h}h · #${fmtInt(blockAt(at))}`
+                          : `${h}h`
                 const rows = [...list]
                     .sort((a, b) => Number(b.seriesName?.toLowerCase().includes('approval')) - Number(a.seriesName?.toLowerCase().includes('approval')))
                     .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${p.value[1].toFixed(2)}%</span></div>`)
@@ -253,16 +264,14 @@ export function CurvesChart({
             itemWidth: 22,
             itemGap: 18,
             textStyle: {color: SUB, fontSize: 11},
-            data: hasCurrent
-                ? [
-                      {name: 'Approval'},
-                      {name: 'Current approval', lineStyle: {type: 'dashed'}},
-                      {name: 'Support'},
-                      {name: 'Current support', lineStyle: {type: 'dashed'}},
-                  ]
-                : [{name: 'Approval'}, {name: 'Support'}],
+            data: [
+                {name: 'Approval'},
+                {name: 'Current approval', lineStyle: {type: 'dashed'}},
+                {name: 'Support'},
+                {name: 'Current support', lineStyle: {type: 'dashed'}},
+            ],
         },
-        grid: {left: 8, right: 20, top: confirmations.length > 0 || earlyEnd !== null ? 32 : 16, bottom: 70, containLabel: true},
+        grid: {left: 8, right: 20, top: 32, bottom: 70, containLabel: true},
         // filter mode would drop the points behind the window edge and cut
         // the step lines off with them
         dataZoom: [
@@ -284,11 +293,11 @@ export function CurvesChart({
         ],
         xAxis: {
             type: 'value',
-            min: 0,
+            min: lead.from,
             max: hours,
             axisLine: {lineStyle: {color: EDGE}},
             axisTick: {show: false},
-            axisLabel: {color: SUB, fontSize: 11, customValues: ticksIn(0, hours), formatter: (v: number) => `${Math.round(v)}h`},
+            axisLabel: {color: SUB, fontSize: 11, customValues: ticksIn(lead.from, hours), formatter: (v: number) => `${Math.round(v)}h`},
             splitLine: {show: false},
         },
         yAxis: {
@@ -311,9 +320,10 @@ export function CurvesChart({
                     ? {silent: true, symbol: 'none', label: {show: false}, lineStyle: {color: GRAY, type: 'dashed', width: 1}, data: [{xAxis: now.at}]}
                     : undefined,
             },
-            ...(hasCurrent ? [walked('Current support', shown.currentSupport, SUPPORT)] : []),
+            walked('Current support', shown.currentSupport, SUPPORT),
             {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: shown.approval},
-            ...(hasCurrent ? [walked('Current approval', shown.currentApproval, GREEN)] : []),
+            walked('Current approval', shown.currentApproval, GREEN),
+            windows([`Lead-in ${fmtBlockSpan(clock.zero - lead.submitted, clock.blockTime)}`, 'Lead-in'], SUB, SUB_FILL, [[lead.from, 0]]),
             windows('Confirmation', GREEN, GREEN_FILL, confirmations),
             windows(now ? 'Ends early' : 'Ended early', SUB, SUB_FILL, earlyEnd !== null ? [[earlyEnd, hours]] : []),
         ],
@@ -336,16 +346,16 @@ export function CurvesChart({
         const refocus = () => {
             requestAnimationFrame(() => {
                 const [zoom] = chart.getOption().dataZoom as {start: number; end: number}[]
-                const at = (pct: number) => (hours * pct) / 100
+                const at = (pct: number) => lead.from + ((hours - lead.from) * pct) / 100
                 const [from, to] = [at(zoom.start), at(zoom.end)]
                 const next = lines(from, to)
                 chart.setOption({
                     xAxis: {axisLabel: {customValues: ticksIn(from, to)}},
                     series: [
                         {name: 'Support', data: next.support},
-                        ...(hasCurrent ? [{name: 'Current support', data: next.currentSupport}] : []),
+                        {name: 'Current support', data: next.currentSupport},
                         {name: 'Approval', data: next.approval},
-                        ...(hasCurrent ? [{name: 'Current approval', data: next.currentApproval}] : []),
+                        {name: 'Current approval', data: next.currentApproval},
                     ],
                 })
             })
@@ -355,7 +365,7 @@ export function CurvesChart({
         return () => {
             if (!chart.isDisposed()) chart.off('datazoom', refocus)
         }
-    }, [ref, lines, hasCurrent, hours])
+    }, [ref, lines, lead.from, hours])
     return <div ref={ref} style={{height}} />
 }
 
