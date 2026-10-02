@@ -161,6 +161,14 @@ function windows(label: string, color: string, fill: string, spans: [number, num
     }
 }
 
+// about eight hour labels in view, whole days once a step reaches a day
+function ticksIn(from: number, to: number): number[] {
+    const span = to - from
+    const step = span > 96 ? 24 * Math.ceil(span / 192) : [1, 2, 3, 6, 12].find(s => span / s <= 8)!
+    const first = Math.ceil(from / step) * step
+    return Array.from({length: Math.max(0, Math.floor((to - first) / step) + 1)}, (_, i) => first + i * step)
+}
+
 // the threshold curves run the whole decision period, the dashed pair steps
 // through the recorded tally history
 export function CurvesChart({
@@ -250,10 +258,9 @@ export function CurvesChart({
             type: 'value',
             min: 0,
             max: hours,
-            interval: 24 * Math.ceil(hours / (24 * 7)),
             axisLine: {lineStyle: {color: EDGE}},
             axisTick: {show: false},
-            axisLabel: {color: SUB, fontSize: 11, formatter: (v: number) => `${Math.round(v)}h`},
+            axisLabel: {color: SUB, fontSize: 11, customValues: ticksIn(0, hours), formatter: (v: number) => `${Math.round(v)}h`},
             splitLine: {show: false},
         },
         yAxis: {
@@ -293,6 +300,23 @@ export function CurvesChart({
             {option: {legend: {width: 'auto'}}},
         ],
     })
+    // the hour labels follow a zoom a frame later, relabelling inside the
+    // event strands the window labels where the zoom found them
+    useEffect(() => {
+        const chart = echarts.getInstanceByDom(ref.current!)!
+        const relabel = () => {
+            requestAnimationFrame(() => {
+                const [zoom] = chart.getOption().dataZoom as {start: number; end: number}[]
+                const at = (pct: number) => (hours * pct) / 100
+                chart.setOption({xAxis: {axisLabel: {customValues: ticksIn(at(zoom.start), at(zoom.end))}}})
+            })
+        }
+        chart.on('datazoom', relabel)
+        // useChart has already disposed the chart when this runs on unmount
+        return () => {
+            if (!chart.isDisposed()) chart.off('datazoom', relabel)
+        }
+    }, [ref, hours])
     return <div ref={ref} style={{height}} />
 }
 
