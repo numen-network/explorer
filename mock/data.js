@@ -2,6 +2,8 @@ const HEAD = 1_000_000
 const HEAD_TIME = Date.now()
 const BLOCK_TIME = 10
 const SUBMISSION_DEPOSIT = '5000000000000000000'
+const ISSUANCE_TOTAL = '602518848000000000000000000'
+const ISSUANCE_INACTIVE = '550000154663232139351368277'
 
 const at = height => new Date(HEAD_TIME - (HEAD - height) * BLOCK_TIME * 1000).toISOString()
 const numn = n => (BigInt(n) * 10n ** 18n).toString()
@@ -42,8 +44,11 @@ const spend = (amount, beneficiary) => ({
     proposalBeneficiary: beneficiary,
 })
 
-function referendum({index, track, origin, submitter, steps, decidingSince = null, confirmingSince = null, endedAt = null, tally: [ayes, nays, support], deposits, ...rest}) {
+// history rows are [block, ayes, nays, support] in whole NUMN, one per tally
+// snapshot the indexer would write, the last one is the tally now
+function referendum({index, track, origin, submitter, steps, decidingSince = null, confirmingSince = null, endedAt = null, history = [], deposits, ...rest}) {
     const t = trackById[track]
+    const [, ayes, nays, support] = history.at(-1) ?? [0, 0, 0, 0]
     return {
         id: String(index),
         index,
@@ -65,11 +70,107 @@ function referendum({index, track, origin, submitter, steps, decidingSince = nul
         submissionDeposit: deposits ? SUBMISSION_DEPOSIT : null,
         decisionDepositor: deposits === 'both' ? account(submitter) : null,
         decisionDeposit: deposits === 'both' ? t.decisionDeposit : null,
+        snapshots: history.map(([block, a, n, s]) => ({
+            block,
+            ayes: numn(a),
+            nays: numn(n),
+            support: numn(s),
+            totalIssuance: ISSUANCE_TOTAL,
+            inactiveIssuance: ISSUANCE_INACTIVE,
+        })),
         ...rest,
     }
 }
 
 const referenda = [
+    referendum({
+        index: 11,
+        track: '31',
+        origin: 'MediumSpender',
+        submitter: 11,
+        status: 'TimedOut',
+        title: 'Timed out waiting for a decision deposit after votes came in',
+        ...spend(120_000, account(12)),
+        steps: [
+            step('Referenda.Submitted', 400_000, 2),
+            step('Referenda.TimedOut', 520_960, 0),
+            step('Referenda.SubmissionDepositRefunded', 525_000, 1),
+        ],
+        endedAt: 520_960,
+        history: [
+            [400_500, 400_000, 0, 300_000],
+            [430_000, 400_000, 250_000, 300_000],
+            [480_000, 700_000, 250_000, 550_000],
+            [520_960, 700_000, 250_000, 550_000],
+        ],
+    }),
+    referendum({
+        index: 10,
+        track: '30',
+        origin: 'SmallSpender',
+        submitter: 1,
+        status: 'Approved',
+        title: 'Approved early after eight days waiting for its decision deposit',
+        ...spend(50_000, account(2)),
+        steps: [
+            step('Referenda.Submitted', 600_000, 3),
+            step('Referenda.DecisionStarted', 669_000, 3),
+            step('Referenda.DecisionDepositPlaced', 669_000, 6),
+            step('Referenda.ConfirmStarted', 690_000, 0),
+            step('Referenda.Confirmed', 698_640, 0),
+            step('Referenda.Approved', 698_640, 1),
+            step('Scheduler.Dispatched', 707_280, 0),
+            step('Referenda.SubmissionDepositRefunded', 710_000, 2),
+            step('Referenda.DecisionDepositRefunded', 710_000, 3),
+        ],
+        decidingSince: 669_000,
+        confirmingSince: 690_000,
+        endedAt: 698_640,
+        history: [
+            [600_200, 50_000, 0, 50_000],
+            [630_000, 2_200_000, 0, 2_000_000],
+            [668_500, 3_400_000, 0, 3_000_000],
+            [669_000, 3_400_000, 0, 3_000_000],
+            [680_000, 4_000_000, 200_000, 3_500_000],
+            [698_640, 4_000_000, 200_000, 3_500_000],
+        ],
+    }),
+    referendum({
+        index: 9,
+        track: '2',
+        origin: 'WishForChange',
+        submitter: 0,
+        title: 'Voting inside the prepare period with the decision deposit already in',
+        proposalPallet: 'System',
+        proposalMethod: 'remark',
+        proposalArgs: {remark: hex('Fund a community translation sprint')},
+        proposalCalls: [{pallet: 'System', method: 'remark', depth: 0}],
+        steps: [
+            step('Referenda.Submitted', 999_700, 2),
+            step('Referenda.DecisionDepositPlaced', 999_705, 4),
+        ],
+        history: [
+            [999_710, 3_000_000, 0, 2_000_000],
+            [999_760, 3_000_000, 800_000, 2_000_000],
+            [999_900, 3_400_000, 800_000, 2_300_000],
+        ],
+        deposits: 'both',
+    }),
+    referendum({
+        index: 8,
+        track: '31',
+        origin: 'MediumSpender',
+        submitter: 14,
+        title: 'Waiting a week for a decision deposit with votes already in',
+        ...spend(300_000, account(15)),
+        steps: [step('Referenda.Submitted', 940_000, 5)],
+        history: [
+            [940_300, 600_000, 0, 500_000],
+            [955_000, 1_400_000, 300_000, 1_100_000],
+            [990_000, 2_100_000, 300_000, 1_700_000],
+        ],
+        deposits: 'submission',
+    }),
     referendum({
         index: 7,
         track: '30',
@@ -78,7 +179,6 @@ const referenda = [
         title: 'Submitted with no decision deposit and no votes yet, carrying a deliberately long title that the list row truncates and the detail header wraps across several lines',
         ...spend(8000, account(13)),
         steps: [step('Referenda.Submitted', 999_400, 4)],
-        tally: [0, 0, 0],
         deposits: 'submission',
     }),
     referendum({
@@ -96,7 +196,13 @@ const referenda = [
         ],
         decidingSince: 961_440,
         confirmingSince: 990_000,
-        tally: [5_100_000, 600_000, 3_900_000],
+        history: [
+            [960_030, 1_200_000, 0, 900_000],
+            [960_900, 2_000_000, 600_000, 1_500_000],
+            [961_440, 2_000_000, 600_000, 1_500_000],
+            [975_000, 4_000_000, 600_000, 3_000_000],
+            [989_990, 5_100_000, 600_000, 3_900_000],
+        ],
         deposits: 'both',
     }),
     referendum({
@@ -112,7 +218,12 @@ const referenda = [
             step('Referenda.DecisionStarted', 951_440, 0),
         ],
         decidingSince: 951_440,
-        tally: [2_800_000, 1_900_000, 1_400_000],
+        history: [
+            [950_500, 800_000, 0, 600_000],
+            [951_440, 800_000, 0, 600_000],
+            [962_000, 1_500_000, 1_900_000, 1_000_000],
+            [980_000, 2_800_000, 1_900_000, 1_400_000],
+        ],
         deposits: 'both',
     }),
     referendum({
@@ -133,7 +244,12 @@ const referenda = [
         ],
         decidingSince: 761_440,
         endedAt: 790_000,
-        tally: [200_000, 4_100_000, 150_000],
+        history: [
+            [760_200, 200_000, 0, 150_000],
+            [761_440, 200_000, 0, 150_000],
+            [775_000, 200_000, 4_100_000, 150_000],
+            [790_000, 200_000, 4_100_000, 150_000],
+        ],
     }),
     referendum({
         index: 3,
@@ -152,7 +268,7 @@ const referenda = [
             step('Referenda.SubmissionDepositRefunded', 830_000, 1),
         ],
         endedAt: 820_960,
-        tally: [0, 0, 0],
+        history: [[820_960, 0, 0, 0]],
     }),
     referendum({
         index: 2,
@@ -175,7 +291,12 @@ const referenda = [
         ],
         decidingSince: 640_720,
         endedAt: 652_000,
-        tally: [300_000, 100_000, 250_000],
+        history: [
+            [640_300, 300_000, 0, 250_000],
+            [640_720, 300_000, 0, 250_000],
+            [645_000, 300_000, 100_000, 250_000],
+            [652_000, 300_000, 100_000, 250_000],
+        ],
     }),
     referendum({
         index: 1,
@@ -195,7 +316,13 @@ const referenda = [
         ],
         decidingSince: 301_440,
         endedAt: 543_360,
-        tally: [900_000, 2_400_000, 700_000],
+        history: [
+            [300_600, 500_000, 0, 400_000],
+            [301_440, 500_000, 0, 400_000],
+            [350_000, 900_000, 1_200_000, 700_000],
+            [500_000, 900_000, 2_400_000, 700_000],
+            [543_360, 900_000, 2_400_000, 700_000],
+        ],
     }),
     referendum({
         index: 0,
@@ -219,7 +346,13 @@ const referenda = [
         decidingSince: 521_440,
         confirmingSince: 580_000,
         endedAt: 588_640,
-        tally: [3_200_000, 400_000, 2_600_000],
+        history: [
+            [520_100, 1_000_000, 0, 800_000],
+            [521_440, 1_000_000, 0, 800_000],
+            [540_000, 2_000_000, 400_000, 1_600_000],
+            [579_000, 3_200_000, 400_000, 2_600_000],
+            [588_640, 3_200_000, 400_000, 2_600_000],
+        ],
     }),
 ]
 
@@ -243,13 +376,14 @@ export default {
     }],
     blocks: () => [{height: HEAD, timestamp: new Date().toISOString()}],
     dailyStats: [{
-        issuanceTotal: '602518848000000000000000000',
-        issuanceInactive: '550000154663232139351368277',
+        issuanceTotal: ISSUANCE_TOTAL,
+        issuanceInactive: ISSUANCE_INACTIVE,
         treasuryPot: '550000154663232139351368277',
     }],
     tracks,
     tracksConnection: {totalCount: tracks.length},
     referendums: ({where}) => (where?.index_eq == null ? referenda : referenda.filter(r => r.index === where.index_eq)),
     referendumsConnection: ({where}) => ({totalCount: referenda.filter(r => !where?.status_eq || r.status === where.status_eq).length}),
+    referendumTallySnapshots: ({where}) => referenda.find(r => r.index === where.referendum.index_eq).snapshots,
     events: ({where}) => (where?.id_in ?? []).map(id => ({id, indexInBlock: Number(/-(\d+)$/.exec(id)?.[1] ?? 0)})),
 }
