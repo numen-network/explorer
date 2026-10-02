@@ -246,8 +246,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             const close = trail.slice(i + 1).find(t => t.name === 'Referenda.ConfirmAborted' || t.name === 'Referenda.Confirmed')
             confirmations.push([toX(s.block), toX(close?.block ?? r.endedAt ?? s.block + r.track.confirmPeriod)])
         }
-        // a referendum still confirming ends where its open window passes
-        const end = r.endedAt !== null ? toX(r.endedAt) : phaseOf(r) === 'Confirming' ? confirmations.at(-1)?.[1] : undefined
+        // only a pass ends a referendum early, one still confirming passes
+        // where its open window closes
+        const end = r.status === 'Approved' ? toX(r.endedAt!) : phaseOf(r) === 'Confirming' ? confirmations.at(-1)?.[1] : undefined
         if (end !== undefined && end < decisionHours) earlyEnd = end
     }
     if (now) {
