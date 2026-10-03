@@ -116,6 +116,9 @@ const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACC
 const BASELINE_FIELDS = `difficulty issuanceTotal issuanceInactive treasuryPot`
 const DAILY_FIELDS = `id date blocks extrinsicsSigned transfers transferVolume evmTxs fees tsFirst tsLast issuanceTotal issuanceInactive issuanceTransferable treasuryPot cumExtrinsicsSigned cumTransfers cumTransferVolume difficultyClose accountsTotal referendaTotal minersActive rewards`
 
+// a transfer is keyed by the event that raised it, so id order is event order
+const TRANSFER_ORDER = '[timestamp_DESC, id_DESC]'
+
 export interface BaselineRow {
     difficulty: string
     issuanceTotal: string
@@ -163,7 +166,7 @@ export function homeData(since24: string, since30: string) {
             blocks(orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
             genesis: blocks(where: {height_eq: 0}, limit: 1) { hash }
             minedObjects(orderBy: id_DESC, limit: 5) { block { height hash timestamp finalized extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
-            transfers(orderBy: timestamp_DESC, limit: 5) { ${TRANSFER_FIELDS} }
+            transfers(orderBy: ${TRANSFER_ORDER}, limit: 5) { ${TRANSFER_FIELDS} }
             dailyStats(orderBy: date_DESC, limit: 90) { ${DAILY_FIELDS} }
             accounts: accountsConnection(orderBy: id_ASC) { totalCount }
             validators: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
@@ -449,7 +452,7 @@ export function accountSummary(idHex: string) {
         `query ($id: String!) {
             accountById(id: $id) { id free reserved balance frozen nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData identitySuper { id identityDisplay identityJson } evmAddress vestingJson locksJson holdsJson depositsJson }
             validators(where: {account: ${self}}, limit: 1) { ${VALIDATOR_FIELDS} }
-            registrar: registrars(where: {account: ${self}}, limit: 1) { index }
+            registrar: registrars(where: {account: ${self}}, orderBy: index_ASC, limit: 1) { index }
             retiredRegistrars: registrars(where: {retiredAt_isNull: false}) { index }
             prime: primeStates(where: {account: ${self}}, limit: 1) { id }
             minerDays: minerDayStats(where: {account: ${self}}, orderBy: day_DESC, limit: 60) { day blocks }
@@ -558,7 +561,7 @@ export async function evmDeployments(address: string): Promise<{contracts: numbe
 export function transfersPage(limit: number, offset: number) {
     return gql<{transfers: TransferRow[]; conn: {totalCount: number}}>(
         `query ($limit: Int!, $offset: Int!) {
-            transfers(orderBy: timestamp_DESC, limit: $limit, offset: $offset) { ${TRANSFER_FIELDS} }
+            transfers(orderBy: ${TRANSFER_ORDER}, limit: $limit, offset: $offset) { ${TRANSFER_FIELDS} }
             conn: transfersConnection(orderBy: timestamp_DESC) { totalCount }
         }`,
         {limit, offset}
@@ -572,6 +575,8 @@ export interface IdentityRow extends AccountRef {
 }
 
 const HAS_IDENTITY = '{identityJson_isNull: false}'
+const IDENTITY_ORDER = '[identityDisplay_ASC_NULLS_LAST, id_ASC]'
+const SUB_ORDER = '[identitySubName_ASC_NULLS_LAST, id_ASC]'
 
 // a registration lists its judgements as [registrar, verdict] pairs, so a
 // verdict kind is found by containment
@@ -608,8 +613,8 @@ export async function identityCounts() {
 export function identitiesPage(limit: number, offset: number) {
     return gql<{accounts: IdentityRow[]}>(
         `query ($limit: Int!, $offset: Int!) {
-            accounts(where: ${HAS_IDENTITY}, orderBy: identityDisplay_ASC_NULLS_LAST, limit: $limit, offset: $offset) {
-                id identityDisplay identityJson username subs { id identitySubName }
+            accounts(where: ${HAS_IDENTITY}, orderBy: ${IDENTITY_ORDER}, limit: $limit, offset: $offset) {
+                id identityDisplay identityJson username subs(orderBy: ${SUB_ORDER}) { id identitySubName }
             }
         }`,
         {limit, offset}
@@ -648,7 +653,7 @@ export function transfersFor(idHex: string, dir: 'in' | 'out' | '', limit: numbe
     const side = dir === 'out' ? '{from: {id_eq: $id}}' : dir === 'in' ? '{to: {id_eq: $id}}' : '{OR: [{from: {id_eq: $id}}, {to: {id_eq: $id}}]}'
     return gql<{transfers: TransferRow[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            transfers(where: ${side}, orderBy: timestamp_DESC, limit: $limit, offset: $offset) { ${TRANSFER_FIELDS} }
+            transfers(where: ${side}, orderBy: ${TRANSFER_ORDER}, limit: $limit, offset: $offset) { ${TRANSFER_FIELDS} }
             conn: transfersConnection(where: ${side}, orderBy: id_ASC) { totalCount }
         }`,
         {id: idHex, limit, offset}
@@ -658,7 +663,7 @@ export function transfersFor(idHex: string, dir: 'in' | 'out' | '', limit: numbe
 export function tokenTransfersFor(address: string, limit: number, offset: number) {
     return gql<{tokenTransfers: TokenTransferRow[]; conn: {totalCount: number}}>(
         `query ($a: String!, $limit: Int!, $offset: Int!) {
-            tokenTransfers(where: {OR: [{from_eq: $a}, {to_eq: $a}]}, orderBy: timestamp_DESC, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
+            tokenTransfers(where: {OR: [{from_eq: $a}, {to_eq: $a}]}, orderBy: ${TOKEN_TRANSFER_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
             conn: tokenTransfersConnection(where: {OR: [{from_eq: $a}, {to_eq: $a}]}, orderBy: id_ASC) { totalCount }
         }`,
         {a: address, limit, offset}
@@ -668,7 +673,7 @@ export function tokenTransfersFor(address: string, limit: number, offset: number
 export function tokenHoldingsFor(address: string, limit: number, offset: number) {
     return gql<{holdings: HoldingRow[]; conn: {totalCount: number}}>(
         `query ($a: String!, $limit: Int!, $offset: Int!) {
-            holdings: tokenHolders(where: {address_eq: $a}, orderBy: balance_DESC_NULLS_LAST, limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
+            holdings: tokenHolders(where: {address_eq: $a}, orderBy: ${HOLDER_ORDER}, limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
             conn: tokenHoldersConnection(where: {address_eq: $a}, orderBy: id_ASC) { totalCount }
         }`,
         {a: address, limit, offset}
@@ -720,7 +725,7 @@ export async function extrinsicsPage(limit: number, offset: number, f: Extrinsic
     )
     const raw = await gql<Record<string, never>>(
         `query ($limit: Int!, $offset: Int!) {
-            rows: extrinsics(${w}orderBy: block_height_DESC, limit: $limit, offset: $offset) { ${EXTRINSIC_FIELDS} }
+            rows: extrinsics(${w}orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { ${EXTRINSIC_FIELDS} }
             conn: extrinsicsConnection(${w}orderBy: id_ASC) { totalCount }
             ${tallies.join('\n            ')}
         }`,
@@ -791,7 +796,7 @@ export function identityTimeline(idHex: string, limit: number, offset: number) {
 export function subIdentitiesPage(idHex: string, limit: number, offset: number) {
     return gql<{accounts: {id: string; identitySubName: string | null}[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            accounts(where: {identitySuper: {id_eq: $id}}, orderBy: identitySubName_ASC_NULLS_LAST, limit: $limit, offset: $offset) { id identitySubName }
+            accounts(where: {identitySuper: {id_eq: $id}}, orderBy: ${SUB_ORDER}, limit: $limit, offset: $offset) { id identitySubName }
             conn: accountsConnection(orderBy: id_ASC, where: {identitySuper: {id_eq: $id}}) { totalCount }
         }`,
         {id: idHex, limit, offset}
@@ -817,7 +822,7 @@ export interface JudgementRow {
 export function judgementsGiven(index: number, limit: number, offset: number) {
     return gql<{judgements: JudgementRow[]; conn: {totalCount: number}}>(
         `query ($index: Int!, $limit: Int!, $offset: Int!) {
-            judgements(where: {registrar: {index_eq: $index}}, orderBy: block_DESC, limit: $limit, offset: $offset) {
+            judgements(where: {registrar: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) {
                 id kind fee block timestamp target { ${ACCOUNT_REF} }
             }
             conn: judgementsConnection(orderBy: block_DESC, where: {registrar: {index_eq: $index}}) { totalCount }
@@ -844,11 +849,13 @@ export interface HoldingRow {
 }
 
 const TOKEN_FIELDS = `id name symbol decimals totalSupply holderCount transferCount deployBlock firstBlock`
+const TOKEN_ORDER = '[transferCount_DESC, id_ASC]'
+const HOLDER_ORDER = '[balance_DESC_NULLS_LAST, id_ASC]'
 
 export function tokensPage(limit: number, offset: number) {
     return gql<{tokens: TokenRow[]; conn: {totalCount: number}}>(
         `query ($limit: Int!, $offset: Int!) {
-            tokens(orderBy: transferCount_DESC, limit: $limit, offset: $offset) { ${TOKEN_FIELDS} }
+            tokens(orderBy: ${TOKEN_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_FIELDS} }
             conn: tokensConnection(orderBy: id_ASC) { totalCount }
         }`,
         {limit, offset}
@@ -867,6 +874,8 @@ export interface TokenTransferRow {
 }
 
 const TOKEN_TRANSFER_FIELDS = `id from to amount timestamp token { id symbol decimals } transaction { id } block { height }`
+// the id leads with the tx hash, so the tx index keeps a block's txs in chain order
+const TOKEN_TRANSFER_ORDER = '[timestamp_DESC, transaction_txIndex_DESC, id_DESC]'
 
 export function tokenDetail(address: string, page: Slice) {
     return gql<{
@@ -876,8 +885,8 @@ export function tokenDetail(address: string, page: Slice) {
     }>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
             tokenById(id: $id) { ${TOKEN_FIELDS} }
-            tokenHolders(where: {token: {id_eq: $id}, balance_gt: 0}, orderBy: balance_DESC_NULLS_LAST, limit: $limit, offset: $offset) { id address balance }
-            tokenTransfers(where: {token: {id_eq: $id}}, orderBy: timestamp_DESC, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
+            tokenHolders(where: {token: {id_eq: $id}, balance_gt: 0}, orderBy: ${HOLDER_ORDER}, limit: $limit, offset: $offset) { id address balance }
+            tokenTransfers(where: {token: {id_eq: $id}}, orderBy: ${TOKEN_TRANSFER_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
         }`,
         {id: address, limit: page.limit, offset: page.offset}
     )
@@ -944,7 +953,7 @@ export function evmAddressData(address: string, page: Slice) {
         `query ($a: String!, $limit: Int!, $offset: Int!) {
             txs: evmTransactions(where: ${txs}, orderBy: [timestamp_DESC, txIndex_DESC], limit: $limit, offset: $offset) { ${EVM_TX_FIELDS} }
             txCount: evmTransactionsConnection(where: ${txs}, orderBy: id_ASC) { totalCount }
-            holdings: tokenHolders(where: {address_eq: $a}, orderBy: [balance_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
+            holdings: tokenHolders(where: {address_eq: $a}, orderBy: ${HOLDER_ORDER}, limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
             holdingCount: tokenHoldersConnection(where: {address_eq: $a}, orderBy: id_ASC) { totalCount }
             created: evmTransactions(where: {contractAddress_eq: $a}, limit: 1) { id }
             asToken: tokenById(id: $a) { ${TOKEN_FIELDS} }
@@ -1152,7 +1161,7 @@ async function facetPage<T>(entity: string, sel: string, order: string, limit: n
 const SPEND_FIELDS = `id kind amount status block referendum { index status } beneficiary { ${ACCOUNT_REF} }`
 
 export function treasurySpendsPage(limit: number, offset: number, facets: Facets, on: Selected) {
-    return facetPage<TreasurySpendRow>('treasurySpends', SPEND_FIELDS, 'block_DESC', limit, offset, facets, on)
+    return facetPage<TreasurySpendRow>('treasurySpends', SPEND_FIELDS, '[block_DESC, id_DESC]', limit, offset, facets, on)
 }
 
 export function bountiesPage(limit: number, offset: number, facets: Facets, on: Selected) {
@@ -1243,7 +1252,7 @@ export function referendumDetail(index: number, page: Slice) {
     }>(
         `query ($index: Int!, $limit: Int!, $offset: Int!) {
             referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalArgs }
-            votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: balance_DESC_NULLS_LAST, limit: 200) { ${VOTE_FIELDS} voter { ${ACCOUNT_REF} } referendum { index } }
+            votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: [balance_DESC_NULLS_LAST, id_ASC], limit: 200) { ${VOTE_FIELDS} voter { ${ACCOUNT_REF} } referendum { index } }
             voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id method kind aye conviction balance ayeAmount nayAmount abstainAmount delegatedVotes block timestamp voter { ${ACCOUNT_REF} } }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
@@ -1286,6 +1295,8 @@ export function trackList() {
     return gql<{tracks: {id: string; name: string}[]}>(`query { tracks(orderBy: id_ASC) { id name } }`)
 }
 
+const DELEGATION_ORDER = '[balance_DESC, id_ASC]'
+
 // track ids are the pallet class numbers, safe to splice into aliases
 export async function delegationsInPage(id: string, tracks: string[], track: string, limit: number, offset: number) {
     const target = `target: {id_eq: $id}`
@@ -1293,7 +1304,7 @@ export async function delegationsInPage(id: string, tracks: string[], track: str
     const counts = tracks.map(t => `t${t}: delegationsConnection(where: {${target}, track: {id_eq: "${t}"}}, orderBy: id_ASC) { totalCount }`)
     const raw = await gql<{delegations: DelegationRow[]; conn: {totalCount: number}; all: {totalCount: number}} & Record<string, {totalCount: number}>>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            delegations(where: ${where}, orderBy: balance_DESC, limit: $limit, offset: $offset) { id conviction balance block track { id name } who { ${ACCOUNT_REF} } }
+            delegations(where: ${where}, orderBy: ${DELEGATION_ORDER}, limit: $limit, offset: $offset) { id conviction balance block track { id name } who { ${ACCOUNT_REF} } }
             conn: delegationsConnection(where: ${where}, orderBy: id_ASC) { totalCount }
             all: delegationsConnection(where: {${target}}, orderBy: id_ASC) { totalCount }
             ${counts.join('\n            ')}
@@ -1317,7 +1328,7 @@ export function delegationsFor(targets: string[], track: string) {
         conn: {totalCount: number}
     }>(
         `query ($targets: [String!], $track: String!) {
-            delegations(${where}, orderBy: balance_DESC, limit: 5000) { id conviction balance who { id } target { id } }
+            delegations(${where}, orderBy: ${DELEGATION_ORDER}, limit: 5000) { id conviction balance who { id } target { id } }
             conn: delegationsConnection(${where}, orderBy: id_ASC) { totalCount }
         }`,
         {targets, track}
@@ -1427,8 +1438,8 @@ export interface TokenHit {
 export function searchNames(q: string) {
     return gql<{accounts: {id: string; identityDisplay: string | null}[]; tokens: TokenHit[]}>(
         `query ($q: String!) {
-            accounts(where: {OR: [{identityDisplay_containsInsensitive: $q}, {username_containsInsensitive: $q}]}, limit: 20) { ${ACCOUNT_REF} }
-            tokens(where: {OR: [{symbol_containsInsensitive: $q}, {name_containsInsensitive: $q}]}, orderBy: transferCount_DESC, limit: 20) { id name symbol }
+            accounts(where: {OR: [{identityDisplay_containsInsensitive: $q}, {username_containsInsensitive: $q}]}, orderBy: ${IDENTITY_ORDER}, limit: 20) { ${ACCOUNT_REF} }
+            tokens(where: {OR: [{symbol_containsInsensitive: $q}, {name_containsInsensitive: $q}]}, orderBy: ${TOKEN_ORDER}, limit: 20) { id name symbol }
         }`,
         {q}
     )
