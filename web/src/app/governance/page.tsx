@@ -253,7 +253,11 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                         </Card>
                     )}
                     {bountyFilter}
-                    {bounties && <BountyTable rows={bounties.rows} chain={chain} />}
+                    {bounties && (
+                        <Card size="flush">
+                            <BountyTable rows={bounties.rows} chain={chain} />
+                        </Card>
+                    )}
                     {tracks && (
                         <Card size="flush">
                             <TracksTable rows={tracks.tracks} chain={chain} />
