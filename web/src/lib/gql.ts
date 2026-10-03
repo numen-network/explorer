@@ -1235,11 +1235,35 @@ export interface MetadataActionRow {
     timestamp: string
 }
 
+// the lists a referendum's standing votes fall into, each ordered by the
+// amounts its rows lead with, biggest first
+export const VOTE_LISTS = {
+    aye: {where: 'kind_eq: "Standard", aye_eq: true', lead: ['balance']},
+    nay: {where: 'kind_eq: "Standard", aye_eq: false', lead: ['balance']},
+    abstain: {where: 'kind_eq: "SplitAbstain"', lead: ['abstainAmount', 'ayeAmount', 'nayAmount']},
+    split: {where: 'kind_eq: "Split"', lead: ['ayeAmount', 'nayAmount']},
+} as const satisfies Record<string, {where: string; lead: readonly (keyof VoteShape)[]}>
+
+export type VoteList = keyof typeof VOTE_LISTS
+
+export interface ReferendumVoteRow extends VoteRow {
+    voter: AccountRef
+}
+
+export function referendumVotes(index: number, list: VoteList, page: Slice) {
+    const {where, lead} = VOTE_LISTS[list]
+    return gql<{votes: ReferendumVoteRow[]}>(
+        `query ($index: Int!, $limit: Int!, $offset: Int!) {
+            votes(where: {referendum: {index_eq: $index}, removed_eq: false, ${where}}, orderBy: [${lead.map(f => `${f}_DESC`).join(', ')}, id_ASC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} voter { ${ACCOUNT_REF} } referendum { index } }
+        }`,
+        {index, ...page}
+    ).then(r => r.votes)
+}
+
 export function referendumDetail(index: number, page: Slice) {
-    const tally = (shape: string) => `votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false, ${shape}}, orderBy: id_ASC) { totalCount }`
+    const tally = (list: VoteList) => `votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false, ${VOTE_LISTS[list].where}}, orderBy: id_ASC) { totalCount }`
     return gql<{
         referendums: ReferendumDetailRow[]
-        votes: VoteRow[]
         voteActions: VoteActionRow[]
         metadataActions: MetadataActionRow[]
         metadataCount: {totalCount: number}
@@ -1252,16 +1276,15 @@ export function referendumDetail(index: number, page: Slice) {
     }>(
         `query ($index: Int!, $limit: Int!, $offset: Int!) {
             referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalArgs }
-            votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: [balance_DESC_NULLS_LAST, id_ASC], limit: 200) { ${VOTE_FIELDS} voter { ${ACCOUNT_REF} } referendum { index } }
             voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id method kind aye conviction balance ayeAmount nayAmount abstainAmount delegatedVotes block timestamp voter { ${ACCOUNT_REF} } }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }
             voteCount: votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC) { totalCount }
-            ayeCount: ${tally('kind_eq: "Standard", aye_eq: true')}
-            nayCount: ${tally('kind_eq: "Standard", aye_eq: false')}
-            abstainCount: ${tally('kind_eq: "SplitAbstain"')}
-            splitCount: ${tally('kind_eq: "Split"')}
+            ayeCount: ${tally('aye')}
+            nayCount: ${tally('nay')}
+            abstainCount: ${tally('abstain')}
+            splitCount: ${tally('split')}
         }`,
         {index, limit: page.limit, offset: page.offset}
     )

@@ -273,17 +273,23 @@ export const standard = (voter, aye, conviction, balance) => ({...NO_VOTE, kind:
 export const split = (voter, ayeAmount, nayAmount) => ({...NO_VOTE, kind: 'Split', ayeAmount, nayAmount, voter})
 export const splitAbstain = (voter, ayeAmount, nayAmount, abstainAmount) => ({...NO_VOTE, kind: 'SplitAbstain', ayeAmount, nayAmount, abstainAmount, voter})
 
-// a split carries no balance, so the query's nulls last order puts it after every standard vote
-const byBalance = descending(v => (v.balance == null ? -1n : BigInt(v.balance)))
+// a vote list asks for one kind of vote and, for a standard one, one side
+const inList = where => v => (where?.kind_eq == null || v.kind === where.kind_eq) && (where?.aye_eq == null || v.aye === where.aye_eq)
 
-// the standing votes on a referendum with the counts the tally card and the vote chips read
+// the amounts each kind's list is ordered by, biggest first, ties by id
+const LEAD = {Standard: ['balance'], Split: ['ayeAmount', 'nayAmount'], SplitAbstain: ['abstainAmount', 'ayeAmount', 'nayAmount']}
+const byLead = kind => (a, b) => {
+    for (const f of LEAD[kind]) if (a[f] !== b[f]) return BigInt(b[f]) > BigInt(a[f]) ? 1 : -1
+    return a.id < b.id ? -1 : 1
+}
+
+// the standing votes on a referendum, each list a page at a time in its own
+// order, with the counts the tally card and the vote chips read
 export function voteData(index, cast) {
-    const votes = cast.map(v => ({id: `${index}-${v.voter.id}`, referendum: {index}, block: HEAD - 100, removed: false, ...v})).sort(byBalance)
+    const votes = cast.map(v => ({id: `${index}-${v.voter.id}`, referendum: {index}, block: HEAD - 100, removed: false, ...v}))
     return {
-        votes: ({limit}) => (limit == null ? votes : votes.slice(0, limit)),
-        votesConnection: ({where}) => ({
-            totalCount: votes.filter(v => (where?.kind_eq == null || v.kind === where.kind_eq) && (where?.aye_eq == null || v.aye === where.aye_eq)).length,
-        }),
+        votes: ({where, ...page}) => paged(votes.filter(inList(where)).sort(byLead(where.kind_eq)))(page),
+        votesConnection: ({where}) => ({totalCount: votes.filter(inList(where)).length}),
     }
 }
 

@@ -1,17 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import {useMemo, useState} from 'react'
+import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
 import {columnsFor, DataTable, expander} from '@/components/DataTable'
+import {NONE} from '@/components/Detail'
 import {Jump} from '@/components/links'
+import Pager from '@/components/Pager'
+import {FilterChip} from '@/components/pills'
 import {Card} from '@/components/ui/card'
-import {Tabs, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {fmtCompact, fmtInt} from '@/lib/format'
-
-const CHIP =
-    'group/chip h-auto flex-none gap-1 rounded-full border-border bg-card px-3 py-1 text-xs font-normal text-muted-foreground hover:text-foreground data-active:border-primary data-active:bg-primary data-active:font-medium data-active:text-primary-foreground data-active:shadow-none!'
 import type {IdentityRef} from '@/lib/identity'
+import type {Paging} from '@/lib/paging'
 
 export interface Delegator {
     addr: string
@@ -25,7 +25,7 @@ export interface VoteEntry {
     id: string
     addr: string
     acc?: IdentityRef
-    conviction: string | null
+    conviction: string
     capital: number
     selfVotes: number
     delegatorCount: number
@@ -34,11 +34,27 @@ export interface VoteEntry {
     delegators: Delegator[]
 }
 
+/** A split vote, its amounts in the order of the list's labels. */
+export interface SplitEntry {
+    id: string
+    addr: string
+    acc?: IdentityRef
+    amounts: number[]
+}
+
 export interface VoteGroup {
     label: string
     total: number
-    rows: VoteEntry[]
+    href: string
+    active: boolean
 }
+
+// conviction and delegations only reach the tally through a standard vote, a
+// split shows the parts it was split into
+export type VoteRows = {kind: 'standard'; rows: VoteEntry[]; partial: boolean} | {kind: 'split'; labels: string[]; rows: SplitEntry[]}
+
+const LEAD = 'font-mono'
+const AUX = 'font-mono text-muted-foreground'
 
 function Stat({label, value}: {label: string; value: string}) {
     return (
@@ -59,14 +75,14 @@ function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
             dcol.display({
                 id: 'capital',
                 header: 'Capital',
-                meta: {align: 'right', className: 'py-2', cellClassName: 'font-mono'},
+                meta: {align: 'right', className: 'py-2', cellClassName: LEAD},
                 cell: ({row}) => (
                     <>
                         {fmtCompact(row.original.capital)} {symbol} <span className="text-dim">{row.original.conviction}</span>
                     </>
                 ),
             }),
-            dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: 'font-mono'}, cell: ({row}) => `${fmtCompact(row.original.votes)} ${symbol}`}),
+            dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: AUX}, cell: ({row}) => `${fmtCompact(row.original.votes)} ${symbol}`}),
         ],
         [symbol]
     )
@@ -77,7 +93,7 @@ function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
                     <h3 className="text-[13px] font-semibold">Self votes</h3>
                     <div className="mt-1 text-sm">
                         <Stat label="Votes" value={`${fmtCompact(v.selfVotes)} ${symbol}`} />
-                        <Stat label="Conviction" value={v.conviction ?? '—'} />
+                        <Stat label="Conviction" value={v.conviction} />
                         <Stat label="Capital" value={`${fmtCompact(v.capital)} ${symbol}`} />
                     </div>
                 </div>
@@ -107,38 +123,76 @@ function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
 
 const col = columnsFor<VoteEntry>()
 
-export default function VoteLists({groups, symbol, partial}: {groups: VoteGroup[]; symbol: string; partial: boolean}) {
-    const [at, setAt] = useState(Math.max(0, groups.findIndex(g => g.total > 0)))
-    const group = groups[Math.min(at, groups.length - 1)]
+function StandardTable({rows, symbol, empty}: {rows: VoteEntry[]; symbol: string; empty: string}) {
     const columns = useMemo(
         () => [
             col.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
-            col.display({id: 'delegators', header: 'Delegators', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.delegatorCount)}),
-            col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => `${fmtCompact(row.original.selfVotes + row.original.delegatedVotes)} ${symbol}`}),
+            col.display({
+                id: 'capital',
+                header: 'Capital',
+                meta: {align: 'right', cellClassName: LEAD},
+                cell: ({row}) => (
+                    <>
+                        {fmtCompact(row.original.capital)} {symbol} <span className="text-dim">{row.original.conviction}</span>
+                    </>
+                ),
+            }),
+            col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: AUX}, cell: ({row}) => `${fmtCompact(row.original.selfVotes)} ${symbol}`}),
+            col.display({
+                id: 'delegated',
+                header: 'Delegated',
+                meta: {align: 'right', cellClassName: AUX},
+                cell: ({row}) =>
+                    row.original.delegatorCount > 0 ? (
+                        <>
+                            {fmtCompact(row.original.delegatedVotes)} {symbol} <span className="text-dim">({fmtInt(row.original.delegatorCount)})</span>
+                        </>
+                    ) : (
+                        NONE
+                    ),
+            }),
             expander(col),
         ],
         [symbol]
     )
+    return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} canExpand={() => true} expand={v => <Detail v={v} symbol={symbol} />} />
+}
+
+const scol = columnsFor<SplitEntry>()
+
+function SplitTable({labels, rows, symbol, empty}: {labels: string[]; rows: SplitEntry[]; symbol: string; empty: string}) {
+    const columns = useMemo(
+        () => [
+            scol.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
+            ...labels.map((label, i) =>
+                scol.display({
+                    id: label,
+                    header: label,
+                    meta: {align: 'right', cellClassName: i === 0 ? LEAD : AUX},
+                    cell: ({row}) => `${fmtCompact(row.original.amounts[i])} ${symbol}`,
+                })
+            ),
+        ],
+        [labels, symbol]
+    )
+    return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} />
+}
+
+export default function VoteLists({groups, list, paging, symbol}: {groups: VoteGroup[]; list: VoteRows; paging: Paging; symbol: string}) {
+    const group = groups.find(g => g.active)!
+    const empty = `No ${group.label.toLowerCase()} votes.`
     return (
         <div>
-            <Tabs value={String(at)} onValueChange={v => setAt(Number(v))} className="mb-3">
-                <TabsList className="h-auto flex-wrap justify-start gap-2 rounded-none bg-transparent p-0 group-data-horizontal/tabs:h-auto">
-                    {groups.map((g, i) => (
-                        <TabsTrigger key={g.label} value={String(i)} className={CHIP}>
-                            {g.label} <span className="text-dim group-data-active/chip:text-primary-foreground/70">{fmtInt(g.total)}</span>
-                        </TabsTrigger>
-                    ))}
-                </TabsList>
-            </Tabs>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+                {groups.map(g => (
+                    <FilterChip key={g.label} label={g.label} count={g.total} href={g.href} active={g.active} />
+                ))}
+            </div>
             <Card size="flush">
-                <DataTable columns={columns} rows={group.rows} empty={`No ${group.label.toLowerCase()} votes.`} getRowId={v => v.id} canExpand={() => true} expand={v => <Detail v={v} symbol={symbol} />} />
+                {list.kind === 'standard' ? <StandardTable rows={list.rows} symbol={symbol} empty={empty} /> : <SplitTable labels={list.labels} rows={list.rows} symbol={symbol} empty={empty} />}
             </Card>
-            {group.rows.length < group.total && (
-                <p className="mt-2 text-xs text-dim">
-                    showing the largest {fmtInt(group.rows.length)} of {fmtInt(group.total)} votes
-                </p>
-            )}
-            {partial && <p className="mt-2 text-xs text-warn">this track has more delegations than one page can hold, delegated figures are partial</p>}
+            <Pager paging={paging} total={group.total} href={group.href} />
+            {list.kind === 'standard' && list.partial && <p className="mt-2 text-xs text-warn">this track has more delegations than one page can hold, delegated figures are partial</p>}
         </div>
     )
 }

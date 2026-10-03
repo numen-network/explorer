@@ -12,19 +12,19 @@ import {BlockLink} from '@/components/links'
 import {Gauge, ProposalTree, StatusBadge} from '@/components/referenda'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
 import ActionList, {type ActionImpact, type ActionRow} from '@/components/actions'
-import VoteLists, {type VoteEntry} from '@/components/votes'
 import {Badge} from '@/components/ui/badge'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
-import {capitalOf, convictionLabel, decisionOf, votesOf, weigh} from '@/lib/conviction'
+import {decisionOf, votesOf} from '@/lib/conviction'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum, trackLabel} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
-import {accountRefs, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail, tallySnapshots, type TallySnapshotRow, type TimelineEventRow} from '@/lib/gql'
+import {accountRefs, delegationActionsFor, eventsByIds, referendumDetail, tallySnapshots, type TallySnapshotRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
+import {votesPanel} from './votes'
 
 export const dynamic = 'force-dynamic'
 
@@ -94,10 +94,6 @@ function Slot({value, label, className = ''}: {value: string; label: string; cla
     )
 }
 
-// the panel answers who is behind the vote, the full roster lives on the
-// delegate account page
-const INLINE_DELEGATORS = 10
-
 export default async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
     const {index: rawIndex} = await props.params
     const sp = await props.searchParams
@@ -114,16 +110,16 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     if (!r) notFound()
 
     const trail = rawSteps(r.timeline)
-    const voterIds = [...new Set(data.votes.map(v => v.voter?.id).filter((id): id is string => id != null))]
     const nodes = r.proposalCalls ?? []
     const payees = nodes.map(node => node.beneficiary)
     const partyIds = [...new Set([...payees, r.proposalBeneficiary, r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
-    const [refs, dels, dacts, evs, textEvs] = await Promise.all([
+    const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
+    const [refs, dacts, evs, textEvs, votes] = await Promise.all([
         accountRefs(partyIds),
-        delegationsFor(voterIds, r.track.id),
         delegationActionsFor(r.track.id, r.submittedAt, r.endedAt),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.metadataActions.map(a => a.id)),
+        tab === 'votes' ? votesPanel({index: r.index, track: r.track.id, counts, at: String(sp.group ?? ''), pg, chain}) : null,
     ])
     const stepOf = new Map(trail.map(s => [s.event, s]))
     const rank = (e: TimelineEventRow) => EXTRINSIC_ORDER.indexOf(stepOf.get(e.id)!.name)
@@ -138,10 +134,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const textRail = textEvs.events.map(e => ({a: actionOf.get(e.id)!, e}))
     const evWhos = evs.events.map(e => (e.args as {who?: unknown} | null)?.who).filter((w): w is string => typeof w === 'string')
     const party = new Map(refs.accounts.map(a => [a.id, a]))
-
-    const byTarget = new Map<string, typeof dels.delegations>()
-    for (const d of dels.delegations) byTarget.set(d.target.id, [...(byTarget.get(d.target.id) ?? []), d])
-    const shown = [...new Set([...byTarget.values()].flatMap(list => list.slice(0, INLINE_DELEGATORS).map(d => d.who.id)))]
 
     // a delegation change only moves the tally while its target holds a
     // standard vote, the inert rest ride inside the target's next vote row
@@ -160,7 +152,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         return vote ? [{a, vote}] : []
     })
 
-    const whoRefsRes = await accountRefs([...new Set([...shown, ...evWhos])])
+    const whoRefsRes = await accountRefs([...new Set(evWhos)])
     const whoRefs = new Map(whoRefsRes.accounts.map(a => [a.id, a]))
 
     const actions: ActionRow[] = [
@@ -518,40 +510,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             })}
         </TimelineList>
     )
-
-    const entry = (v: (typeof data.votes)[number]): VoteEntry => {
-        const list = byTarget.get(v.voter!.id) ?? []
-        const num = (planck: string | bigint) => planckToNum(planck, chain.decimals)
-        return {
-            id: v.id,
-            addr: ss58Encode(v.voter!.id, chain.ss58),
-            acc: v.voter,
-            conviction: v.kind === 'Standard' ? convictionLabel(v.conviction) : null,
-            capital: num(capitalOf(v)),
-            selfVotes: num(votesOf(v)),
-            delegatorCount: list.length,
-            delegatedCapital: list.reduce((n, d) => n + num(d.balance), 0),
-            delegatedVotes: list.reduce((n, d) => n + num(weigh(d.balance, d.conviction)), 0),
-            delegators: list.slice(0, INLINE_DELEGATORS).map(d => ({
-                addr: ss58Encode(d.who.id, chain.ss58),
-                acc: whoRefs.get(d.who.id),
-                conviction: convictionLabel(d.conviction),
-                capital: num(d.balance),
-                votes: num(weigh(d.balance, d.conviction)),
-            })),
-        }
-    }
-
-    const bucket = (decision: string) => data.votes.filter(v => v.voter != null && decisionOf(v) === decision).map(entry)
-    const groups = [
-        {label: 'Aye', total: data.ayeCount.totalCount, rows: bucket('aye')},
-        {label: 'Nay', total: data.nayCount.totalCount, rows: bucket('nay')},
-        {label: 'Abstain', total: data.abstainCount.totalCount, rows: bucket('abstain')},
-    ]
-    // split votes are rare, they only earn a list when the referendum has any
-    if (data.splitCount.totalCount > 0) groups.push({label: 'Split', total: data.splitCount.totalCount, rows: bucket('split')})
-
-    const votes = <VoteLists groups={groups} symbol={chain.symbol} partial={dels.delegations.length < dels.conn.totalCount} />
 
     return (
         <div>

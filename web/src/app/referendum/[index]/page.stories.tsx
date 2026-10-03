@@ -38,7 +38,7 @@ type Play = StoryObj['play']
 
 const curated = (index: number): Referendum => referenda.find(r => r.index === index)!
 
-const story = (r: Referendum, tab: string, extra: Record<string, unknown> = {}, texts: Text[] = [], page = '1') =>
+const story = (r: Referendum, tab: string, extra: Record<string, unknown> = {}, texts: Text[] = [], query: Record<string, string> = {}) =>
     pageStory(
         {
             ...data,
@@ -50,16 +50,19 @@ const story = (r: Referendum, tab: string, extra: Record<string, unknown> = {}, 
             events: eventsById(stepEvents(r), metadataEvents(texts)),
             ...extra,
         },
-        {params: {index: String(r.index)}, searchParams: {tab, page}}
+        {params: {index: String(r.index)}, searchParams: {tab, ...query}}
     )
 
 // a curated case on its curves tab, with one vote per move its tally history made
 const curatedCase = (index: number, tab = 'curves') => story(curated(index), tab, castFromSnapshots(curated(index)))
 
-const cast = (r: Referendum, votes: object[], tab: string, extra: Record<string, unknown> = {}, delegated: object[] = []) => {
+const cast = (r: Referendum, votes: object[], tab: string, extra: Record<string, unknown> = {}, delegated: object[] = [], query: Record<string, string> = {}) => {
     const {referendum, ...log} = castVotes(r, votes, delegated)
-    return story(referendum, tab, {...log, ...extra})
+    return story(referendum, tab, {...log, ...extra}, [], query)
 }
+
+// the votes tab opened on the list and page the query names
+const castAt = (r: Referendum, votes: object[], query: Record<string, string>) => cast(r, votes, 'votes', {}, [], query)
 
 const withPlay = (s: StoryObj, play: Play): StoryObj => ({...s, play})
 
@@ -70,10 +73,6 @@ const expandRow = (label: string): Play => async ({canvas, userEvent}) => {
 
 const expandAll: Play = async ({canvas, userEvent}) => {
     for (const button of await canvas.findAllByRole('button', {name: 'expand'})) await userEvent.click(button)
-}
-
-const pickGroup = (label: string): Play => async ({canvas, userEvent}) => {
-    await userEvent.click(await canvas.findByRole('tab', {name: new RegExp(`^${label}`)}))
 }
 
 export const TimedOutAfterVotes = curatedCase(11)
@@ -223,9 +222,9 @@ const drafts = Array.from({length: 45}, (_, i) =>
 
 export const TextHistoryMany = story(curated(6), 'text', {}, drafts)
 
-export const TextHistoryPage2 = story(curated(6), 'text', {}, drafts, '2')
+export const TextHistoryPage2 = story(curated(6), 'text', {}, drafts, {page: '2'})
 
-export const TextHistoryLastPage = story(curated(6), 'text', {}, drafts, lastPage(drafts.length))
+export const TextHistoryLastPage = story(curated(6), 'text', {}, drafts, {page: lastPage(drafts.length)})
 
 export const TimelineApprovedEarly = curatedCase(10, 'timeline')
 
@@ -301,7 +300,17 @@ const deciding = (index: number, title: string) => ({...curated(5), id: String(i
 
 export const VotesEmpty = curatedCase(7, 'votes')
 
-export const VotesOne = cast(deciding(19, 'A single conviction vote decides the tally so far'), [{...standard(PEOPLE[0], true, 'Locked3x', numn(1_000_000)), block: 952_000}], 'votes')
+const single = deciding(19, 'A single conviction vote decides the tally so far')
+const singleVote = [{...standard(PEOPLE[0], true, 'Locked3x', numn(1_000_000)), block: 952_000}]
+
+export const VotesOne = cast(single, singleVote, 'votes')
+
+export const VotesNayEmpty = castAt(single, singleVote, {group: 'nay'})
+
+export const VotesAbstainEmpty = castAt(single, singleVote, {group: 'abstain'})
+
+// a referendum without split votes has no split list, asking for it opens the first list holding votes
+export const VotesSplitAbsent = castAt(single, singleVote, {group: 'split'})
 
 // every way to vote, delegate and take it back, with the tally after each block
 const [alice, bob, carol, dave, erin, frank, grace] = [PEOPLE[0], PEOPLE[1], PEOPLE[2], PEOPLE[3], PEOPLE[5], PEOPLE[9], PEOPLE[6]]
@@ -356,9 +365,11 @@ export const ActionsEveryKind = story(everyAction.referendum, 'curves', everyAct
 
 export const VotesEveryKind = story(everyAction.referendum, 'votes', everyAction.data)
 
-export const VotesSplitGroup = withPlay(story(everyAction.referendum, 'votes', everyAction.data), pickGroup('Split'))
+export const VotesNayGroup = story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'nay'})
 
-export const VotesAbstainGroup = withPlay(story(everyAction.referendum, 'votes', everyAction.data), pickGroup('Abstain'))
+export const VotesSplitGroup = story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'split'})
+
+export const VotesAbstainGroup = story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'abstain'})
 
 const CONVICTIONS = ['None', 'Locked1x', 'Locked2x', 'Locked3x', 'Locked4x', 'Locked5x', 'Locked6x']
 
@@ -369,18 +380,45 @@ const convictionVotes = CONVICTIONS.flatMap((conviction, i) => [
 
 export const VotesEveryConviction = withPlay(cast(deciding(20, 'Votes at every conviction from 0x to 6x'), convictionVotes, 'votes'), expandAll)
 
-// more standard votes than the query's 200 rows, so the null balance splits fall off the end
+// every list runs past two pages, the splits repeat aye parts so their nay parts break the ties
 const manyVotes = [
     ...Array.from({length: 220}, (_, i) => ({...standard(i < 10 ? PEOPLE[i] : anon(100 + i), i % 3 !== 2, CONVICTIONS[i % 7], numn(2_000 + ((i * 7919) % 60_000))), block: 952_000 + i * 120})),
-    ...Array.from({length: 6}, (_, i) => ({...split(anon(400 + i), numn(90_000), numn(40_000)), block: 980_000 + i * 50})),
-    ...Array.from({length: 4}, (_, i) => ({...splitAbstain(anon(420 + i), numn(10_000), numn(10_000), numn(150_000)), block: 981_000 + i * 50})),
+    ...Array.from({length: 47}, (_, i) => ({...split(anon(400 + i), numn(10_000 * (1 + ((i * 7) % 12))), numn(1_000 + ((i * 7919) % 90_000))), block: 980_000 + i * 50})),
+    ...Array.from({length: 45}, (_, i) => {
+        const side = i % 4 === 0 ? numn(5_000 + i * 100) : '0'
+        return {...splitAbstain(anon(500 + i), side, side, numn(2_000 + ((i * 7919) % 150_000))), block: 983_000 + i * 50}
+    }),
 ]
 
-const many = deciding(21, 'Two hundred and thirty voters on one referendum')
+const many = deciding(21, 'Three hundred and twelve voters on one referendum')
+
+const listSize = (kind: string, aye: boolean | null = null) => manyVotes.filter(v => v.kind === kind && (aye === null || v.aye === aye)).length
+
+const manyAt = (group: string, page = '1') => castAt(many, manyVotes, {group, page})
 
 export const VotesMany = cast(many, manyVotes, 'votes')
 
-export const VotesManySplitCutOff = withPlay(cast(many, manyVotes, 'votes'), pickGroup('Split'))
+export const VotesAyePage2 = manyAt('aye', '2')
+
+export const VotesAyeLastPage = manyAt('aye', lastPage(listSize('Standard', true)))
+
+export const VotesNayMany = manyAt('nay')
+
+export const VotesNayPage2 = manyAt('nay', '2')
+
+export const VotesNayLastPage = manyAt('nay', lastPage(listSize('Standard', false)))
+
+export const VotesSplitMany = manyAt('split')
+
+export const VotesSplitPage2 = manyAt('split', '2')
+
+export const VotesSplitLastPage = manyAt('split', lastPage(listSize('Split')))
+
+export const VotesAbstainMany = manyAt('abstain')
+
+export const VotesAbstainPage2 = manyAt('abstain', '2')
+
+export const VotesAbstainLastPage = manyAt('abstain', lastPage(listSize('SplitAbstain')))
 
 export const ActionsMany = cast(many, manyVotes, 'curves')
 
