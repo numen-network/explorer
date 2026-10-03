@@ -21,7 +21,7 @@ It covers blocks with their mined 3D objects, extrinsics with a chain wide call 
 | -------------------- | ----------------------------------- |
 | `squid/`             | indexer, migrations, GraphQL server |
 | `web/`               | Next.js frontend                    |
-| `mock/`              | fake GraphQL server for UI work     |
+| `mock/`              | GraphQL mock data and fake server   |
 | `docker-compose.yml` | full stack orchestration            |
 
 ## Requirements
@@ -74,7 +74,21 @@ docker compose up -d --build
 
 `squid/.env.example` lists every variable the processor reads. Compose passes them in, so nothing on disk has to hold them.
 
-Mock data. `mock/` is a fake GraphQL server for UI work, no database or node involved. Its schema comes from `squid/schema.graphql` through openreader, the builder behind the squid GraphQL server. It listens on 127.0.0.1:4350, where the web looks when `GQL_HTTP` is unset.
+UI states. Storybook renders components and pages in every state they can be in. Page stories call the page in a loader and answer its GraphQL through MSW, so each story carries its own data. Stories read their schema and cases from `mock/`, so install it first.
+
+```bash
+cd mock && pnpm install
+```
+
+```bash
+cd web && pnpm storybook
+```
+
+`pnpm test-storybook` renders every story in headless Chromium and fails on any that throws.
+
+Mock data. `mock/engine.js` answers GraphQL from plain data keyed by root field. Its schema comes from `squid/schema.graphql` through openreader, the builder behind the squid GraphQL server. Stories and the fake server both run on it, and `mock/data.js` holds the cases they draw on. Arguments are ignored, so every query on a field gets the same answer. A field left out returns an empty list or null, and whatever an object leaves out gets a default. A field that has to answer differently per query can be a function that receives the query arguments.
+
+The fake server runs the whole site without an index. It serves `mock/data.js` on 127.0.0.1:4350, where the web looks when `GQL_HTTP` is unset, and restarts on every save. GraphiQL on the same address lists the root fields.
 
 ```bash
 cd mock && pnpm install && pnpm start
@@ -83,8 +97,6 @@ cd mock && pnpm install && pnpm start
 ```bash
 cd web && pnpm dev
 ```
-
-`mock/data.js` maps each GraphQL root field to what it returns, and the server restarts on every save. Arguments are ignored, so every query on a field gets the same answer. A field left out returns an empty list or null, and whatever an object leaves out gets a default. A field that has to answer differently per query can be a function that receives the query arguments. GraphiQL on the same address lists the root fields.
 
 After a runtime upgrade regenerate the typed accessors.
 

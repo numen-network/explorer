@@ -14,6 +14,9 @@ importers:
       '@subsquid/openreader':
         specifier: 5.5.1
         version: 5.5.1(supports-color@5.5.0)
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       graphql:
         specifier: ^15.10.3
         version: 15.10.3
@@ -557,6 +560,9 @@ packages:
 
   fast-json-stable-stringify@2.1.0:
     resolution: {integrity: sha512-lhd/wF+Lk98HZoTCtlVraHtfh5XYijIjalXck7saUtuanSDyLMxnHhSXEDJqHxD7msR8D0uCmqlkwjCV8xvwHw==}
+
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   fill-range@7.1.1:
     resolution: {integrity: sha512-YsGpe3WHLK8ZYi4tWDg2Jy3ebRz2rXowDxnld4bkQB00cc/1Zw9AWnC0i9ztDJitivtQvaI9KaLyKrc+hBW0yg==}
@@ -1872,6 +1878,8 @@ snapshots:
       - supports-color
 
   fast-json-stable-stringify@2.1.0: {}
+
+  fflate@0.8.3: {}
 
   fill-range@7.1.1:
     dependencies:

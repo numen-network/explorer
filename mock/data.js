@@ -1,3 +1,5 @@
+import {toHex} from './engine.js'
+
 const HEAD = 1_000_000
 const HEAD_TIME = Date.now()
 const BLOCK_TIME = 10
@@ -9,7 +11,7 @@ const at = height => new Date(HEAD_TIME - (HEAD - height) * BLOCK_TIME * 1000).t
 const numn = n => (BigInt(n) * 10n ** 18n).toString()
 const account = n => '0x' + ('a' + n.toString(16)).repeat(32)
 const hash = n => '0x' + ('c' + n.toString(16)).repeat(32)
-const hex = text => '0x' + Buffer.from(text).toString('hex')
+const hex = text => toHex(new TextEncoder().encode(text))
 
 const linear = (length, floor, ceil) => ({__kind: 'LinearDecreasing', length, floor, ceil})
 const reciprocal = (factor, xOffset, yOffset) => ({__kind: 'Reciprocal', factor, xOffset, yOffset})
@@ -82,7 +84,7 @@ function referendum({index, track, origin, submitter, steps, decidingSince = nul
     }
 }
 
-const referenda = [
+export const referenda = [
     referendum({
         index: 11,
         track: '31',
@@ -356,6 +358,8 @@ const referenda = [
     }),
 ]
 
+export const referendaCount = rows => ({where}) => ({totalCount: rows.filter(r => !where?.status_eq || r.status === where.status_eq).length})
+
 export default {
     chainInfos: [{
         name: 'Numen Mainnet',
@@ -383,7 +387,7 @@ export default {
     tracks,
     tracksConnection: {totalCount: tracks.length},
     referendums: ({where}) => (where?.index_eq == null ? referenda : referenda.filter(r => r.index === where.index_eq)),
-    referendumsConnection: ({where}) => ({totalCount: referenda.filter(r => !where?.status_eq || r.status === where.status_eq).length}),
+    referendumsConnection: referendaCount(referenda),
     referendumTallySnapshots: ({where}) => referenda.find(r => r.index === where.referendum.index_eq).snapshots,
     events: ({where}) => (where?.id_in ?? []).map(id => ({id, indexInBlock: Number(/-(\d+)$/.exec(id)?.[1] ?? 0)})),
 }
