@@ -174,6 +174,54 @@ export const HomeReferendaEnded = pageStory(home({...many, referendums: [undecod
 
 export const HomeIndexing = pageStory(home({...many, best: HEAD + 4_000, finalized: HEAD + 3_998}))
 
+// every move ends exactly on the last digit its chip shows
+const latest = DAILY.at(-1)!
+const plus = (planck: string, n: number) => String(BigInt(planck) + BigInt(numn(n)))
+const edgeToday = {...latest, issuanceTotal: plus(latest.issuanceTotal, 0.3), difficultyClose: '4350000000'}
+const edgeDays = [
+    ...DAILY.slice(0, -31),
+    {
+        ...DAILY.at(-31)!,
+        issuanceTotal: plus(edgeToday.issuanceTotal, -1_150_000),
+        issuanceInactive: latest.issuanceInactive,
+        issuanceTransferable: plus(latest.issuanceTransferable, -8_200_000),
+        treasuryPot: plus(latest.treasuryPot, -5_100_000),
+    },
+    ...DAILY.slice(-30, -2),
+    {
+        ...DAILY.at(-2)!,
+        issuanceTotal: plus(latest.issuanceTotal, 0.1),
+        issuanceInactive: latest.issuanceInactive,
+        issuanceTransferable: plus(latest.issuanceTransferable, 2.01),
+        treasuryPot: plus(latest.treasuryPot, 1.15),
+    },
+    edgeToday,
+]
+
+export const HomeTruncationEdges: StoryObj = {
+    ...pageStory(
+        home({
+            ...many,
+            days: edgeDays,
+            referendums: [{...referenda[4], id: '30', index: 30, proposalAmount: '9999999999999999999999999999'}],
+            windows: {transfers: [0, 1_150_000, 4_350_000], extrinsics: [0, 8_200_000, 5_100_000], miners: [2_010_000, 7, 290_000]},
+        })
+    ),
+    play: async ({canvasElement}) => {
+        const tile = (chart: string) => canvasElement.querySelector(`a[href="/charts/${chart}"]`)!.closest('[data-slot=card]')!
+        const chips = (chart: string) => [...tile(chart).querySelectorAll('[data-slot=card-content] > span')].map(chip => chip.textContent)
+        await expect(chips('transfers-total')).toEqual(['+1.15M · 24h', '+4.35M · 30d'])
+        await expect(chips('extrinsics-total')).toEqual(['+8.2M · 24h', '+5.1M · 30d'])
+        await expect(chips('miners')).toEqual(['290K · 30d', '2.01M · total'])
+        await expect(chips('issuance')).toEqual(['+0.2 · 24h', '+1.15M · 30d'])
+        await expect(chips('active-issuance')).toEqual(['+0.2 · 24h', '+1.15M · 30d'])
+        await expect(chips('transferable-issuance')).toEqual(['−2.01 · 24h', '+8.2M · 30d'])
+        await expect(chips('treasury')).toEqual(['−1.15 · 24h', '+5.1M · 30d'])
+        await expect(tile('difficulty').querySelector('[data-slot=card-title]')).toHaveTextContent('4.35B')
+        await expect(within(canvasElement).getByText('9,999,999,999 NUMN')).toBeInTheDocument()
+    },
+}
+
 const FAR = 987_654_321
 const HUGE = '987654321098765432109876543210'
 

@@ -53,8 +53,8 @@ export function TallyBar({r, decimals, className = 'w-40'}: {r: {ayes: string; n
         <div className={className}>
             <Gauge value={total > 0 ? (ayes / total) * 100 : null} variant="split" />
             <div className="mt-1 flex justify-between font-mono text-[10px] text-muted-foreground">
-                <span>aye {fmtCompact(ayes)}</span>
-                <span>nay {fmtCompact(nays)}</span>
+                <span>aye {fmtCompact(r.ayes, decimals)}</span>
+                <span>nay {fmtCompact(r.nays, decimals)}</span>
             </div>
         </div>
     )

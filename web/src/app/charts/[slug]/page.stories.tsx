@@ -1,3 +1,6 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
+import {numn} from '../../../../../mock/fixtures.js'
 import {DAILY} from '../../../../../mock/fixtures/home.js'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import ChartPage from './page'
@@ -91,6 +94,14 @@ export const TransferableIssuanceManyDays = chart('transferable-issuance', DAILY
 export const TreasuryEmpty = chart('treasury', NONE)
 export const TreasuryOneDay = chart('treasury', FIRST)
 export const TreasuryManyDays = chart('treasury', DAILY)
+
+// the newest two days end exactly on the last digit a reading shows
+export const BlockRewardsTruncationEdge: StoryObj = {
+    ...chart('block-rewards', DAILY.map((d, i) => (i === DAILY.length - 2 ? {...d, rewards: numn(4.35)} : i === DAILY.length - 1 ? {...d, rewards: numn(1.15)} : d))),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText(/^The latest value of Block Rewards is 1\.15 NUMN\./)).toBeInTheDocument()
+    },
+}
 
 export const RangeLast30Days = chart('transfers', since(30), {r: '30'})
 export const RangeLast90Days = chart('transfers', since(90), {r: '90'})

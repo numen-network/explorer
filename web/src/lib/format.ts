@@ -38,52 +38,61 @@ export function planckToNum(planck: string | bigint, decimals: number): number {
     return Number(BigInt(planck) / 10n ** BigInt(shift)) / 10 ** (decimals - shift)
 }
 
-// shortening never rounds up, the reader is never shown more than there is
-export function truncFixed(x: number, digits: number): string {
-    const p = 10 ** digits
-    return (Math.trunc(x * p) / p).toFixed(digits)
+// a plain number counts as the shortest decimal that round-trips to it, so
+// 1.15 is 115 at two decimals and not the 1.1499… its binary holds
+function planckOf(x: number | string | bigint, decimals: number): [planck: bigint, decimals: number] {
+    if (typeof x !== 'number') return [BigInt(x), decimals]
+    const [mantissa, exp = '0'] = String(x).split('e')
+    const [int, frac = ''] = mantissa.split('.')
+    const scale = frac.length - Number(exp)
+    return scale < 0 ? [BigInt(int + frac) * 10n ** BigInt(-scale), 0] : [BigInt(int + frac), scale]
 }
 
-function trimNum(x: number): string {
-    const fixed = Math.abs(x) >= 100 ? truncFixed(x, 0) : Math.abs(x) >= 10 ? truncFixed(x, 1) : truncFixed(x, 2)
+// shortening never rounds up, the reader is never shown more than there is
+export function truncFixed(x: number, digits: number): string
+export function truncFixed(planck: string | bigint, digits: number, decimals: number): string
+export function truncFixed(x: number | string | bigint, digits: number, decimals = 0): string {
+    const {neg, v, base} = planckParts(...planckOf(x, decimals))
+    const cut = ((v * 10n ** BigInt(digits)) / base).toString().padStart(digits + 1, '0')
+    return signed(neg, digits ? `${cut.slice(0, -digits)}.${cut.slice(-digits)}` : cut)
+}
+
+function trimNum(planck: bigint, decimals: number): string {
+    const {whole} = planckParts(planck, decimals)
+    const fixed = truncFixed(planck, whole >= 100n ? 0 : whole >= 10n ? 1 : 2, decimals)
     return fixed.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
 }
 
 // four digits still read as a number, so K only starts at ten thousand
-const UNITS: [floor: bigint, div: bigint, suffix: string][] = [
-    [1_000_000_000n, 1_000_000_000n, 'B'],
-    [1_000_000n, 1_000_000n, 'M'],
-    [10_000n, 1_000n, 'K'],
+const UNITS: [floor: bigint, shift: number, suffix: string][] = [
+    [1_000_000_000n, 9, 'B'],
+    [1_000_000n, 6, 'M'],
+    [10_000n, 3, 'K'],
 ]
 
-const unitFor = (whole: bigint): [bigint, bigint, string] => UNITS.find(([floor]) => whole >= floor) ?? [1n, 1n, '']
+const unitFor = (whole: bigint): [bigint, number, string] => UNITS.find(([floor]) => whole >= floor) ?? [1n, 0, '']
 
-export function fmtCompact(n: number): string {
-    const [, div, suffix] = unitFor(BigInt(Math.floor(Math.abs(n))))
-    return trimNum(n / Number(div)) + suffix
+export function fmtCompact(n: number): string
+export function fmtCompact(planck: string | bigint, decimals: number): string
+export function fmtCompact(x: number | string | bigint, decimals = 0): string {
+    const [planck, scale] = planckOf(x, decimals)
+    const [, shift, suffix] = unitFor(planckParts(planck, scale).whole)
+    return trimNum(planck, scale + shift) + suffix
 }
 
 export function fmtCompact3(planck: string | bigint, decimals: number, symbol?: string): string {
-    const {neg, v, base, whole} = planckParts(planck, decimals)
-    const [, div, suffix] = unitFor(whole)
-    const scaled = (v * 1000n) / (base * div)
-    return signed(neg, `${fmtInt(scaled / 1000n)}.${(scaled % 1000n).toString().padStart(3, '0')}${suffix}`, symbol)
+    const {neg, v, whole} = planckParts(planck, decimals)
+    const [, shift, suffix] = unitFor(whole)
+    return signed(neg, fmtInt(truncFixed(v, 3, decimals + shift)) + suffix, symbol)
 }
 
 // one decimal in unit range, whole tokens below it, ≈ marks a lossy trim
 export function fmtApprox(planck: string | bigint, decimals: number, symbol?: string): string {
-    const {neg, v, base, whole} = planckParts(planck, decimals)
-    const [, div, suffix] = unitFor(whole)
-    let out: string
-    let exact: boolean
-    if (suffix === '') {
-        out = fmtInt(whole)
-        exact = whole * base === v
-    } else {
-        const tenths = (v * 10n) / (base * div)
-        out = `${fmtInt(tenths / 10n)}${tenths % 10n === 0n ? '' : '.' + (tenths % 10n)}${suffix}`
-        exact = tenths * base * div === v * 10n
-    }
+    const {neg, v, whole} = planckParts(planck, decimals)
+    const [, shift, suffix] = unitFor(whole)
+    const digits = suffix === '' ? 0 : 1
+    const exact = v % 10n ** BigInt(decimals + shift - digits) === 0n
+    const out = fmtInt(truncFixed(v, digits, decimals + shift).replace(/\.0$/, '')) + suffix
     return `${exact ? '' : '≈'}${signed(neg, out, symbol)}`
 }
 

@@ -1,3 +1,5 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
 import {numn} from '../../../../mock/fixtures.js'
 import {bounty, BOUNTY_STATUSES, counted, linear, listed, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
@@ -15,6 +17,15 @@ export const ReferendaOne = referendaTab(referenda.slice(0, 1))
 export const ReferendaEveryCase = referendaTab(referenda)
 
 export const ReferendaMany = referendaTab(Array.from({length: 40}, (_, i) => ({...referenda[i % referenda.length], id: String(i), index: i})))
+
+// a proposal just short of ten billion whole tokens and a tally ending on the last digits shown
+export const ReferendaTruncationEdges: StoryObj = {
+    ...referendaTab([{...referenda[6], proposalAmount: '9999999999999999999999999999', ayes: numn(1_150_000), nays: numn(4.35), support: numn(8_200_000)}]),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText('9,999,999,999')).toBeInTheDocument()
+        for (const figure of ['aye 1.15M', 'nay 4.35', 'voted 8.2M']) await expect(canvas.getByText(figure)).toBeInTheDocument()
+    },
+}
 
 interface ReferendaWhere {
     where?: {status_eq?: string; track?: {id_eq: string}}

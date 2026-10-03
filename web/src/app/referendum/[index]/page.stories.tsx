@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {within} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import data, {referenda} from '../../../../../mock/data.js'
 import {at, HEAD, numn, paged, PEOPLE} from '../../../../../mock/fixtures.js'
 import {
@@ -86,7 +86,11 @@ export const WaitingForDecisionDeposit = curatedCase(8)
 
 export const SubmittedWithoutVotes = curatedCase(7)
 
-export const Confirming = curatedCase(6)
+// the aye tally ends exactly on the last digit the card shows
+export const Confirming = withPlay(curatedCase(6), async ({canvas}) => {
+    const tally = within(canvas.getByText('Tally').closest<HTMLElement>('[data-slot=card]')!)
+    await expect(tally.getByText('5.1M NUMN')).toBeInTheDocument()
+})
 
 export const DecidingBelowCurves = curatedCase(5)
 
@@ -454,6 +458,12 @@ export const DelegatorsFew = withPlay(withDelegators(fewAndMany), expandRow('Red
 export const DelegatorsOverInlineLimit = withPlay(withDelegators(fewAndMany), expandRow('Polaris Guild'))
 
 export const DelegationsPartial = withPlay(withDelegators(delegators(PEOPLE[0], anons(1000, 5000), 1_000), 5200), expandRow('Polaris Guild'))
+
+// two delegations of 0.3 and 0.15 behind one standing vote
+export const DelegatorsAddUp = withPlay(withDelegators([delegation(anon(80), PEOPLE[3], 'Locked1x', numn(0.3), '31'), delegation(anon(81), PEOPLE[3], 'Locked1x', numn(0.15), '31')]), async ({canvas}) => {
+    const row = (await canvas.findAllByText('Redshift')).map(el => el.closest('tr')).find(tr => tr != null)!
+    await expect(within(row).getByText('0.45 NUMN')).toBeInTheDocument()
+})
 
 const hugeSpend = '9999999999999999999999999'
 

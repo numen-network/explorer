@@ -89,11 +89,14 @@ export default async function Home() {
     const cntSeries = chrono.map(d => d.transfers)
 
 
-    const chip = (n: number, note: string): StatChip => ({
-        text: n === 0 ? '0' : `${n > 0 ? '+' : '−'}${fmtCompact(Math.abs(n))}`,
-        note,
-        tone: n > 0 ? 'pos' : n < 0 ? 'neg' : 'idle',
-    })
+    const chip = (n: number | bigint, note: string, decimals = 0): StatChip => {
+        const v = BigInt(n)
+        return {
+            text: v === 0n ? '0' : `${v > 0n ? '+' : '−'}${fmtCompact(v < 0n ? -v : v, decimals)}`,
+            note,
+            tone: v > 0n ? 'pos' : v < 0n ? 'neg' : 'idle',
+        }
+    }
     const pctChip = (cur: number, prev: number, note: string): StatChip => {
         if (prev <= 0) return {text: '—', note, tone: 'idle'}
         const p = ((cur - prev) / prev) * 100
@@ -101,19 +104,18 @@ export default async function Home() {
         return {text: `${p > 0 ? '+' : ''}${p.toFixed(1)}%`, note, tone: p > 0 ? 'pos' : 'neg'}
     }
     const countChip = (n: number, note: string): StatChip => ({text: fmtCompact(n), note, tone: 'idle'})
-    const num = (v: string) => planckToNum(v, props.decimals)
     const curDifficulty = data.blocks[0] ? Number(data.blocks[0].difficulty) : today ? Number(today.difficultyClose) : 0
 
     const base24 = data.base24[0]
     const base30 = data.base30[0]
     // no baseline means the window opens before the chain did, and zero stands in for no reading
-    const at = (r: BaselineRow | undefined, get: (r: BaselineRow) => number) => (r ? get(r) : 0)
-    const stockChips = (now: number, get: (r: BaselineRow) => number) => [chip(now - at(base24, get), '24h'), chip(now - at(base30, get), '30d')]
-    const traAt = (r: HourlyRow | undefined) => (r ? num(r.issuanceTransferable) - num(r.issuanceInactive) : 0)
-    const diffAt = (r: BaselineRow | undefined) => at(r, b => Number(b.difficulty))
-    const issNow = today ? num(today.issuanceTotal) : 0
-    const inactiveNow = today ? num(today.issuanceInactive) : 0
-    const traNow = today ? num(today.issuanceTransferable) - inactiveNow : 0
+    const at = (r: BaselineRow | undefined, get: (r: BaselineRow) => bigint) => (r ? get(r) : 0n)
+    const stockChips = (now: bigint, get: (r: BaselineRow) => bigint) => [chip(now - at(base24, get), '24h', props.decimals), chip(now - at(base30, get), '30d', props.decimals)]
+    const traAt = (r: HourlyRow | undefined) => (r ? BigInt(r.issuanceTransferable) - BigInt(r.issuanceInactive) : 0n)
+    const diffAt = (r: BaselineRow | undefined) => (r ? Number(r.difficulty) : 0)
+    const issNow = BigInt(today?.issuanceTotal ?? 0)
+    const inactiveNow = BigInt(today?.issuanceInactive ?? 0)
+    const traNow = today ? BigInt(today.issuanceTransferable) - inactiveNow : 0n
 
     return (
         <div>
@@ -209,22 +211,22 @@ export default async function Home() {
                 <StatTile
                     label="Total issuance" href="/charts/issuance"
                     value={fmtCompact3(today?.issuanceTotal ?? '0', props.decimals, props.symbol)}
-                    chips={stockChips(issNow, r => num(r.issuanceTotal))}
+                    chips={stockChips(issNow, r => BigInt(r.issuanceTotal))}
                 />
                 <StatTile
                     label="Active issuance" href="/charts/active-issuance"
                     value={fmtCompact3(today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
-                    chips={stockChips(issNow - inactiveNow, r => num(r.issuanceTotal) - num(r.issuanceInactive))}
+                    chips={stockChips(issNow - inactiveNow, r => BigInt(r.issuanceTotal) - BigInt(r.issuanceInactive))}
                 />
                 <StatTile
                     label="Transferable issuance" href="/charts/transferable-issuance"
                     value={fmtCompact3(today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
-                    chips={[chip(traNow - traAt(data.tra24[0]), '24h'), chip(traNow - traAt(data.tra30[0]), '30d')]}
+                    chips={[chip(traNow - traAt(data.tra24[0]), '24h', props.decimals), chip(traNow - traAt(data.tra30[0]), '30d', props.decimals)]}
                 />
                 <StatTile
                     label="Treasury pot" href="/charts/treasury"
                     value={fmtCompact3(today?.treasuryPot ?? '0', props.decimals, props.symbol)}
-                    chips={stockChips(today ? num(today.treasuryPot) : 0, r => num(r.treasuryPot))}
+                    chips={stockChips(BigInt(today?.treasuryPot ?? 0), r => BigInt(r.treasuryPot))}
                 />
                 <StatTile
                     label="Difficulty" href="/charts/difficulty"
@@ -306,7 +308,7 @@ export default async function Home() {
                                     <div className="shrink-0 text-right">
                                         <div className="font-mono text-sm">
                                             {r.proposalAmount != null ? (
-                                                `${fmtInt(truncFixed(num(r.proposalAmount), 0))} ${props.symbol}`
+                                                `${fmtInt(truncFixed(r.proposalAmount, 0, props.decimals))} ${props.symbol}`
                                             ) : (
                                                 <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>
                                             )}

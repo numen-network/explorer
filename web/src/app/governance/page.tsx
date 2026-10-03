@@ -15,7 +15,7 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainHeads, chainProps} from '@/lib/chain'
-import {camelLabel, fmtCompact, fmtCompact3, fmtInt, planckToNum, trackLabel} from '@/lib/format'
+import {camelLabel, fmtCompact, fmtCompact3, fmtInt, trackLabel, truncFixed} from '@/lib/format'
 import {isLive, phaseFraction, phaseOf} from '@/lib/referendum'
 import {bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -140,7 +140,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                             <span className="shrink-0 text-sm">
                                 {r.proposalAmount != null ? (
                                     <>
-                                        <span className="font-semibold">{fmtInt(Math.trunc(planckToNum(r.proposalAmount, chain.decimals)))}</span>{' '}
+                                        <span className="font-semibold">{fmtInt(truncFixed(r.proposalAmount, 0, chain.decimals))}</span>{' '}
                                         <span className="font-medium text-dim">{chain.symbol}</span>
                                         {payouts(r.proposalCalls) > 1 && <span className="text-muted-foreground"> · {payouts(r.proposalCalls)} payouts</span>}
                                     </>
@@ -177,8 +177,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     need={curveAt(r.track.minApproval as Curve, at) * 100}
                                     foot={
                                         <>
-                                            <span>aye {fmtCompact(planckToNum(r.ayes, chain.decimals))}</span>
-                                            <span>nay {fmtCompact(planckToNum(r.nays, chain.decimals))}</span>
+                                            <span>aye {fmtCompact(r.ayes, chain.decimals)}</span>
+                                            <span>nay {fmtCompact(r.nays, chain.decimals)}</span>
                                         </>
                                     }
                                 />
@@ -189,8 +189,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     need={curveAt(r.track.minSupport as Curve, at) * 100}
                                     foot={
                                         <>
-                                            <span>voted {fmtCompact(planckToNum(r.support, chain.decimals))}</span>
-                                            <span>of {fmtCompact(planckToNum(activeIssuance.toString(), chain.decimals))}</span>
+                                            <span>voted {fmtCompact(r.support, chain.decimals)}</span>
+                                            <span>of {fmtCompact(activeIssuance, chain.decimals)}</span>
                                         </>
                                     }
                                 />

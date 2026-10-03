@@ -207,7 +207,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     }
 
     const latest = data.dailyStats[0]
-    const activeIssuance = latest ? planckToNum(BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive), chain.decimals) : 0
+    const activePlanck = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
+    const activeIssuance = planckToNum(activePlanck, chain.decimals)
     const ayes = planckToNum(r.ayes, chain.decimals)
     const nays = planckToNum(r.nays, chain.decimals)
     const supportVal = planckToNum(r.support, chain.decimals)
@@ -308,7 +309,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         Aye <span className="text-dim">({fmtInt(data.ayeCount.totalCount)})</span>
                     </span>
                     <span className="font-mono">
-                        {fmtCompact(ayes)} {chain.symbol}
+                        {fmtCompact(r.ayes, chain.decimals)} {chain.symbol}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-3 py-2.5">
@@ -317,7 +318,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         Nay <span className="text-dim">({fmtInt(data.nayCount.totalCount)})</span>
                     </span>
                     <span className="font-mono">
-                        {fmtCompact(nays)} {chain.symbol}
+                        {fmtCompact(r.nays, chain.decimals)} {chain.symbol}
                     </span>
                 </div>
             </div>
@@ -334,13 +335,13 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <div className="flex items-center justify-between gap-3 py-2.5">
                     <span className="text-muted-foreground">Support</span>
                     <span className="font-mono">
-                        {fmtCompact(supportVal)} {chain.symbol}
+                        {fmtCompact(r.support, chain.decimals)} {chain.symbol}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-3 py-2.5">
                     <span className="text-muted-foreground">Active issuance</span>
                     <span className="font-mono">
-                        {fmtCompact(activeIssuance)} {chain.symbol}
+                        {fmtCompact(activePlanck, chain.decimals)} {chain.symbol}
                     </span>
                 </div>
             </div>

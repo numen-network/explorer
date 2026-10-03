@@ -1,7 +1,6 @@
 import VoteLists, {type VoteGroup, type VoteRows} from '@/components/votes'
 import type {ChainProps} from '@/lib/chain'
 import {capitalOf, convictionLabel, votesOf, weigh} from '@/lib/conviction'
-import {planckToNum} from '@/lib/format'
 import {accountRefs, delegationsFor, referendumVotes, VOTE_LISTS, type ReferendumVoteRow, type VoteList} from '@/lib/gql'
 import type {Paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
@@ -24,7 +23,7 @@ function splitRows(list: 'abstain' | 'split', rows: ReferendumVoteRow[], chain: 
     return {
         kind: 'split',
         labels: lead.map(f => PART[f]),
-        rows: rows.map(v => ({id: v.id, addr: ss58Encode(v.voter.id, chain.ss58), acc: v.voter, amounts: lead.map(f => planckToNum(v[f]!, chain.decimals))})),
+        rows: rows.map(v => ({id: v.id, addr: ss58Encode(v.voter.id, chain.ss58), acc: v.voter, amounts: lead.map(f => v[f]!)})),
     }
 }
 
@@ -34,7 +33,6 @@ async function standardRows(rows: ReferendumVoteRow[], track: string, chain: Cha
     for (const d of dels.delegations) byTarget.set(d.target.id, [...(byTarget.get(d.target.id) ?? []), d])
     const inline = [...new Set([...byTarget.values()].flatMap(list => list.slice(0, INLINE_DELEGATORS).map(d => d.who.id)))]
     const refs = new Map((await accountRefs(inline)).accounts.map(a => [a.id, a]))
-    const num = (planck: string | bigint) => planckToNum(planck, chain.decimals)
     const addr = (id: string) => ss58Encode(id, chain.ss58)
     return {
         kind: 'standard',
@@ -46,17 +44,17 @@ async function standardRows(rows: ReferendumVoteRow[], track: string, chain: Cha
                 addr: addr(v.voter.id),
                 acc: v.voter,
                 conviction: convictionLabel(v.conviction),
-                capital: num(capitalOf(v)),
-                selfVotes: num(votesOf(v)),
+                capital: String(capitalOf(v)),
+                selfVotes: String(votesOf(v)),
                 delegatorCount: list.length,
-                delegatedCapital: list.reduce((n, d) => n + num(d.balance), 0),
-                delegatedVotes: list.reduce((n, d) => n + num(weigh(d.balance, d.conviction)), 0),
+                delegatedCapital: String(list.reduce((n, d) => n + BigInt(d.balance), 0n)),
+                delegatedVotes: String(list.reduce((n, d) => n + weigh(d.balance, d.conviction), 0n)),
                 delegators: list.slice(0, INLINE_DELEGATORS).map(d => ({
                     addr: addr(d.who.id),
                     acc: refs.get(d.who.id),
                     conviction: convictionLabel(d.conviction),
-                    capital: num(d.balance),
-                    votes: num(weigh(d.balance, d.conviction)),
+                    capital: d.balance,
+                    votes: String(weigh(d.balance, d.conviction)),
                 })),
             }
         }),
@@ -79,5 +77,5 @@ export async function votesPanel({index, track, counts, at, pg, chain}: Props) {
     const groups: VoteGroup[] = lists.map(([l, label]) => ({label, total: counts[l], href: `/referendum/${index}?tab=votes&group=${l}`, active: l === list}))
     const rows = await referendumVotes(index, list, {limit: pg.size, offset: pg.offset})
     const shown = list === 'abstain' || list === 'split' ? splitRows(list, rows, chain) : await standardRows(rows, track, chain)
-    return <VoteLists groups={groups} list={shown} paging={pg} symbol={chain.symbol} />
+    return <VoteLists groups={groups} list={shown} paging={pg} decimals={chain.decimals} symbol={chain.symbol} />
 }

@@ -17,8 +17,8 @@ export interface Delegator {
     addr: string
     acc?: IdentityRef
     conviction: string
-    capital: number
-    votes: number
+    capital: string
+    votes: string
 }
 
 export interface VoteEntry {
@@ -26,11 +26,11 @@ export interface VoteEntry {
     addr: string
     acc?: IdentityRef
     conviction: string
-    capital: number
-    selfVotes: number
+    capital: string
+    selfVotes: string
     delegatorCount: number
-    delegatedCapital: number
-    delegatedVotes: number
+    delegatedCapital: string
+    delegatedVotes: string
     delegators: Delegator[]
 }
 
@@ -39,7 +39,7 @@ export interface SplitEntry {
     id: string
     addr: string
     acc?: IdentityRef
-    amounts: number[]
+    amounts: string[]
 }
 
 export interface VoteGroup {
@@ -67,7 +67,7 @@ function Stat({label, value}: {label: string; value: string}) {
 
 const dcol = columnsFor<Delegator>()
 
-function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
+function Detail({v, decimals, symbol}: {v: VoteEntry; decimals: number; symbol: string}) {
     const hidden = v.delegatorCount - v.delegators.length
     const columns = useMemo(
         () => [
@@ -78,13 +78,13 @@ function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
                 meta: {align: 'right', className: 'py-2', cellClassName: LEAD},
                 cell: ({row}) => (
                     <>
-                        {fmtCompact(row.original.capital)} {symbol} <span className="text-dim">{row.original.conviction}</span>
+                        {fmtCompact(row.original.capital, decimals)} {symbol} <span className="text-dim">{row.original.conviction}</span>
                     </>
                 ),
             }),
-            dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: AUX}, cell: ({row}) => `${fmtCompact(row.original.votes)} ${symbol}`}),
+            dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: AUX}, cell: ({row}) => `${fmtCompact(row.original.votes, decimals)} ${symbol}`}),
         ],
-        [symbol]
+        [decimals, symbol]
     )
     return (
         <div className="bg-[#fafaf9] px-5 py-4">
@@ -92,17 +92,17 @@ function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
                 <div>
                     <h3 className="text-[13px] font-semibold">Self votes</h3>
                     <div className="mt-1 text-sm">
-                        <Stat label="Votes" value={`${fmtCompact(v.selfVotes)} ${symbol}`} />
+                        <Stat label="Votes" value={`${fmtCompact(v.selfVotes, decimals)} ${symbol}`} />
                         <Stat label="Conviction" value={v.conviction} />
-                        <Stat label="Capital" value={`${fmtCompact(v.capital)} ${symbol}`} />
+                        <Stat label="Capital" value={`${fmtCompact(v.capital, decimals)} ${symbol}`} />
                     </div>
                 </div>
                 <div>
                     <h3 className="text-[13px] font-semibold">Delegated votes</h3>
                     <div className="mt-1 text-sm">
-                        <Stat label="Votes" value={`${fmtCompact(v.delegatedVotes)} ${symbol}`} />
+                        <Stat label="Votes" value={`${fmtCompact(v.delegatedVotes, decimals)} ${symbol}`} />
                         <Stat label="Delegators" value={fmtInt(v.delegatorCount)} />
-                        <Stat label="Capital" value={`${fmtCompact(v.delegatedCapital)} ${symbol}`} />
+                        <Stat label="Capital" value={`${fmtCompact(v.delegatedCapital, decimals)} ${symbol}`} />
                     </div>
                 </div>
             </div>
@@ -123,7 +123,7 @@ function Detail({v, symbol}: {v: VoteEntry; symbol: string}) {
 
 const col = columnsFor<VoteEntry>()
 
-function StandardTable({rows, symbol, empty}: {rows: VoteEntry[]; symbol: string; empty: string}) {
+function StandardTable({rows, decimals, symbol, empty}: {rows: VoteEntry[]; decimals: number; symbol: string; empty: string}) {
     const columns = useMemo(
         () => [
             col.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
@@ -133,11 +133,11 @@ function StandardTable({rows, symbol, empty}: {rows: VoteEntry[]; symbol: string
                 meta: {align: 'right', cellClassName: LEAD},
                 cell: ({row}) => (
                     <>
-                        {fmtCompact(row.original.capital)} {symbol} <span className="text-dim">{row.original.conviction}</span>
+                        {fmtCompact(row.original.capital, decimals)} {symbol} <span className="text-dim">{row.original.conviction}</span>
                     </>
                 ),
             }),
-            col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: AUX}, cell: ({row}) => `${fmtCompact(row.original.selfVotes)} ${symbol}`}),
+            col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: AUX}, cell: ({row}) => `${fmtCompact(row.original.selfVotes, decimals)} ${symbol}`}),
             col.display({
                 id: 'delegated',
                 header: 'Delegated',
@@ -145,7 +145,7 @@ function StandardTable({rows, symbol, empty}: {rows: VoteEntry[]; symbol: string
                 cell: ({row}) =>
                     row.original.delegatorCount > 0 ? (
                         <>
-                            {fmtCompact(row.original.delegatedVotes)} {symbol} <span className="text-dim">({fmtInt(row.original.delegatorCount)})</span>
+                            {fmtCompact(row.original.delegatedVotes, decimals)} {symbol} <span className="text-dim">({fmtInt(row.original.delegatorCount)})</span>
                         </>
                     ) : (
                         NONE
@@ -153,14 +153,14 @@ function StandardTable({rows, symbol, empty}: {rows: VoteEntry[]; symbol: string
             }),
             expander(col),
         ],
-        [symbol]
+        [decimals, symbol]
     )
-    return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} canExpand={() => true} expand={v => <Detail v={v} symbol={symbol} />} />
+    return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} canExpand={() => true} expand={v => <Detail v={v} decimals={decimals} symbol={symbol} />} />
 }
 
 const scol = columnsFor<SplitEntry>()
 
-function SplitTable({labels, rows, symbol, empty}: {labels: string[]; rows: SplitEntry[]; symbol: string; empty: string}) {
+function SplitTable({labels, rows, decimals, symbol, empty}: {labels: string[]; rows: SplitEntry[]; decimals: number; symbol: string; empty: string}) {
     const columns = useMemo(
         () => [
             scol.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
@@ -169,16 +169,16 @@ function SplitTable({labels, rows, symbol, empty}: {labels: string[]; rows: Spli
                     id: label,
                     header: label,
                     meta: {align: 'right', cellClassName: i === 0 ? LEAD : AUX},
-                    cell: ({row}) => `${fmtCompact(row.original.amounts[i])} ${symbol}`,
+                    cell: ({row}) => `${fmtCompact(row.original.amounts[i], decimals)} ${symbol}`,
                 })
             ),
         ],
-        [labels, symbol]
+        [labels, decimals, symbol]
     )
     return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} />
 }
 
-export default function VoteLists({groups, list, paging, symbol}: {groups: VoteGroup[]; list: VoteRows; paging: Paging; symbol: string}) {
+export default function VoteLists({groups, list, paging, decimals, symbol}: {groups: VoteGroup[]; list: VoteRows; paging: Paging; decimals: number; symbol: string}) {
     const group = groups.find(g => g.active)!
     const empty = `No ${group.label.toLowerCase()} votes.`
     return (
@@ -189,7 +189,11 @@ export default function VoteLists({groups, list, paging, symbol}: {groups: VoteG
                 ))}
             </div>
             <Card size="flush">
-                {list.kind === 'standard' ? <StandardTable rows={list.rows} symbol={symbol} empty={empty} /> : <SplitTable labels={list.labels} rows={list.rows} symbol={symbol} empty={empty} />}
+                {list.kind === 'standard' ? (
+                    <StandardTable rows={list.rows} decimals={decimals} symbol={symbol} empty={empty} />
+                ) : (
+                    <SplitTable labels={list.labels} rows={list.rows} decimals={decimals} symbol={symbol} empty={empty} />
+                )}
             </Card>
             <Pager paging={paging} total={group.total} href={group.href} />
             {list.kind === 'standard' && list.partial && <p className="mt-2 text-xs text-warn">this track has more delegations than one page can hold, delegated figures are partial</p>}
