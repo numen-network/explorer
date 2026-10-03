@@ -1,0 +1,116 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
+import {userEvent, within} from 'storybook/test'
+import {ss58Encode} from '@/lib/ss58'
+import {chainInfo, HEAD, hex, numn, person} from '../../../../mock/fixtures.js'
+import {batchAll, busy, failedTransfer, failedVoteRemoval, heartbeat, mined, signedCall, subcalls, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
+import {pageMeta, pageStory} from '../../../.storybook/page'
+import ExtrinsicsPage from './page'
+
+export default {title: 'Pages/Extrinsics', ...pageMeta(ExtrinsicsPage)}
+
+type Mined = ReturnType<typeof mined>
+type Row = Mined['extrinsics'][number]
+type Kind = [id: string, ok: number, failed: number]
+type Where = {pallet_eq?: string; method_eq?: string; success_eq?: boolean}
+
+// the calls the chain has run, how often each succeeded and how often it failed
+const KINDS: Kind[] = [
+    ['Balances.transfer_all', 2, 0],
+    ['Balances.transfer_allow_death', 14, 0],
+    ['Balances.transfer_keep_alive', 565, 12],
+    ['ConvictionVoting.remove_vote', 4, 1],
+    ['ConvictionVoting.vote', 24, 0],
+    ['Ethereum.transact', 74, 0],
+    ['Identity.add_registrar', 1, 0],
+    ['Identity.provide_judgement', 2, 0],
+    ['Identity.request_judgement', 1, 0],
+    ['Identity.set_fee', 1, 0],
+    ['Identity.set_identity', 6, 0],
+    ['Identity.set_subs', 1, 0],
+    ['ImOnline.heartbeat', 67_210, 0],
+    ['Proxy.proxy', 3, 0],
+    ['Referenda.place_decision_deposit', 2, 0],
+    ['Timestamp.set', HEAD, 0],
+    ['Utility.batch', 1, 0],
+    ['Utility.batch_all', 5_440, 0],
+    ['Vesting.vest', 11, 0],
+]
+
+const callKinds = KINDS.map(([id]) => ({id, pallet: id.split('.')[0], method: id.split('.')[1]}))
+
+const matches = (id: string, where?: Where) => (!where?.pallet_eq || id.startsWith(where.pallet_eq + '.')) && (!where?.method_eq || id.endsWith('.' + where.method_eq))
+const outcome = ([, ok, failed]: Kind, where?: Where) => (where?.success_eq === undefined ? ok + failed : where.success_eq ? ok : failed)
+
+// the page asks for its total and for one total per pallet chip, each under the filters in the url
+const counting =
+    (kinds: Kind[]) =>
+    ({where}: {where?: Where}) => ({totalCount: kinds.filter(([id]) => matches(id, where)).reduce((n, k) => n + outcome(k, where), 0)})
+
+const take = (blocks: Mined[], keep: (x: Row) => boolean = () => true) => ({extrinsics: blocks.flatMap(b => b.extrinsics).filter(keep).slice(0, 20), calls: subcalls(blocks.flatMap(b => b.calls))})
+
+const list = ({extrinsics, calls}: ReturnType<typeof take>, searchParams: Record<string, string> = {}, kinds = KINDS) =>
+    pageStory({callKinds, extrinsics, calls, extrinsicsConnection: counting(kinds)}, {searchParams})
+
+const RECENT = [
+    mined(HEAD, [timestampSet, transfer]),
+    mined(HEAD - 1, [timestampSet]),
+    busy(HEAD - 2),
+    mined(HEAD - 3, [timestampSet, heartbeat]),
+    mined(HEAD - 4, [timestampSet, batchAll]),
+    mined(HEAD - 5, [timestampSet]),
+    mined(HEAD - 6, [timestampSet, failedVoteRemoval]),
+    mined(HEAD - 7, [timestampSet, transfer]),
+]
+
+const TRANSFERS = Array.from({length: 20}, (_, i) => mined(HEAD - i * 37, [timestampSet, (height: number) => transfer(height, {from: person(i), to: person(i + 3)})]))
+const isTransfer = (x: Row) => x.pallet === 'Balances'
+
+const FAILURES = [mined(HEAD - 900, [timestampSet, failedVoteRemoval]), ...Array.from({length: 12}, (_, i) => mined(HEAD - 4_211 * (i + 1), [timestampSet, failedTransfer]))]
+
+const ME = person(0)
+const MY_BLOCKS = [
+    ...Array.from({length: 6}, (_, i) => mined(HEAD - 15 - i * 2_903, [timestampSet, (height: number) => transfer(height, {from: ME})])),
+    ...[0, 1].map(i => mined(HEAD - 40_000 - i * 9_000, [timestampSet, (height: number) => batchAll(height, {from: ME})])),
+    mined(HEAD - 812_003, [timestampSet, (height: number) => signedCall(height, 'Identity.set_identity', {info: {display: {__kind: 'Raw13', value: hex('Polaris Guild')}}}, {from: ME})]),
+]
+
+const SEPTEMBER = Array.from({length: 10}, (_, i) => mined(HEAD - 30_000 - i * 1_200, [timestampSet, heartbeat]))
+
+export const Many = list(take(RECENT))
+
+export const EmptyChain = pageStory({extrinsicsConnection: {totalCount: 0}})
+
+export const FilterPallet = list(take(TRANSFERS, isTransfer), {pallet: 'Balances'})
+
+export const FilterPalletAndMethod = list(take(TRANSFERS, isTransfer), {pallet: 'Balances', method: 'transfer_keep_alive'})
+
+export const FilterOneMatch = list(
+    take([mined(HEAD - 812_003, [timestampSet, (height: number) => signedCall(height, 'Identity.set_fee', {index: 0, fee: numn(2.5)}, {from: person(1)})])], x => x.pallet === 'Identity'),
+    {pallet: 'Identity', method: 'set_fee'}
+)
+
+export const FilterFailed = list(take(FAILURES, x => !x.success), {result: 'failed'})
+
+export const FilterNothingMatches = list(take([]), {pallet: 'Referenda', result: 'failed'})
+
+export const FilterSigner = list(take(MY_BLOCKS, x => x.signer?.id === ME.id), {signer: ss58Encode(ME.id, chainInfo.ss58)}, [
+    ['Balances.transfer_keep_alive', 6, 0],
+    ['Identity.set_identity', 1, 0],
+    ['Utility.batch_all', 2, 0],
+])
+
+export const FilterSignerNotAnAddress = list(take(RECENT), {signer: 'nu6LoXD3Vkgm'})
+
+export const FilterDateRange = list(take(SEPTEMBER), {after: '2026-09-01', before: '2026-09-30'}, [
+    ['Balances.transfer_keep_alive', 41, 2],
+    ['ImOnline.heartbeat', 17_280, 0],
+    ['Timestamp.set', 259_200, 0],
+    ['Utility.batch_all', 380, 0],
+])
+
+export const DatePickerOpen: StoryObj = {
+    ...list(take(RECENT)),
+    play: async ({canvasElement}) => {
+        await userEvent.click(within(canvasElement).getByRole('button', {name: /any date/i}))
+    },
+}

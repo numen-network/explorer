@@ -11,6 +11,7 @@ export default defineConfig({
                 plugins: [storybookTest({configDir: fileURLToPath(new URL('.storybook', import.meta.url))})],
                 test: {
                     name: 'storybook',
+                    testTimeout: 60_000,
                     browser: {enabled: true, headless: true, provider: playwright({}), instances: [{browser: 'chromium'}]},
                 },
             },

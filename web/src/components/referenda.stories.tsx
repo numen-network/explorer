@@ -3,7 +3,7 @@ import type {ReactNode} from 'react'
 import type {Phase} from '@/lib/referendum'
 import {Gauge, StatusBadge, TallyBar, ThresholdBar} from './referenda'
 
-const meta = {title: 'Governance/Referendum parts'} satisfies Meta
+const meta = {title: 'Components/Referenda'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 

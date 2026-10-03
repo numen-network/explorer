@@ -1,7 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows} from './timeline'
 
-const meta = {title: 'Governance/Timeline'} satisfies Meta
+const meta = {title: 'Components/Timeline'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 

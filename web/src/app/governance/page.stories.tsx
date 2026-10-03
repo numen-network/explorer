@@ -1,24 +1,102 @@
-import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
-import {graphqlData} from '../../../.storybook/graphql'
+import {numn} from '../../../../mock/fixtures.js'
+import {bounty, BOUNTY_STATUSES, counted, linear, listed, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
+import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
 
-const meta = {
-    title: 'Governance/Referenda list',
-    loaders: [async () => ({page: await GovernancePage({params: Promise.resolve({}), searchParams: Promise.resolve({tab: 'referenda'})})})],
-    render: (_, {loaded}) => loaded.page,
-} satisfies Meta
-export default meta
-type Story = StoryObj<typeof meta>
+export default {title: 'Pages/Governance', ...pageMeta(GovernancePage)}
 
-const withReferenda = (rows: object[]): Story => ({
-    parameters: {msw: [graphqlData({...data, referendums: rows, referendumsConnection: referendaCount(rows)})]},
-})
+const referendaTab = (rows: object[]) => pageStory({...data, referendums: rows, referendumsConnection: referendaCount(rows)}, {searchParams: {tab: 'referenda'}})
 
-export const Empty = withReferenda([])
+export const ReferendaEmpty = referendaTab([])
 
-export const One = withReferenda(referenda.slice(0, 1))
+export const ReferendaOne = referendaTab(referenda.slice(0, 1))
 
-export const EveryCase = withReferenda(referenda)
+export const ReferendaEveryCase = referendaTab(referenda)
 
-export const Many = withReferenda(Array.from({length: 40}, (_, i) => ({...referenda[i % referenda.length], id: String(i), index: i})))
+export const ReferendaMany = referendaTab(Array.from({length: 40}, (_, i) => ({...referenda[i % referenda.length], id: String(i), index: i})))
+
+interface ReferendaWhere {
+    where?: {status_eq?: string; track?: {id_eq: string}}
+}
+
+const onTrack = ({where}: ReferendaWhere) => referenda.filter(r => (!where?.track || r.track.id === where.track.id_eq) && (!where?.status_eq || r.status === where.status_eq))
+
+const trackFilter = (id: string) =>
+    pageStory({...data, referendums: onTrack, referendumsConnection: (args: ReferendaWhere) => ({totalCount: onTrack(args).length})}, {searchParams: {tab: 'referenda', track: id}})
+
+export const ReferendaTrackFilter = trackFilter('31')
+
+export const ReferendaTrackFilterEmpty = trackFilter('0')
+
+const treasuryTab = (rows: object[], filters: Record<string, string> = {}) =>
+    pageStory({...data, treasurySpends: listed(rows), treasurySpendsConnection: counted(rows)}, {searchParams: {tab: 'treasury', ...filters}})
+
+const spends = Array.from({length: 47}, (_, i) => spend(i, SPEND_STATUSES[(i * 3) % SPEND_STATUSES.length]))
+
+export const TreasuryEmpty = treasuryTab([])
+
+export const TreasuryOne = treasuryTab([spend(0, 'Paid')])
+
+export const TreasuryEveryStatus = treasuryTab(SPEND_STATUSES.map((status, i) => spend(i, status)))
+
+export const TreasuryEdgeCases = treasuryTab([
+    spend(0, 'AssetSpendApproved', {beneficiary: null}),
+    spend(1, 'Awarded', {referendum: null}),
+    spend(2, 'Paid', {amount: '0'}),
+    spend(3, 'SpendApproved', {amount: '1'}),
+    spend(4, 'SpendProcessed', {amount: '123456789012345678901234567890'}),
+])
+
+export const TreasuryMany = treasuryTab(spends)
+
+export const TreasuryFiltered = treasuryTab(spends, {kind: 'spend', status: 'Paid'})
+
+export const TreasuryFilteredEmpty = treasuryTab(spends, {status: 'PaymentFailed', track: '0'})
+
+const bountiesTab = (rows: object[], filters: Record<string, string> = {}) =>
+    pageStory({...data, bounties: listed(rows), bountiesConnection: counted(rows)}, {searchParams: {tab: 'bounties', ...filters}})
+
+const bounties = Array.from({length: 45}, (_, i) => bounty(44 - i, BOUNTY_STATUSES[i % BOUNTY_STATUSES.length]))
+
+export const BountiesEmpty = bountiesTab([])
+
+export const BountiesOne = bountiesTab([bounty(0, 'Active')])
+
+export const BountiesEveryStatus = bountiesTab(BOUNTY_STATUSES.map((status, i) => bounty(BOUNTY_STATUSES.length - 1 - i, status)))
+
+export const BountiesEdgeCases = bountiesTab([
+    bounty(3, 'Proposed', {description: null}),
+    bounty(2, 'Active', {description: 'Maintain the community archive node, the snapshot mirror and the public RPC endpoint for twelve months', referendum: null}),
+    bounty(1, 'BountyRejected', {value: '0'}),
+    bounty(0, 'BountyClaimed', {value: '987654321098765432109876543210'}),
+])
+
+export const BountiesMany = bountiesTab(bounties)
+
+export const BountiesFiltered = bountiesTab(bounties, {status: 'Active', track: '30'})
+
+const tracksTab = (rows: object[]) => pageStory({...data, tracks: listed(rows), tracksConnection: {totalCount: rows.length}}, {searchParams: {tab: 'tracks'}})
+
+const CURVES = [linear(5e8, 5e8, 1e9), reciprocal('222222224', '333333335', '333333332'), stepped(1e9, 5e8, 1e8, 2e8)]
+
+export const TracksEmpty = tracksTab([])
+
+export const TracksOne = tracksTab(data.tracks.slice(6, 7))
+
+export const TracksEveryCurve = tracksTab([
+    ...data.tracks,
+    track('40', 'stepped_spender', {maxSpend: numn(50_000), minApproval: stepped(1e9, 5e8, 1e8, 2e8), minSupport: stepped(2e8, 1e7, 5e7, 2.5e8)}),
+])
+
+export const TracksExtremes = tracksTab([
+    track('50', 'fast_track', {preparePeriod: 1, decisionPeriod: 60, confirmPeriod: 6, minEnactmentPeriod: 0, decisionDeposit: '1'}),
+    track('51', 'a_track_name_long_enough_to_wrap_inside_its_card_title', {
+        maxDeciding: 2_147_483_647,
+        maxSpend: '340282366920938463463374607431768211455',
+        decisionPeriod: 3_153_600,
+        minSupport: reciprocal('1', '1', '0'),
+    }),
+])
+
+export const TracksMany = tracksTab(Array.from({length: 24}, (_, i) => track(String(i), `track_${i}`, {minApproval: CURVES[i % 3], minSupport: linear(1e9, 0, 2e8 + i * 1e7)})))

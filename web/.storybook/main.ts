@@ -14,6 +14,29 @@ const config: StorybookConfig = {
             // Next polyfills these node modules for the browser bundle, Vite leaves them out
             plugins: [nodePolyfills({include: ['assert', 'buffer'], globals: {Buffer: true, global: false, process: false}})],
             define: {MOCK_SDL: JSON.stringify(sdl)},
+            // bundled up front, a dependency found halfway through a test run reloads every test file
+            optimizeDeps: {
+                include: [
+                    '@icons-pack/react-simple-icons',
+                    '@noble/hashes/blake2.js',
+                    '@noble/hashes/utils.js',
+                    '@subsquid/scale-codec',
+                    '@subsquid/ss58',
+                    '@tanstack/react-table',
+                    '@zag-js/pagination',
+                    '@zag-js/react',
+                    'class-variance-authority',
+                    'cn',
+                    'echarts',
+                    'lucide-react',
+                    'msw-storybook-addon/csf3',
+                    'radix-ui',
+                    'react-day-picker',
+                    'three',
+                    'three/addons/controls/OrbitControls.js',
+                    'zustand',
+                ],
+            },
             server: {fs: {allow: [searchForWorkspaceRoot(process.cwd()), fileURLToPath(new URL('../../mock', import.meta.url))]}},
         }),
 }

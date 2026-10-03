@@ -1,17 +1,6 @@
-import {toHex} from './engine.js'
+import {account, at, base, hex, issuance, numn, SUBMISSION_DEPOSIT} from './fixtures.js'
 
-const HEAD = 1_000_000
-const HEAD_TIME = Date.now()
-const BLOCK_TIME = 10
-const SUBMISSION_DEPOSIT = '5000000000000000000'
-const ISSUANCE_TOTAL = '602518848000000000000000000'
-const ISSUANCE_INACTIVE = '550000154663232139351368277'
-
-const at = height => new Date(HEAD_TIME - (HEAD - height) * BLOCK_TIME * 1000).toISOString()
-const numn = n => (BigInt(n) * 10n ** 18n).toString()
-const account = n => '0x' + ('a' + n.toString(16)).repeat(32)
 const hash = n => '0x' + ('c' + n.toString(16)).repeat(32)
-const hex = text => toHex(new TextEncoder().encode(text))
 
 const linear = (length, floor, ceil) => ({__kind: 'LinearDecreasing', length, floor, ceil})
 const reciprocal = (factor, xOffset, yOffset) => ({__kind: 'Reciprocal', factor, xOffset, yOffset})
@@ -77,8 +66,8 @@ function referendum({index, track, origin, submitter, steps, decidingSince = nul
             ayes: numn(a),
             nays: numn(n),
             support: numn(s),
-            totalIssuance: ISSUANCE_TOTAL,
-            inactiveIssuance: ISSUANCE_INACTIVE,
+            totalIssuance: issuance.issuanceTotal,
+            inactiveIssuance: issuance.issuanceInactive,
         })),
         ...rest,
     }
@@ -361,29 +350,8 @@ export const referenda = [
 export const referendaCount = rows => ({where}) => ({totalCount: rows.filter(r => !where?.status_eq || r.status === where.status_eq).length})
 
 export default {
-    chainInfos: [{
-        name: 'Numen Mainnet',
-        symbol: 'NUMN',
-        decimals: 18,
-        ss58: 14240,
-        blockTime: BLOCK_TIME,
-        existentialDeposit: '0',
-        evmChainId: 32026,
-        nativeErc20: '0x0000000000000000000000000000000000000802',
-        sessionLength: 60,
-        sessionOffset: 0,
-        voteLockingPeriod: 60480,
-        submissionDeposit: SUBMISSION_DEPOSIT,
-        treasuryAccount: '0x6d6f646c70792f74727372790000000000000000000000000000000000000000',
-        head: HEAD,
-        finalizedHead: HEAD - 5,
-    }],
-    blocks: () => [{height: HEAD, timestamp: new Date().toISOString()}],
-    dailyStats: [{
-        issuanceTotal: ISSUANCE_TOTAL,
-        issuanceInactive: ISSUANCE_INACTIVE,
-        treasuryPot: '550000154663232139351368277',
-    }],
+    ...base,
+    dailyStats: [issuance],
     tracks,
     tracksConnection: {totalCount: tracks.length},
     referendums: ({where}) => (where?.index_eq == null ? referenda : referenda.filter(r => r.index === where.index_eq)),

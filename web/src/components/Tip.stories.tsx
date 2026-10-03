@@ -1,0 +1,93 @@
+import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expect, screen} from 'storybook/test'
+import {ss58Encode} from '@/lib/ss58'
+import {account, chainInfo} from '../../../mock/fixtures.js'
+import {Tip} from './Tip'
+
+const meta = {title: 'Components/Tip'} satisfies Meta
+export default meta
+type Story = StoryObj<typeof meta>
+
+const HASH = '0x568b1433558b12a0588b1759578b15c65a8b1a7f598b18ec5c8b1da55b8b1c12'
+
+const hovered: Story = {
+    play: async ({canvas, userEvent}) => {
+        await userEvent.hover(canvas.getByText('hover me'))
+        await expect(await screen.findByRole('tooltip')).toBeInTheDocument()
+    },
+}
+
+// room above and beside the trigger so the open tip is in the shot
+const Stage = ({children}: {children: React.ReactNode}) => <div className="px-6 pt-24 pb-6 text-sm">{children}</div>
+
+export const ShortText: Story = {
+    ...hovered,
+    render: () => (
+        <Stage>
+            <Tip text="Download OBJ">
+                <span className="text-primary underline">hover me</span>
+            </Tip>
+        </Stage>
+    ),
+}
+
+export const UnbrokenHash: Story = {
+    ...hovered,
+    render: () => (
+        <Stage>
+            <Tip text={HASH}>
+                <span className="font-mono text-primary underline">hover me</span>
+            </Tip>
+        </Stage>
+    ),
+}
+
+export const LongSentence: Story = {
+    ...hovered,
+    render: () => (
+        <Stage>
+            <Tip text="Accounts the chain has ever seen. An account joins the count on the day a block first touched it, and nothing removes it again.">
+                <span className="text-primary underline">hover me</span>
+            </Tip>
+        </Stage>
+    ),
+}
+
+export const RichContent: Story = {
+    ...hovered,
+    render: () => (
+        <Stage>
+            <Tip
+                align="start"
+                className="flex-col items-start sm:max-w-md"
+                text={
+                    <>
+                        <span className="font-mono">{ss58Encode(account(1), chainInfo.ss58)}</span>
+                        <span className="grid w-full grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 border-t border-current/25 pt-1.5">
+                            <span className="opacity-60">Web</span>
+                            <span className="truncate">polaris.example</span>
+                            <span className="opacity-60">X</span>
+                            <span className="truncate">@polaris_guild</span>
+                        </span>
+                    </>
+                }
+            >
+                <span className="font-medium text-primary underline">hover me</span>
+            </Tip>
+        </Stage>
+    ),
+}
+
+export const NoText: Story = {
+    render: () => (
+        <Stage>
+            <Tip text="">
+                <span className="text-primary underline">hover me</span>
+            </Tip>
+        </Stage>
+    ),
+    play: async ({canvas, userEvent}) => {
+        await userEvent.hover(canvas.getByText('hover me'))
+        await expect(screen.queryByRole('tooltip')).toBeNull()
+    },
+}
