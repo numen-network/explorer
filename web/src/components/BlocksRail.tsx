@@ -29,7 +29,7 @@ export default function BlocksRail({cards, faces}: {cards: BlockCard[]; faces: s
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
             {cards.map(c => (
                 <Card key={c.height} size="flush" className="px-4 py-3.5">
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                         <Link href={`/block/${c.height}`} className="font-mono text-[15px] font-semibold text-primary hover:underline">
                             #{fmtInt(c.height)}
                         </Link>

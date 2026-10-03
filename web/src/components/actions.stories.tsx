@@ -2,6 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {ss58Encode} from '@/lib/ss58'
 import {CHAIN} from '../../../mock/fixtures/accounts.js'
 import {at, HEAD, numn, person} from '../../../mock/fixtures.js'
+import {cardsFit, PHONE} from '../../.storybook/fit'
 import ActionList, {type ActionActor, type ActionRow} from './actions'
 
 const meta = {title: 'Components/ActionList'} satisfies Meta
@@ -46,6 +47,12 @@ export const One: Story = {
 
 export const EveryKind: Story = {
     render: () => list(EVERY_KIND),
+}
+
+export const EveryKindOnPhone: Story = {
+    ...EveryKind,
+    globals: PHONE,
+    play: cardsFit,
 }
 
 export const Many: Story = {

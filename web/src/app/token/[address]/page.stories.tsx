@@ -1,6 +1,7 @@
 import type {TokenRow} from '@/lib/gql'
 import {rows} from '../../../../../mock/fixtures.js'
 import {evmAddress, holder, holders, token, tokenTransfer, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
+import {cardsFit} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import TokenPage from './page'
 
@@ -38,11 +39,11 @@ export const SupplyUnknown = tokenPage({...orbit, totalSupply: null, holderCount
 
 export const NoDeployBlock = tokenPage({...orbit, deployBlock: null}, {holders: holders(orbit, 5)})
 
-export const NoMetadata = tokenPage(bare, {holders: holders(bare, 5)})
+export const NoMetadata = {...tokenPage(bare, {holders: holders(bare, 5)}), play: cardsFit}
 
 export const NoMetadataTransfers = tokenPage(bare, {transfers: rows(5, (h: number, i: number) => tokenTransfer(token(1), h, i, {token: bare}))}, TRANSFERS_TAB)
 
-export const ExtremeNumbers = tokenPage(huge, {holders: [holder(huge, evmAddress(0), (BigInt(UINT256_MAX) / 2n).toString()), holder(huge, evmAddress(1), '1')]})
+export const ExtremeNumbers = {...tokenPage(huge, {holders: [holder(huge, evmAddress(0), (BigInt(UINT256_MAX) / 2n).toString()), holder(huge, evmAddress(1), '1')]}), play: cardsFit}
 
 export const TransfersMany = tokenPage(WTMR, {transfers: rows(20, (h: number, i: number) => tokenTransfer(WTMR, h, i))}, TRANSFERS_TAB)
 

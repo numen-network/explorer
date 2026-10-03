@@ -1,6 +1,8 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
 import {referenda} from '../../../mock/data.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
+import {expectFits, PHONE} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
@@ -137,6 +139,16 @@ const manyTransfers = [
 const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: minedUpTo(HEAD, 5, MANY_FINALIZED), transfers: manyTransfers, referendums: referenda.slice(4, 9)}
 
 export const HomeMany = pageStory(home(many))
+
+export const HomeManyOnPhone: StoryObj = {
+    ...HomeMany,
+    globals: PHONE,
+    play: async ({canvas}) => {
+        const rail = canvas.getByRole('heading', {name: 'Latest blocks'}).closest('section')!
+        const headers = [...rail.querySelectorAll('a[href^="/block/"]')].map(height => height.parentElement!)
+        expectFits(...headers)
+    },
+}
 
 const undecoded = {...referenda[3], id: '12', index: 12, title: null, proposalPallet: null, proposalMethod: null, proposalCalls: null, proposalAmount: null, proposalBeneficiary: null}
 

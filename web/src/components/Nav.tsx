@@ -4,6 +4,7 @@ import {usePathname} from 'next/navigation'
 import {useState} from 'react'
 import {Menu} from 'lucide-react'
 import logo from '@/app/icon.svg'
+import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
 import {Sheet, SheetContent, SheetTitle, SheetTrigger} from '@/components/ui/sheet'
@@ -64,9 +65,11 @@ export default function Nav({chain}: {chain: string}) {
                     ))}
                 </nav>
                 {chain && (
-                    <Badge variant="outline" className="ml-auto bg-background px-2 py-1 text-xs text-muted-foreground">
-                        {chain}
-                    </Badge>
+                    <Tip text={chain}>
+                        <Badge variant="outline" className="ml-auto min-w-0 shrink truncate bg-background px-2 py-1 text-xs text-muted-foreground">
+                            {chain}
+                        </Badge>
+                    </Tip>
                 )}
             </div>
         </header>

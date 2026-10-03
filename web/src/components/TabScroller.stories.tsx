@@ -2,6 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {useState} from 'react'
 import {expect, waitFor, within} from 'storybook/test'
 import {Button} from '@/components/ui/button'
+import {PHONE} from '../../.storybook/fit'
 import TabScroller from './TabScroller'
 
 const meta = {title: 'Components/TabScroller'} satisfies Meta
@@ -13,7 +14,6 @@ const TRANSFERS = LABELS.indexOf('Transfers')
 const TOKENS = LABELS.indexOf('Tokens')
 const MINING = LABELS.indexOf('Mining')
 const BOUNTIES = LABELS.indexOf('Bounties')
-const PHONE = {viewport: {value: 'mobile1', isRotated: false}}
 
 function Strip({count, selected}: {count: number; selected?: number}) {
     return (

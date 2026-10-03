@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import {ReactNode} from 'react'
+import {Fragment, ReactNode} from 'react'
 import {Jump} from '@/components/links'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 
@@ -10,6 +10,9 @@ export interface StatChip {
 }
 
 const CHIP_TONE = {pos: 'text-good', neg: 'text-destructive', idle: 'text-dim'} as const
+
+// a figure too long for the tile wraps between its digit groups
+const breakable = (value: ReactNode) => (typeof value === 'string' ? value.split(',').map((part, i) => (i ? <Fragment key={i}>,<wbr />{part}</Fragment> : part)) : value)
 
 export default function StatTile({label, value, chips, href}: {label: string; value: ReactNode; chips?: StatChip[]; href?: string}) {
     return (
@@ -24,12 +27,12 @@ export default function StatTile({label, value, chips, href}: {label: string; va
                         label
                     )}
                 </CardDescription>
-                <CardTitle className="text-[17px] leading-7 font-semibold tracking-tight break-words sm:text-[19px]">{value}</CardTitle>
+                <CardTitle className="text-[17px] leading-7 font-semibold tracking-tight wrap-anywhere sm:text-[19px]">{breakable(value)}</CardTitle>
             </CardHeader>
             {chips && (
                 <CardContent className="flex flex-wrap gap-x-4 text-xs">
                     {chips.map(c => (
-                        <span key={c.note} className="whitespace-nowrap">
+                        <span key={c.note}>
                             <span className={CHIP_TONE[c.tone]}>{c.text}</span>
                             <span className="text-dim"> · {c.note}</span>
                         </span>

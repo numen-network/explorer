@@ -23,6 +23,7 @@ import {
     voteAction,
     voteData,
 } from '../../../../../mock/fixtures/governance.js'
+import {expectFits, PHONE} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 
@@ -225,6 +226,18 @@ export const TextHistoryMany = story(curated(6), 'text', {}, drafts)
 export const TextHistoryPage2 = story(curated(6), 'text', {}, drafts, {page: '2'})
 
 export const TextHistoryLastPage = story(curated(6), 'text', {}, drafts, {page: lastPage(drafts.length)})
+
+const PREIMAGE = '0x4f2c9d07a1b3e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e'
+const refundTitle = `Refund the deposit locked under preimage ${PREIMAGE}`
+const refundPitch = `Preimage ${PREIMAGE} was noted twice, so this pays back the second deposit.`
+
+export const TextHistoryLongTokensOnPhone = withPlay(
+    {
+        ...story({...curated(6), title: refundTitle, description: refundPitch}, 'text', {}, [metadataAction(990_500, 4, 'MetadataSet', {title: refundTitle, description: refundPitch})]),
+        globals: PHONE,
+    },
+    async ({canvas}) => expectFits(...canvas.getAllByText(refundTitle), ...canvas.getAllByText(refundPitch))
+)
 
 export const TimelineApprovedEarly = curatedCase(10, 'timeline')
 
@@ -446,7 +459,7 @@ const hugeSpend = '9999999999999999999999999'
 
 export const ExtremeAmounts = cast(
     {
-        ...deciding(18, 'Refund the deposit locked under preimage 0x4f2c9d07a1b3e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e'),
+        ...deciding(18, refundTitle),
         ...proposal([{pallet: 'Treasury', method: 'spend', depth: 0, amount: hugeSpend, beneficiary: PEOPLE[7].id, validFrom: null}], {
             assetKind: null,
             amount: hugeSpend,

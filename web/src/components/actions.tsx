@@ -84,7 +84,7 @@ function Delta({label, value}: {label: string; value: number}) {
 function Picker({value, options, onChange}: {value: string; options: {value: string; label: string}[]; onChange: (v: string) => void}) {
     return (
         <Select value={value} onValueChange={onChange}>
-            <SelectTrigger className="w-[150px] gap-2 bg-card py-1.5 pr-2.5 pl-3 hover:bg-background data-[size=default]:h-auto [&_svg]:size-3.5">
+            <SelectTrigger className="w-[150px] grow gap-2 bg-card py-1.5 pr-2.5 pl-3 hover:bg-background data-[size=default]:h-auto sm:grow-0 [&_svg]:size-3.5">
                 <SelectValue>{options.find(o => o.value === value)?.label}</SelectValue>
             </SelectTrigger>
             <SelectContent align="start" className="border shadow-lg ring-0">
@@ -163,8 +163,8 @@ export default function ActionList({rows, decimals, symbol}: {rows: ActionRow[];
                 <h2 className="text-[15px] font-semibold">
                     Actions <span className="font-normal text-dim">({fmtInt(shown.length)})</span>
                 </h2>
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <InputGroup className="h-auto w-90 bg-card">
+                <div className="flex w-full flex-wrap items-center gap-2 text-sm sm:w-auto">
+                    <InputGroup className="h-auto w-full bg-card sm:w-90">
                         <InputGroupAddon className="pr-[3px] pl-3">
                             <Search className="size-[15px] text-dim" />
                         </InputGroupAddon>

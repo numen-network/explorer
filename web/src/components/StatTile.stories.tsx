@@ -1,4 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {cardsFit, PHONE} from '../../.storybook/fit'
 import StatTile, {type StatChip} from './StatTile'
 
 const meta = {
@@ -38,6 +39,12 @@ export const ZeroValue: Story = {args: {label: 'EVM txs', value: '0', href: '/ch
 export const NoValue: Story = {args: {label: 'Difficulty', value: '—', href: '/charts/difficulty', chips: chips(['—', '24h', 'idle'], ['—', '30d', 'idle'])}}
 
 export const LongValue: Story = {args: {label: 'Transferable issuance', value: '876,543,210,987.654 NUMN', href: '/charts/transferable-issuance', chips: chips(['+19269511.6%', '24h', 'pos'], ['−987,654,321', '30d', 'neg'])}}
+
+export const LongValueOnPhone: Story = {
+    ...LongValue,
+    globals: PHONE,
+    play: cardsFit,
+}
 
 export const HomeRow: Story = {
     render: () => (

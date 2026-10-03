@@ -452,11 +452,11 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                             a.method === 'MetadataSet' ? (
                                 <div className="min-w-0">
                                     {a.title ? (
-                                        <p className="text-sm font-semibold">{a.title}</p>
+                                        <p className="text-sm font-semibold wrap-anywhere">{a.title}</p>
                                     ) : (
                                         <p className="text-sm text-dim">Nothing read back from the preimage</p>
                                     )}
-                                    {a.description && <p className="mt-1.5 text-sm whitespace-pre-wrap">{a.description}</p>}
+                                    {a.description && <p className="mt-1.5 text-sm whitespace-pre-wrap wrap-anywhere">{a.description}</p>}
                                     <p className="mt-2 flex items-center gap-1 text-xs text-dim">
                                         <span className="font-mono break-all">{a.hash}</span>
                                         <CopyBtn text={a.hash} />
@@ -520,7 +520,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 overshoot so the span cannot inflate the card row */}
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr]">
                 <Card size="flush" className="min-w-0 px-7 py-5">
-                    <p className="text-base font-semibold">{r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}</p>
+                    <p className="text-base font-semibold wrap-anywhere">{r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
                         {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : NONE}
                         <span className="text-dim">·</span>
@@ -535,7 +535,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     </div>
                     <Separator className="my-4" />
                     {r.description ? (
-                        <p className="text-sm whitespace-pre-wrap">{r.description}</p>
+                        <p className="text-sm whitespace-pre-wrap wrap-anywhere">{r.description}</p>
                     ) : (
                         <p className="py-4 text-center text-sm text-dim">No description provided.</p>
                     )}

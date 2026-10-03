@@ -1,5 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, fireEvent, screen} from 'storybook/test'
+import {expectFits, PHONE} from '../../.storybook/fit'
 import Nav from './Nav'
 
 const meta = {
@@ -24,6 +25,12 @@ export const DetailRouteNoneActive: Story = {parameters: at('/block/1000000')}
 export const NoChainName: Story = {args: {chain: ''}, parameters: at('/')}
 
 export const LongChainName: Story = {args: {chain: 'Numen Integration Testnet'}, parameters: at('/governance')}
+
+export const LongChainNameOnPhone: Story = {
+    ...LongChainName,
+    globals: PHONE,
+    play: async ({canvasElement}) => expectFits(canvasElement.querySelector('header > div')!),
+}
 
 // the burger only shows below xl, a click event still reaches it on a wide screen
 export const MenuOpen: Story = {
