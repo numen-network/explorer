@@ -23,7 +23,7 @@ const JUMP = 5
 const off = 'pointer-events-none opacity-50'
 const ACTIVE = 'border-primary bg-primary bg-clip-border text-primary-foreground hover:bg-primary hover:text-primary-foreground'
 
-// the url is the state, the machine only lays out the page window and its aria
+// the url is the state, the machines only lay out the page windows and their aria
 export default function Pager({paging: {page, size}, total, href, className = 'mt-3'}: Props) {
     const router = useRouter()
     const [goto, setGoto] = useState('')
@@ -34,8 +34,9 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
         q.set('size', String(s))
         return `${path}?${q}`
     }
-    const service = useMachine(pagination.machine, {id: useId(), count: total, pageSize: size, page, siblingCount: 2, type: 'link', getPageUrl: d => url(d.page, d.pageSize)})
-    const api = pagination.connect(service, normalizeProps)
+    const props = {count: total, pageSize: size, page, type: 'link', getPageUrl: d => url(d.page, d.pageSize)} satisfies Partial<pagination.Props>
+    const api = pagination.connect(useMachine(pagination.machine, {...props, id: useId(), siblingCount: 2}), normalizeProps)
+    const narrow = pagination.connect(useMachine(pagination.machine, {...props, id: useId(), siblingCount: 0}), normalizeProps)
     if (total <= PAGE_SIZES[0]) return null
     const paged = api.totalPages > 1
     const jump = () => {
@@ -44,6 +45,33 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
         setGoto('')
         router.push(url(n, size), {scroll: false})
     }
+    // slots keep their nodes, so a sliding window changes the numbers under the accent instead of fading it through a neighbour
+    const slots = ({pages, totalPages, getItemProps}: pagination.Api, hide: string) =>
+        pages.map((p, i) => {
+            if (p.type === 'page')
+                return (
+                    <PaginationItem key={i} className={hide}>
+                        <PaginationLink {...getItemProps(p)} href={url(p.value, size)} scroll={false} isActive={p.value === page} size="default" className={cn('min-w-8 px-1.5 transition-none', p.value === page && ACTIVE)}>
+                            {p.value}
+                        </PaginationLink>
+                    </PaginationItem>
+                )
+            // the page right after a gap says which side of the current page the gap is on
+            const next = pages[i + 1] as {value: number}
+            const back = next.value <= page
+            const label = back ? `Previous ${JUMP} pages` : `Next ${JUMP} pages`
+            const Arrows = back ? ChevronsLeft : ChevronsRight
+            return (
+                <PaginationItem key={i} className={hide}>
+                    <Tip text={label}>
+                        <PaginationLink href={url(back ? Math.max(1, page - JUMP) : Math.min(totalPages, page + JUMP), size)} scroll={false} aria-label={label}>
+                            <Ellipsis className="group-hover/button:hidden" />
+                            <Arrows className="hidden group-hover/button:block" />
+                        </PaginationLink>
+                    </Tip>
+                </PaginationItem>
+            )
+        })
     return (
         <Pagination className={cn('flex-wrap items-center justify-end gap-x-4 gap-y-2', className)} {...api.getRootProps()}>
             {paged && (
@@ -51,32 +79,8 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
                     <PaginationItem>
                         <PaginationPrevious {...api.getPrevTriggerProps()} href={url(api.previousPage ?? 1, size)} scroll={false} aria-disabled={api.previousPage === null} className={cn(api.previousPage === null && off)} />
                     </PaginationItem>
-                    {/* slots keep their nodes, so a sliding window changes the numbers under the accent instead of fading it through a neighbour */}
-                    {api.pages.map((p, i) => {
-                        if (p.type === 'page')
-                            return (
-                                <PaginationItem key={i}>
-                                    <PaginationLink {...api.getItemProps(p)} href={url(p.value, size)} scroll={false} isActive={p.value === page} className={cn('transition-none', p.value === page && ACTIVE)}>
-                                        {p.value}
-                                    </PaginationLink>
-                                </PaginationItem>
-                            )
-                        // the page right after a gap says which side of the current page the gap is on
-                        const next = api.pages[i + 1] as {value: number}
-                        const back = next.value <= page
-                        const label = back ? `Previous ${JUMP} pages` : `Next ${JUMP} pages`
-                        const Arrows = back ? ChevronsLeft : ChevronsRight
-                        return (
-                            <PaginationItem key={i}>
-                                <Tip text={label}>
-                                    <PaginationLink href={url(back ? Math.max(1, page - JUMP) : Math.min(api.totalPages, page + JUMP), size)} scroll={false} aria-label={label}>
-                                        <Ellipsis className="group-hover/button:hidden" />
-                                        <Arrows className="hidden group-hover/button:block" />
-                                    </PaginationLink>
-                                </Tip>
-                            </PaginationItem>
-                        )
-                    })}
+                    {slots(narrow, 'md:hidden')}
+                    {slots(api, 'max-md:hidden')}
                     <PaginationItem>
                         <PaginationNext {...api.getNextTriggerProps()} href={url(api.nextPage ?? page, size)} scroll={false} aria-disabled={api.nextPage === null} className={cn(api.nextPage === null && off)} />
                     </PaginationItem>
@@ -97,7 +101,7 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
             {paged && (
                 <Label className="font-normal">
                     Go to page
-                    <Input value={goto} onChange={e => setGoto(e.target.value)} inputMode="numeric" pattern="[0-9]*" className="w-16 bg-card text-center" onKeyDown={e => e.key === 'Enter' && jump()} />
+                    <Input value={goto} onChange={e => setGoto(e.target.value)} inputMode="numeric" pattern="[0-9]*" className="min-w-16 bg-card text-center" style={{width: `calc(${String(api.totalPages).length + 1}ch + 1.25rem + 2px)`}} onKeyDown={e => e.key === 'Enter' && jump()} />
                 </Label>
             )}
         </Pagination>
