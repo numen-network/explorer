@@ -1,7 +1,20 @@
 'use client'
-import {useEffect, useRef, useState, type ReactNode} from 'react'
+import {useEffect, useLayoutEffect, useRef, useState, type ReactNode} from 'react'
 import {ChevronLeft, ChevronRight} from 'lucide-react'
 import {Button} from '@/components/ui/button'
+
+// its source also ships as the inline script below, so it may only touch its argument and globals
+function reveal(strip: HTMLElement) {
+    const tab = strip.querySelector('[aria-selected="true"]')
+    if (!tab) return
+    const covered = parseFloat(getComputedStyle(strip).scrollPaddingLeft)
+    const s = strip.getBoundingClientRect()
+    const t = tab.getBoundingClientRect()
+    const hidden = t.left < s.left + covered || t.right > s.right - covered
+    if (hidden) strip.scrollLeft += (t.left + t.right - s.left - s.right) / 2
+}
+
+const REVEAL_SCRIPT = `(${reveal})(document.currentScript.previousElementSibling)`
 
 export default function TabScroller({children}: {children: ReactNode}) {
     const ref = useRef<HTMLDivElement>(null)
@@ -14,6 +27,7 @@ export default function TabScroller({children}: {children: ReactNode}) {
             right: el.scrollLeft + el.clientWidth < el.scrollWidth - 1,
         })
     }
+    useLayoutEffect(() => reveal(ref.current!), [children])
     useEffect(() => {
         sync()
         const el = ref.current
@@ -26,7 +40,9 @@ export default function TabScroller({children}: {children: ReactNode}) {
         const el = ref.current
         el?.scrollBy({left: dir * el.clientWidth * 0.6, behavior: 'smooth'})
     }
-    // pb-3 mirrors the links' bottom band so the icon centers on the label line
+    // pb-3 mirrors the links' bottom band so the icon centers on the label line,
+    // scroll-px-10.5 is the edge band an arrow hides, its 24px fade and 16px
+    // icon inside a 1px border
     return (
         <div className="relative -mb-px w-full">
             {state.left && (
@@ -34,9 +50,13 @@ export default function TabScroller({children}: {children: ReactNode}) {
                     <ChevronLeft className="size-4" />
                 </Button>
             )}
-            <div ref={ref} onScroll={sync} className="flex gap-6 overflow-x-auto">
+            <div ref={ref} onScroll={sync} className="flex scroll-px-10.5 gap-6 overflow-x-auto">
                 {children}
             </div>
+            {/* the server copy runs as the html parses, before first paint. React
+                never runs a script it inserts and warns about one, so client
+                renders mark it text/plain */}
+            <script type={typeof window === 'undefined' ? undefined : 'text/plain'} suppressHydrationWarning dangerouslySetInnerHTML={{__html: REVEAL_SCRIPT}} />
             {state.right && (
                 <Button variant="ghost" size="icon-xs" aria-label="Scroll right" onClick={() => nudge(1)} className="absolute inset-y-0 right-0 z-10 h-auto w-auto rounded-none bg-gradient-to-l from-background to-transparent pb-3 pl-6 text-muted-foreground hover:bg-transparent hover:text-foreground">
                     <ChevronRight className="size-4" />
