@@ -1,4 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
+import {expect, screen, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
@@ -140,13 +141,30 @@ const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: mined
 
 export const HomeMany = pageStory(home(many))
 
+// a crowded referendum row squeezes its text column rather than overflowing
+function expectListsFit(root: HTMLElement) {
+    const rows = (heading: string) => [...within(root).getByRole('heading', {name: heading}).parentElement!.nextElementSibling!.children]
+    expectFits(...rows('Transfers'), ...rows('Referenda').flatMap(row => [...row.firstElementChild!.children]))
+}
+
 export const HomeManyOnPhone: StoryObj = {
     ...HomeMany,
     globals: PHONE,
-    play: async ({canvas}) => {
+    play: async ({canvas, canvasElement}) => {
         const rail = canvas.getByRole('heading', {name: 'Latest blocks'}).closest('section')!
         const headers = [...rail.querySelectorAll('a[href^="/block/"]')].map(height => height.parentElement!)
         expectFits(...headers)
+        expectListsFit(canvasElement)
+    },
+}
+
+export const HomeReferendumTitleHovered: StoryObj = {
+    ...HomeMany,
+    play: async ({canvas, userEvent}) => {
+        const title = canvas.getByText(/deliberately long title/)
+        expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
+        await userEvent.hover(title)
+        await expect(await screen.findByRole('tooltip')).toHaveTextContent(title.textContent!)
     },
 }
 
@@ -202,3 +220,9 @@ export const HomeExtremes = pageStory(
         },
     })
 )
+
+export const HomeExtremesOnPhone: StoryObj = {
+    ...HomeExtremes,
+    globals: PHONE,
+    play: async ({canvasElement}) => expectListsFit(canvasElement),
+}

@@ -8,6 +8,7 @@ import Section from '@/components/Section'
 import StatTile, {type StatChip} from '@/components/StatTile'
 import TimeAgo from '@/components/TimeAgo'
 import {TimeCell} from '@/components/TimeCell'
+import {Tip} from '@/components/Tip'
 import {LinesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import {ExtrinsicLink, Jump} from '@/components/links'
@@ -18,7 +19,7 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps} from '@/lib/chain'
-import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum, trackLabel} from '@/lib/format'
+import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -248,11 +249,9 @@ export default async function Home() {
                         {data.transfers.length === 0 && <div className="px-5 py-6 text-sm text-muted-foreground">No transfers yet.</div>}
                         {data.transfers.map(t => (
                             <div key={t.id} className="flex flex-col justify-center gap-1.5 px-5 py-3 sm:h-[66px] sm:flex-row sm:items-center sm:gap-3 sm:py-0">
-                                <div className="flex min-w-0 items-baseline justify-between gap-3 sm:block sm:w-[230px] sm:shrink-0">
-                                    <span className="shrink-0">
-                                        {t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} /> : <span className="font-mono text-muted-foreground">—</span>}
-                                    </span>
-                                    <div className="text-[11px] whitespace-nowrap text-muted-foreground sm:mt-0.5">
+                                <div className="sm:w-[230px] sm:shrink-0">
+                                    {t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} /> : <span className="font-mono text-muted-foreground">—</span>}
+                                    <div className="mt-0.5 text-[11px] whitespace-nowrap text-muted-foreground">
                                         <TimeCell iso={t.timestamp} cycle />
                                     </div>
                                 </div>
@@ -267,7 +266,7 @@ export default async function Home() {
                                     </div>
                                 </div>
                                 <div className="flex shrink-0 items-baseline justify-between gap-3 sm:block sm:text-right">
-                                    <div className="font-mono text-sm">{fmtBalance(t.amount, props.decimals, props.symbol)}</div>
+                                    <div className="font-mono text-sm">{fmtCompact3(t.amount, props.decimals, props.symbol)}</div>
                                     <div className="flex justify-end sm:mt-1">
                                         <CallPill call={t.call} />
                                     </div>
@@ -285,37 +284,40 @@ export default async function Home() {
                     </div>
                     <Card size="flush" className={`divide-y ${LIST_H}`}>
                         {data.referendums.length === 0 && <div className="px-5 py-6 text-sm text-muted-foreground">No referenda yet.</div>}
-                        {data.referendums.map(r => (
-                            <div key={r.id} className={`${ROW_H} flex items-center gap-3 px-5`}>
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex min-w-0 items-baseline gap-2">
-                                        <Link href={`/referendum/${r.index}`} className="shrink-0 font-mono text-primary hover:underline">
-                                            #{r.index}
-                                        </Link>
-                                        <span className="truncate text-[13px]">
-                                            {r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}
-                                        </span>
+                        {data.referendums.map(r => {
+                            const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
+                            return (
+                                <div key={r.id} className={`${ROW_H} flex items-center gap-3 px-5`}>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex min-w-0 items-baseline gap-2">
+                                            <Link href={`/referendum/${r.index}`} className="shrink-0 font-mono text-primary hover:underline">
+                                                #{r.index}
+                                            </Link>
+                                            <Tip text={title}>
+                                                <span className="truncate text-[13px]">{title}</span>
+                                            </Tip>
+                                        </div>
+                                        <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-[11px] whitespace-nowrap text-muted-foreground">
+                                            <span className="truncate">{trackLabel(r.track.name)}</span>
+                                            <span className="text-dim">·</span>
+                                            <TimeAgo iso={r.submittedTimestamp} />
+                                        </div>
                                     </div>
-                                    <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-[11px] text-muted-foreground">
-                                        <span className="truncate">{trackLabel(r.track.name)}</span>
-                                        <span className="text-dim">·</span>
-                                        <TimeAgo iso={r.submittedTimestamp} />
+                                    <div className="shrink-0 text-right">
+                                        <div className="font-mono text-sm">
+                                            {r.proposalAmount != null ? (
+                                                `${fmtInt(truncFixed(num(r.proposalAmount), 0))} ${props.symbol}`
+                                            ) : (
+                                                <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>
+                                            )}
+                                        </div>
+                                        <div className="mt-1 flex justify-end">
+                                            <StatusBadge phase={phaseOf(r)} />
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="shrink-0 text-right">
-                                    <div className="font-mono text-sm">
-                                        {r.proposalAmount != null ? (
-                                            fmtBalance(r.proposalAmount, props.decimals, props.symbol)
-                                        ) : (
-                                            <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>
-                                        )}
-                                    </div>
-                                    <div className="mt-1 flex justify-end">
-                                        <StatusBadge phase={phaseOf(r)} />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </Card>
                 </div>
             </div>
