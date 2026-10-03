@@ -1,6 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {acct, at, hashOf, HEAD, identity, numn, person} from '../../../../mock/fixtures.js'
-import {pageMeta, pageStory} from '../../../.storybook/page'
+import {acct, at, hashOf, HEAD, identity, numn, paged, person} from '../../../../mock/fixtures.js'
+import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from '@/lib/identity'
+import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import IdentitiesPage from './page'
 
 export default {title: 'Pages/Identities', ...pageMeta(IdentitiesPage)}
@@ -63,8 +64,6 @@ const MANY = NAMES.map((name, i) => ({
     subs: i % 6 ? [] : subsOf(name, ['payouts', 'ops']),
 }))
 
-const SWEEP = Array.from({length: 10_000}, (_, i): Row => MANY[i] ?? {id: hashOf('identity', i), identityJson: {judgements: [[0, {__kind: KINDS[i % KINDS.length]}]]}})
-
 const CHANNELS = [
     registered(80, 'All channels', {
         judgements: ['KnownGood'],
@@ -107,33 +106,95 @@ const WITHOUT_DISPLAY = [
 
 const subCount = (rows: Row[]) => rows.reduce((n, r) => n + (r.subs?.length ?? 0), 0)
 
-// the tallies sweep every registration while the table asks for its first page
-const identitiesTab = (all: Row[], {subs = subCount(all), registrars = REGISTRARS} = {}) =>
-    pageStory({accounts: ({limit}: {limit: number}) => all.slice(0, limit), accountsConnection: {totalCount: subs}, registrars})
+const kindsOf = (r: Row) => ((r.identityJson as {judgements?: [number, {__kind: string}][]} | null)?.judgements ?? []).map(([, j]) => j.__kind)
+const judged = (r: Row, kinds: string[]) => kindsOf(r).some(k => kinds.includes(k))
 
-const registrarsTab = (registrars: object[]) => pageStory({accounts: EVERY_VERDICT, registrars}, {searchParams: {tab: 'registrars'}})
+interface Counts {
+    direct: number
+    good: number
+    bad: number
+    both: number
+    subs: number
+}
+
+const countsOf = (rows: Row[]): Counts => ({
+    direct: rows.length,
+    good: rows.filter(r => judged(r, GOOD_JUDGEMENTS)).length,
+    bad: rows.filter(r => judged(r, BAD_JUDGEMENTS)).length,
+    both: rows.filter(r => judged(r, GOOD_JUDGEMENTS) && judged(r, BAD_JUDGEMENTS)).length,
+    subs: subCount(rows),
+})
+
+interface Where {
+    identityJson_isNull?: boolean
+    identitySuper_isNull?: boolean
+    AND?: unknown[]
+    OR?: {identityJson_jsonContains: {judgements: [[{__kind: string}]]}}[]
+}
+
+// every tile asks accountsConnection with a filter of its own
+const tallies = (c: Counts) => ({where}: {where: Where}) => ({
+    totalCount:
+        where.identityJson_isNull === false
+            ? c.direct
+            : where.identitySuper_isNull === false
+              ? c.subs
+              : where.AND
+                ? c.both
+                : BAD_JUDGEMENTS.includes(where.OR![0].identityJson_jsonContains.judgements[0][0].__kind)
+                  ? c.bad
+                  : c.good,
+})
+
+interface Registrar {
+    retiredAt?: number | null
+    lastJudgementBlock: number | null
+}
+
+// the latest judgement tile reads one registrar ordered by its last judgement, the tab reads a page in index order
+const registrarRows = (list: Registrar[]) => (args: {orderBy: string[]; limit: number; offset: number}) =>
+    args.orderBy[0] === 'lastJudgementBlock_DESC_NULLS_LAST'
+        ? list.filter(r => r.lastJudgementBlock != null).sort((a, b) => b.lastJudgementBlock! - a.lastJudgementBlock!).slice(0, 1)
+        : paged(list)(args)
+
+const identities = (rows: Row[], {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], tab = 'identities', page = '1'} = {}) =>
+    pageStory(
+        {
+            accounts: paged(rows),
+            accountsConnection: tallies(counts),
+            registrars: registrarRows(registrars),
+            registrarsConnection: ({where}: {where?: {retiredAt_isNull?: boolean}}) => ({totalCount: where?.retiredAt_isNull === false ? registrars.filter(r => r.retiredAt != null).length : registrars.length}),
+        },
+        {searchParams: {tab, page}}
+    )
+
+const registrarsTab = (registrars: Registrar[], page = '1') => identities(EVERY_VERDICT, {registrars, tab: 'registrars', page})
 
 const expandAll: StoryObj['play'] = async ({canvas, userEvent}) => {
     for (const button of await canvas.findAllByRole('button', {name: 'expand'})) await userEvent.click(button)
 }
 
-export const IdentitiesEmpty = identitiesTab([], {registrars: []})
+export const IdentitiesEmpty = identities([], {registrars: []})
 
-export const IdentitiesOne = identitiesTab([person(0)])
+export const IdentitiesOne = identities([person(0)])
 
-export const IdentitiesEveryVerdict = identitiesTab(EVERY_VERDICT)
+export const IdentitiesEveryVerdict = identities(EVERY_VERDICT)
 
-export const IdentitiesChannels = identitiesTab(CHANNELS)
+export const IdentitiesChannels = identities(CHANNELS)
 
-export const IdentitiesSubsExpanded: StoryObj = {...identitiesTab(WITH_SUBS), play: expandAll}
+export const IdentitiesSubsExpanded: StoryObj = {...identities(WITH_SUBS), play: expandAll}
 
-export const IdentitiesLongNames: StoryObj = {...identitiesTab(LONG_NAMES), play: expandAll}
+export const IdentitiesLongNames: StoryObj = {...identities(LONG_NAMES), play: expandAll}
 
-export const IdentitiesWithoutDisplay = identitiesTab(WITHOUT_DISPLAY)
+export const IdentitiesWithoutDisplay = identities(WITHOUT_DISPLAY)
 
-export const IdentitiesMany = identitiesTab(MANY)
+export const IdentitiesMany = identities(MANY)
 
-export const IdentitiesExtremeCounts = identitiesTab(SWEEP, {subs: 1_000_000})
+export const IdentitiesPage2 = identities(MANY, {page: '2'})
+
+export const IdentitiesLastPage = identities(MANY, {page: lastPage(MANY.length)})
+
+export const IdentitiesExtremeCounts = identities(MANY, {counts: {direct: 2_147_483_647, good: 1_234_567_890, bad: 98_765_432, both: 1_234_567, subs: 1_000_000}})
 
 export const RegistrarsEmpty = registrarsTab([])
 
@@ -148,4 +209,10 @@ export const RegistrarsEveryCase = registrarsTab([
     retired(5, HEAD - 50_000),
 ])
 
-export const RegistrarsMany = registrarsTab(Array.from({length: 24}, (_, i) => (i % 5 === 3 ? retired(i, HEAD - 200_000 + i * 1_000) : registrar(i))))
+const manyRegistrars = Array.from({length: 45}, (_, i) => (i % 5 === 3 ? retired(i, HEAD - 200_000 + i * 1_000) : registrar(i)))
+
+export const RegistrarsMany = registrarsTab(manyRegistrars)
+
+export const RegistrarsPage2 = registrarsTab(manyRegistrars, '2')
+
+export const RegistrarsLastPage = registrarsTab(manyRegistrars, lastPage(manyRegistrars.length))

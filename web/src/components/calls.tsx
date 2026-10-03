@@ -5,7 +5,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import type {ChainProps} from '@/lib/chain'
-import type {AccountRef, CallRef, CallRow, EventRow} from '@/lib/gql'
+import type {AccountRef, CallRef, CallRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 const qualified = (c: CallRef) => `${c.pallet}.${c.method}`
@@ -27,10 +27,10 @@ const SEP = ' · '
 // how many characters of the inner line a row can hold
 const LINE = 46
 
-// identical calls collapse into a count, which is what a batch of payouts is
-function tally(leaves: CallRef[]): string[] {
+// identical names collapse into a count, which is what a batch of payouts is
+function tally(refs: CallRef[]): string[] {
     const n = new Map<string, number>()
-    for (const c of leaves) n.set(qualified(c), (n.get(qualified(c)) ?? 0) + 1)
+    for (const c of refs) n.set(qualified(c), (n.get(qualified(c)) ?? 0) + 1)
     return [...n].map(([name, count]) => (count > 1 ? `${count}× ${name}` : name))
 }
 
@@ -58,34 +58,20 @@ export function CallCell({call, leaves}: {call: CallRef; leaves?: CallRef[]}) {
     )
 }
 
-// address is the path down from the root, so sorting by it yields preorder and
-// its length is the indent. that leaves nothing to assemble
-const preorder = (a: CallRow, b: CallRow) => {
-    const n = Math.min(a.address.length, b.address.length)
-    for (let i = 0; i < n; i++) if (a.address[i] !== b.address[i]) return a.address[i] - b.address[i]
-    return a.address.length - b.address.length
-}
-
-export function CallTree({calls, events, chain, signer}: {calls: CallRow[]; events: EventRow[]; chain: ChainProps; signer: AccountRef | null}) {
-    const byCall = new Map<string, EventRow[]>()
-    for (const e of events) {
-        if (e.call == null) continue
-        const arr = byCall.get(e.call.id) ?? []
-        arr.push(e)
-        byCall.set(e.call.id, arr)
-    }
+// calls arrive in preorder, so the length of the address is all the tree there is to draw
+export function CallTree({calls, chain, signer}: {calls: CallRow[]; chain: ChainProps; signer: AccountRef | null}) {
     return (
         <Card size="flush" className="divide-y">
             {calls.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
-            {[...calls].sort(preorder).map(c => {
-                const raised = byCall.get(c.id) ?? []
+            {calls.map(c => {
+                const raised = tally(c.events)
                 const dispatched = c.origin && c.origin.id !== signer?.id ? c.origin : null
                 return (
                     <Collapsible key={c.id} defaultOpen={c.address.length === 0} className="group py-2.5 pr-5">
                         <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-3 text-left text-sm" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
                             <span className="font-mono text-[13px]">{qualified(c)}</span>
                             {!c.success && <Badge variant="neg">Failed</Badge>}
-                            {raised.length > 0 && <span className="text-[11px] text-dim">{raised.length} events</span>}
+                            {c.events.length > 0 && <span className="text-[11px] text-dim">{c.events.length} events</span>}
                         </CollapsibleTrigger>
                         <CollapsibleContent className="mt-2 space-y-2" style={{paddingLeft: `${36 + c.address.length * 22}px`}}>
                             {dispatched && (
@@ -97,9 +83,9 @@ export function CallTree({calls, events, chain, signer}: {calls: CallRow[]; even
                             <JsonBlock value={c.args} />
                             {raised.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
-                                    {raised.map(e => (
-                                        <Badge key={e.id} variant="outline" className="bg-background font-mono text-muted-foreground">
-                                            {e.pallet}.{e.method}
+                                    {raised.map(name => (
+                                        <Badge key={name} variant="outline" className="bg-background font-mono text-muted-foreground">
+                                            {name}
                                         </Badge>
                                     ))}
                                 </div>

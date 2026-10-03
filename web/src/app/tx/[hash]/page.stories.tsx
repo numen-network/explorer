@@ -1,8 +1,8 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {evmMappedAccount} from '@/lib/evm'
-import {HEAD, transfer} from '../../../../../mock/fixtures.js'
+import {HEAD, paged, transfer} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, erc20Transfer, evmAddress, evmLog, evmTx, exit, EXIT, SELECTOR, token, TOPIC, topicOf, UINT256_MAX, units, word, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
-import {pageMeta, pageStory} from '../../../../.storybook/page'
+import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import EvmTxPage from './page'
 
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
@@ -11,7 +11,10 @@ export default {title: 'Pages/EVM Transaction', ...pageMeta(EvmTxPage)}
 type Tx = ReturnType<typeof evmTx>
 
 const txPage = (tx: {id: string}, {logs = [], transfers = []}: {logs?: object[]; transfers?: object[]} = {}, searchParams = {}) =>
-    pageStory({evmTransactionById: tx, evmLogs: logs, tokenTransfers: transfers}, {params: {hash: tx.id}, searchParams})
+    pageStory(
+        {evmTransactionById: tx, evmLogs: paged(logs), evmLogsConnection: {totalCount: logs.length}, tokenTransfers: paged(transfers), tokenTransfersConnection: {totalCount: transfers.length}},
+        {params: {hash: tx.id}, searchParams}
+    )
 
 // value an EVM call moves lands as a balances transfer between the mapped substrate accounts, in the same extrinsic
 const withNative = (tx: Tx, ...moves: [from: string, to: string, amount: string][]) => ({
@@ -111,6 +114,23 @@ export const SwapEveryTab = txPage(swap, {logs: swapLogs, transfers: [wrap.trans
 export const SwapTokenTransfers = txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, {tab: 'transfers'})
 
 export const SwapLogs = txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, LOGS_TAB)
+
+const disperse = evmAddress(50)
+const airdrop = evmTx(HEAD - 80, 0, {from: alice, to: disperse, input: calldata('0xc73a2d60', WTMR.id, 0x60, 0x60), gasLimit: '4000000', gasUsed: '3412876', ...exit(EXIT.returned)})
+const drops = Array.from({length: 120}, (_, i) => erc20Transfer(airdrop, i, WTMR, disperse, evmAddress(100 + i), units(10 + i, WTMR.decimals)))
+const airdropPage = (tab: string, page = '1') => txPage(airdrop, {logs: drops.map(d => d.log), transfers: drops.map(d => d.transfer)}, {tab, page})
+
+export const AirdropTokenTransfers = airdropPage('transfers')
+
+export const AirdropTokenTransfersPage2 = airdropPage('transfers', '2')
+
+export const AirdropTokenTransfersLastPage = airdropPage('transfers', lastPage(drops.length))
+
+export const AirdropLogs = airdropPage('logs')
+
+export const AirdropLogsPage2 = airdropPage('logs', '2')
+
+export const AirdropLogsLastPage = airdropPage('logs', lastPage(drops.length))
 
 export const ExtremeNumbers = txPage(
     evmTx(HEAD - 70, 0, {value: UINT256_MAX, gasLimit: '30000000', gasUsed: '29999999', gasPrice: (10n ** 18n).toString(), nonce: 2_147_483_647, txType: 'Legacy'})

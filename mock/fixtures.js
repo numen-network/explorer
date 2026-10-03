@@ -149,3 +149,6 @@ export const transfer = (height, index, traits = {}) => ({
 
 // rows newest first, the way every list page orders them
 export const rows = (count, make) => Array.from({length: count}, (_, i) => make(HEAD - i * 7, i))
+
+// a list field answering each query with the slice its limit and offset ask for
+export const paged = list => ({limit, offset = 0}) => (limit == null ? list : list.slice(offset, offset + limit))

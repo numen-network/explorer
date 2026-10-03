@@ -137,6 +137,9 @@ export interface IdentityJudgement {
     fee?: string
 }
 
+export const GOOD_JUDGEMENTS = ['Reasonable', 'KnownGood']
+export const BAD_JUDGEMENTS = ['Erroneous', 'LowQuality']
+
 export function identityJudgements(json: unknown): IdentityJudgement[] {
     const raw = (json as {judgements?: [number, {__kind: string; value?: string}][]})?.judgements ?? []
     return raw.map(([registrar, j]) => ({registrar, kind: j.__kind, fee: j.value}))

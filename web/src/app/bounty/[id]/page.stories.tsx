@@ -1,13 +1,17 @@
+import {paged} from '../../../../../mock/fixtures.js'
 import {bounty, bountyEvents, CHILD_STATUSES, childBounty, eventsById} from '../../../../../mock/fixtures/governance.js'
-import {pageMeta, pageStory} from '../../../../.storybook/page'
+import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import BountyPage from './page'
 
 export default {title: 'Pages/Bounty', ...pageMeta(BountyPage)}
 
 type Bounty = ReturnType<typeof bounty>
 
-const detail = (b: Bounty, children: object[] = [], tab = '') =>
-    pageStory({bounties: [b], childBounties: children, events: eventsById(bountyEvents(b))}, {params: {id: String(b.index)}, searchParams: tab ? {tab} : {}})
+const detail = (b: Bounty, children: object[] = [], tab = '', page = '1') =>
+    pageStory(
+        {bounties: [b], childBounties: paged(children), childBountiesConnection: {totalCount: children.length}, events: eventsById(bountyEvents(b))},
+        {params: {id: String(b.index)}, searchParams: {tab, page}}
+    )
 
 export const Proposed = detail(bounty(9, 'Proposed'))
 
@@ -58,8 +62,10 @@ export const ChildBountiesEdgeCases = detail(
     'children'
 )
 
-export const ChildBountiesMany = detail(
-    parent,
-    Array.from({length: 36}, (_, i) => childBounty(12, i, CHILD_STATUSES[i % CHILD_STATUSES.length])),
-    'children'
-)
+const children = Array.from({length: 45}, (_, i) => childBounty(12, i, CHILD_STATUSES[i % CHILD_STATUSES.length]))
+
+export const ChildBountiesMany = detail(parent, children, 'children')
+
+export const ChildBountiesPage2 = detail(parent, children, 'children', '2')
+
+export const ChildBountiesLastPage = detail(parent, children, 'children', lastPage(children.length))

@@ -1,4 +1,5 @@
 import type {VoteShape} from './conviction'
+import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
 
 const GQL = process.env.GQL_HTTP ?? 'http://127.0.0.1:4350/graphql'
 
@@ -242,6 +243,7 @@ export interface CallRow {
     args: unknown
     success: boolean
     origin: AccountRef | null
+    events: CallRef[]
 }
 
 export interface EventRow {
@@ -293,30 +295,37 @@ export function blockDetail(idOrHash: string, page: Slice) {
 export type ExtrinsicHit = Pick<ExtrinsicRow, 'id' | 'indexInBlock' | 'hash' | 'pallet' | 'method' | 'success' | 'block'>
 
 // a hash can name more than one extrinsic, the canonical pair never can
-export function extrinsicMatches(hash: string) {
-    return gql<{extrinsics: ExtrinsicHit[]}>(
-        `query ($h: String!) {
-            extrinsics(where: {hash_eq: $h}, orderBy: id_ASC, limit: 20) { id indexInBlock hash pallet method success block { height timestamp } }
+export function extrinsicMatches(hash: string, page: Slice) {
+    return gql<{extrinsics: ExtrinsicHit[]; conn: {totalCount: number}}>(
+        `query ($h: String!, $limit: Int!, $offset: Int!) {
+            extrinsics(where: {hash_eq: $h}, orderBy: id_ASC, limit: $limit, offset: $offset) { id indexInBlock hash pallet method success block { height timestamp } }
+            conn: extrinsicsConnection(where: {hash_eq: $h}, orderBy: id_ASC) { totalCount }
         }`,
-        {h: hash.toLowerCase()}
+        {h: hash.toLowerCase(), limit: page.limit, offset: page.offset}
     )
 }
 
-export function extrinsicDetail(height: number, index: number) {
+// squid pads every step of a call's address into its id, so id order is the
+// call tree in preorder and a page of it keeps each call at its own depth
+export function extrinsicDetail(height: number, index: number, page: Slice) {
     const of = `{extrinsic: {block: {height_eq: $height}, indexInBlock_eq: $index}}`
     return gql<{
         extrinsics: ExtrinsicRow[]
         calls: CallRow[]
+        callCount: {totalCount: number}
         events: EventRow[]
+        eventCount: {totalCount: number}
         evm: {id: string}[]
     }>(
-        `query ($height: Int!, $index: Int!) {
+        `query ($height: Int!, $index: Int!, $limit: Int!, $offset: Int!) {
             extrinsics(where: {block: {height_eq: $height}, indexInBlock_eq: $index}, limit: 1) { ${EXTRINSIC_FIELDS} }
-            calls(where: ${of}, orderBy: id_ASC, limit: 500) { id address pallet method args success origin { ${ACCOUNT_REF} } }
-            events(where: ${of}, orderBy: indexInBlock_ASC, limit: 200) { ${EVENT_FIELDS} }
+            calls(where: ${of}, orderBy: id_ASC, limit: $limit, offset: $offset) { id address pallet method args success origin { ${ACCOUNT_REF} } events(orderBy: indexInBlock_ASC) { pallet method } }
+            callCount: callsConnection(where: ${of}, orderBy: id_ASC) { totalCount }
+            events(where: ${of}, orderBy: indexInBlock_ASC, limit: $limit, offset: $offset) { ${EVENT_FIELDS} }
+            eventCount: eventsConnection(where: ${of}, orderBy: id_ASC) { totalCount }
             evm: evmTransactions(where: ${of}, limit: 1) { id }
         }`,
-        {height, index}
+        {height, index, limit: page.limit, offset: page.offset}
     )
 }
 
@@ -386,6 +395,7 @@ export interface AccountSummary {
     retiredRegistrars: {index: number}[]
     prime: {id: string}[]
     minerDays: {day: string; blocks: number}[]
+    nMined: {totalCount: number}
     curated: {totalCount: number}
     childCurated: {totalCount: number}
     nTransfers: {totalCount: number}
@@ -433,7 +443,6 @@ export interface GovDepositRow {
 
 // everything the header and the tab strip need and nothing else, the rows a tab
 // shows are that tab's own business. counts come back as connection tallies
-// except mining, which has no group by and so has to add up its own days
 export function accountSummary(idHex: string) {
     const self = `{id_eq: $id}`
     return gql<AccountSummary>(
@@ -444,6 +453,7 @@ export function accountSummary(idHex: string) {
             retiredRegistrars: registrars(where: {retiredAt_isNull: false}) { index }
             prime: primeStates(where: {account: ${self}}, limit: 1) { id }
             minerDays: minerDayStats(where: {account: ${self}}, orderBy: day_DESC, limit: 60) { day blocks }
+            nMined: blocksConnection(orderBy: id_ASC, where: {author: ${self}}) { totalCount }
             curated: bountiesConnection(orderBy: index_ASC, where: {curator: ${self}}) { totalCount }
             childCurated: childBountiesConnection(orderBy: id_ASC, where: {curator: ${self}}) { totalCount }
             nTransfers: transfersConnection(orderBy: id_ASC, where: {OR: [{from: ${self}}, {to: ${self}}]}) { totalCount }
@@ -457,14 +467,14 @@ export function accountSummary(idHex: string) {
             nProxyIn: proxyRelationsConnection(orderBy: id_ASC, where: {delegatee: ${self}}) { totalCount }
             nMultisig: multisigOpsConnection(orderBy: id_ASC, where: {OR: [{multisig: ${self}}, {depositor: ${self}}]}) { totalCount }
             nMultisigSelf: multisigOpsConnection(orderBy: id_ASC, where: {multisig: ${self}}) { totalCount }
-            msigPending: multisigOps(where: {depositor: ${self}, status_in: ["NewMultisig", "MultisigApproval"]}, orderBy: id_ASC, limit: 100) { threshold deposit }
-            govDeposits: referendums(where: {OR: [{submissionDepositor_eq: $id}, {decisionDepositor_eq: $id}]}, orderBy: index_ASC, limit: 100) {
+            msigPending: multisigOps(where: {depositor: ${self}, status_in: ["NewMultisig", "MultisigApproval"]}, orderBy: id_ASC) { threshold deposit }
+            govDeposits: referendums(where: {OR: [{submissionDepositor_eq: $id}, {decisionDepositor_eq: $id}]}, orderBy: index_ASC) {
                 index submissionDepositor submissionDeposit decisionDepositor decisionDeposit
             }
-            bountyDeposits: bounties(where: {OR: [{proposer: ${self}}, {curator: ${self}}]}, orderBy: index_ASC, limit: 100) {
+            bountyDeposits: bounties(where: {OR: [{proposer: ${self}}, {curator: ${self}}]}, orderBy: index_ASC) {
                 index bond curatorDeposit proposer { id } curator { id }
             }
-            childBountyDeposits: childBounties(where: {curator: ${self}}, orderBy: id_ASC, limit: 100) {
+            childBountyDeposits: childBounties(where: {curator: ${self}}, orderBy: id_ASC) {
                 parent { index } childIndex curatorDeposit
             }
             nVotes: votesConnection(orderBy: id_ASC, where: {voter: ${self}}) { totalCount }
@@ -484,10 +494,13 @@ export async function tokenCounts(address: string) {
     return {transfers: transfers.totalCount, holdings: holdings.totalCount}
 }
 
-export function votesFor(idHex: string) {
-    return gql<{votes: VoteRow[]}>(
-        `query ($id: String!) { votes(where: {voter: {id_eq: $id}}, orderBy: block_DESC, limit: 100) { ${VOTE_FIELDS} referendum { index status endedAt } } }`,
-        {id: idHex}
+export function votesFor(idHex: string, limit: number, offset: number) {
+    return gql<{votes: VoteRow[]; conn: {totalCount: number}}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            votes(where: {voter: {id_eq: $id}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index status endedAt } }
+            conn: votesConnection(where: {voter: {id_eq: $id}}, orderBy: id_ASC) { totalCount }
+        }`,
+        {id: idHex, limit, offset}
     )
 }
 
@@ -500,25 +513,29 @@ export function delegationsOutFor(idHex: string) {
     )
 }
 
-export function proxiesFor(idHex: string) {
-    return gql<{out: ProxyRow[]; in: ProxyRow[]}>(
-        `query ($id: String!) {
+export function proxiesFor(idHex: string, limit: number, offset: number) {
+    return gql<{out: ProxyRow[]; in: ProxyRow[]; inCount: {totalCount: number}}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
             out: proxyRelations(where: {delegator: {id_eq: $id}}, orderBy: id_ASC, limit: 100) { id proxyType delay delegatee { ${ACCOUNT_REF} } }
-            in: proxyRelations(where: {delegatee: {id_eq: $id}}, orderBy: id_ASC, limit: 100) { id proxyType delay delegator { ${ACCOUNT_REF} } }
+            in: proxyRelations(where: {delegatee: {id_eq: $id}}, orderBy: id_ASC, limit: $limit, offset: $offset) { id proxyType delay delegator { ${ACCOUNT_REF} } }
+            inCount: proxyRelationsConnection(where: {delegatee: {id_eq: $id}}, orderBy: id_ASC) { totalCount }
         }`,
-        {id: idHex}
+        {id: idHex, limit, offset}
     )
 }
 
-export function multisigOpsFor(idHex: string) {
-    return gql<{multisigOps: MultisigOpRow[]}>(
-        `query ($id: String!) {
-            multisigOps(where: {OR: [{multisig: {id_eq: $id}}, {depositor: {id_eq: $id}}]}, orderBy: updatedBlock_DESC, limit: 100) {
+export function multisigOpsFor(idHex: string, limit: number, offset: number) {
+    const mine = '{OR: [{multisig: {id_eq: $id}}, {depositor: {id_eq: $id}}]}'
+    return gql<{multisigOps: MultisigOpRow[]; conn: {totalCount: number}; signed: {threshold: number | null; signatories: string[] | null}[]}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            multisigOps(where: ${mine}, orderBy: [updatedBlock_DESC, id_DESC], limit: $limit, offset: $offset) {
                 id callHash approvals threshold signatories status result createdBlock updatedBlock
                 multisig { ${ACCOUNT_REF} } depositor { ${ACCOUNT_REF} }
             }
+            conn: multisigOpsConnection(where: ${mine}, orderBy: id_ASC) { totalCount }
+            signed: multisigOps(where: {multisig: {id_eq: $id}, signatories_isNull: false}, orderBy: [updatedBlock_DESC, id_DESC], limit: 1) { threshold signatories }
         }`,
-        {id: idHex}
+        {id: idHex, limit, offset}
     )
 }
 
@@ -556,17 +573,36 @@ export interface IdentityRow extends AccountRef {
 
 const HAS_IDENTITY = '{identityJson_isNull: false}'
 
-// the verdict behind each badge is read off the registration itself, so the
-// tallies walk every registration rather than a column
-const IDENTITY_SWEEP = 10000
+// a registration lists its judgements as [registrar, verdict] pairs, so a
+// verdict kind is found by containment
+const judged = (kinds: string[]) => `{OR: [${kinds.map(k => `{identityJson_jsonContains: {judgements: [[{__kind: "${k}"}]]}}`).join(', ')}]}`
 
-export function identityCounts() {
-    return gql<{registered: {id: string; identityJson: unknown}[]; subs: {totalCount: number}}>(
+export async function identityCounts() {
+    const tally = (where: string) => `accountsConnection(orderBy: id_ASC, where: ${where}) { totalCount }`
+    const good = judged(GOOD_JUDGEMENTS)
+    const bad = judged(BAD_JUDGEMENTS)
+    const r = await gql<Record<'direct' | 'good' | 'goodAndBad' | 'bad' | 'subs' | 'registrars' | 'retired', {totalCount: number}> & {latest: {lastJudgementBlock: number | null}[]}>(
         `query {
-            registered: accounts(where: ${HAS_IDENTITY}, orderBy: id_ASC, limit: ${IDENTITY_SWEEP}) { id identityJson }
-            subs: accountsConnection(orderBy: id_ASC, where: {identitySuper_isNull: false}) { totalCount }
+            direct: ${tally(HAS_IDENTITY)}
+            good: ${tally(good)}
+            goodAndBad: ${tally(`{AND: [${good}, ${bad}]}`)}
+            bad: ${tally(bad)}
+            subs: ${tally('{identitySuper_isNull: false}')}
+            registrars: registrarsConnection(orderBy: index_ASC) { totalCount }
+            retired: registrarsConnection(orderBy: index_ASC, where: {retiredAt_isNull: false}) { totalCount }
+            latest: registrars(orderBy: [lastJudgementBlock_DESC_NULLS_LAST, index_ASC], limit: 1) { lastJudgementBlock }
         }`
     )
+    return {
+        direct: r.direct.totalCount,
+        // a bad verdict outweighs a good one
+        verified: r.good.totalCount - r.goodAndBad.totalCount,
+        flagged: r.bad.totalCount,
+        subs: r.subs.totalCount,
+        registrars: r.registrars.totalCount,
+        retired: r.retired.totalCount,
+        latestJudgement: r.latest[0]?.lastJudgementBlock ?? null,
+    }
 }
 
 export function identitiesPage(limit: number, offset: number) {
@@ -593,15 +629,19 @@ export interface RegistrarRow {
     account: AccountRef | null
 }
 
-export function registrarsList() {
+const REGISTRAR_FIELDS = `id index fee addedAt retiredAt requestCount givenCount lastJudgementBlock lastJudgementAt account { ${ACCOUNT_REF} }`
+
+export function registrarsPage(limit: number, offset: number) {
     return gql<{registrars: RegistrarRow[]}>(
-        `query {
-            registrars(orderBy: index_ASC, limit: 100) {
-                id index fee addedAt retiredAt requestCount givenCount lastJudgementBlock lastJudgementAt
-                account { ${ACCOUNT_REF} }
-            }
-        }`
+        `query ($limit: Int!, $offset: Int!) {
+            registrars(orderBy: index_ASC, limit: $limit, offset: $offset) { ${REGISTRAR_FIELDS} }
+        }`,
+        {limit, offset}
     )
+}
+
+export function registrarsByIndex(indexes: number[]) {
+    return gql<{registrars: RegistrarRow[]}>(`query ($indexes: [Int!]) { registrars(where: {index_in: $indexes}) { ${REGISTRAR_FIELDS} } }`, {indexes})
 }
 
 export function transfersFor(idHex: string, dir: 'in' | 'out' | '', limit: number, offset: number) {
@@ -870,35 +910,46 @@ export interface EvmTxDetailRow extends EvmTxRow {
 
 const EVM_TX_FIELDS = `id txIndex from to contractAddress value input inputSelector nonce gasLimit gasUsed gasPrice txType status exitReason timestamp block { height } extrinsic { id }`
 
-export function evmTxDetail(hash: string) {
+// a token transfer is keyed by the log that raised it, so id order is log order
+export function evmTxDetail(hash: string, page: Slice) {
+    const tx = '{transaction: {id_eq: $id}}'
     return gql<{
         evmTransactionById: EvmTxDetailRow | null
         evmLogs: {id: string; logIndex: number; address: string; topics: string[]; data: string}[]
+        logCount: {totalCount: number}
         tokenTransfers: TokenTransferRow[]
+        tokenTransferCount: {totalCount: number}
     }>(
-        `query ($id: String!) {
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
             evmTransactionById(id: $id) { ${EVM_TX_FIELDS} extrinsic { transfers(orderBy: id_ASC) { ${TRANSFER_FIELDS} } } }
-            evmLogs(where: {transaction: {id_eq: $id}}, orderBy: logIndex_ASC, limit: 100) { id logIndex address topics data }
-            tokenTransfers(where: {transaction: {id_eq: $id}}, limit: 50) { ${TOKEN_TRANSFER_FIELDS} }
+            evmLogs(where: ${tx}, orderBy: logIndex_ASC, limit: $limit, offset: $offset) { id logIndex address topics data }
+            logCount: evmLogsConnection(where: ${tx}, orderBy: id_ASC) { totalCount }
+            tokenTransfers(where: ${tx}, orderBy: id_ASC, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
+            tokenTransferCount: tokenTransfersConnection(where: ${tx}, orderBy: id_ASC) { totalCount }
         }`,
-        {id: hash}
+        {id: hash, limit: page.limit, offset: page.offset}
     )
 }
 
-export function evmAddressData(address: string) {
+export function evmAddressData(address: string, page: Slice) {
+    const txs = '{OR: [{from_eq: $a}, {to_eq: $a}, {contractAddress_eq: $a}]}'
     return gql<{
         txs: EvmTxRow[]
+        txCount: {totalCount: number}
         holdings: HoldingRow[]
+        holdingCount: {totalCount: number}
         created: {id: string}[]
         asToken: TokenRow | null
     }>(
-        `query ($a: String!) {
-            txs: evmTransactions(where: {OR: [{from_eq: $a}, {to_eq: $a}, {contractAddress_eq: $a}]}, orderBy: timestamp_DESC, limit: 25) { ${EVM_TX_FIELDS} }
-            holdings: tokenHolders(where: {address_eq: $a}, orderBy: balance_DESC_NULLS_LAST, limit: 50) { balance token { ${TOKEN_FIELDS} } }
+        `query ($a: String!, $limit: Int!, $offset: Int!) {
+            txs: evmTransactions(where: ${txs}, orderBy: [timestamp_DESC, txIndex_DESC], limit: $limit, offset: $offset) { ${EVM_TX_FIELDS} }
+            txCount: evmTransactionsConnection(where: ${txs}, orderBy: id_ASC) { totalCount }
+            holdings: tokenHolders(where: {address_eq: $a}, orderBy: [balance_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
+            holdingCount: tokenHoldersConnection(where: {address_eq: $a}, orderBy: id_ASC) { totalCount }
             created: evmTransactions(where: {contractAddress_eq: $a}, limit: 1) { id }
             asToken: tokenById(id: $a) { ${TOKEN_FIELDS} }
         }`,
-        {a: address}
+        {a: address, limit: page.limit, offset: page.offset}
     )
 }
 
@@ -1012,13 +1063,14 @@ export interface ChildBountyRow {
 const BOUNTY_FIELDS = `id index value fee description status unlockAt updateDue payout createdAt updatedAt timeline proposer { ${ACCOUNT_REF} } curator { ${ACCOUNT_REF} } beneficiary { ${ACCOUNT_REF} }`
 
 
-export function bountyDetail(index: number) {
-    return gql<{bounties: BountyRow[]; childBounties: ChildBountyRow[]}>(
-        `query ($index: Int!) {
+export function bountyDetail(index: number, page: Slice) {
+    return gql<{bounties: BountyRow[]; childBounties: ChildBountyRow[]; childCount: {totalCount: number}}>(
+        `query ($index: Int!, $limit: Int!, $offset: Int!) {
             bounties(where: {index_eq: $index}, limit: 1) { ${BOUNTY_FIELDS} }
-            childBounties(where: {parent: {index_eq: $index}}, orderBy: childIndex_ASC, limit: 100) { id childIndex value fee description status payout updatedAt curator { ${ACCOUNT_REF} } beneficiary { ${ACCOUNT_REF} } }
+            childBounties(where: {parent: {index_eq: $index}}, orderBy: childIndex_ASC, limit: $limit, offset: $offset) { id childIndex value fee description status payout updatedAt curator { ${ACCOUNT_REF} } beneficiary { ${ACCOUNT_REF} } }
+            childCount: childBountiesConnection(where: {parent: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
         }`,
-        {index}
+        {index, limit: page.limit, offset: page.offset}
     )
 }
 
@@ -1174,14 +1226,14 @@ export interface MetadataActionRow {
     timestamp: string
 }
 
-export function referendumDetail(index: number) {
+export function referendumDetail(index: number, page: Slice) {
     const tally = (shape: string) => `votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false, ${shape}}, orderBy: id_ASC) { totalCount }`
     return gql<{
         referendums: ReferendumDetailRow[]
         votes: VoteRow[]
         voteActions: VoteActionRow[]
         metadataActions: MetadataActionRow[]
-        snapshots: TallySnapshotRow[]
+        metadataCount: {totalCount: number}
         dailyStats: {issuanceTotal: string; issuanceInactive: string}[]
         voteCount: {totalCount: number}
         ayeCount: {totalCount: number}
@@ -1189,12 +1241,12 @@ export function referendumDetail(index: number) {
         abstainCount: {totalCount: number}
         splitCount: {totalCount: number}
     }>(
-        `query ($index: Int!) {
+        `query ($index: Int!, $limit: Int!, $offset: Int!) {
             referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalArgs }
             votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: balance_DESC_NULLS_LAST, limit: 200) { ${VOTE_FIELDS} voter { ${ACCOUNT_REF} } referendum { index } }
             voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id method kind aye conviction balance ayeAmount nayAmount abstainAmount delegatedVotes block timestamp voter { ${ACCOUNT_REF} } }
-            metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 200) { id method hash title description block timestamp }
-            snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}}, orderBy: block_ASC, limit: 5000) { block ayes nays support totalIssuance inactiveIssuance }
+            metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
+            metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }
             voteCount: votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC) { totalCount }
             ayeCount: ${tally('kind_eq: "Standard", aye_eq: true')}
@@ -1202,7 +1254,19 @@ export function referendumDetail(index: number) {
             abstainCount: ${tally('kind_eq: "SplitAbstain"')}
             splitCount: ${tally('kind_eq: "Split"')}
         }`,
-        {index}
+        {index, limit: page.limit, offset: page.offset}
+    )
+}
+
+// the curves plot every snapshot
+export function tallySnapshots(index: number) {
+    return sweep(page =>
+        gql<{snapshots: TallySnapshotRow[]}>(
+            `query ($index: Int!, $limit: Int!, $offset: Int!) {
+                snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}}, orderBy: block_ASC, limit: $limit, offset: $offset) { block ayes nays support totalIssuance inactiveIssuance }
+            }`,
+            {index, ...page}
+        ).then(r => r.snapshots)
     )
 }
 
@@ -1288,8 +1352,15 @@ export interface ValidatorRow {
 
 const VALIDATOR_FIELDS = `id active lockedAmount lockExpiry offlineSessions equivocations kicked firstSeenBlock lastActiveSession account { ${ACCOUNT_REF} }`
 
-export function validatorsData() {
-    return gql<{validators: ValidatorRow[]}>(`query { validators(orderBy: lastActiveSession_DESC, limit: 200) { ${VALIDATOR_FIELDS} } }`)
+export function validatorsPage(limit: number, offset: number) {
+    return gql<{validators: ValidatorRow[]; all: {totalCount: number}; active: {totalCount: number}}>(
+        `query ($limit: Int!, $offset: Int!) {
+            validators(orderBy: [lastActiveSession_DESC, id_ASC], limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} }
+            all: validatorsConnection(orderBy: id_ASC) { totalCount }
+            active: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
+        }`,
+        {limit, offset}
+    )
 }
 
 export interface MinerDayRow {
@@ -1299,28 +1370,35 @@ export interface MinerDayRow {
     account: AccountRef
 }
 
-const MINER_DAY_PAGE = 5000
+const SWEEP = 5000
+
+// rows that only make sense whole are read a page at a time until a page comes back short
+async function sweep<T>(read: (page: Slice) => Promise<T[]>): Promise<T[]> {
+    const rows: T[] = []
+    for (let offset = 0; ; offset += SWEEP) {
+        const batch = await read({limit: SWEEP, offset})
+        rows.push(...batch)
+        if (batch.length < SWEEP) return rows
+    }
+}
 
 // a long window over many miners runs past any single page
-export async function minerDays(sinceDay: string): Promise<MinerDayRow[]> {
-    const rows: MinerDayRow[] = []
-    for (let offset = 0; ; offset += MINER_DAY_PAGE) {
-        const {minerDayStats} = await gql<{minerDayStats: MinerDayRow[]}>(
+export function minerDays(sinceDay: string): Promise<MinerDayRow[]> {
+    return sweep(page =>
+        gql<{minerDayStats: MinerDayRow[]}>(
             `query ($since: String!, $limit: Int!, $offset: Int!) {
                 minerDayStats(where: {day_gte: $since}, orderBy: id_ASC, limit: $limit, offset: $offset) { day blocks rewards account { ${ACCOUNT_REF} } }
             }`,
-            {since: sinceDay, limit: MINER_DAY_PAGE, offset}
-        )
-        rows.push(...minerDayStats)
-        if (minerDayStats.length < MINER_DAY_PAGE) return rows
-    }
+            {since: sinceDay, ...page}
+        ).then(r => r.minerDayStats)
+    )
 }
 
 export function chartSeries(after: string, before: string) {
     const day = [after && `date_gte: "${after}T00:00:00.000Z"`, before && `date_lte: "${before}T00:00:00.000Z"`].filter(Boolean)
     return gql<{dailyStats: DailyRow[]}>(
         `query {
-            dailyStats(${clause(day)}orderBy: date_ASC, limit: 4000) { ${DAILY_FIELDS} }
+            dailyStats(${clause(day)}orderBy: date_ASC) { ${DAILY_FIELDS} }
         }`
     )
 }

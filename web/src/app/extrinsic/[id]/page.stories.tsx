@@ -1,8 +1,8 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {userEvent, within} from 'storybook/test'
-import {extrinsic, HEAD, hashOf} from '../../../../../mock/fixtures.js'
-import {batchAll, batchInterrupted, evmTransact, evmTxHash, failedVoteRemoval, heartbeat, mined, pick, proxied, referendumSubmission, signedCall, timestampSet, tipped, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
-import {pageMeta, pageStory} from '../../../../.storybook/page'
+import {extrinsic, HEAD, hashOf, paged} from '../../../../../mock/fixtures.js'
+import {batchAll, batchInterrupted, batchOfProxies, evmTransact, evmTxHash, failedVoteRemoval, heartbeat, mined, pick, proxied, referendumSubmission, signedCall, timestampSet, tipped, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
+import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ExtrinsicPage from './page'
 
 export default {title: 'Pages/Extrinsic', ...pageMeta(ExtrinsicPage)}
@@ -11,14 +11,20 @@ type Picked = ReturnType<typeof pick>
 type Spec = Parameters<typeof mined>[1][number]
 
 const H = HEAD - 120
-const QUERY_LIMIT = {calls: 500, events: 200}
 
 const of = (spec: Spec) => pick(mined(H, [timestampSet, spec]), 1)
 
-function detail({extrinsics, calls, events}: Picked, {tab = '', evm = false} = {}) {
+function detail({extrinsics, calls, events}: Picked, {tab = '', page = '1', evm = false} = {}) {
     const [x] = extrinsics
-    const data = {extrinsics, calls: calls.slice(0, QUERY_LIMIT.calls), events: events.slice(0, QUERY_LIMIT.events), evmTransactions: evm ? [{id: evmTxHash(H)}] : []}
-    return pageStory(data, {params: {id: `${x.block.height}-${x.indexInBlock}`}, searchParams: tab ? {tab} : {}})
+    const data = {
+        extrinsics,
+        calls: paged(calls),
+        callsConnection: {totalCount: calls.length},
+        events: paged(events),
+        eventsConnection: {totalCount: events.length},
+        evmTransactions: evm ? [{id: evmTxHash(H)}] : [],
+    }
+    return pageStory(data, {params: {id: `${x.block.height}-${x.indexInBlock}`}, searchParams: {tab, page}})
 }
 
 const expandAll: StoryObj['play'] = async ({canvasElement}) => {
@@ -37,6 +43,10 @@ const hit = (height: number, index: number) => {
     const {id, indexInBlock, pallet, method, success, block} = extrinsic(height, index)
     return {id, indexInBlock, hash: shared, pallet, method, success, block}
 }
+
+const ambiguous = (hits: object[], page = '1') => pageStory({extrinsics: paged(hits), extrinsicsConnection: {totalCount: hits.length}}, {params: {id: shared}, searchParams: {page}})
+
+const replays = Array.from({length: 45}, (_, i) => hit(300_000 + i * 15_000, 1 + (i % 3)))
 
 export const Transfer = detail(of(transfer))
 
@@ -66,13 +76,29 @@ export const ProxyNestedExpanded: StoryObj = {...detail(of(proxied)), play: expa
 
 export const ProxyNestedEvents = detail(of(proxied), {tab: 'events'})
 
+const twoDepths = of(batchOfProxies)
+
+export const TwoDepthsCalls = detail(twoDepths)
+
+export const TwoDepthsCallsPage2 = detail(twoDepths, {tab: 'calls', page: '2'})
+
 export const ReferendumSubmissionLongArgs = detail(of(referendumSubmission))
 
 export const RuntimeUpgradePreimage = detail(of(notePreimage))
 
 export const RuntimeUpgradeFeeWaived = detail(of(applyUpgrade))
 
-export const PayoutBatchOverQueryLimits = detail(payout, {tab: 'events'})
+export const PayoutBatchCalls = detail(payout)
+
+export const PayoutBatchCallsPage2 = detail(payout, {tab: 'calls', page: '2'})
+
+export const PayoutBatchCallsLastPage = detail(payout, {tab: 'calls', page: lastPage(payout.calls.length)})
+
+export const PayoutBatchEvents = detail(payout, {tab: 'events'})
+
+export const PayoutBatchEventsPage2 = detail(payout, {tab: 'events', page: '2'})
+
+export const PayoutBatchEventsLastPage = detail(payout, {tab: 'events', page: lastPage(payout.events.length)})
 
 export const ExtremeFeeAndTip = detail(of(whale))
 
@@ -80,4 +106,8 @@ export const CallsEmpty = detail({...of(transfer), calls: []})
 
 export const EventsEmpty = detail({...of(transfer), events: []}, {tab: 'events'})
 
-export const AmbiguousHash = pageStory({extrinsics: [hit(412_007, 3), hit(698_311, 1), hit(HEAD - 42, 2)]}, {params: {id: shared}})
+export const AmbiguousHash = ambiguous([hit(412_007, 3), hit(698_311, 1), hit(HEAD - 42, 2)])
+
+export const AmbiguousHashMany = ambiguous(replays)
+
+export const AmbiguousHashLastPage = ambiguous(replays, lastPage(replays.length))

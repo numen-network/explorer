@@ -1,4 +1,4 @@
-import {at, chainInfo, hashOf, HEAD, issuance, numn, PEOPLE, person, squidId, SUBMISSION_DEPOSIT} from '../fixtures.js'
+import {at, chainInfo, hashOf, HEAD, issuance, numn, paged, PEOPLE, person, squidId, SUBMISSION_DEPOSIT} from '../fixtures.js'
 
 const heightOf = id => Number(id.split('-')[0])
 const indexOf = id => Number(id.split('-').at(-1))
@@ -24,10 +24,7 @@ const FACETS = {
 const matches = (row, where = {}) => Object.entries(where).every(([field, v]) => FACETS[field]?.(row, v) ?? true)
 
 // a list field answering each query with the page of rows its filters pick
-export const listed = rows => ({where, limit, offset = 0}) => {
-    const hits = rows.filter(row => matches(row, where))
-    return limit == null ? hits : hits.slice(offset, offset + limit)
-}
+export const listed = rows => args => paged(rows.filter(row => matches(row, args.where)))(args)
 
 // a connection field counting the rows each query's filters pick
 export const counted = rows => ({where}) => ({totalCount: rows.filter(row => matches(row, where)).length})

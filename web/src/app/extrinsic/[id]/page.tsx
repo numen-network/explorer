@@ -3,6 +3,7 @@ import {notFound, redirect} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow, JsonBlock} from '@/components/Detail'
 import {EventsTable} from '@/components/EventsTable'
+import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import AccountLink from '@/components/AccountLink'
@@ -14,6 +15,7 @@ import {Item} from '@/components/ui/item'
 import {chainProps} from '@/lib/chain'
 import {extrinsicPath, fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {extrinsicDetail, extrinsicMatches, type ExtrinsicHit} from '@/lib/gql'
+import {paging, type Paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -26,11 +28,11 @@ export async function generateMetadata(props: PageProps<'/extrinsic/[id]'>) {
 const CANONICAL = /^(\d+)-(\d+)$/
 
 // two extrinsics can share a hash, picking one of them silently would be a lie
-function Ambiguous({hash, hits}: {hash: string; hits: ExtrinsicHit[]}) {
+function Ambiguous({hash, hits, total, pg}: {hash: string; hits: ExtrinsicHit[]; total: number; pg: Paging}) {
     return (
         <div>
             <h1 className="mt-6 text-lg font-semibold">Extrinsic {shortHash(hash, 10, 6)}</h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">{fmtInt(hits.length)} extrinsics share this hash, pick the block you meant.</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">{fmtInt(total)} extrinsics share this hash, pick the block you meant.</p>
             <Card size="flush" className="mt-3 divide-y">
                 {hits.map(h => (
                     <Item key={h.id} asChild className="justify-between gap-4 rounded-none border-0 px-5 py-3 [a]:hover:bg-background/60">
@@ -48,6 +50,7 @@ function Ambiguous({hash, hits}: {hash: string; hits: ExtrinsicHit[]}) {
                     </Item>
                 ))}
             </Card>
+            <Pager paging={pg} total={total} href={`/extrinsic/${hash}`} />
         </div>
     )
 }
@@ -55,25 +58,37 @@ function Ambiguous({hash, hits}: {hash: string; hits: ExtrinsicHit[]}) {
 export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>) {
     const [{id}, sp] = await Promise.all([props.params, props.searchParams])
     const raw = decodeURIComponent(id)
+    const pg = paging(sp)
     const chain = await chainProps()
 
     const canonical = CANONICAL.exec(raw)
     if (!canonical) {
         if (!/^0x[0-9a-fA-F]{64}$/.test(raw)) notFound()
-        const {extrinsics} = await extrinsicMatches(raw)
+        const {extrinsics, conn} = await extrinsicMatches(raw, {limit: pg.size, offset: pg.offset})
         if (extrinsics.length === 0) notFound()
-        if (extrinsics.length === 1) redirect(`/extrinsic/${extrinsicPath(extrinsics[0].id)}`)
-        return <Ambiguous hash={raw} hits={extrinsics} />
+        if (conn.totalCount === 1) redirect(`/extrinsic/${extrinsicPath(extrinsics[0].id)}`)
+        return <Ambiguous hash={raw} hits={extrinsics} total={conn.totalCount} pg={pg} />
     }
 
-    const data = await extrinsicDetail(Number(canonical[1]), Number(canonical[2]))
+    const data = await extrinsicDetail(Number(canonical[1]), Number(canonical[2]), {limit: pg.size, offset: pg.offset})
     const x = data.extrinsics[0]
     if (!x) notFound()
+    const path = `/extrinsic/${x.block.height}-${x.indexInBlock}`
+
+    const calls = (
+        <>
+            <CallTree calls={data.calls} chain={chain} signer={x.signer} />
+            <Pager paging={pg} total={data.callCount.totalCount} href={`${path}?tab=calls`} />
+        </>
+    )
 
     const events = (
-        <Card size="flush">
-            <EventsTable rows={data.events} view="extrinsic" parent={{pallet: x.pallet, method: x.method}} />
-        </Card>
+        <>
+            <Card size="flush">
+                <EventsTable rows={data.events} view="extrinsic" parent={{pallet: x.pallet, method: x.method}} />
+            </Card>
+            <Pager paging={pg} total={data.eventCount.totalCount} href={`${path}?tab=events`} />
+        </>
     )
 
     return (
@@ -135,15 +150,10 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
 
             <TabPanels
                 at={typeof sp.tab === 'string' ? sp.tab : undefined}
-                href={slug => `/extrinsic/${x.block.height}-${x.indexInBlock}?tab=${slug}`}
+                href={slug => `${path}?tab=${slug}`}
                 panels={[
-                    {
-                        slug: 'calls',
-                        label: 'Calls',
-                        count: data.calls.length,
-                        body: () => <CallTree calls={data.calls} events={data.events} chain={chain} signer={x.signer} />,
-                    },
-                    {slug: 'events', label: 'Events', count: data.events.length, body: () => events},
+                    {slug: 'calls', label: 'Calls', count: data.callCount.totalCount, body: () => calls},
+                    {slug: 'events', label: 'Events', count: data.eventCount.totalCount, body: () => events},
                 ]}
             />
         </div>

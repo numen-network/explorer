@@ -1,13 +1,16 @@
 import AccountLink from '@/components/AccountLink'
+import Pager from '@/components/Pager'
 import {Card} from '@/components/ui/card'
 import {multisigOpsFor} from '@/lib/gql'
+import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {MultisigTable} from './MultisigTable'
-import type {TabCtx} from './shared'
+import {tabHref, type TabCtx} from './shared'
 
-export default async function Multisig({hex, chain}: TabCtx) {
-    const {multisigOps} = await multisigOpsFor(hex)
-    const sigOp = multisigOps.find(o => o.multisig.id === hex && o.signatories != null)
+export default async function Multisig({hex, addr, chain, sp}: TabCtx) {
+    const pg = paging(sp)
+    const {multisigOps, conn, signed} = await multisigOpsFor(hex, pg.size, pg.offset)
+    const sigOp = signed[0]
 
     return (
         <div>
@@ -26,6 +29,7 @@ export default async function Multisig({hex, chain}: TabCtx) {
             <Card size="flush">
                 <MultisigTable rows={multisigOps} hex={hex} chain={chain} />
             </Card>
+            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'multisig')} />
         </div>
     )
 }

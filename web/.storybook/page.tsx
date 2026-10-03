@@ -1,5 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {cloneElement, isValidElement, type ReactNode} from 'react'
+import {paging} from '../src/lib/paging'
 import {base} from '../../mock/fixtures.js'
 import {graphqlData} from './graphql'
 
@@ -38,3 +39,6 @@ export const pageMeta = <P extends PageProps>(page: (props: P) => Promise<ReactN
 export const pageStory = (data: Record<string, unknown>, {params = {}, searchParams = {}} = {}): StoryObj => ({
     parameters: {params, searchParams, msw: [graphqlData({...base, ...data})]},
 })
+
+// the page a list ends on at the default page size
+export const lastPage = (total: number) => String(Math.ceil(total / paging({}).size))

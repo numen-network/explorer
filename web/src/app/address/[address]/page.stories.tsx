@@ -1,6 +1,6 @@
-import {rows} from '../../../../../mock/fixtures.js'
+import {paged, rows} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, EVERY_HOLDING, evmAddress, evmTx, exit, EXIT, holding, holdings, SELECTOR, token, UINT256_MAX, units, WTMR} from '../../../../../mock/fixtures/evm.js'
-import {pageMeta, pageStory} from '../../../../.storybook/page'
+import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import EvmAddressPage from './page'
 
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
@@ -15,7 +15,16 @@ interface AddressData {
 
 // the page asks evmTransactions twice, for the address's own list and for the tx that created it
 const addressPage = (address: string, {txs = [], holdings = [], created = [], asToken = null}: AddressData = {}, searchParams = {}) =>
-    pageStory({evmTransactions: ({where}: {where: {OR?: unknown}}) => (where.OR ? txs : created), tokenHolders: holdings, tokenById: asToken}, {params: {address}, searchParams})
+    pageStory(
+        {
+            evmTransactions: (args: {where: {OR?: unknown}; limit: number; offset: number}) => (args.where.OR ? paged(txs)(args) : created),
+            evmTransactionsConnection: {totalCount: txs.length},
+            tokenHolders: paged(holdings),
+            tokenHoldersConnection: {totalCount: holdings.length},
+            tokenById: asToken,
+        },
+        {params: {address}, searchParams}
+    )
 
 const HOLDINGS_TAB = {tab: 'holdings'}
 
@@ -40,13 +49,25 @@ export const EoaOneTx = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])]
 
 export const EoaTxsEveryCase = addressPage(alice, {txs: rows(everyTx.length, (h: number, i: number) => evmTx(h, 0, everyTx[i]))})
 
-export const EoaTxsMany = addressPage(alice, {txs: rows(25, (h: number, i: number) => evmTx(h, i % 3, i % 2 ? {from: bob, to: alice, value: units(i * 1.5, 18)} : {from: alice, to: evmAddress(2 + (i % 5)), value: units(i, 18)}))})
+const manyTxs = rows(63, (h: number, i: number) => evmTx(h, i % 3, i % 2 ? {from: bob, to: alice, value: units(i * 1.5, 18)} : {from: alice, to: evmAddress(2 + (i % 5)), value: units(i, 18)}))
+
+export const EoaTxsMany = addressPage(alice, {txs: manyTxs})
+
+export const EoaTxsPage2 = addressPage(alice, {txs: manyTxs}, {page: '2'})
+
+export const EoaTxsLastPage = addressPage(alice, {txs: manyTxs}, {page: lastPage(manyTxs.length)})
 
 export const EoaHoldings = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: EVERY_HOLDING}, HOLDINGS_TAB)
 
 export const EoaHoldingsOne = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: [holding(WTMR, units(1_234.5, 1))]}, HOLDINGS_TAB)
 
-export const EoaHoldingsMany = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: holdings(50)}, HOLDINGS_TAB)
+const manyHoldings = holdings(50)
+
+export const EoaHoldingsMany = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: manyHoldings}, HOLDINGS_TAB)
+
+export const EoaHoldingsPage2 = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: manyHoldings}, {...HOLDINGS_TAB, page: '2'})
+
+export const EoaHoldingsLastPage = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: manyHoldings}, {...HOLDINGS_TAB, page: lastPage(manyHoldings.length)})
 
 const contract = evmAddress(40)
 const deploy = evmTx(900_000, 0, {from: alice, to: null, contractAddress: contract, input: bytecode(2_048), gasLimit: '3000000', gasUsed: '1800000', ...exit(EXIT.returned)})

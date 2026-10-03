@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {within} from 'storybook/test'
 import data, {referenda} from '../../../../../mock/data.js'
-import {at, HEAD, numn, PEOPLE} from '../../../../../mock/fixtures.js'
+import {at, HEAD, numn, paged, PEOPLE} from '../../../../../mock/fixtures.js'
 import {
     accounts,
     anon,
@@ -23,7 +23,7 @@ import {
     voteAction,
     voteData,
 } from '../../../../../mock/fixtures/governance.js'
-import {pageMeta, pageStory} from '../../../../.storybook/page'
+import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 
 export default {title: 'Pages/Referendum', ...pageMeta(ReferendumPage)}
@@ -38,10 +38,19 @@ type Play = StoryObj['play']
 
 const curated = (index: number): Referendum => referenda.find(r => r.index === index)!
 
-const story = (r: Referendum, tab: string, extra: Record<string, unknown> = {}, texts: Text[] = []) =>
+const story = (r: Referendum, tab: string, extra: Record<string, unknown> = {}, texts: Text[] = [], page = '1') =>
     pageStory(
-        {...data, accounts, referendums: [r], referendumTallySnapshots: r.snapshots, metadataActions: texts, events: eventsById(stepEvents(r), metadataEvents(texts)), ...extra},
-        {params: {index: String(r.index)}, searchParams: {tab}}
+        {
+            ...data,
+            accounts,
+            referendums: [r],
+            referendumTallySnapshots: paged(r.snapshots),
+            metadataActions: paged(texts),
+            metadataActionsConnection: {totalCount: texts.length},
+            events: eventsById(stepEvents(r), metadataEvents(texts)),
+            ...extra,
+        },
+        {params: {index: String(r.index)}, searchParams: {tab, page}}
     )
 
 // a curated case on its curves tab, with one vote per move its tally history made
@@ -206,6 +215,18 @@ const texts = [
 
 export const TextHistorySeveralVersions = story({...curated(6), description: pitch}, 'text', castFromSnapshots(curated(6)), texts)
 
+const drafts = Array.from({length: 45}, (_, i) =>
+    i % 4 === 3
+        ? metadataAction(990_000 - i * 700, 2, 'MetadataCleared', {hash: '0x' + 'be'.repeat(32)})
+        : metadataAction(990_000 - i * 700, 2 + (i % 3), 'MetadataSet', {title: `Fund the medium spender pilot, draft ${45 - i}`, description: pitch})
+)
+
+export const TextHistoryMany = story(curated(6), 'text', {}, drafts)
+
+export const TextHistoryPage2 = story(curated(6), 'text', {}, drafts, '2')
+
+export const TextHistoryLastPage = story(curated(6), 'text', {}, drafts, lastPage(drafts.length))
+
 export const TimelineApprovedEarly = curatedCase(10, 'timeline')
 
 export const TimelineRejected = curatedCase(1, 'timeline')
@@ -261,6 +282,20 @@ const secondAttempt = {
 export const TimelineTwoConfirmAttempts = story(secondAttempt, 'timeline', castFromSnapshots(secondAttempt))
 
 export const CurvesTwoConfirmAttempts = story(secondAttempt, 'curves', castFromSnapshots(secondAttempt))
+
+// more snapshots than one read returns, packed early so the second read carries most of the run and a swing in nays
+const longRun = {
+    ...curated(5),
+    snapshots: snapshots(
+        Array.from({length: 6_000}, (_, i) => {
+            if (i < 5_000) return [951_440 + 2 * i, 800_000 + 240 * i, 100 * i, 600_000 + 40 * i]
+            const v = (i - 5_000) / 999
+            return [961_440 + 38 * (i - 5_000), 2_000_000 + 800_000 * v, v < 0.5 ? 500_000 + 3_000_000 * v : 2_100_000 - 200_000 * v, 800_000 + 600_000 * v]
+        })
+    ),
+}
+
+export const CurvesPastOneRead = story(longRun, 'curves')
 
 const deciding = (index: number, title: string) => ({...curated(5), id: String(index), index, title})
 

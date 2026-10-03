@@ -1,5 +1,6 @@
 import {notFound} from 'next/navigation'
 import AccountLink from '@/components/AccountLink'
+import Pager from '@/components/Pager'
 import {TabPanels, type Panel} from '@/components/Tabs'
 import {DetailCard, DetailRow, NONE} from '@/components/Detail'
 import {BlockLink} from '@/components/links'
@@ -10,6 +11,7 @@ import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {camelLabel, fmtBalance} from '@/lib/format'
 import {bountyDetail, eventsByIds, type AccountRef} from '@/lib/gql'
+import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {ChildBountiesTable} from './table'
 
@@ -43,9 +45,11 @@ export async function generateMetadata(props: PageProps<'/bounty/[id]'>) {
 
 export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
     const {id} = await props.params
-    const tab = String((await props.searchParams).tab ?? '')
+    const sp = await props.searchParams
+    const tab = String(sp.tab ?? '')
     if (!/^\d+$/.test(id)) notFound()
-    const [chain, data] = await Promise.all([chainProps(), bountyDetail(Number(id))])
+    const pg = paging(sp)
+    const [chain, data] = await Promise.all([chainProps(), bountyDetail(Number(id), {limit: pg.size, offset: pg.offset})])
     const b = data.bounties[0]
     if (!b) notFound()
 
@@ -56,9 +60,12 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
     const acc =(a: AccountRef | null) => (a ? <AccountLink addr={ss58Encode(a.id, chain.ss58)} acc={a} /> : NONE)
 
     const children = (
-        <Card size="flush">
-            <ChildBountiesTable rows={data.childBounties} chain={chain} />
-        </Card>
+        <>
+            <Card size="flush">
+                <ChildBountiesTable rows={data.childBounties} chain={chain} />
+            </Card>
+            <Pager paging={pg} total={data.childCount.totalCount} href={`/bounty/${b.index}?tab=children`} />
+        </>
     )
 
     const overview = (
@@ -118,7 +125,7 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
                 href={s => `/bounty/${b.index}?tab=${s}`}
                 panels={[
                     {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
-                    ...(data.childBounties.length > 0 ? ([{slug: 'children', label: 'Child bounties', count: data.childBounties.length, body: () => children}] as Panel[]) : []),
+                    ...(data.childCount.totalCount > 0 ? ([{slug: 'children', label: 'Child bounties', count: data.childCount.totalCount, body: () => children}] as Panel[]) : []),
                 ]}
             />
         </div>

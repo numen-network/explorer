@@ -1,6 +1,7 @@
 import type {ComponentProps, CSSProperties} from 'react'
 import {CircleAlert, CircleCheck, CircleQuestionMark, CircleX, type LucideIcon} from 'lucide-react'
 import {cn} from 'cn'
+import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from '@/lib/identity'
 
 // mirrors the pallet identity judgement enum, bad verdicts win over good ones
 export type Verdict = 'verified' | 'stale' | 'pending' | 'unjudged' | 'bad'
@@ -8,8 +9,8 @@ export type Verdict = 'verified' | 'stale' | 'pending' | 'unjudged' | 'bad'
 export function verdictOf(identityJson: unknown): Verdict | null {
     if (identityJson == null) return null
     const kinds = (((identityJson as {judgements?: [number, {__kind: string}][]}).judgements ?? []) as [number, {__kind: string}][]).map(([, j]) => j.__kind)
-    if (kinds.some(k => k === 'Erroneous' || k === 'LowQuality')) return 'bad'
-    if (kinds.some(k => k === 'Reasonable' || k === 'KnownGood')) return 'verified'
+    if (kinds.some(k => BAD_JUDGEMENTS.includes(k))) return 'bad'
+    if (kinds.some(k => GOOD_JUDGEMENTS.includes(k))) return 'verified'
     if (kinds.some(k => k === 'OutOfDate')) return 'stale'
     if (kinds.some(k => k === 'FeePaid')) return 'pending'
     return 'unjudged'

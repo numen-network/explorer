@@ -2,6 +2,7 @@ import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import HoldingsList from '@/components/HoldingsList'
+import Pager from '@/components/Pager'
 import {AddrMark} from '@/components/addrHot'
 import {TabPanels, type Panel} from '@/components/Tabs'
 import TokenIcon from '@/components/TokenIcon'
@@ -12,6 +13,7 @@ import {chainProps} from '@/lib/chain'
 import {evmMappedAccount, isH160} from '@/lib/evm'
 import {shortAddr} from '@/components/AddressText'
 import {evmAddressData} from '@/lib/gql'
+import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {EvmTxsTable} from './tables'
 
@@ -24,21 +26,33 @@ export async function generateMetadata(props: PageProps<'/address/[address]'>) {
 
 export default async function EvmAddressPage(props: PageProps<'/address/[address]'>) {
     const {address: raw} = await props.params
-    const tab = String((await props.searchParams).tab ?? '')
+    const sp = await props.searchParams
+    const tab = String(sp.tab ?? '')
     if (!isH160(raw)) notFound()
     const address = raw.toLowerCase()
-    const [chain, data] = await Promise.all([chainProps(), evmAddressData(address)])
+    const pg = paging(sp)
+    const [chain, data] = await Promise.all([chainProps(), evmAddressData(address, {limit: pg.size, offset: pg.offset})])
     const mapped = ss58Encode(evmMappedAccount(address), chain.ss58)
     const isContract = data.created.length > 0 || data.asToken !== null
 
     const txs = (
-        <Card size="flush">
-            <EvmTxsTable rows={data.txs} addr={address} chain={chain} />
-        </Card>
+        <>
+            <Card size="flush">
+                <EvmTxsTable rows={data.txs} addr={address} chain={chain} />
+            </Card>
+            <Pager paging={pg} total={data.txCount.totalCount} href={`/address/${address}?tab=txs`} />
+        </>
     )
 
-    const panels: Panel[] = [{slug: 'txs', label: 'Transactions', count: data.txs.length, body: () => txs}]
-    if (data.holdings.length > 0) panels.push({slug: 'holdings', label: 'Tokens', count: data.holdings.length, body: () => <HoldingsList rows={data.holdings} />})
+    const holdings = (
+        <>
+            <HoldingsList rows={data.holdings} />
+            <Pager paging={pg} total={data.holdingCount.totalCount} href={`/address/${address}?tab=holdings`} />
+        </>
+    )
+
+    const panels: Panel[] = [{slug: 'txs', label: 'Transactions', count: data.txCount.totalCount, body: () => txs}]
+    if (data.holdingCount.totalCount > 0) panels.push({slug: 'holdings', label: 'Tokens', count: data.holdingCount.totalCount, body: () => holdings})
 
     return (
         <div>

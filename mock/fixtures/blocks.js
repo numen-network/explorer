@@ -218,6 +218,35 @@ export function proxied(height, {from = person(height + 4), real = person(height
     }
 }
 
+// a batch of proxy calls, so the tree steps between two depths all the way down
+export function batchOfProxies(height, {from = person(height + 4), real = person(height + 8), count = 15, fee = 31_412_604_000_000_000n} = {}) {
+    const pays = Array.from({length: count}, (_, i) => [payee(height, i), amount(height, i)])
+    const pay = charge(from.id, height, fee)
+    return {
+        pallet: 'Utility',
+        method: 'batch_all',
+        signer: from,
+        ...pay.traits,
+        calls: [
+            [[], 'Utility.batch_all', {calls: pays.map(([to, value]) => ({__kind: 'Proxy', value: {__kind: 'proxy', real: ID(real.id), call: transferCall(to)(value)}}))}],
+            ...pays.flatMap(([to, value], i) => [
+                [[i], 'Proxy.proxy', {real: ID(real.id), call: transferCall(to)(value)}],
+                [[i, 0], 'Balances.transfer_keep_alive', {dest: ID(to.id), value}, {origin: real}],
+            ]),
+        ],
+        events: [
+            ...on([0, 0], pay.withdraw),
+            ...pays.flatMap(([to, value], i) => [
+                ...on([i, 0], ['Balances.Transfer', {from: real.id, to: to.id, amount: value}]),
+                ...on([i], ['Proxy.ProxyExecuted', {result: {__kind: 'Ok'}}]),
+                ...on([], ['Utility.ItemCompleted', null]),
+            ]),
+            ...on([], ['Utility.BatchCompleted', null], ...pay.paid),
+            ['System.ExtrinsicSuccess', info(2140873000, 61204), null],
+        ],
+    }
+}
+
 // what governance submissions look like on chain, the text noted as a preimage, the referendum and its metadata in one batch
 export function referendumSubmission(height, {from = person(height + 7), index = 12, fee = 47_851_390_862_172_944n} = {}) {
     const text = hex(
@@ -416,10 +445,12 @@ export const tipped = height => transfer(height, {tip: 2_000_000_000_000_000n})
 // one extrinsic of every shape the explorer draws differently
 export const busy = height => mined(height, [timestampSet, heartbeat, tipped, batchAll, failedVoteRemoval, proxied, evmTransact, batchInterrupted, referendumSubmission])
 
-// one extrinsic out of a mined block, the way its detail page reads it
+// one extrinsic out of a mined block, the way its detail page reads it, each call carrying the events it raised
 export function pick({extrinsics, calls, events}, index) {
     const x = extrinsics[index]
-    return {extrinsics: [x], calls: calls.filter(c => c.id === x.id || c.id.startsWith(x.id + '-')), events: events.filter(e => e.extrinsic?.id === x.id)}
+    const raised = events.filter(e => e.extrinsic?.id === x.id)
+    const tree = calls.filter(c => c.id === x.id || c.id.startsWith(x.id + '-'))
+    return {extrinsics: [x], calls: tree.map(c => ({...c, events: raised.filter(e => e.call?.id === c.id)})), events: raised}
 }
 
 // what the list pages read from the calls table, every call under a root with its parent and extrinsic

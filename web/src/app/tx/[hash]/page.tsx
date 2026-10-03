@@ -5,6 +5,7 @@ import AccountLink from '@/components/AccountLink'
 import AddressText from '@/components/AddressText'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow} from '@/components/Detail'
+import Pager from '@/components/Pager'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
 import {TabPanels, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
@@ -17,6 +18,7 @@ import {chainProps} from '@/lib/chain'
 import {evmTxTypeLabel, exitDetail} from '@/lib/evm'
 import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmTxDetail} from '@/lib/gql'
+import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -28,8 +30,10 @@ export async function generateMetadata(props: PageProps<'/tx/[hash]'>) {
 
 export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
     const {hash} = await props.params
-    const tab = String((await props.searchParams).tab ?? '')
-    const [chain, data] = await Promise.all([chainProps(), evmTxDetail(hash.toLowerCase())])
+    const sp = await props.searchParams
+    const tab = String(sp.tab ?? '')
+    const pg = paging(sp)
+    const [chain, data] = await Promise.all([chainProps(), evmTxDetail(hash.toLowerCase(), {limit: pg.size, offset: pg.offset})])
     const tx = data.evmTransactionById
     if (!tx) notFound()
     const ok = tx.status === 'Succeed'
@@ -37,22 +41,25 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
     const fee = BigInt(tx.gasUsed) * BigInt(tx.gasPrice)
 
     const logs = (
-        <Card size="flush" className="divide-y">
-            {data.evmLogs.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
-            {data.evmLogs.map(log => (
-                <div key={log.id} className="space-y-1 px-5 py-3 font-mono text-xs">
-                    <div>
-                        <span className="text-muted-foreground">#{log.logIndex}</span> <EvmAddrLink addr={log.address} full />
-                    </div>
-                    {log.topics.map((t, i) => (
-                        <div key={i} className="break-all text-muted-foreground">
-                            <span className="text-dim">topic{i}</span> {t}
+        <>
+            <Card size="flush" className="divide-y">
+                {data.evmLogs.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
+                {data.evmLogs.map(log => (
+                    <div key={log.id} className="space-y-1 px-5 py-3 font-mono text-xs">
+                        <div>
+                            <span className="text-muted-foreground">#{log.logIndex}</span> <EvmAddrLink addr={log.address} full />
                         </div>
-                    ))}
-                    {log.data !== '0x' && <div className="break-all text-muted-foreground">data {log.data}</div>}
-                </div>
-            ))}
-        </Card>
+                        {log.topics.map((t, i) => (
+                            <div key={i} className="break-all text-muted-foreground">
+                                <span className="text-dim">topic{i}</span> {t}
+                            </div>
+                        ))}
+                        {log.data !== '0x' && <div className="break-all text-muted-foreground">data {log.data}</div>}
+                    </div>
+                ))}
+            </Card>
+            <Pager paging={pg} total={data.logCount.totalCount} href={`/tx/${hash}?tab=logs`} />
+        </>
     )
 
     const transfers = (
@@ -75,30 +82,33 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
     )
 
     const tokenTransfers = (
-        <SplitRows>
-            {data.tokenTransfers.map(t => (
-                <SplitRow
-                    key={t.id}
-                    lead={
-                        <>
-                            <EvmAddrLink addr={t.from} />
-                            <span className="text-muted-foreground">→</span>
-                            <EvmAddrLink addr={t.to} />
-                        </>
-                    }
-                >
-                    <span className="font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
-                    <Link href={`/token/${t.token.id}`} className="font-mono text-xs text-primary hover:underline">
-                        <TokenIcon addr={t.token.id} />
-                        <AddressText addr={t.token.id} />
-                    </Link>
-                </SplitRow>
-            ))}
-        </SplitRows>
+        <>
+            <SplitRows>
+                {data.tokenTransfers.map(t => (
+                    <SplitRow
+                        key={t.id}
+                        lead={
+                            <>
+                                <EvmAddrLink addr={t.from} />
+                                <span className="text-muted-foreground">→</span>
+                                <EvmAddrLink addr={t.to} />
+                            </>
+                        }
+                    >
+                        <span className="font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
+                        <Link href={`/token/${t.token.id}`} className="font-mono text-xs text-primary hover:underline">
+                            <TokenIcon addr={t.token.id} />
+                            <AddressText addr={t.token.id} />
+                        </Link>
+                    </SplitRow>
+                ))}
+            </SplitRows>
+            <Pager paging={pg} total={data.tokenTransferCount.totalCount} href={`/tx/${hash}?tab=transfers`} />
+        </>
     )
 
-    const panels: Panel[] = [{slug: 'logs', label: 'Logs', count: data.evmLogs.length, body: () => logs}]
-    if (data.tokenTransfers.length > 0) panels.unshift({slug: 'transfers', label: 'Token transfers', count: data.tokenTransfers.length, body: () => tokenTransfers})
+    const panels: Panel[] = [{slug: 'logs', label: 'Logs', count: data.logCount.totalCount, body: () => logs}]
+    if (data.tokenTransferCount.totalCount > 0) panels.unshift({slug: 'transfers', label: 'Token transfers', count: data.tokenTransferCount.totalCount, body: () => tokenTransfers})
     if (tx.extrinsic.transfers.length > 0) panels.unshift({slug: 'native', label: 'Native transfers', count: tx.extrinsic.transfers.length, body: () => transfers})
 
     return (

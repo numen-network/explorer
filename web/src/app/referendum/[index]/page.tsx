@@ -3,6 +3,7 @@ import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow, JsonBlock, NONE} from '@/components/Detail'
+import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {CurvesChart} from '@/components/charts'
@@ -21,7 +22,8 @@ import {capitalOf, convictionLabel, decisionOf, votesOf, weigh} from '@/lib/conv
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum, trackLabel} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
-import {accountRefs, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail, type TimelineEventRow} from '@/lib/gql'
+import {accountRefs, delegationActionsFor, delegationsFor, eventsByIds, referendumDetail, tallySnapshots, type TallySnapshotRow, type TimelineEventRow} from '@/lib/gql'
+import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -98,9 +100,16 @@ const INLINE_DELEGATORS = 10
 
 export default async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
     const {index: rawIndex} = await props.params
-    const tab = String((await props.searchParams).tab ?? '')
+    const sp = await props.searchParams
+    const tab = String(sp.tab ?? '')
     if (!/^\d+$/.test(rawIndex)) notFound()
-    const [chain, heads, data] = await Promise.all([chainProps(), chainHeads(), referendumDetail(Number(rawIndex))])
+    const pg = paging(sp)
+    const [chain, heads, data, snapshots] = await Promise.all([
+        chainProps(),
+        chainHeads(),
+        referendumDetail(Number(rawIndex), {limit: pg.size, offset: pg.offset}),
+        tallySnapshots(Number(rawIndex)),
+    ])
     const r = data.referendums[0]
     if (!r) notFound()
 
@@ -179,7 +188,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         })),
     ].sort((x, y) => y.block - x.block || y.id.localeCompare(x.id))
 
-    const snapPct = (s: (typeof data.snapshots)[number]) => {
+    const snapPct = (s: TallySnapshotRow) => {
         const a = planckToNum(s.ayes, chain.decimals)
         const n = planckToNum(s.nays, chain.decimals)
         const act = planckToNum(BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance), chain.decimals)
@@ -191,8 +200,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     // tally snapshots record end of block state, so a block's whole move
     // lands on its latest action row
     const impactByBlock = new Map<number, ActionImpact>()
-    let prev: (typeof data.snapshots)[number] | undefined
-    for (const s of data.snapshots) {
+    let prev: TallySnapshotRow | undefined
+    for (const s of snapshots) {
         const p = snapPct(s)
         const before = prev ? snapPct({...prev, totalIssuance: s.totalIssuance, inactiveIssuance: s.inactiveIssuance}) : {approval: 0, support: 0}
         impactByBlock.set(s.block, {approval: p.approval - before.approval, support: p.support - before.support})
@@ -234,7 +243,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     // a tally starts empty at submission
     const currentApproval: [number, number][] = [[lead.from, 0]]
     const currentSupport: [number, number][] = [[lead.from, 0]]
-    for (const s of data.snapshots) {
+    for (const s of snapshots) {
         const p = snapPct(s)
         currentApproval.push([toX(s.block), p.approval])
         currentSupport.push([toX(s.block), p.support])
@@ -437,34 +446,37 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     // every text the referendum ever carried, newest first, since the pointer
     // may move while people are voting and the earlier pitch should stay readable
     const texts = (
-        <TimelineList empty={textRail.length === 0}>
-            {textRail.map(({a, e}) => (
-                <TimelineItem
-                    key={a.id}
-                    tone={a.method === 'MetadataSet' ? 'primary' : 'idle'}
-                    icon={a.method === 'MetadataSet' ? RING : CROSS}
-                    title={a.method === 'MetadataSet' ? 'Text set' : 'Text cleared'}
-                    iso={a.timestamp}
-                    links={<StepLinks block={a.block} event={e} />}
-                    detail={
-                        a.method === 'MetadataSet' ? (
-                            <div className="min-w-0">
-                                {a.title ? (
-                                    <p className="text-sm font-semibold">{a.title}</p>
-                                ) : (
-                                    <p className="text-sm text-dim">Nothing read back from the preimage</p>
-                                )}
-                                {a.description && <p className="mt-1.5 text-sm whitespace-pre-wrap">{a.description}</p>}
-                                <p className="mt-2 flex items-center gap-1 text-xs text-dim">
-                                    <span className="font-mono break-all">{a.hash}</span>
-                                    <CopyBtn text={a.hash} />
-                                </p>
-                            </div>
-                        ) : undefined
-                    }
-                />
-            ))}
-        </TimelineList>
+        <>
+            <TimelineList empty={textRail.length === 0}>
+                {textRail.map(({a, e}) => (
+                    <TimelineItem
+                        key={a.id}
+                        tone={a.method === 'MetadataSet' ? 'primary' : 'idle'}
+                        icon={a.method === 'MetadataSet' ? RING : CROSS}
+                        title={a.method === 'MetadataSet' ? 'Text set' : 'Text cleared'}
+                        iso={a.timestamp}
+                        links={<StepLinks block={a.block} event={e} />}
+                        detail={
+                            a.method === 'MetadataSet' ? (
+                                <div className="min-w-0">
+                                    {a.title ? (
+                                        <p className="text-sm font-semibold">{a.title}</p>
+                                    ) : (
+                                        <p className="text-sm text-dim">Nothing read back from the preimage</p>
+                                    )}
+                                    {a.description && <p className="mt-1.5 text-sm whitespace-pre-wrap">{a.description}</p>}
+                                    <p className="mt-2 flex items-center gap-1 text-xs text-dim">
+                                        <span className="font-mono break-all">{a.hash}</span>
+                                        <CopyBtn text={a.hash} />
+                                    </p>
+                                </div>
+                            ) : undefined
+                        }
+                    />
+                ))}
+            </TimelineList>
+            <Pager paging={pg} total={data.metadataCount.totalCount} href={`/referendum/${r.index}?tab=text`} />
+        </>
     )
 
     // what the step's own event carried, zero tallies before anyone voted say
@@ -583,7 +595,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     panels={[
                         {slug: 'call', label: 'Call', body: () => call},
                         {slug: 'metadata', label: 'Metadata', body: () => metadata},
-                        {slug: 'text', label: 'Text history', count: data.metadataActions.length, body: () => texts},
+                        {slug: 'text', label: 'Text history', count: data.metadataCount.totalCount, body: () => texts},
                         {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
                         {slug: 'votes', label: 'Votes', count: data.voteCount.totalCount, body: () => votes},
                         {slug: 'curves', label: 'Curves', body: () => curves},

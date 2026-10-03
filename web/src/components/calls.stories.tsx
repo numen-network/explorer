@@ -1,9 +1,9 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
 import {userEvent, within} from 'storybook/test'
-import type {AccountRef, CallRef, CallRow, EventRow} from '@/lib/gql'
+import type {AccountRef, CallRef, CallRow} from '@/lib/gql'
 import {HEAD} from '../../../mock/fixtures.js'
-import {batchAll, batchInterrupted, CHAIN_PROPS, heartbeat, mined, pick, proxied, referendumSubmission, timestampSet, transfer, vestingPayout} from '../../../mock/fixtures/blocks.js'
+import {batchAll, batchInterrupted, batchOfProxies, CHAIN_PROPS, heartbeat, mined, pick, proxied, referendumSubmission, timestampSet, transfer, vestingPayout} from '../../../mock/fixtures/blocks.js'
 import {CallCell, CallPill, CallTree} from './calls'
 
 const meta = {title: 'Components/Calls'} satisfies Meta
@@ -66,16 +66,16 @@ export const CallCells: Story = {
 }
 
 const tree = (spec: Spec): Story => {
-    const {extrinsics, calls, events} = pick(mined(HEAD - 120, [timestampSet, spec]), 1)
+    const {extrinsics, calls} = pick(mined(HEAD - 120, [timestampSet, spec]), 1)
     const signer = extrinsics[0].signer as AccountRef | null
-    return {render: () => <CallTree calls={calls as CallRow[]} events={events as EventRow[]} chain={CHAIN_PROPS} signer={signer} />}
+    return {render: () => <CallTree calls={calls as CallRow[]} chain={CHAIN_PROPS} signer={signer} />}
 }
 
 const expandAll: Story['play'] = async ({canvasElement}) => {
     for (const trigger of within(canvasElement).getAllByRole('button', {expanded: false})) await userEvent.click(trigger)
 }
 
-export const CallTreeEmpty: Story = {render: () => <CallTree calls={[]} events={[]} chain={CHAIN_PROPS} signer={null} />}
+export const CallTreeEmpty: Story = {render: () => <CallTree calls={[]} chain={CHAIN_PROPS} signer={null} />}
 
 export const CallTreeUnsigned = tree(heartbeat)
 
@@ -88,6 +88,8 @@ export const CallTreeBatchInterrupted = tree(batchInterrupted)
 export const CallTreeNested = tree(proxied)
 
 export const CallTreeNestedExpanded: Story = {...tree(proxied), play: expandAll}
+
+export const CallTreeTwoDepths = tree(batchOfProxies)
 
 export const CallTreeLongArgs = tree(referendumSubmission)
 

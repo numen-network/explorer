@@ -1,8 +1,8 @@
 import {BarsChart} from '@/components/charts'
 import {Card} from '@/components/ui/card'
 
-// the summary already reads the day rows to total the blocks, so the chart
-// takes them from there rather than asking again
+// the summary already reads the day rows, so the chart takes them from there
+// rather than asking again
 export default function Mining({days}: {days: {day: string; blocks: number}[]}) {
     const chrono = [...days].reverse().slice(-30)
     return (

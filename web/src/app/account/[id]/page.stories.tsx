@@ -42,7 +42,7 @@ import {
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {pageMeta, pageStory} from '../../../../.storybook/page'
+import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
 const wellKnown: Decorator = Story => (
@@ -270,6 +270,8 @@ export const MiningOneDay = story({minerDays: minedDays(1)}, {tab: 'mining'})
 
 export const MiningMany = story({minerDays: minedDays(60)}, {tab: 'mining'})
 
+export const MiningBeyondChart = story({minerDays: minedDays(60), counts: {mined: 48_213}}, {tab: 'mining'})
+
 const voting = (amount: string) => subject({...funds(numn(1250.5), '0', amount), locksJson: [lock('pyconvot', amount)]})
 
 export const DelegationsOut = story({account: voting(numn(3_000.5)), delegationsOut: delegatingTo(3)}, {tab: 'delegations'})
@@ -290,6 +292,12 @@ export const ProxiesIn = story({proxiesIn: proxyFor(2)}, {tab: 'proxies'})
 
 export const ProxiesBoth = story({account: proxied(9), proxiesOut: proxyDelegates(9), proxiesIn: proxyFor(3)}, {tab: 'proxies'})
 
+export const ProxiesInMany = story({proxiesIn: proxyFor(45)}, {tab: 'proxies'})
+
+export const ProxiesInPage2 = story({proxiesIn: proxyFor(45)}, {tab: 'proxies', page: '2'})
+
+export const ProxiesInLastPage = story({proxiesIn: proxyFor(45)}, {tab: 'proxies', page: lastPage(45)})
+
 export const MultisigOne = story({multisigOps: [multisigOp(0)]}, {tab: 'multisig'})
 
 export const MultisigMember = story({account: subject({...funds(numn(1250.5), reservedOf(numn(20.088), numn(20.088)))}), multisigOps: multisigOps()}, {tab: 'multisig'})
@@ -299,9 +307,20 @@ export const MultisigAccount = story(
     {tab: 'multisig'}
 )
 
+const manyOps = Array.from({length: 45}, (_, i) => multisigOp(i, {threshold: 3, ...MULTISIG_ENDS[i % MULTISIG_ENDS.length], multisig: ME, depositor: person(i), signatories: SIGNATORIES}))
+
+export const MultisigMany = story({multisigOps: manyOps}, {tab: 'multisig'})
+
+export const MultisigPage2 = story({multisigOps: manyOps}, {tab: 'multisig', page: '2'})
+
+export const MultisigLastPage = story({multisigOps: manyOps}, {tab: 'multisig', page: lastPage(manyOps.length)})
+
 export const VotesOne = story({account: voting(numn(1_000)), votes: [vote(0)]}, {tab: 'votes'})
 
-export const VotesMany = story(
-    {account: voting(numn(250_000)), votes: [...voteRows(), ...Array.from({length: 12}, (_, i) => vote(i + 10, {referendum: {index: 24 - i, status: 'Ongoing', endedAt: null}}))]},
-    {tab: 'votes'}
-)
+const manyVotes = [...voteRows(), ...Array.from({length: 35}, (_, i) => vote(i + 10, {referendum: {index: 47 - i, status: 'Ongoing', endedAt: null}}))]
+
+export const VotesMany = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'votes'})
+
+export const VotesPage2 = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'votes', page: '2'})
+
+export const VotesLastPage = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'votes', page: lastPage(manyVotes.length)})

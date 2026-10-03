@@ -1,5 +1,5 @@
 import data from '../data.js'
-import {account, acct, at, chainInfo, HEAD, HEAD_TIME, hashOf, hex, identity, numn, PEOPLE, person, rows, squidId, subOf, transfer} from '../fixtures.js'
+import {account, acct, at, chainInfo, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subOf, transfer} from '../fixtures.js'
 
 // the account every account page story is about, and the H160 it maps from
 export const SUBJECT = account(77)
@@ -433,6 +433,7 @@ export function accountPage({
             where?.account ? (registrar == null ? [] : [{index: registrar}]) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
         primeStates: prime ? [{id: 'prime'}] : [],
         minerDayStats: minerDays,
+        blocksConnection: count(counts.mined ?? minerDays.reduce((n, d) => n + d.blocks, 0)),
         bountiesConnection: count(curated),
         childBountiesConnection: count(childCurated),
         transfersConnection: ({where}) => count(where.OR ? (counts.transfers ?? transfers.length) : (counts[side(where)] ?? sent(where).length)),
@@ -450,14 +451,19 @@ export function accountPage({
         delegations: ({where}) => (where.who ? delegationsOut : where.track ? onTrack(where.track.id_eq) : delegationsIn),
         tracks: TRACKS,
         proxyRelationsConnection: ({where}) => count((where.delegator ? proxiesOut : proxiesIn).length),
-        proxyRelations: ({where}) => (where.delegator ? proxiesOut : proxiesIn),
+        proxyRelations: args => (args.where.delegator ? proxiesOut : paged(proxiesIn)(args)),
         multisigOpsConnection: ({where}) => count(where.OR ? multisigOps.length : multisigOps.filter(o => o.multisig.id === self).length),
-        multisigOps: ({where}) => (where.status_in ? multisigOps.filter(o => o.depositor.id === self && OPEN.includes(o.status)) : multisigOps),
+        multisigOps: args =>
+            args.where.status_in
+                ? multisigOps.filter(o => o.depositor.id === self && OPEN.includes(o.status))
+                : args.where.signatories_isNull === false
+                  ? multisigOps.filter(o => o.multisig.id === self && o.signatories != null)
+                  : paged(multisigOps)(args),
         referendums: govDeposits,
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
         votesConnection: count(votes.length),
-        votes,
+        votes: paged(votes),
         evmTransactions: deployed,
         tokens: deployed.slice(0, tokens).map(d => ({id: d.contractAddress})),
         tokenTransfersConnection: count(counts.tokenTransfers ?? tokenTransfers.length),

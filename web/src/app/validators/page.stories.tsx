@@ -1,5 +1,5 @@
-import {account, acct, chainInfo, HEAD, identity, numn, person} from '../../../../mock/fixtures.js'
-import {pageMeta, pageStory} from '../../../.storybook/page'
+import {account, acct, chainInfo, HEAD, identity, numn, paged, person} from '../../../../mock/fixtures.js'
+import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import ValidatorsPage from './page'
 
 export default {title: 'Pages/Validators', ...pageMeta(ValidatorsPage)}
@@ -28,7 +28,12 @@ const exempt = {lockedAmount: '0', lockExpiry: null, firstSeenBlock: 0}
 const inactive = (sessionsAgo: number) => ({active: false, lastActiveSession: SESSION - sessionsAgo})
 const kicked = (reason: string, sessionsAgo: number) => ({...inactive(sessionsAgo), kicked: {__kind: reason}})
 
-const validators = (rows: object[]) => pageStory({validators: rows})
+// the header counts every validator and the active ones, told apart by the filter
+const validators = (rows: ReturnType<typeof validator>[], page = '1') =>
+    pageStory(
+        {validators: paged(rows), validatorsConnection: ({where}: {where?: {active_eq?: boolean}}) => ({totalCount: where?.active_eq ? rows.filter(v => v.active).length : rows.length})},
+        {searchParams: {page}}
+    )
 
 export const ValidatorsEmpty = validators([])
 
@@ -57,12 +62,16 @@ export const ValidatorsExtremeNumbers = validators([
     validator(10, {...exempt, active: false, lastActiveSession: 0}),
 ])
 
-export const ValidatorsMany = validators(
-    Array.from({length: 40}, (_, i) => {
-        const n = i + 1
-        if (i < 30) return validator(n, i % 7 === 6 ? exempt : {})
-        if (i < 33) return validator(n, {...kicked('Offline', i - 29), offlineSessions: 1})
-        if (i < 35) return validator(n, {...kicked('Equivocation', i - 28), equivocations: 1 + (i % 2)})
-        return validator(n, inactive(i * 50))
-    })
-)
+const many = Array.from({length: 46}, (_, i) => {
+    const n = i + 1
+    if (i < 30) return validator(n, i % 7 === 6 ? exempt : {})
+    if (i < 33) return validator(n, {...kicked('Offline', i - 29), offlineSessions: 1})
+    if (i < 35) return validator(n, {...kicked('Equivocation', i - 28), equivocations: 1 + (i % 2)})
+    return validator(n, inactive(i * 50))
+})
+
+export const ValidatorsMany = validators(many)
+
+export const ValidatorsPage2 = validators(many, '2')
+
+export const ValidatorsLastPage = validators(many, lastPage(many.length))

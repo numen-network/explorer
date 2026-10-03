@@ -7,7 +7,7 @@ import {Badge} from '@/components/ui/badge'
 import {StepLinks, TimelineItem, TimelineList, TimelineRows, type Tone} from '@/components/timeline'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
-import {identityTimeline, judgementsByEvent, registrarsList, type RegistrarRow} from '@/lib/gql'
+import {identityTimeline, judgementsByEvent, registrarsByIndex, type RegistrarRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {callSubs, hexText, identityCallRows, type SubEntry} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
@@ -60,8 +60,9 @@ const SubList = ({subs, chain}: {subs: SubEntry[]; chain: ChainProps}) => (
 export default async function Timeline({hex, addr, chain, sp}: TabCtx) {
     const pg = paging(sp)
     const {events, conn} = await identityTimeline(hex, pg.size, pg.offset)
+    const indexes = [...new Set(events.flatMap(e => (e.args as {registrarIndex?: number} | null)?.registrarIndex ?? []))]
     const [regs, verdicts] = await Promise.all([
-        events.some(e => (e.args as {registrarIndex?: unknown} | null)?.registrarIndex != null) ? registrarsList() : null,
+        indexes.length > 0 ? registrarsByIndex(indexes) : null,
         judgementsByEvent(events.filter(e => e.method === 'JudgementGiven').map(e => e.id)),
     ])
     const registrarBy = new Map((regs?.registrars ?? []).map(r => [r.index, r]))
