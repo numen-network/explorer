@@ -8,11 +8,11 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Empty, EmptyDescription} from '@/components/ui/empty'
 import {chainProps} from '@/lib/chain'
 import {CHARTS, chartBySlug, highlight, type ChartInput} from '@/lib/charts'
+import {isDay} from '@/lib/day'
 import {chartSeries} from '@/lib/gql'
 
 export const dynamic = 'force-dynamic'
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/
 const RANGES: [key: string, label: string, days: number][] = [
     ['30', '30D', 30],
     ['90', '90D', 90],
@@ -36,15 +36,15 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
     const sp = await props.searchParams
     const str = (v: string | string[] | undefined) => (typeof v === 'string' ? v : '')
 
-    const custom = DAY.test(str(sp.after)) || DAY.test(str(sp.before))
+    const after = isDay(str(sp.after)) ? str(sp.after) : ''
+    const before = isDay(str(sp.before)) ? str(sp.before) : ''
+    const custom = Boolean(after || before)
     const range = custom ? '' : (RANGES.find(([k]) => k === str(sp.r))?.[0] ?? '365')
     const days = RANGES.find(([k]) => k === range)?.[2] ?? 0
-    const after = custom ? str(sp.after) : days ? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) : ''
-    const before = custom ? str(sp.before) : ''
-    const picked = custom ? after : ''
+    const since = custom ? after : days ? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) : ''
 
     const chain = await chainProps()
-    const data = await chartSeries(DAY.test(after) ? after : '', DAY.test(before) ? before : '')
+    const data = await chartSeries(since, before)
 
     const input: ChartInput = {
         days: data.dailyStats,
@@ -68,7 +68,7 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
                     <CardTitle className="text-[17px] leading-normal font-semibold">{def.title}</CardTitle>
                     <div className="flex flex-wrap items-center gap-2">
                         <form className="flex flex-wrap items-center gap-2 text-xs" action={`/charts/${slug}`}>
-                            <DateRange key={`${picked}|${before}`} after={picked} before={before} />
+                            <DateRange key={`${after}|${before}`} after={after} before={before} active={custom} />
                             <Button type="submit" variant="outline" className="h-auto rounded-lg bg-card px-2.5 py-1 text-xs font-normal hover:bg-card hover:text-primary">
                                 Apply
                             </Button>

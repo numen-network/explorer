@@ -10,6 +10,7 @@ import {Field} from '@/components/ui/field'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {chainProps} from '@/lib/chain'
+import {isDay} from '@/lib/day'
 import {fmtInt} from '@/lib/format'
 import {callKinds, extrinsicsPage, type ExtrinsicFilter} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -18,7 +19,6 @@ import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Extrinsics'}
 
-const DAY = /^\d{4}-\d{2}-\d{2}$/
 const HEX_ID = /^0x[0-9a-fA-F]{64}$/
 
 const str = (v: string | string[] | undefined) => (typeof v === 'string' ? v : '')
@@ -45,8 +45,8 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
     const rawSigner = str(sp.signer).trim()
     const signer = !rawSigner ? '' : HEX_ID.test(rawSigner) ? rawSigner.toLowerCase() : (ss58TryDecode(rawSigner, chain.ss58) ?? '')
     const result = str(sp.result) === 'success' || str(sp.result) === 'failed' ? (str(sp.result) as 'success' | 'failed') : undefined
-    const after = DAY.test(str(sp.after)) ? str(sp.after) : ''
-    const before = DAY.test(str(sp.before)) ? str(sp.before) : ''
+    const after = isDay(str(sp.after)) ? str(sp.after) : ''
+    const before = isDay(str(sp.before)) ? str(sp.before) : ''
     const pg = paging(sp)
 
     const filter: ExtrinsicFilter = {pallet, method, signer, result, after, before}

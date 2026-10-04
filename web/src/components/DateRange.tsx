@@ -21,7 +21,7 @@ const toRange = (after: string, before: string): Range | undefined => {
 
 // the parent keys this on the url, so a submit back to the same route mounts
 // a fresh draft
-export default function DateRange({after, before}: {after: string; before: string}) {
+export default function DateRange({after, before, active = false}: {after: string; before: string; active?: boolean}) {
     const [range, setRange] = useState(() => toRange(after, before))
 
     const from = range?.from ? day(range.from) : ''
@@ -34,7 +34,11 @@ export default function DateRange({after, before}: {after: string; before: strin
             <input type="hidden" name="before" value={to} />
             <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="outline" className="h-auto w-56 justify-between gap-2 rounded-lg bg-card px-2.5 py-1 text-[length:inherit] leading-[inherit] font-normal hover:bg-card hover:text-primary aria-expanded:bg-card aria-expanded:text-foreground">
+                    <Button
+                        variant="outline"
+                        data-active={active}
+                        className="h-auto w-56 justify-between gap-2 rounded-lg bg-card px-2.5 py-1 text-[length:inherit] leading-[inherit] font-normal hover:bg-card hover:text-primary aria-expanded:bg-card aria-expanded:text-foreground data-active:bg-background data-active:font-medium data-active:hover:bg-background data-active:aria-expanded:bg-background"
+                    >
                         {from || to ? (
                             <span>
                                 {from || '…'} <span className="text-dim">to</span> {to || '…'}

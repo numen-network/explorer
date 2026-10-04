@@ -1,4 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import {TabBar, TabPanels, type Panel, type TabItem} from './Tabs'
 
@@ -10,6 +11,10 @@ const items = (labels: string[], active: number, counts?: number[]): TabItem[] =
     labels.map((label, i) => ({label, href: `?tab=${label.toLowerCase()}`, active: i === active, count: counts?.[i]}))
 
 const ACCOUNT_TABS = ['Extrinsics', 'Transfers', 'Tokens', 'Identity', 'Judgements', 'Subs', 'Votes', 'Delegations', 'Proxies', 'Multisig', 'Locks', 'Vesting', 'Mining', 'Validator']
+
+const noneSelected: Story['play'] = async ({canvas}) => {
+    for (const tab of canvas.getAllByRole('tab')) await expect(tab).toHaveAttribute('aria-selected', 'false')
+}
 
 const panel = (label: string, count?: number): Panel => ({
     slug: label.toLowerCase(),
@@ -26,11 +31,12 @@ export const LineWithoutCounts: Story = {render: () => <TabBar items={items(['Re
 
 export const LineOverflowing: Story = {render: () => <TabBar items={items(ACCOUNT_TABS, 9, ACCOUNT_TABS.map((_, i) => i * 37))} />}
 
-export const LineNoneActive: Story = {render: () => <TabBar items={items(['Holders', 'Transfers', 'Contract'], -1)} />}
+export const LineNoneActive: Story = {render: () => <TabBar items={items(['Holders', 'Transfers', 'Contract'], -1)} />, play: noneSelected}
 
 export const Pill: Story = {render: () => <TabBar variant="pill" items={items(['30D', '90D', '365D', 'ALL'], 2)} />}
 
-export const PillNoneActive: Story = {render: () => <TabBar variant="pill" items={items(['30D', '90D', '365D', 'ALL'], -1)} />}
+// the presets of a chart set to a custom date range
+export const PillNoneActive: Story = {render: () => <TabBar variant="pill" items={items(['30D', '90D', '365D', 'ALL'], -1)} />, play: noneSelected}
 
 export const Segment: Story = {render: () => <TabBar variant="segment" items={items(['24h', '7d', '30d'], 0)} />}
 

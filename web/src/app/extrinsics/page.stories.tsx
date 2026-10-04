@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {userEvent, within} from 'storybook/test'
+import {expect, userEvent, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {chainInfo, HEAD, hex, numn, person} from '../../../../mock/fixtures.js'
 import {batchAll, busy, failedTransfer, failedVoteRemoval, heartbeat, mined, signedCall, subcalls, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
@@ -11,7 +11,7 @@ export default {title: 'Pages/Extrinsics', ...pageMeta(ExtrinsicsPage)}
 type Mined = ReturnType<typeof mined>
 type Row = Mined['extrinsics'][number]
 type Kind = [id: string, ok: number, failed: number]
-type Where = {pallet_eq?: string; method_eq?: string; success_eq?: boolean}
+type Where = {pallet_eq?: string; method_eq?: string; success_eq?: boolean; block?: {timestamp_gte?: string; timestamp_lte?: string}}
 
 // the calls the chain has run, how often each succeeded and how often it failed
 const KINDS: Kind[] = [
@@ -107,6 +107,31 @@ export const FilterDateRange = list(take(SEPTEMBER), {after: '2026-09-01', befor
     ['Timestamp.set', 259_200, 0],
     ['Utility.batch_all', 380, 0],
 ])
+
+// the canned rows only answer a query without a date, so they show while the bad day stays out of it
+const badDay = (after: string): StoryObj => {
+    const {extrinsics, calls} = take(RECENT)
+    return {
+        ...pageStory(
+            {
+                callKinds,
+                calls,
+                extrinsics: ({where}: {where?: Where}) => (where?.block ? [] : extrinsics),
+                extrinsicsConnection: ({where}: {where?: Where}) => (where?.block ? {totalCount: 0} : counting(KINDS)({where})),
+            },
+            {searchParams: {after}}
+        ),
+        play: async ({canvas}) => {
+            await expect(canvas.getByRole('link', {name: `${HEAD}-0`})).toBeInTheDocument()
+            await expect(canvas.getByRole('button', {name: 'Any date'})).toBeInTheDocument()
+            await expect(canvas.queryByRole('link', {name: 'clear'})).toBeNull()
+        },
+    }
+}
+
+export const FilterDateNoSuchMonth = badDay('2026-13-45')
+
+export const FilterDateNoSuchDay = badDay('2026-02-30')
 
 export const DatePickerOpen: StoryObj = {
     ...list(take(RECENT)),

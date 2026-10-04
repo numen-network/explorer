@@ -10,6 +10,7 @@ import ChartPage from './page'
 export default {title: 'Pages/Charts', ...pageMeta(ChartPage)}
 
 type Day = (typeof DAILY)[number]
+type Play = NonNullable<StoryObj['play']>
 
 // a line through a single day has no segment to draw, so the day shows as a dot
 const oneDayLine: StoryObj['play'] = async context => {
@@ -114,17 +115,45 @@ export const BlockRewardsTruncationEdge: StoryObj = {
     },
 }
 
-export const RangeLast30Days = chart('transfers', since(30), {r: '30'})
-export const RangeLast90Days = chart('transfers', since(90), {r: '90'})
-export const RangeAll = chart('transfers', DAILY, {r: 'all'})
+const checked = (story: StoryObj, check: Play): StoryObj => ({
+    ...story,
+    play: async context => {
+        await story.play?.(context)
+        await check(context)
+    },
+})
+
+// one control in the header holds the pick, a preset or the date range
+const preset =
+    (label: string): Play =>
+    async ({canvas}) => {
+        await expect(canvas.getByRole('tab', {selected: true})).toHaveTextContent(label)
+        await expect(canvas.getByRole('button', {name: 'Any date'})).toHaveAttribute('data-active', 'false')
+    }
+
+const custom =
+    (range: string): Play =>
+    async ({canvas}) => {
+        for (const tab of canvas.getAllByRole('tab')) await expect(tab).toHaveAttribute('aria-selected', 'false')
+        await expect(canvas.getByRole('button', {name: range})).toHaveAttribute('data-active', 'true')
+    }
+
+export const RangeLast30Days = checked(chart('transfers', since(30), {r: '30'}), preset('30D'))
+export const RangeLast90Days = checked(chart('transfers', since(90), {r: '90'}), preset('90D'))
+export const RangeAll = checked(chart('transfers', DAILY, {r: 'all'}), preset('ALL'))
 
 const FROM = DAILY[40].id
 const TO = DAILY[60].id
 
-export const RangeCustom = chart('issuance', between(FROM, TO), {after: FROM, before: TO})
-export const RangeCustomFromOnly = chart('issuance', DAILY.filter(d => d.id >= TO), {after: TO})
-export const RangeCustomToOnly = chart('issuance', DAILY.filter(d => d.id <= FROM), {before: FROM})
-export const RangeCustomOneDay = chart('issuance', between(FROM, FROM), {after: FROM, before: FROM})
+export const RangeCustom = checked(chart('issuance', between(FROM, TO), {after: FROM, before: TO}), custom(`${FROM} to ${TO}`))
+export const RangeCustomFromOnly = checked(chart('issuance', DAILY.filter(d => d.id >= TO), {after: TO}), custom(`${TO} to …`))
+export const RangeCustomToOnly = checked(chart('issuance', DAILY.filter(d => d.id <= FROM), {before: FROM}), custom(`… to ${FROM}`))
+export const RangeCustomOneDay = checked(chart('issuance', between(FROM, FROM), {after: FROM, before: FROM}), custom(`${FROM} to ${FROM}`))
+
+// a bad day in the url sets no bound, impossible dates like 2026-02-30 included
+export const RangeCustomInvalidFrom = checked(chart('issuance', DAILY.filter(d => d.id <= FROM), {after: 'yesterday', before: FROM}), custom(`… to ${FROM}`))
+export const RangeCustomInvalidTo = checked(chart('issuance', DAILY.filter(d => d.id >= TO), {after: TO, before: '2026-02-30'}), custom(`${TO} to …`))
+export const RangeCustomInvalidBoth = checked(chart('issuance', since(365), {after: '2026-13-45', before: 'today'}), preset('365D'))
 
 export const EvmTransactionsAfterQuietDay = chart('evm-transactions', DAILY.map((d, i) => (i === DAILY.length - 2 ? {...d, evmTxs: 0} : d)))
 

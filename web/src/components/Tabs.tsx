@@ -64,10 +64,11 @@ function Trigger({item, variant}: {item: TabItem; variant: TabVariant}) {
 
 // a tab is a link, so the strip is the url and only the page being read is built
 export function TabBar({items, variant = 'line', className}: {items: TabItem[]; variant?: TabVariant; className?: string}) {
-    const active = items.find(t => t.active) ?? items[0]
+    const active = items.find(t => t.active)
     const strip = items.map(t => <Trigger key={t.href} item={t} variant={variant} />)
+    // with undefined the tabs go uncontrolled and select whichever one takes focus
     return (
-        <Tabs value={active?.href} className={className}>
+        <Tabs value={active?.href ?? ''} className={className}>
             <TabsList variant={variant === 'line' ? 'line' : 'default'} className={STYLE[variant].list}>
                 {variant === 'line' ? <TabScroller>{strip}</TabScroller> : strip}
             </TabsList>
