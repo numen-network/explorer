@@ -13,7 +13,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {Item} from '@/components/ui/item'
 import {chainProps} from '@/lib/chain'
-import {extrinsicPath, fmtBalance, fmtInt, shortHash} from '@/lib/format'
+import {extrinsicPath, fmtBalance, fmtCount, shortHash} from '@/lib/format'
 import {extrinsicDetail, extrinsicMatches, type ExtrinsicHit} from '@/lib/gql'
 import {paging, type Paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
@@ -32,7 +32,7 @@ function Ambiguous({hash, hits, total, pg}: {hash: string; hits: ExtrinsicHit[];
     return (
         <div>
             <h1 className="mt-6 text-lg font-semibold">Extrinsic {shortHash(hash, 10, 6)}</h1>
-            <p className="mt-1.5 text-sm text-muted-foreground">{fmtInt(total)} extrinsics share this hash, pick the block you meant.</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">{fmtCount(total, 'extrinsic')} share this hash, pick the block you meant.</p>
             <Card size="flush" className="mt-3 divide-y">
                 {hits.map(h => (
                     <Item key={h.id} asChild className="justify-between gap-4 rounded-none border-0 px-5 py-3 [a]:hover:bg-background/60">

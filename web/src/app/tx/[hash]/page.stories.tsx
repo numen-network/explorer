@@ -53,7 +53,10 @@ export const OutOfGas = txPage(
 
 export const FatalError = txPage(evmTx(HEAD - 30, 0, {from: bob, to: alice, value: units(1, 18), txType: 'EIP7702', ...exit(EXIT.notSupported)}))
 
-export const InputShorterThanSelector = txPage(evmTx(HEAD - 35, 0, {from: bob, to: alice, input: '0x01', gasLimit: '25000', gasUsed: '21016'}))
+export const InputShorterThanSelector: StoryObj = {
+    ...txPage(evmTx(HEAD - 35, 0, {from: bob, to: alice, input: '0x01', gasLimit: '25000', gasUsed: '21016'})),
+    play: async ({canvas}) => expect(canvas.getByRole('button', {name: '0x · 1 byte'})).toBeVisible(),
+}
 
 const bare = token(3, {name: null, symbol: null, decimals: null})
 const bareSent = units(77, 12)
@@ -63,11 +66,17 @@ const bareTransfer = erc20Transfer(bareCall, 0, bare, alice, bob, bareSent)
 export const TokenWithoutMetadata = txPage(bareCall, {logs: [bareTransfer.log], transfers: [bareTransfer.transfer]})
 
 const dust = token(9)
-const creation = evmTx(HEAD - 40, 0, {from: alice, to: null, contractAddress: dust.id, input: bytecode(4_321), gasLimit: '3000000', gasUsed: '2456789', txType: 'Legacy', ...exit(EXIT.returned)})
+const creation = evmTx(HEAD - 40, 0, {from: alice, to: null, contractAddress: dust.id, input: bytecode(4_321), nonce: 12_345, gasLimit: '3000000', gasUsed: '2456789', txType: 'Legacy', ...exit(EXIT.returned)})
 const mint = erc20Transfer(creation, 1, dust, ZERO_ADDRESS, alice, dust.totalSupply)
 const ownership = evmLog(creation, 0, {topics: [TOPIC.ownershipTransferred, topicOf(ZERO_ADDRESS), topicOf(alice)]})
 
-export const ContractCreation = txPage(creation, {logs: [ownership, mint.log], transfers: [mint.transfer]})
+export const ContractCreation: StoryObj = {
+    ...txPage(creation, {logs: [ownership, mint.log], transfers: [mint.transfer]}),
+    play: async ({canvas}) => {
+        await expect(canvas.getByRole('button', {name: '0x60806040 · 4,321 bytes'})).toBeVisible()
+        await expect(canvas.getByText('Legacy · nonce 12,345')).toBeVisible()
+    },
+}
 
 export const ContractCreationInputOpen: StoryObj = {
     ...txPage(creation, {logs: [ownership, mint.log], transfers: [mint.transfer]}),

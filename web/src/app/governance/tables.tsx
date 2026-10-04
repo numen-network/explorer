@@ -9,7 +9,7 @@ import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtBalance, fmtInt, fmtSpan, trackLabel} from '@/lib/format'
+import {camelLabel, fmtBalance, fmtCount, fmtInt, fmtSpan, trackLabel} from '@/lib/format'
 import type {TrackRow, TreasurySpendRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {NONE} from '@/components/Detail'
@@ -60,14 +60,14 @@ export function TracksTable({rows, chain}: {rows: TrackRow[]; chain: ChainProps}
     const columns = useMemo(() => {
         // periods are stored in blocks, the block count stays on hover
         const span = (blocks: number) => (
-            <Tip text={`${fmtInt(blocks)} blocks`}>
+            <Tip text={fmtCount(blocks, 'block')}>
                 <span>{fmtSpan(blocks * chain.blockTime)}</span>
             </Tip>
         )
         return tcol.columns([
             tcol.display({id: 'track', header: 'Track', meta: {className: 'w-full', cellClassName: 'text-[13px] font-medium'}, cell: ({row}) => trackLabel(row.original.name)}),
             tcol.display({id: 'spend', header: 'Max spend', meta: num, cell: ({row}) => (row.original.maxSpend ? fmtBalance(row.original.maxSpend, chain.decimals, chain.symbol) : '—')}),
-            tcol.display({id: 'deciding', header: 'Max deciding', meta: num, cell: ({row}) => row.original.maxDeciding}),
+            tcol.display({id: 'deciding', header: 'Max deciding', meta: num, cell: ({row}) => fmtInt(row.original.maxDeciding)}),
             tcol.display({id: 'submission', header: 'Submission deposit', meta: num, cell: () => fmtBalance(chain.submissionDeposit, chain.decimals, chain.symbol)}),
             tcol.display({id: 'deposit', header: 'Decision deposit', meta: num, cell: ({row}) => fmtBalance(row.original.decisionDeposit, chain.decimals, chain.symbol)}),
             tcol.display({id: 'prepare', header: 'Prepare', meta: num, cell: ({row}) => span(row.original.preparePeriod)}),

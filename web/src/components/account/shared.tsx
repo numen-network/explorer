@@ -1,4 +1,5 @@
 import type {ChainProps} from '@/lib/chain'
+import {fmtCount} from '@/lib/format'
 import type {AccountRow, AccountSummary, BountyDepositRow, ChildBountyDepositRow, GovDepositRow, ValidatorRow} from '@/lib/gql'
 import {variantName} from '@/lib/variant'
 
@@ -161,7 +162,7 @@ function msigRows(pending: {deposit: string | null}[]): LockRow[] {
     const total = pending.reduce((n, p) => n + BigInt(p.deposit ?? 0), 0n)
     if (total === 0n) return []
     const freedBy =
-        pending.length === 1 ? 'until that call runs or is called off' : `until those ${pending.length} calls run or are called off`
+        pending.length === 1 ? 'until that call runs or is called off' : `until those ${fmtCount(pending.length, 'call')} run or are called off`
     return [reserved('Multisig deposit', total, freedBy)]
 }
 

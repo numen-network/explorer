@@ -9,7 +9,7 @@ import {Jump} from '@/components/links'
 import Pager from '@/components/Pager'
 import {FilterChip} from '@/components/pills'
 import {Card} from '@/components/ui/card'
-import {fmtCompact, fmtInt} from '@/lib/format'
+import {fmtCompact, fmtCount, fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
 
@@ -112,7 +112,7 @@ function Detail({v, decimals, symbol}: {v: VoteEntry; decimals: number; symbol: 
                     <DataTable columns={columns} rows={v.delegators} getRowId={d => d.addr} className="mt-1" />
                     {hidden > 0 && (
                         <Link href={`/account/${v.addr}`} className="mt-2 inline-block text-xs text-primary hover:underline">
-                            {fmtInt(hidden)} more {hidden === 1 ? 'delegator' : 'delegators'} on the account page <Jump />
+                            {fmtCount(hidden, 'more delegator')} on the account page <Jump />
                         </Link>
                     )}
                 </div>

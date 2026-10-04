@@ -58,7 +58,7 @@ export default function BlocksRail({cards, faces}: {cards: BlockCard[]; faces: s
                     </div>
                     <div className="mt-1 flex items-center justify-between text-[13px]">
                         <span>
-                            Extrinsics {c.extrinsicCount} · Events {c.eventCount}
+                            Extrinsics {fmtInt(c.extrinsicCount)} · Events {fmtInt(c.eventCount)}
                         </span>
                         <DownloadObj vertices={c.vertices} faces={faces} name={`block-${c.height}.obj`} />
                     </div>

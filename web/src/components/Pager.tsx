@@ -10,6 +10,7 @@ import {Label} from '@/components/ui/label'
 import {Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious} from '@/components/ui/pagination'
 import {Tip} from '@/components/Tip'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {fmtCount} from '@/lib/format'
 import {PAGE_SIZES, type Paging} from '@/lib/paging'
 
 interface Props {
@@ -59,7 +60,7 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
             // the page right after a gap says which side of the current page the gap is on
             const next = pages[i + 1] as {value: number}
             const back = next.value <= page
-            const label = back ? `Previous ${JUMP} pages` : `Next ${JUMP} pages`
+            const label = `${back ? 'Previous' : 'Next'} ${fmtCount(JUMP, 'page')}`
             const Arrows = back ? ChevronsLeft : ChevronsRight
             return (
                 <PaginationItem key={i} className={hide}>

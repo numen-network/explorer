@@ -1,3 +1,5 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {paged} from '../../../../../mock/fixtures.js'
 import {bounty, bountyEvents, CHILD_STATUSES, childBounty, eventsById} from '../../../../../mock/fixtures/governance.js'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
@@ -31,7 +33,15 @@ export const Claimed = detail(bounty(2, 'BountyClaimed'))
 
 export const Rejected = detail(bounty(1, 'BountyRejected'))
 
-export const Canceled = detail(bounty(0, 'BountyCanceled'))
+// the chain calls it BountyCanceled, the badge and the timeline both read cancelled
+export const Canceled: StoryObj = {
+    ...detail(bounty(0, 'BountyCanceled')),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('Bounty cancelled')).toBeVisible()
+        await expect(canvas.getByText('Cancelled')).toBeVisible()
+        await expect(canvasElement.textContent).not.toMatch(/canceled/i)
+    },
+}
 
 export const NullableFieldsEmpty = detail(bounty(10, 'BountyRejected', {description: null, proposer: null, fee: null, value: '0'}))
 
@@ -45,11 +55,17 @@ export const LongDescription = detail(
 
 const parent = bounty(12, 'Active')
 
-export const ChildBountiesEveryStatus = detail(
-    parent,
-    CHILD_STATUSES.map((status, i) => childBounty(12, i, status)),
-    'children'
-)
+export const ChildBountiesEveryStatus: StoryObj = {
+    ...detail(
+        parent,
+        CHILD_STATUSES.map((status, i) => childBounty(12, i, status)),
+        'children'
+    ),
+    play: async ({canvas}) => {
+        const statuses = canvas.getAllByRole('row').slice(1).map(row => row.lastElementChild!.textContent)
+        await expect(statuses).toEqual(['Added', 'Curator proposed', 'Active', 'Pending payout', 'Claimed', 'Cancelled'])
+    },
+}
 
 export const ChildBountiesEdgeCases = detail(
     parent,

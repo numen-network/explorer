@@ -16,7 +16,7 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainHeads, chainProps} from '@/lib/chain'
-import {camelLabel, fmtCompact, fmtCompact3, fmtInt, trackLabel, truncFixed} from '@/lib/format'
+import {camelLabel, fmtCompact, fmtCompact3, fmtCount, fmtInt, trackLabel, truncFixed} from '@/lib/format'
 import {isLive, phaseFraction, phaseOf} from '@/lib/referendum'
 import {bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -125,7 +125,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     <>
                                         <span className="font-semibold">{fmtInt(truncFixed(r.proposalAmount, 0, chain.decimals))}</span>{' '}
                                         <span className="font-medium text-dim">{chain.symbol}</span>
-                                        {payouts(r.proposalCalls) > 1 && <span className="text-muted-foreground"> · {payouts(r.proposalCalls)} payouts</span>}
+                                        {payouts(r.proposalCalls) > 1 && <span className="text-muted-foreground"> · {fmtCount(payouts(r.proposalCalls), 'payout')}</span>}
                                     </>
                                 ) : (
                                     <span className="text-muted-foreground">{r.proposalMethod ?? ''}</span>

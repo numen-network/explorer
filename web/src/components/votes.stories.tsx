@@ -83,7 +83,15 @@ export const ExpandedWithoutDelegators = {...lists(every, standard(ayes)), play:
 
 export const ExpandedWithFewDelegators = {...lists(every, standard(ayes)), play: expand('Orbit Labs')}
 
-export const ExpandedOverInlineLimit = {...lists(every, standard(ayes)), play: expand('Polaris Guild')}
+// the delegators past the inline ten are counted under the list
+const hiddenNote = (note: string): Story['play'] => async context => {
+    await expand('Polaris Guild')!(context)
+    await expect(context.canvas.getByRole('link', {name: note})).toBeVisible()
+}
+
+export const ExpandedOverInlineLimit = {...lists(every, standard(ayes)), play: hiddenNote('3 more delegators on the account page')}
+
+export const ExpandedOneOverInlineLimit = {...lists(every, standard([ayes[0], vote(0, '2x', 400_000, many, 11), ayes[2]])), play: hiddenNote('1 more delegator on the account page')}
 
 export const ExtremeNumbers = lists(
     groups('Aye', 3, 0, 0),
@@ -103,9 +111,9 @@ export const TruncationEdges: Story = {
         await expect(parts).toEqual([
             ['1.15 NUMN', '4.35 NUMN'],
             ['8.2M NUMN', '5.1M NUMN'],
-            ['99.9 NUMN', '9999 NUMN'],
+            ['99.9 NUMN', '9,999 NUMN'],
             ['0 NUMN', '0.01 NUMN'],
-            ['340282366920B NUMN', '2.01 NUMN'],
+            ['340,282,366,920B NUMN', '2.01 NUMN'],
         ])
     },
 }

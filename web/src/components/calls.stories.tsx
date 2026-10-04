@@ -1,6 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
-import {userEvent, within} from 'storybook/test'
+import {expect, userEvent, within} from 'storybook/test'
 import type {AccountRef, CallRef, CallRow} from '@/lib/gql'
 import {HEAD} from '../../../mock/fixtures.js'
 import {batchAll, batchInterrupted, batchOfProxies, CHAIN_PROPS, heartbeat, mined, pick, proxied, referendumSubmission, timestampSet, transfer, vestingPayout} from '../../../mock/fixtures/blocks.js'
@@ -41,6 +41,7 @@ export const CallPills: Story = {
 }
 
 export const CallCells: Story = {
+    play: async ({canvas}) => expect(canvas.getByText('1,234× Vesting.vested_transfer')).toBeVisible(),
     render: () => (
         <>
             <Case label="wraps nothing">
@@ -61,6 +62,9 @@ export const CallCells: Story = {
             <Case label="a payout batch">
                 <CallCell call={call('Utility.batch_all')} leaves={times(526, 'Vesting.vested_transfer')} />
             </Case>
+            <Case label="over a thousand identical calls">
+                <CallCell call={call('Utility.batch_all')} leaves={times(1_234, 'Vesting.vested_transfer')} />
+            </Case>
         </>
     ),
 }
@@ -77,9 +81,9 @@ const expandAll: Story['play'] = async ({canvasElement}) => {
 
 export const CallTreeEmpty: Story = {render: () => <CallTree calls={[]} chain={CHAIN_PROPS} signer={null} />}
 
-export const CallTreeUnsigned = tree(heartbeat)
+export const CallTreeUnsigned: Story = {...tree(heartbeat), play: async ({canvas}) => expect(canvas.getByText('1 event')).toBeVisible()}
 
-export const CallTreeSingleCall = tree(transfer)
+export const CallTreeSingleCall: Story = {...tree(transfer), play: async ({canvas}) => expect(canvas.getByText('6 events')).toBeVisible()}
 
 export const CallTreeBatch = tree(batchAll)
 

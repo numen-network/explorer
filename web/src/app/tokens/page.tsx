@@ -1,7 +1,7 @@
 import Pager from '@/components/Pager'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
-import {fmtInt} from '@/lib/format'
+import {fmtCount} from '@/lib/format'
 import {paging} from '@/lib/paging'
 import {tokensPage} from '@/lib/gql'
 import {TokensTable} from './table'
@@ -20,7 +20,7 @@ export default async function TokensPage(props: PageProps<'/tokens'>) {
         <div>
             <div className="mt-6 flex items-baseline justify-between">
                 <h1 className="text-lg font-semibold">ERC20 tokens</h1>
-                <span className="text-xs text-muted-foreground">{fmtInt(conn.totalCount)} contracts</span>
+                <span className="text-xs text-muted-foreground">{fmtCount(conn.totalCount, 'contract')}</span>
             </div>
             <Card size="flush" className="mt-3">
                 <TokensTable rows={tokens} />

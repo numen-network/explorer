@@ -33,6 +33,7 @@ interface Scene {
     referendums?: object[]
     validators?: number
     windows?: Partial<Windows>
+    sessionLength?: number
 }
 
 const PROTOCOL = 'poscan-v1'
@@ -67,7 +68,7 @@ function windowsOf(days: Day[]): Windows {
 
 const close = (d: Day) => ({difficulty: d.difficultyClose, issuanceTotal: d.issuanceTotal, issuanceInactive: d.issuanceInactive, treasuryPot: d.treasuryPot})
 
-function home({head, best = head, finalized = Math.max(0, best - 5), days, objects = [], transfers = [], referendums = [], validators = 4, windows = {}}: Scene) {
+function home({head, best = head, finalized = Math.max(0, best - 5), days, objects = [], transfers = [], referendums = [], validators = 4, windows = {}, sessionLength = chainInfo.sessionLength}: Scene) {
     const counts = {...windowsOf(days), ...windows}
     // a baseline exists once the chain is older than its window
     const baseline = (since: string) => {
@@ -75,7 +76,7 @@ function home({head, best = head, finalized = Math.max(0, best - 5), days, objec
         return head * chainInfo.blockTime * 1000 >= back * DAY_MS ? days.at(-1 - back) : undefined
     }
     return {
-        chainInfos: [{...chainInfo, head: best, finalizedHead: finalized}],
+        chainInfos: [{...chainInfo, head: best, finalizedHead: finalized, sessionLength}],
         blocks: ({where = {}}: {where?: Where}) => {
             if (where.height_eq === 0) return [block(0)]
             if (where.timestamp_lte) {
@@ -94,7 +95,7 @@ function home({head, best = head, finalized = Math.max(0, best - 5), days, objec
         transfers,
         referendums,
         validatorsConnection: {totalCount: validators},
-        validators: validators ? [{lastActiveSession: Math.floor(best / chainInfo.sessionLength)}] : [],
+        validators: validators ? [{lastActiveSession: Math.floor(best / sessionLength)}] : [],
         accountsConnection: (args: {where?: Where}) => windowed(args.where?.lastMinedTimestamp_gt || args.where?.lastMinedTimestamp_isNull === false ? counts.miners : counts.accounts)(args),
         extrinsicsConnection: windowed(counts.extrinsics),
         transfersConnection: windowed(counts.transfers),
@@ -148,9 +149,17 @@ const manyTransfers = [
     transfer(HEAD - 22, 1),
 ]
 
-const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: minedUpTo(HEAD, 5, MANY_FINALIZED), transfers: manyTransfers, referendums: referenda.slice(4, 9)}
+// DAILY rolls with the clock, so the chip the story checks reads a fixed window
+const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: minedUpTo(HEAD, 5, MANY_FINALIZED), transfers: manyTransfers, referendums: referenda.slice(4, 9), windows: {extrinsics: [89_181, 1_139, 33_800] satisfies Window}}
 
-export const HomeMany: StoryObj = {...pageStory(home(many)), play: axesLegible}
+// a chip under ten thousand groups its digits like the tile value above it
+export const HomeMany: StoryObj = {
+    ...pageStory(home(many)),
+    play: async context => {
+        await axesLegible!(context)
+        await expect(context.canvas.getByText('+1,139')).toBeVisible()
+    },
+}
 
 // a crowded referendum row squeezes its text column rather than overflowing
 function expectListsFit(root: HTMLElement) {
@@ -264,34 +273,42 @@ const farDays = DAILY.slice(-31).map((d, i, all) => ({
     }),
 }))
 
-export const HomeExtremes = pageStory(
-    home({
-        head: FAR,
-        days: farDays,
-        objects: minedUpTo(FAR, 5, FAR - 5, height => ({
-            extrinsicCount: 1_234,
-            eventCount: 98_765,
-            author: height === FAR ? null : PEOPLE[(FAR - height) % 2 ? 7 : 8],
-        })),
-        transfers: [
-            transfer(FAR, 1, {amount: '12345678123456789123456789', from: PEOPLE[7], to: PEOPLE[7], timestamp: timeAt(FAR, FAR)}),
-            transfer(FAR, 2, {amount: '1', from: PEOPLE[8], to: PEOPLE[2], timestamp: timeAt(FAR, FAR)}),
-            transfer(FAR - 1, 1, {amount: '549926000123456789012345678', from: TREASURY, call: {pallet: 'Balances', method: 'force_transfer'}, timestamp: timeAt(FAR, FAR - 1)}),
-        ],
-        referendums: [
-            {...referenda[4], id: '123456', index: 123_456, proposalAmount: '199999999999999999999999'},
-            {...referenda[8], id: '123455', index: 123_455},
-        ],
-        validators: 1_000,
-        windows: {
-            accounts: [1_234_567_890, 98_765_432, 987_654_321],
-            miners: [2_147_483_647, 99_999, 1_000_000],
-            extrinsics: [0, 9_876_543, 987_654_321],
-            transfers: [0, 1_234_567, 123_456_789],
-            evm: [2_147_483_647, 98_765_432, 987_654_321],
-        },
-    })
-)
+export const HomeExtremes: StoryObj = {
+    ...pageStory(
+        home({
+            head: FAR,
+            days: farDays,
+            objects: minedUpTo(FAR, 5, FAR - 5, height => ({
+                extrinsicCount: 1_234,
+                eventCount: 98_765,
+                author: height === FAR ? null : PEOPLE[(FAR - height) % 2 ? 7 : 8],
+            })),
+            transfers: [
+                transfer(FAR, 1, {amount: '12345678123456789123456789', from: PEOPLE[7], to: PEOPLE[7], timestamp: timeAt(FAR, FAR)}),
+                transfer(FAR, 2, {amount: '1', from: PEOPLE[8], to: PEOPLE[2], timestamp: timeAt(FAR, FAR)}),
+                transfer(FAR - 1, 1, {amount: '549926000123456789012345678', from: TREASURY, call: {pallet: 'Balances', method: 'force_transfer'}, timestamp: timeAt(FAR, FAR - 1)}),
+            ],
+            referendums: [
+                {...referenda[4], id: '123456', index: 123_456, proposalAmount: '199999999999999999999999'},
+                {...referenda[8], id: '123455', index: 123_455},
+            ],
+            validators: 1_000,
+            sessionLength: 14_400,
+            windows: {
+                accounts: [1_234_567_890, 98_765_432, 987_654_321],
+                miners: [2_147_483_647, 99_999, 1_000_000],
+                extrinsics: [0, 9_876_543, 987_654_321],
+                transfers: [0, 1_234_567, 123_456_789],
+                evm: [2_147_483_647, 98_765_432, 987_654_321],
+            },
+        })
+    ),
+    play: async ({canvas}) => {
+        await expect(canvas.getAllByText('Extrinsics 1,234 · Events 98,765')).toHaveLength(5)
+        await expect(canvas.getByText('Block 1,522 / 14,400')).toBeVisible()
+        await expect(canvas.getByText('Session length').nextElementSibling).toHaveTextContent('14,400 blocks')
+    },
+}
 
 export const HomeExtremesOnPhone: StoryObj = {
     ...HomeExtremes,

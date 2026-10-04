@@ -1,8 +1,8 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, waitFor} from 'storybook/test'
+import {expect, screen, waitFor} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
-import {numn} from '../../../../mock/fixtures.js'
-import {bounty, BOUNTY_STATUSES, counted, linear, listed, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
+import {numn, PEOPLE} from '../../../../mock/fixtures.js'
+import {bounty, BOUNTY_STATUSES, counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
 import {axesLegible, expectLegibleAxes, filterChips} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
@@ -26,6 +26,14 @@ export const ReferendaOne = referendaTab(referenda.slice(0, 1))
 export const ReferendaEveryCase = referendaTab(referenda)
 
 export const ReferendaMany = referendaTab(Array.from({length: 40}, (_, i) => ({...referenda[i % referenda.length], id: String(i), index: i})))
+
+const tranche = (amount: number) => ({pallet: 'Treasury', method: 'spend', depth: 1, amount: numn(amount), beneficiary: PEOPLE[0].id, validFrom: null})
+
+// a grant staged over four spends counts its payouts after the total
+export const ReferendaStagedPayouts: StoryObj = {
+    ...referendaTab([{...referenda[5], id: '13', index: 13, title: 'Staged grant paid out in four tranches', ...proposal([{pallet: 'Utility', method: 'batch_all', depth: 0}, ...[200_000, 150_000, 120_000, 80_000].map(tranche)], null)}]),
+    play: async ({canvas}) => expect(canvas.getByText('· 4 payouts')).toBeVisible(),
+}
 
 // a proposal just short of ten billion whole tokens, a tally ending on the last
 // digits shown and an approval a few nays short of all
@@ -111,7 +119,13 @@ export const BountiesEmpty: StoryObj = {
 
 export const BountiesOne = bountiesTab([bounty(0, 'Active')])
 
-export const BountiesEveryStatus = bountiesTab(BOUNTY_STATUSES.map((status, i) => bounty(BOUNTY_STATUSES.length - 1 - i, status)))
+export const BountiesEveryStatus: StoryObj = {
+    ...bountiesTab(BOUNTY_STATUSES.map((status, i) => bounty(BOUNTY_STATUSES.length - 1 - i, status))),
+    play: async ({canvas, canvasElement}) => {
+        await expect(filterChips(canvasElement, 'Status')).toContain('Bounty cancelled 1')
+        await expect(canvas.getByRole('row', {name: /Bounty cancelled/})).toBeVisible()
+    },
+}
 
 export const BountiesEdgeCases = bountiesTab([
     bounty(3, 'Proposed', {description: null}),
@@ -147,7 +161,7 @@ export const TracksEveryCurve = tracksTab([
     track('40', 'stepped_spender', {maxSpend: numn(50_000), minApproval: stepped(1e9, 5e8, 1e8, 2e8), minSupport: stepped(2e8, 1e7, 5e7, 2.5e8)}),
 ])
 
-export const TracksExtremes = tracksTab([
+const extremeTracks = tracksTab([
     track('50', 'fast_track', {preparePeriod: 1, decisionPeriod: 60, confirmPeriod: 6, minEnactmentPeriod: 0, decisionDeposit: '1'}),
     track('51', 'a_track_name_long_enough_to_wrap_inside_its_card_title', {
         maxDeciding: 2_147_483_647,
@@ -156,6 +170,19 @@ export const TracksExtremes = tracksTab([
         minSupport: reciprocal('1', '1', '0'),
     }),
 ])
+
+// the widest values keep their separators and a period of one block hovers in the singular
+export const TracksExtremes: StoryObj = {
+    ...extremeTracks,
+    play: async context => {
+        await extremeTracks.play!(context)
+        const {canvas, userEvent} = context
+        await expect(canvas.getByRole('cell', {name: '2,147,483,647'})).toBeVisible()
+        const prepare = canvas.getByRole('cell', {name: 'Fast Track'}).closest('tr')!.children[5]
+        await userEvent.hover(prepare.querySelector('[data-slot=tooltip-trigger]')!)
+        await expect(await screen.findByRole('tooltip')).toHaveTextContent(/^1 block$/)
+    },
+}
 
 // periods that stop between two whole units of time
 export const TracksUnevenPeriods: StoryObj = {

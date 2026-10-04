@@ -17,7 +17,7 @@ import {Pagination, PaginationContent, PaginationItem, PaginationNext, Paginatio
 import {chainProps} from '@/lib/chain'
 import {parseDigest} from '@/lib/digest'
 import {isH256} from '@/lib/evm'
-import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
+import {fmtBalance, fmtCount, fmtInt, shortHash} from '@/lib/format'
 import {blockDetail, leafCalls} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
@@ -101,7 +101,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                                     <DownloadObj vertices={object.vertices} faces={faces} name={`block-${block.height}.obj`} />
                                 </div>
                                 <div className="mt-1 text-dim">
-                                    {object.protocol} · {fmtInt(object.vertexCount)} vertices
+                                    {object.protocol} · {fmtCount(object.vertexCount, 'vertex', 'vertices')}
                                 </div>
                             </div>
                         </>
@@ -155,7 +155,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                     </DetailRow>
                     <DetailRow label="Spec version">{block.specVersion ?? '—'}</DetailRow>
                     <DetailRow label="Extrinsics / events">
-                        {block.extrinsicCount} / {block.eventCount}
+                        {fmtInt(block.extrinsicCount)} / {fmtInt(block.eventCount)}
                     </DetailRow>
                 </DetailCard>
             </div>

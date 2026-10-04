@@ -4,13 +4,21 @@ export function fmtInt(n: number | string | bigint): string {
     return String(n).replace(GROUP, ',')
 }
 
+const PLURAL = new Intl.PluralRules('en')
+
+export function fmtCount(n: number, noun: string, plural = `${noun}s`): string {
+    return `${fmtInt(n)} ${PLURAL.select(n) === 'one' ? noun : plural}`
+}
+
 export const sentenceCase = (s: string) => s[0].toUpperCase() + s.slice(1)
 
 // snake_case status names read as a sentence
 export const humanize = (s: string) => sentenceCase(s.replaceAll('_', ' '))
 
-// a chain variant or event name reads as a sentence, BountyClaimed as Bounty claimed
-export const camelLabel = (s: string) => sentenceCase(s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase())
+// a chain variant or event name reads as a sentence, BountyClaimed as Bounty
+// claimed. the pallets spell both BountyCanceled and Referenda.Cancelled, the
+// labels stick to cancelled
+export const camelLabel = (s: string) => sentenceCase(s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().replace('canceled', 'cancelled'))
 
 // track names are snake_case and read as a title
 export const trackLabel = (name: string) => name.split('_').map(sentenceCase).join(' ')
@@ -83,7 +91,7 @@ export function fmtCompact(planck: string | bigint, decimals: number): string
 export function fmtCompact(x: number | string | bigint, decimals = 0): string {
     const [planck, scale] = planckOf(x, decimals)
     const [, shift, suffix] = unitFor(planckParts(planck, scale).whole)
-    return trimNum(planck, scale + shift) + suffix
+    return fmtInt(trimNum(planck, scale + shift)) + suffix
 }
 
 // ticks are whole multiples of the axis step, so every digit a tick has is one
@@ -182,9 +190,8 @@ export function fmtAge(iso: string): string {
     const hrs = Math.floor(mins / 60)
     const days = Math.floor(hrs / 24)
     const years = Math.floor(days / 365)
-    const unit = (n: number, u: string) => `${fmtInt(n)} ${u}${n === 1 ? '' : 's'}`
-    if (years > 0) return `${unit(years, 'yr')} ${unit(days - years * 365, 'day')}`
-    if (days > 0) return `${unit(days, 'day')} ${unit(hrs - days * 24, 'hr')}`
-    if (hrs > 0) return `${unit(hrs, 'hr')} ${unit(mins - hrs * 60, 'min')}`
-    return unit(mins, 'min')
+    if (years > 0) return `${fmtCount(years, 'yr')} ${fmtCount(days - years * 365, 'day')}`
+    if (days > 0) return `${fmtCount(days, 'day')} ${fmtCount(hrs - days * 24, 'hr')}`
+    if (hrs > 0) return `${fmtCount(hrs, 'hr')} ${fmtCount(mins - hrs * 60, 'min')}`
+    return fmtCount(mins, 'min')
 }

@@ -94,7 +94,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (validator) roles.push({text: validator.active ? 'Active validator' : 'Validator', tone: validator.active ? 'pos' : 'idle'})
     if (minedBlocks > 0) roles.push({text: 'Miner', tone: 'primary'})
     if (registrar) roles.push({text: `Registrar #${registrar.index}`, tone: 'primary'})
-    if (evm.tokens > 0) roles.push({text: evm.tokens > 1 ? `Token issuer · ${evm.tokens}` : 'Token issuer', tone: 'primary'})
+    if (evm.tokens > 0) roles.push({text: evm.tokens > 1 ? `Token issuer · ${fmtInt(evm.tokens)}` : 'Token issuer', tone: 'primary'})
     if (evm.contracts > evm.tokens) roles.push({text: 'Contract deployer', tone: 'idle'})
     if (s.curated.totalCount + s.childCurated.totalCount > 0) roles.push({text: 'Bounty curator', tone: 'idle'})
     if (s.nDelegIn.totalCount > 0) roles.push({text: 'Delegate', tone: 'idle'})

@@ -5,6 +5,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import type {ChainProps} from '@/lib/chain'
+import {fmtCount, fmtInt} from '@/lib/format'
 import type {AccountRef, CallRef, CallRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -31,13 +32,13 @@ const LINE = 46
 function tally(refs: CallRef[]): string[] {
     const n = new Map<string, number>()
     for (const c of refs) n.set(qualified(c), (n.get(qualified(c)) ?? 0) + 1)
-    return [...n].map(([name, count]) => (count > 1 ? `${count}× ${name}` : name))
+    return [...n].map(([name, count]) => (count > 1 ? `${fmtInt(count)}× ${name}` : name))
 }
 
 // a wide batch names more calls than the row can hold, so the line keeps whole
 // entries and counts the rest
 function fit(parts: string[]): string {
-    const line = (kept: number) => (kept < parts.length ? [...parts.slice(0, kept), `+${parts.length - kept} more`] : parts).join(SEP)
+    const line = (kept: number) => (kept < parts.length ? [...parts.slice(0, kept), `+${fmtInt(parts.length - kept)} more`] : parts).join(SEP)
     let kept = parts.length
     while (kept > 1 && line(kept).length > LINE) kept--
     return line(kept)
@@ -71,7 +72,7 @@ export function CallTree({calls, chain, signer}: {calls: CallRow[]; chain: Chain
                         <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-3 text-left text-sm" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
                             <span className="font-mono text-[13px]">{qualified(c)}</span>
                             {!c.success && <Badge variant="neg">Failed</Badge>}
-                            {c.events.length > 0 && <span className="text-[11px] text-dim">{c.events.length} events</span>}
+                            {c.events.length > 0 && <span className="text-[11px] text-dim">{fmtCount(c.events.length, 'event')}</span>}
                         </CollapsibleTrigger>
                         <CollapsibleContent className="mt-2 space-y-2" style={{paddingLeft: `${36 + c.address.length * 22}px`}}>
                             {dispatched && (

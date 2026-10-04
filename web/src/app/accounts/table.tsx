@@ -7,7 +7,7 @@ import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import type {ChainProps} from '@/lib/chain'
-import {fmtPct} from '@/lib/format'
+import {fmtInt, fmtPct} from '@/lib/format'
 import type {AccountListRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -51,7 +51,7 @@ export function AccountsTable({rows, chain, issuance}: {rows: AccountListRow[]; 
                     )
                 },
             }),
-            col.display({id: 'extrinsics', header: 'Extrinsics', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => row.original.nonce}),
+            col.display({id: 'extrinsics', header: 'Extrinsics', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.nonce)}),
             col.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.firstSeenBlock} />}),
             col.display({id: 'last', header: 'Last active', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.lastActiveBlock} />}),
         ])

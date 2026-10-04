@@ -292,7 +292,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <PhaseBar label="Enactment" span={fmtSpan(r.track.minEnactmentPeriod * chain.blockTime)} at={enactAt} />
                 <div className="flex items-baseline justify-between border-t pt-3 text-sm">
                     <span className="text-muted-foreground">Attempts</span>
-                    <span className="font-mono">{trail.filter(s => s.name === 'Referenda.ConfirmStarted').length}</span>
+                    <span className="font-mono">{fmtInt(trail.filter(s => s.name === 'Referenda.ConfirmStarted').length)}</span>
                 </div>
             </CardContent>
         </Card>

@@ -20,7 +20,7 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps} from '@/lib/chain'
-import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, fmtPct, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
+import {fmtBalance, fmtCompact, fmtCompact3, fmtCount, fmtInt, fmtPct, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -172,7 +172,7 @@ export default async function Home() {
                         <div>
                             <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>
-                                    Block {fmtInt(inSession)} / {period}
+                                    Block {fmtInt(inSession)} / {fmtInt(period)}
                                 </span>
                             </div>
                             <Bar ratio={inSession / period} />
@@ -332,7 +332,7 @@ export default async function Home() {
                         <InfoCell label="SS58 prefix">{props.ss58}</InfoCell>
                         <InfoCell label="Existential deposit">{fmtBalance(props.existentialDeposit, props.decimals, props.symbol)}</InfoCell>
                         <InfoCell label="Target block time">{props.blockTime}s</InfoCell>
-                        <InfoCell label="Session length">{fmtInt(props.sessionLength)} blocks</InfoCell>
+                        <InfoCell label="Session length">{fmtCount(props.sessionLength, 'block')}</InfoCell>
                         <InfoCell label="Spec version">{data.blocks[0]?.specVersion ?? '—'}</InfoCell>
                         <InfoCell label="PoScan protocol">{data.topology[0]?.id ?? '—'}</InfoCell>
                         <InfoCell label="EVM chain id">{props.evmChainId}</InfoCell>

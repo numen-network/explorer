@@ -49,9 +49,9 @@ export const LongValueOnPhone: Story = {
 export const HomeRow: Story = {
     render: () => (
         <>
-            <StatTile label="Signed extrinsics" href="/charts/extrinsics-total" value="89,062" chips={chips(['+1139', '24h', 'pos'], ['+33.6K', '30d', 'pos'])} />
+            <StatTile label="Signed extrinsics" href="/charts/extrinsics-total" value="89,062" chips={chips(['+1,139', '24h', 'pos'], ['+33.6K', '30d', 'pos'])} />
             <StatTile label="Transfers" href="/charts/transfers-total" value="30,411" chips={chips(['+401', '24h', 'pos'], ['+11.4K', '30d', 'pos'])} />
-            <StatTile label="EVM txs" href="/charts/evm-transactions" value="3,620" chips={chips(['0', '24h', 'idle'], ['+1439', '30d', 'pos'])} />
+            <StatTile label="EVM txs" href="/charts/evm-transactions" value="3,620" chips={chips(['0', '24h', 'idle'], ['+1,439', '30d', 'pos'])} />
             <StatTile label="Accounts" href="/charts/accounts" value="1,636" chips={chips(['+2', '24h', 'pos'], ['+410', '30d', 'pos'])} />
             <StatTile label="Miners" href="/charts/miners" value="23" chips={chips(['43', '30d', 'idle'], ['54', 'total', 'idle'])} />
         </>

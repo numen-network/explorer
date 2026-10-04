@@ -8,7 +8,7 @@ import {StatusDot} from '@/components/pills'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
 import type {ChainProps} from '@/lib/chain'
-import {shortHash} from '@/lib/format'
+import {fmtInt, shortHash} from '@/lib/format'
 import type {BlockRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {NONE} from '@/components/Detail'
@@ -46,8 +46,8 @@ export function BlocksTable({rows, chain}: {rows: BlockRow[]; chain: ChainProps}
                     header: 'Miner', meta: {className: 'w-full'},
                     cell: ({row}) => (row.original.author ? <AccountLink full addr={ss58Encode(row.original.author.id, chain.ss58)} acc={row.original.author} /> : NONE),
                 }),
-                col.display({id: 'extrinsics', header: 'Extrinsics', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => row.original.extrinsicCount}),
-                col.display({id: 'events', header: 'Events', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => row.original.eventCount}),
+                col.display({id: 'extrinsics', header: 'Extrinsics', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.extrinsicCount)}),
+                col.display({id: 'events', header: 'Events', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.eventCount)}),
             ]),
         [chain]
     )

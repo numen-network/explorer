@@ -6,7 +6,7 @@ import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {shortHash} from '@/lib/format'
+import {fmtInt, shortHash} from '@/lib/format'
 import type {AccountRef, MultisigOpRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {variantName} from '@/lib/variant'
@@ -24,7 +24,7 @@ export function MultisigTable({rows, hex, chain}: {rows: MultisigOpRow[]; hex: s
                 id: 'approvals',
                 header: 'Approvals',
                 meta: {cellClassName: 'font-mono'},
-                cell: ({row}) => `${row.original.approvals.length}${row.original.threshold != null ? ` / ${row.original.threshold}` : ''}`,
+                cell: ({row}) => `${fmtInt(row.original.approvals.length)}${row.original.threshold != null ? ` / ${fmtInt(row.original.threshold)}` : ''}`,
             }),
             col.display({id: 'opened', header: 'Opened by', meta: {className: 'w-1/2'}, cell: ({row}) => side(row.original.depositor)}),
             col.display({

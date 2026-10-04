@@ -16,7 +16,7 @@ import {Card} from '@/components/ui/card'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import {chainProps} from '@/lib/chain'
 import {evmTxTypeLabel, exitDetail} from '@/lib/evm'
-import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
+import {fmtBalance, fmtCount, fmtInt, shortHash} from '@/lib/format'
 import {evmTxDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
@@ -149,7 +149,7 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
                         {fmtInt(tx.gasUsed)} used / {fmtInt(tx.gasLimit)} limit · {fmtInt(tx.gasPrice)} wei
                     </DetailRow>
                     <DetailRow label="Type">
-                        {evmTxTypeLabel(tx.txType)} · nonce {tx.nonce}
+                        {evmTxTypeLabel(tx.txType)} · nonce {fmtInt(tx.nonce)}
                     </DetailRow>
                     <DetailRow label="Substrate view">
                         <ExtrinsicLink id={tx.extrinsic.id} />
@@ -161,7 +161,7 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
                             <Collapsible className="group">
                                 <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5">
                                     <ChevronRight className="size-3.5 text-dim transition-transform group-data-[state=open]:rotate-90" />
-                                    {tx.inputSelector ?? '0x'} · {(tx.input.length - 2) / 2} bytes
+                                    {tx.inputSelector ?? '0x'} · {fmtCount((tx.input.length - 2) / 2, 'byte')}
                                 </CollapsibleTrigger>
                                 <CollapsibleContent className="mt-2 max-h-48 overflow-y-auto rounded-lg border bg-background px-3 py-2 text-xs break-all text-muted-foreground">{tx.input}</CollapsibleContent>
                             </Collapsible>

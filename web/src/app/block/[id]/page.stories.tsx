@@ -1,3 +1,5 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {HEAD, hashOf, person} from '../../../../../mock/fixtures.js'
 import {busy, DIGEST, GENESIS, heartbeat, mined, minedObject, sessionStart, subcalls, timestampSet, TOPOLOGY, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
@@ -56,7 +58,10 @@ export const Events = detail(SESSION, {tab: 'events'})
 
 export const EventsBusyBlock = detail(BUSY, {tab: 'events'})
 
-export const EventsMany = detail(AIRDROP, {tab: 'events'})
+export const EventsMany: StoryObj = {
+    ...detail(AIRDROP, {tab: 'events'}),
+    play: async ({canvas}) => expect(canvas.getByText('Extrinsics / events').nextElementSibling).toHaveTextContent('3 / 3,694'),
+}
 
 export const EventsEmptyGenesis = genesis('events')
 
