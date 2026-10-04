@@ -1,8 +1,8 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {HEAD, hashOf, person} from '../../../../../mock/fixtures.js'
-import {busy, DIGEST, GENESIS, heartbeat, mined, minedObject, sessionStart, subcalls, timestampSet, TOPOLOGY, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
-import {drawnCanvases, expectInContentBox, PHONE} from '../../../../.storybook/fit'
+import {busy, DIGEST, GENESIS, heartbeat, mined, minedObject, sessionStart, subcalls, timestampSet, topology, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
+import {drawnCanvases, drawnFaces, expectInContentBox, PHONE} from '../../../../.storybook/fit'
 import {inSiteGutters, pageMeta, pageStory} from '../../../../.storybook/page'
 import BlockPage from './page'
 
@@ -30,15 +30,17 @@ const WEIRD_LOGS = {
     block: {...UPGRADE.block, logs: [...UPGRADE.block.logs, DIGEST.grandpaChange(grandpa), DIGEST.other('numen node 1.4.2'), DIGEST.runtimeUpdated, DIGEST.unknown(7), DIGEST.truncated]},
 }
 
-function detail(b: Mined, {tab = '', page = 1} = {}) {
+// the indexer holds a topology for every protocol the chain has mined under,
+// and the block was mined under the newest
+function detail(b: Mined, {tab = '', page = 1, protocols = ['poscan-v1']} = {}) {
     const slice = <T,>(rows: T[]) => rows.slice((page - 1) * PAGE, page * PAGE)
     const data = {
         blocks: [b.block],
         extrinsics: slice(b.extrinsics),
         events: slice(b.events),
         calls: subcalls(b.calls),
-        minedObjects: [minedObject(b.block.height)],
-        meshTopologies: [TOPOLOGY],
+        minedObjects: [minedObject(b.block.height, protocols.at(-1))],
+        meshTopologies: protocols.map(topology),
     }
     return pageStory(data, {params: {id: String(b.block.height)}, searchParams: {...(tab && {tab}), ...(page > 1 && {page: String(page)})}})
 }
@@ -84,3 +86,9 @@ export const LogsEmptyGenesis = genesis('logs')
 export const Confirming = detail(FRESH)
 
 export const ExtremeValues = detail(EXTREME)
+
+// an upgraded chain holds both topologies, and the object draws on its own protocol's
+export const UpgradedProtocol: StoryObj = {
+    ...detail(QUIET, {protocols: ['poscan-v1', 'poscan-v2']}),
+    play: async ({canvasElement}) => expect(await drawnFaces(canvasElement, 1)).toEqual([topology('poscan-v2').faceCount]),
+}

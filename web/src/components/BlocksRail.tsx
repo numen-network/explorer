@@ -24,9 +24,10 @@ export interface BlockCard {
     minerAcc: AccountRef | null
     protocol: string
     vertices: string
+    faces: string
 }
 
-export default function BlocksRail({cards, faces}: {cards: BlockCard[]; faces: string}) {
+export default function BlocksRail({cards}: {cards: BlockCard[]}) {
     if (cards.length === 0)
         return (
             <Card size="flush">
@@ -57,14 +58,14 @@ export default function BlocksRail({cards, faces}: {cards: BlockCard[]; faces: s
                         {c.minerAddr ? <AccountLink addr={c.minerAddr} acc={c.minerAcc ?? undefined} className="min-w-0" /> : NONE}
                     </div>
                     <div className="mt-1 flex justify-center">
-                        <Asteroid vertices={c.vertices} faces={faces} size={148} interactive />
+                        <Asteroid vertices={c.vertices} faces={c.faces} size={148} interactive />
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-2 text-[13px]">
                         <DotRow className="gap-y-0 whitespace-nowrap">
                             <span>Extrinsics {fmtInt(c.extrinsicCount)}</span>
                             <span>Events {fmtInt(c.eventCount)}</span>
                         </DotRow>
-                        <DownloadObj vertices={c.vertices} faces={faces} name={`block-${c.height}.obj`} />
+                        <DownloadObj vertices={c.vertices} faces={c.faces} name={`block-${c.height}.obj`} />
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-2 font-mono text-[11px] text-dim">
                         <span className="truncate">OBJ {shortHash(c.workHash, 6, 4)}</span>

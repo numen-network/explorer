@@ -80,8 +80,8 @@ export default async function Home() {
         minerAcc: o.block.author ?? null,
         protocol: o.protocol,
         vertices: o.vertices,
+        faces: o.topology.faces,
     }))
-    const faces = data.topology[0]?.faces ?? ''
     const genesisHash = data.genesis[0].hash
 
     const chrono = [...days].reverse().slice(-30)
@@ -235,7 +235,7 @@ export default async function Home() {
             </div>
 
             <Section title="Latest blocks" more="/blocks">
-                <BlocksRail cards={cards} faces={faces} />
+                <BlocksRail cards={cards} />
             </Section>
 
             <div className="mt-7 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
@@ -333,7 +333,7 @@ export default async function Home() {
                         <InfoCell label="Target block time">{props.blockTime}s</InfoCell>
                         <InfoCell label="Session length">{fmtCount(props.sessionLength, 'block')}</InfoCell>
                         <InfoCell label="Spec version">{data.blocks[0]?.specVersion ?? '—'}</InfoCell>
-                        <InfoCell label="PoScan protocol">{data.topology[0]?.id ?? '—'}</InfoCell>
+                        <InfoCell label="PoScan protocol">{data.minedObjects[0]?.protocol ?? '—'}</InfoCell>
                         <InfoCell label="EVM chain id">{props.evmChainId}</InfoCell>
                     </dl>
                     <div className="mt-1 border-t pt-1">

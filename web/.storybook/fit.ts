@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import * as echarts from 'echarts'
-import {expect, waitFor} from 'storybook/test'
+import {expect, spyOn, waitFor} from 'storybook/test'
 
 export const PHONE = {viewport: {value: 'mobile1', isRotated: false}}
 export const TABLET = {viewport: {value: 'tablet', isRotated: false}}
@@ -168,6 +168,24 @@ export const drawnCanvases = (root: Element, count: number) =>
         },
         {timeout: 5000}
     )
+
+// the faces each 3D object under root draws, read off the index count of the
+// draw call an interactive object repeats every frame
+export async function drawnFaces(root: Element, count: number) {
+    const draw = spyOn(WebGL2RenderingContext.prototype, 'drawElements')
+    try {
+        const canvases = await drawnCanvases(root, count)
+        return await waitFor(() =>
+            canvases.map(canvas => {
+                const call = (draw.mock.contexts as WebGL2RenderingContext[]).findLastIndex(gl => gl.canvas === canvas)
+                expect(call).toBeGreaterThanOrEqual(0)
+                return draw.mock.calls[call][1] / 3
+            })
+        )
+    } finally {
+        draw.mockRestore()
+    }
+}
 
 // the box of every run of text under el, one per line it takes up
 function textBoxes(el: Element) {

@@ -65,7 +65,11 @@ export interface ObjectRow {
 export interface TopologyRow {
     id: string
     faces: string
-    faceCount: number
+}
+
+async function withTopology<T extends {protocol: string}>(objects: T[]) {
+    const {meshTopologies} = await gql<{meshTopologies: TopologyRow[]}>(`query ($ids: [String!]!) { meshTopologies(where: {id_in: $ids}) { id faces } }`, {ids: objects.map(o => o.protocol)})
+    return objects.map(o => ({...o, topology: meshTopologies.find(t => t.id === o.protocol)!}))
 }
 
 export interface CallRef {
@@ -141,7 +145,6 @@ export interface HomeData {
     accounts: {totalCount: number}
     validators: {totalCount: number}
     sessionHead: {lastActiveSession: number}[]
-    topology: TopologyRow[]
     evmTotal: {totalCount: number}
     referendums: ReferendumRow[]
     fresh24: {totalCount: number}
@@ -161,8 +164,8 @@ export interface HomeData {
     evm30: {totalCount: number}
 }
 
-export function homeData(since24: string, since30: string) {
-    return gql<HomeData>(
+export async function homeData(since24: string, since30: string) {
+    const data = await gql<HomeData>(
         `query ($since24: DateTime!, $since30: DateTime!) {
             blocks(orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
             genesis: blocks(where: {height_eq: 0}, limit: 1) { hash }
@@ -172,7 +175,6 @@ export function homeData(since24: string, since30: string) {
             accounts: accountsConnection(orderBy: id_ASC) { totalCount }
             validators: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
             sessionHead: validators(orderBy: lastActiveSession_DESC, limit: 1) { lastActiveSession }
-            topology: meshTopologies(limit: 1) { id faces faceCount }
             evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
             fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since24}) { totalCount }
@@ -193,6 +195,7 @@ export function homeData(since24: string, since30: string) {
         }`,
         {since24, since30}
     )
+    return {...data, minedObjects: await withTopology(data.minedObjects)}
 }
 
 export function blocksPage(limit: number, offset: number) {
@@ -275,25 +278,24 @@ export interface Slice {
 
 // the block row carries extrinsicCount and eventCount, so the totals the pagers
 // need come free and no connection query is required
-export function blockDetail(idOrHash: string, page: Slice) {
+export async function blockDetail(idOrHash: string, page: Slice) {
     const byHeight = /^\d+$/.test(idOrHash)
     const where = byHeight ? '{height_eq: $height}' : '{OR: [{hash_eq: $hash}, {evmHash_eq: $hash}]}'
-    return gql<{
+    const data = await gql<{
         blocks: BlockRow[]
         extrinsics: ExtrinsicRow[]
         events: EventRow[]
         minedObjects: {protocol: string; vertexCount: number; vertices: string}[]
-        topology: TopologyRow[]
     }>(
         `query (${byHeight ? '$height: Int!' : '$hash: String!'}, $limit: Int!, $offset: Int!) {
             blocks(where: ${where}, limit: 1) { ${BLOCK_FIELDS} logs }
             extrinsics(where: {block: ${where}}, orderBy: indexInBlock_ASC, limit: $limit, offset: $offset) { ${EXTRINSIC_FIELDS} }
             events(where: {block: ${where}}, orderBy: indexInBlock_ASC, limit: $limit, offset: $offset) { ${EVENT_FIELDS} }
             minedObjects(where: {block: ${where}}, limit: 1) { protocol vertexCount vertices }
-            topology: meshTopologies(limit: 1) { id faces faceCount }
         }`,
         {...(byHeight ? {height: Number(idOrHash)} : {hash: idOrHash.toLowerCase()}), limit: page.limit, offset: page.offset}
     )
+    return {...data, minedObjects: await withTopology(data.minedObjects)}
 }
 
 export type ExtrinsicHit = Pick<ExtrinsicRow, 'id' | 'indexInBlock' | 'hash' | 'pallet' | 'method' | 'success' | 'block'>

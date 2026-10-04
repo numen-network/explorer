@@ -73,11 +73,13 @@ function subdivide({vertices, faces}) {
     return {vertices: out, faces: faces.flatMap(split)}
 }
 
-// the poscan-v1 mesh, 2562 vertices on 5120 faces, the same topology under every object
-const SPHERE = [0, 0, 0, 0].reduce(subdivide, ICOSAHEDRON)
+// one mesh per protocol, shared by every object mined on it. poscan-v1 is the
+// mainnet mesh, 2562 vertices on 5120 faces, poscan-v2 a coarser 642 on 1280
+const COARSE = [0, 0, 0].reduce(subdivide, ICOSAHEDRON)
+const SPHERES = {'poscan-v1': subdivide(COARSE), 'poscan-v2': COARSE}
 const gz = typed => toHex(gzipSync(new Uint8Array(typed.buffer)))
 
-function rock(seed) {
+function rock(seed, sphere) {
     const phase = k => (seed * (k + 1) * 0.731) % (2 * Math.PI)
     const point = v => {
         const n = Math.hypot(...v)
@@ -85,11 +87,11 @@ function rock(seed) {
         const r = 1 + 0.16 * Math.sin(2.1 * x + phase(0)) * Math.sin(1.7 * y + phase(1)) + 0.09 * Math.sin(3.3 * z + phase(2)) * Math.cos(2.6 * x + phase(3)) + 0.04 * Math.sin(6.1 * y + phase(4))
         return [1.25 * x * r, y * r, 0.85 * z * r]
     }
-    return gz(new Float64Array(SPHERE.vertices.flatMap(point)))
+    return gz(new Float64Array(sphere.vertices.flatMap(point)))
 }
 
-export const TOPOLOGY = {id: 'poscan-v1', faces: gz(new Uint16Array(SPHERE.faces.flat())), faceCount: SPHERE.faces.length}
-export const minedObject = height => ({protocol: 'poscan-v1', vertexCount: SPHERE.vertices.length, vertices: rock(height)})
+export const topology = protocol => ({id: protocol, faces: gz(new Uint16Array(SPHERES[protocol].faces.flat())), faceCount: SPHERES[protocol].faces.length})
+export const minedObject = (height, protocol) => ({protocol, vertexCount: SPHERES[protocol].vertices.length, vertices: rock(height, SPHERES[protocol])})
 
 // a call id is its extrinsic id followed by the path down from the root, so the root shares the extrinsic id
 export const callId = (height, index, address = []) => [squidId(height, index), ...address.map(a => String(a).padStart(6, '0'))].join('-')

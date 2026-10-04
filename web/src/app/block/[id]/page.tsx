@@ -41,7 +41,6 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     if (!block) notFound()
     const leaves = await leafCalls(data.extrinsics.map(x => x.id))
     const object = data.minedObjects[0]
-    const faces = data.topology[0]?.faces ?? ''
     // a block with no extrinsics pays the miner nothing beyond the mint
     const minerTake = [block.reward, block.minerFees].filter(v => v !== '0')
     const logs = parseDigest(block.logs ?? [])
@@ -93,12 +92,12 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                 <Card size="flush" className="min-w-0 items-center px-5 py-5">
                     {object ? (
                         <>
-                            <Asteroid vertices={object.vertices} faces={faces} size={290} interactive />
+                            <Asteroid vertices={object.vertices} faces={object.topology.faces} size={290} interactive />
                             <div className="mt-auto pt-3 text-center font-mono text-[11px] text-muted-foreground">
                                 <div className="flex items-center justify-center gap-1">
                                     OBJ {shortHash(block.workHash!, 10, 8)}
                                     <CopyBtn text={block.workHash!} />
-                                    <DownloadObj vertices={object.vertices} faces={faces} name={`block-${block.height}.obj`} />
+                                    <DownloadObj vertices={object.vertices} faces={object.topology.faces} name={`block-${block.height}.obj`} />
                                 </div>
                                 <div className="mt-1 text-dim">
                                     {object.protocol} · {fmtCount(object.vertexCount, 'vertex', 'vertices')}

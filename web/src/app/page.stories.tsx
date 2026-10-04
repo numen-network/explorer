@@ -1,9 +1,10 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, screen, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
+import {minedObject, topology} from '../../../mock/fixtures/blocks.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
-import {axesLegible, drawnCanvases, expectFits, expectInContentBox, expectNoHangingDots, expectOneLine, expectTimesFit, LAPTOP, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
+import {axesLegible, drawnCanvases, drawnFaces, expectFits, expectInContentBox, expectNoHangingDots, expectOneLine, expectTimesFit, LAPTOP, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
 import {inSiteGutters, pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
@@ -198,6 +199,20 @@ export const HomeManyOnLaptop: StoryObj = {
         for (const object of await drawnCanvases(rail, 5)) expectInContentBox(object.closest('[data-slot=card]')!, object)
         expectOneLine(...within(rail).getAllByText(PROTOCOL))
         expectBlockCardsFit(canvasElement)
+    },
+}
+
+// an upgrade moved mining onto poscan-v2 two blocks ago, so the rail mixes
+// objects of both protocols and each draws on its own protocol's topology
+const [V1, V2] = [topology(PROTOCOL), topology('poscan-v2')]
+const mixed = minedUpTo(HEAD, 5, MANY_FINALIZED).map((o, i) => ({...o, ...minedObject(o.block.height, i < 2 ? V2.id : V1.id)}))
+
+export const HomeMixedProtocols: StoryObj = {
+    ...pageStory({...home({...many, objects: mixed}), meshTopologies: [V1, V2]}),
+    play: async ({canvas, canvasElement}) => {
+        const rail = within(canvasElement).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
+        await expect(await drawnFaces(rail, 5)).toEqual([V2, V2, V1, V1, V1].map(t => t.faceCount))
+        await expect(canvas.getByText('PoScan protocol').nextElementSibling).toHaveTextContent(V2.id)
     },
 }
 
