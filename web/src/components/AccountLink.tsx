@@ -5,7 +5,7 @@ import {Fragment} from 'react'
 import {cn} from 'cn'
 import {useAddrHot} from '@/components/addrHot'
 import AddressText from '@/components/AddressText'
-import {JudgementBadge, verdictOf} from '@/components/JudgementBadge'
+import IdentityName from '@/components/IdentityName'
 import {Tip} from '@/components/Tip'
 import {useWellKnown} from '@/components/wellKnown'
 import {identityFields, identityInfoJson, identityLabel, type IdentityRef} from '@/lib/identity'
@@ -22,9 +22,7 @@ const SKIP = new Set(['display', 'avatar', 'bio'])
 export default function AccountLink({addr, acc, className = '', full = false, plain = false}: {addr: string; acc?: IdentityRef; className?: string; full?: boolean; plain?: boolean}) {
     const known = useWellKnown(addr)
     const label = plain ? undefined : (known?.label ?? identityLabel(acc))
-    const info = identityInfoJson(acc)
-    const verdict = verdictOf(info)
-    const fields = identityFields(info).filter(f => !SKIP.has(f.key))
+    const fields = identityFields(identityInfoJson(acc)).filter(f => !SKIP.has(f.key))
     const {cls, ...hot} = useAddrHot(addr)
     const details = (
         <>
@@ -46,16 +44,16 @@ export default function AccountLink({addr, acc, className = '', full = false, pl
             <Tip text={details} align="start" sideOffset={4} className="sm:max-w-md flex-col items-start">
                 <Link href={`/account/${addr}`} className={`-mx-1 flex min-w-0 items-center gap-1 px-1 hover:text-primary ${cls}`} {...hot}>
                     {label ? (
-                        <>
-                            {known ? (
+                        known ? (
+                            <>
                                 <span className="shrink-0" aria-hidden>
                                     {known.emoji}
                                 </span>
-                            ) : (
-                                verdict && <JudgementBadge verdict={verdict} />
-                            )}
-                            <span className="truncate font-medium">{label}</span>
-                        </>
+                                <span className="truncate font-medium">{label}</span>
+                            </>
+                        ) : (
+                            <IdentityName acc={acc!} />
+                        )
                     ) : (
                         <span className="min-w-0 font-mono font-medium"><AddressText addr={addr} full={full} /></span>
                     )}

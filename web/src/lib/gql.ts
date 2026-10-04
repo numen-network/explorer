@@ -1452,6 +1452,10 @@ export function isTokenAddress(address: string) {
     return gql<{tokens: {id: string}[]}>(`query ($a: String!) { tokens(where: {id_eq: $a}, limit: 1) { id } }`, {a: address}).then(r => r.tokens.length > 0)
 }
 
+export interface AccountHit extends AccountRef {
+    username: string | null
+}
+
 export interface TokenHit {
     id: string
     name: string | null
@@ -1459,9 +1463,9 @@ export interface TokenHit {
 }
 
 export function searchNames(q: string) {
-    return gql<{accounts: {id: string; identityDisplay: string | null}[]; tokens: TokenHit[]}>(
+    return gql<{accounts: AccountHit[]; tokens: TokenHit[]}>(
         `query ($q: String!) {
-            accounts(where: {OR: [{identityDisplay_containsInsensitive: $q}, {username_containsInsensitive: $q}]}, orderBy: ${IDENTITY_ORDER}, limit: 20) { ${ACCOUNT_REF} }
+            accounts(where: {OR: [{identityDisplay_containsInsensitive: $q}, {username_containsInsensitive: $q}]}, orderBy: ${IDENTITY_ORDER}, limit: 20) { ${ACCOUNT_REF} username }
             tokens(where: {OR: [{symbol_containsInsensitive: $q}, {name_containsInsensitive: $q}]}, orderBy: ${TOKEN_ORDER}, limit: 20) { id name symbol }
         }`,
         {q}

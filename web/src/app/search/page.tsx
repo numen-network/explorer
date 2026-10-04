@@ -7,11 +7,25 @@ import {Item} from '@/components/ui/item'
 import {chainProps} from '@/lib/chain'
 import {isH160, isH256} from '@/lib/evm'
 import AddressText from '@/components/AddressText'
+import IdentityName from '@/components/IdentityName'
 import TokenIcon from '@/components/TokenIcon'
-import {isTokenAddress, searchLookups, searchNames} from '@/lib/gql'
+import {isTokenAddress, searchLookups, searchNames, type AccountHit} from '@/lib/gql'
+import {identityLabel} from '@/lib/identity'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 
 const ROW = 'gap-3 rounded-none border-0 px-5 py-3 [a]:hover:bg-background/60'
+
+function AccountNames({a}: {a: AccountHit}) {
+    if (!identityLabel(a)) return <span className="truncate font-medium">{a.username}</span>
+    return (
+        <>
+            <span className="flex min-w-0 items-center gap-1">
+                <IdentityName acc={a} />
+            </span>
+            {a.username && <span className="text-xs text-muted-foreground">{a.username}</span>}
+        </>
+    )
+}
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Search'}
@@ -86,7 +100,7 @@ export default async function SearchPage(props: PageProps<'/search'>) {
                     return (
                         <Item key={a.id} asChild className={ROW}>
                             <Link href={`/account/${addr}`}>
-                                <span className="font-medium">{a.identityDisplay}</span>
+                                <AccountNames a={a} />
                                 <span className="ml-auto font-mono text-xs text-muted-foreground">
                                     <AddressText addr={addr} />
                                 </span>
