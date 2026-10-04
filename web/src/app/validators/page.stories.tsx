@@ -1,4 +1,6 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
 import {account, acct, chainInfo, HEAD, identity, numn, paged, person} from '../../../../mock/fixtures.js'
+import {DESKTOP, expectAddressForm, expectFits, PHONE} from '../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import ValidatorsPage from './page'
 
@@ -48,6 +50,18 @@ export const ValidatorsEveryStatus = validators([
     validator(4, {...inactive(9_000), lockedAmount: '0', lockExpiry: null}),
     validator(7, {active: false, lastActiveSession: 0, firstSeenBlock: HEAD - 30}),
 ])
+
+export const ValidatorsEveryStatusOnPhone: StoryObj = {...ValidatorsEveryStatus, globals: PHONE, play: async ({canvasElement}) => expectAddressForm(canvasElement, 'short')}
+
+// a full address breaks onto a second line so every column stays in view
+export const ValidatorsEveryStatusOnDesktop: StoryObj = {
+    ...ValidatorsEveryStatus,
+    globals: DESKTOP,
+    play: async ({canvasElement}) => {
+        expectFits(canvasElement.querySelector('[data-slot=table-container]')!)
+        expectAddressForm(canvasElement, 'full')
+    },
+}
 
 export const ValidatorsExtremeNumbers = validators([
     validator(1, {

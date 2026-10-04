@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import {Fragment} from 'react'
+import {cn} from 'cn'
 import {useAddrHot} from '@/components/addrHot'
 import AddressText from '@/components/AddressText'
 import {JudgementBadge, verdictOf} from '@/components/JudgementBadge'
@@ -15,8 +16,9 @@ const SKIP = new Set(['display', 'avatar', 'bio'])
 // of its own reads as super/sub with the judgement of the super, falls back
 // to the address as one fixed middle elided string in the statescan manner,
 // full shows the whole address on list pages with room for it, hovering
-// floats the full address in a tooltip. plain is for the places that pin an
-// account down by address, where a name only repeats the label next to it
+// floats the full address in a tooltip. a label truncates to fit its room and
+// a full address wraps, 7…4 keeps its width. plain is for the places that pin
+// an account down by address, where a name only repeats the label next to it
 export default function AccountLink({addr, acc, className = '', full = false, plain = false}: {addr: string; acc?: IdentityRef; className?: string; full?: boolean; plain?: boolean}) {
     const known = useWellKnown(addr)
     const label = plain ? undefined : (known?.label ?? identityLabel(acc))
@@ -40,7 +42,7 @@ export default function AccountLink({addr, acc, className = '', full = false, pl
         </>
     )
     return (
-        <span className={`inline-flex min-w-0 max-w-full items-center align-top ${className}`}>
+        <span className={cn('inline-flex max-w-full items-center align-top', (label || full) && 'min-w-0', className)}>
             <Tip text={details} align="start" sideOffset={4} className="sm:max-w-md flex-col items-start">
                 <Link href={`/account/${addr}`} className={`-mx-1 flex min-w-0 items-center gap-1 px-1 hover:text-primary ${cls}`} {...hot}>
                     {label ? (
@@ -55,7 +57,7 @@ export default function AccountLink({addr, acc, className = '', full = false, pl
                             <span className="truncate font-medium">{label}</span>
                         </>
                     ) : (
-                        <span className="truncate font-mono font-medium"><AddressText addr={addr} full={full} /></span>
+                        <span className="min-w-0 font-mono font-medium"><AddressText addr={addr} full={full} /></span>
                     )}
                 </Link>
             </Tip>

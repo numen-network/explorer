@@ -2,6 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {evmMappedAccount} from '@/lib/evm'
 import {HEAD, paged, transfer} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, erc20Transfer, evmAddress, evmLog, evmTx, exit, EXIT, SELECTOR, token, TOPIC, topicOf, UINT256_MAX, units, word, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
+import {expectAddressForm, expectFits, PHONE} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import EvmTxPage from './page'
 
@@ -114,6 +115,16 @@ export const SwapEveryTab = txPage(swap, {logs: swapLogs, transfers: [wrap.trans
 export const SwapTokenTransfers = txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, {tab: 'transfers'})
 
 export const SwapLogs = txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, LOGS_TAB)
+
+// from, to and every log address keep their full form on a phone and wrap inside their rows
+export const SwapLogsOnPhone: StoryObj = {
+    ...SwapLogs,
+    globals: PHONE,
+    play: async ({canvasElement}) => {
+        expectAddressForm(canvasElement, 'full')
+        expectFits(...[...canvasElement.querySelectorAll('a[href^="/address/"]')].map(link => link.closest('[data-slot=card] > *')!))
+    },
+}
 
 const disperse = evmAddress(50)
 const airdrop = evmTx(HEAD - 80, 0, {from: alice, to: disperse, input: calldata('0xc73a2d60', WTMR.id, 0x60, 0x60), gasLimit: '4000000', gasUsed: '3412876', ...exit(EXIT.returned)})

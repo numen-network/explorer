@@ -93,6 +93,7 @@ export const AddressOnly: Story = {
     ),
 }
 
+// a label truncates in a column too narrow for it, a full address wraps
 export const NarrowColumn: Story = {
     render: () => (
         <div className="grid w-40 gap-2 rounded-md border p-2">
@@ -101,6 +102,13 @@ export const NarrowColumn: Story = {
             <AccountLink full addr={addr(bare)} />
         </div>
     ),
+    play: async ({canvas, canvasElement}) => {
+        const [long, , full] = canvas.getAllByRole('link')
+        const label = long.lastElementChild!
+        expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
+        expect(full.innerText).toBe(addr(bare))
+        expectFits(canvasElement.firstElementChild!, full, ...full.querySelectorAll('span'))
+    },
 }
 
 // an account named in a line of text stays on that line, and one too long for

@@ -27,6 +27,31 @@ export function expectNoHangingDots(root: Element) {
     }
 }
 
+// every address a link shows reads in one whole form, the full address or its
+// 7…4 split, and no box inside the link cuts it off
+export function expectAddressForm(root: Element, form: 'full' | 'short') {
+    const links = [...root.querySelectorAll<HTMLElement>('a[href^="/account/"], a[href^="/address/"]')].filter(a => /^(nu|0x)[\w…]+$/.test(a.innerText.trim()))
+    expect(links.length).toBeGreaterThan(0)
+    for (const link of links) {
+        expect(link.innerText.trim()).toMatch(form === 'full' ? /^\w{42,}$/ : /^\w{7}…\w{4}$/)
+        expectFits(link, ...link.querySelectorAll('span'))
+    }
+}
+
+// a full address in a table column too narrow for it breaks between its two halves and nowhere else
+export function expectHalves(full: Element) {
+    const lines = (node: Node) => {
+        const range = document.createRange()
+        range.selectNodeContents(node)
+        return [...new Set([...range.getClientRects()].map(r => Math.round(r.top)))]
+    }
+    const [head, , tail] = full.childNodes
+    const [top, bottom] = [lines(head), lines(tail)]
+    expect(top).toHaveLength(1)
+    expect(bottom).toHaveLength(1)
+    expect(top[0]).toBeLessThan(bottom[0])
+}
+
 // a word broken across two lines leaves a rect on each of them
 export function expectWholeWords(...boxes: Element[]) {
     expect(boxes.length).toBeGreaterThan(0)

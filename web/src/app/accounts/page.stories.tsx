@@ -1,8 +1,9 @@
-import type {Decorator} from '@storybook/nextjs-vite'
+import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {MAX_U128, PLANCK, PRIME_KEY, TREASURY} from '../../../../mock/fixtures/accounts.js'
 import {acct, chainInfo, HEAD, identity, issuance, numn, PEOPLE} from '../../../../mock/fixtures.js'
+import {expectAddressForm, expectFits, PHONE} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import AccountsPage from './page'
 
@@ -56,6 +57,18 @@ export const Many = list(
     TIERS.map(([who, balance], i) => row(who, balance, i)),
     {total: 1_284, since: 0}
 )
+
+// the treasury and prime cards wrap their full addresses, the table keeps 7…4
+export const ManyOnPhone: StoryObj = {
+    ...Many,
+    globals: PHONE,
+    play: async ({canvasElement}) => {
+        const [cards, table] = canvasElement.querySelectorAll('[data-slot=card]')
+        expectFits(cards, table)
+        expectAddressForm(cards, 'full')
+        expectAddressForm(table, 'short')
+    },
+}
 
 export const ExtremeNumbers = list([
     {...row(PEOPLE[7], MAX_U128, 0), nonce: 2_147_483_647, firstSeenBlock: 0, lastActiveBlock: HEAD},

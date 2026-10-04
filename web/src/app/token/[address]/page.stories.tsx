@@ -1,7 +1,8 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
 import type {TokenRow} from '@/lib/gql'
 import {rows} from '../../../../../mock/fixtures.js'
 import {evmAddress, holder, holders, token, tokenTransfer, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
-import {cardsFit} from '../../../../.storybook/fit'
+import {cardsFit, expectAddressForm, PHONE} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import TokenPage from './page'
 
@@ -28,6 +29,12 @@ const huge = token(3, {
 })
 
 export const HoldersMany = tokenPage(WTMR, {holders: holders(WTMR, 20)})
+
+export const HoldersManyOnPhone: StoryObj = {
+    ...HoldersMany,
+    globals: PHONE,
+    play: async ({canvasElement}) => expectAddressForm(canvasElement.querySelector('[data-slot=table-container]')!, 'short'),
+}
 
 export const HoldersPageThree = tokenPage(WTMR, {holders: holders(WTMR, 20, 40)}, {page: '3'})
 

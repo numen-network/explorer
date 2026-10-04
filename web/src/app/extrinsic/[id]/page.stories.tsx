@@ -2,6 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {userEvent, within} from 'storybook/test'
 import {extrinsic, HEAD, hashOf, paged} from '../../../../../mock/fixtures.js'
 import {batchAll, batchInterrupted, batchOfProxies, evmTransact, evmTxHash, failedVoteRemoval, heartbeat, mined, pick, proxied, referendumSubmission, signedCall, timestampSet, tipped, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
+import {expectAddressForm, expectFits, PHONE} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ExtrinsicPage from './page'
 
@@ -49,6 +50,16 @@ const ambiguous = (hits: object[], page = '1') => pageStory({extrinsics: paged(h
 const replays = Array.from({length: 45}, (_, i) => hit(300_000 + i * 15_000, 1 + (i % 3)))
 
 export const Transfer = detail(of(transfer))
+
+// the signer keeps its full address on a phone and wraps it inside its row
+export const TransferOnPhone: StoryObj = {
+    ...Transfer,
+    globals: PHONE,
+    play: async ({canvasElement}) => {
+        expectAddressForm(canvasElement, 'full')
+        expectFits(canvasElement.querySelector('a[href^="/account/"]')!.closest('[data-slot=card] > *')!)
+    },
+}
 
 export const TransferEvents = detail(of(transfer), {tab: 'events'})
 
