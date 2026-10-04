@@ -119,18 +119,64 @@ export const tooltipsInView: StoryObj['play'] = async ({canvasElement}) => {
     expectTooltipsInView(canvasElement)
 }
 
-// a middle dot shares its line with the item after it, so no line ends on one
+// the box of the first line an element's content takes up
+function firstLine(el: Element) {
+    const range = document.createRange()
+    range.selectNodeContents(el)
+    return [...range.getClientRects()].filter(r => r.width > 0).sort((a, b) => a.top - b.top || a.height - b.height)[0]
+}
+
+// a middle dot shares the first line of the item after it, so no line ends on one
 export function expectNoHangingDots(root: Element) {
-    const mid = (el: Element) => {
-        const r = el.getBoundingClientRect()
-        return r.top + r.height / 2
-    }
+    const mid = (r: DOMRect) => r.top + r.height / 2
     const dots = [...root.querySelectorAll('span')].filter(el => el.textContent === '·')
     expect(dots.length).toBeGreaterThan(0)
     for (const dot of dots) {
         const next = dot.nextElementSibling
         expect(next).not.toBeNull()
-        expect(Math.abs(mid(dot) - mid(next!))).toBeLessThan(2)
+        expect(Math.abs(mid(dot.getBoundingClientRect()) - mid(firstLine(next!)))).toBeLessThan(2)
+    }
+}
+
+// how far a box's content may reach, inside its border and padding
+function contentEdges(box: Element) {
+    const r = box.getBoundingClientRect()
+    const style = getComputedStyle(box)
+    return {left: r.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft), right: r.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight)}
+}
+
+// the box of every run of text under el, one per line it takes up
+function textBoxes(el: Element) {
+    const boxes: DOMRect[] = []
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    for (let node = walk.nextNode(); node; node = walk.nextNode()) {
+        const range = document.createRange()
+        range.selectNodeContents(node)
+        boxes.push(...[...range.getClientRects()].filter(r => r.width > 0))
+    }
+    return boxes
+}
+
+// every timestamp under root keeps its text and timezone switch inside its
+// block and its card, its age, date and timezone each on one line, and splits
+// the timezone off only once the date has a line of its own
+export function expectTimesFit(root: Element) {
+    const ages = [...root.querySelectorAll('span')].filter(span => /^\d+[smhd] ago$/.test(span.textContent!))
+    expect(ages.length).toBeGreaterThan(0)
+    for (const age of ages) {
+        let stamp: Element = age
+        while (stamp.parentElement!.textContent === age.parentElement!.textContent) stamp = stamp.parentElement!
+        let box = stamp
+        while (getComputedStyle(box).display.startsWith('inline')) box = box.parentElement!
+        const ink = [...textBoxes(stamp), ...[...stamp.querySelectorAll('svg')].map(icon => icon.getBoundingClientRect())]
+        for (const edges of [box, box.closest('[data-slot=card]')].filter(el => el !== null).map(contentEdges)) {
+            const out = ink.filter(r => r.left < edges.left - 0.5 || r.right > edges.right + 0.5)
+            expect({stamp: box.textContent, out: out.length}).toEqual({stamp: box.textContent, out: 0})
+        }
+        const segments = [age, ...age.nextElementSibling!.children]
+        expectOneLine(...segments)
+        const [top, date, zone] = segments.map(segment => segment.getBoundingClientRect().top)
+        if (zone !== undefined && zone > date) expect(date).toBeGreaterThan(top)
     }
 }
 
@@ -173,6 +219,15 @@ export function expectWholeWords(...boxes: Element[]) {
                 expect({word, lines}).toEqual({word, lines: 1})
             }
         }
+    }
+}
+
+// all the text in each box sits on one line
+export function expectOneLine(...boxes: Element[]) {
+    expect(boxes.length).toBeGreaterThan(0)
+    for (const box of boxes) {
+        const tops = textBoxes(box).map(r => r.top)
+        expect({text: box.textContent, spread: Math.max(...tops) - Math.min(...tops) < 4}).toEqual({text: box.textContent, spread: true})
     }
 }
 

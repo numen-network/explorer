@@ -53,24 +53,28 @@ export function TimeCell({iso, cycle = false}: {iso: string; cycle?: boolean}) {
     const m = useTimeMode(s => s.mode)
     const setMode = useTimeMode(s => s.setLocal)
     useEffect(loadPref, [])
-    const body = (
-        <span className="whitespace-nowrap">
-            <TimeAgo iso={iso} /> <span className="text-dim">|</span>{' '}
-            <span suppressHydrationWarning>
-                {fmtDateTime(iso, m === 'utc')}
-                {cycle ? ` (${m === 'utc' ? 'UTC' : 'Local'})` : ''}
-            </span>
-        </span>
-    )
-    if (!cycle) return body
     return (
-        <span className="inline-flex items-center gap-1.5">
-            {body}
-            <Tip text="Switch timezone">
-                <Toggle size="sm" pressed={m === 'local'} onPressedChange={setMode} aria-label="Switch timezone" className={`${QUIET} text-dim hover:text-primary data-[state=on]:text-dim`}>
-                    <ArrowLeftRight />
-                </Toggle>
-            </Tip>
+        <span>
+            <TimeAgo iso={iso} />{' '}
+            {/* a narrow box moves the date to a line of its own before splitting the timezone off it */}
+            <span className="inline-block">
+                <span className="whitespace-nowrap">
+                    <span className="text-dim">|</span> <span suppressHydrationWarning>{fmtDateTime(iso, m === 'utc')}</span>
+                </span>
+                {cycle && (
+                    <>
+                        {' '}
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                            <span suppressHydrationWarning>({m === 'utc' ? 'UTC' : 'Local'})</span>
+                            <Tip text="Switch timezone">
+                                <Toggle size="sm" pressed={m === 'local'} onPressedChange={setMode} aria-label="Switch timezone" className={`${QUIET} text-dim hover:text-primary data-[state=on]:text-dim`}>
+                                    <ArrowLeftRight />
+                                </Toggle>
+                            </Tip>
+                        </span>
+                    </>
+                )}
+            </span>
         </span>
     )
 }

@@ -4,7 +4,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {ss58Encode} from '@/lib/ss58'
 import {chainInfo, PEOPLE} from '../../../mock/fixtures.js'
-import {expectFits, expectNoHangingDots} from '../../.storybook/fit'
+import {expectFits, expectNoHangingDots, expectTimesFit} from '../../.storybook/fit'
 import AccountLink from './AccountLink'
 import DotRow from './DotRow'
 import {TimeCell} from './TimeCell'
@@ -79,5 +79,26 @@ export const WrapsInNarrowColumn: Story = {
     play: async ({canvasElement}) => {
         expectNoHangingDots(canvasElement)
         expectFits(canvasElement.querySelector('.w-64')!)
+    },
+}
+
+// a fact longer than the line breaks under its own dot, which keeps to the
+// fact's first line
+export const LongFactWrapsUnderItsDot: Story = {
+    render: () => (
+        <div className="w-56">
+            <DotRow className="text-xs">
+                {who}
+                {track}
+                {when}
+            </DotRow>
+        </div>
+    ),
+    play: async ({canvas, canvasElement}) => {
+        const age = canvas.getByText(/ ago$/)
+        await expect(age.nextElementSibling!.getBoundingClientRect().top).toBeGreaterThanOrEqual(age.getBoundingClientRect().bottom)
+        expectNoHangingDots(canvasElement)
+        expectTimesFit(canvasElement)
+        expectFits(canvasElement.querySelector('.w-56')!)
     },
 }

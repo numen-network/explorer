@@ -3,7 +3,7 @@ import {expect, screen, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
-import {axesLegible, expectFits, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
+import {axesLegible, expectFits, expectNoHangingDots, expectOneLine, expectTimesFit, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
@@ -161,22 +161,31 @@ export const HomeMany: StoryObj = {
     },
 }
 
-// a crowded referendum row squeezes its text column rather than overflowing
+// a crowded referendum row squeezes its title and wraps its facts rather than overflowing
 function expectListsFit(root: HTMLElement) {
     const rows = (heading: string) => [...within(root).getByRole('heading', {name: heading}).parentElement!.nextElementSibling!.children]
-    expectFits(...rows('Transfers'), ...rows('Referenda').flatMap(row => [...row.firstElementChild!.children]))
+    expectFits(...rows('Transfers'), ...rows('Referenda').flatMap(row => [row, ...row.querySelectorAll(':scope > * > *')]))
 }
 
-export const HomeManyOnPhone: StoryObj = {
-    ...HomeMany,
-    globals: PHONE,
-    play: async ({canvas, canvasElement}) => {
-        const rail = canvas.getByRole('heading', {name: 'Latest blocks'}).closest('section')!
-        const headers = [...rail.querySelectorAll('a[href^="/block/"]')].map(height => height.parentElement!)
-        expectFits(...headers)
-        expectListsFit(canvasElement)
-    },
+// every block card keeps its rows inside the card, its miner on one line and
+// each count whole, with no line ending on a middle dot. a miner's name
+// truncates on its own, its link reaching past the row for a wider hover
+function expectBlockCardsFit(root: HTMLElement) {
+    const rail = within(root).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
+    const cards = [...rail.querySelectorAll<HTMLElement>('[data-slot=card]')]
+    const miners: Element[] = cards.map(card => within(card).getByText('Miner').parentElement!)
+    expectFits(...cards.flatMap(card => [...card.children]).filter(row => !miners.includes(row)))
+    expectOneLine(...miners, ...within(rail).getAllByText(/^(Extrinsics|Events) /))
+    expectNoHangingDots(rail)
 }
+
+const fitsPhone = async ({canvasElement}: {canvasElement: HTMLElement}) => {
+    expectBlockCardsFit(canvasElement)
+    expectListsFit(canvasElement)
+    expectTimesFit(canvasElement)
+}
+
+export const HomeManyOnPhone: StoryObj = {...HomeMany, globals: PHONE, play: fitsPhone}
 
 export const HomeChartTooltipOnPhone: StoryObj = {...HomeMany, globals: PHONE, play: tooltipsInView}
 
@@ -255,6 +264,8 @@ export const HomeTruncationEdges: StoryObj = {
     },
 }
 
+export const HomeTruncationEdgesOnPhone: StoryObj = {...HomeTruncationEdges, globals: PHONE, play: fitsPhone}
+
 const FAR = 987_654_321
 const HUGE = '987654321098765432109876543210'
 
@@ -303,15 +314,12 @@ export const HomeExtremes: StoryObj = {
             },
         })
     ),
-    play: async ({canvas}) => {
-        await expect(canvas.getAllByText('Extrinsics 1,234 · Events 98,765')).toHaveLength(5)
+    play: async ({canvas, canvasElement}) => {
+        for (const count of ['Extrinsics 1,234', 'Events 98,765']) await expect(canvas.getAllByText(count)).toHaveLength(5)
+        expectBlockCardsFit(canvasElement)
         await expect(canvas.getByText('Block 1,522 / 14,400')).toBeVisible()
         await expect(canvas.getByText('Session length').nextElementSibling).toHaveTextContent('14,400 blocks')
     },
 }
 
-export const HomeExtremesOnPhone: StoryObj = {
-    ...HomeExtremes,
-    globals: PHONE,
-    play: async ({canvasElement}) => expectListsFit(canvasElement),
-}
+export const HomeExtremesOnPhone: StoryObj = {...HomeExtremes, globals: PHONE, play: fitsPhone}

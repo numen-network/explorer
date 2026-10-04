@@ -1,5 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expectFits, expectWholeWords, PHONE} from '../../.storybook/fit'
+import {expectFits, expectTimesFit, expectWholeWords, PHONE} from '../../.storybook/fit'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows} from './timeline'
 
 const meta = {title: 'Components/Timeline'} satisfies Meta
@@ -40,6 +40,9 @@ export const StepLinksWithAndWithoutExtrinsic: Story = {
         </TimelineList>
     ),
 }
+
+// a phone breaks each step's time after its age, inside the card
+export const TimeOnPhone: Story = {...StepLinksWithAndWithoutExtrinsic, globals: PHONE, play: async ({canvasElement}) => expectTimesFit(canvasElement)}
 
 export const WithDetail: Story = {
     render: () => (

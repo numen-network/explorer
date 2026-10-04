@@ -2,12 +2,12 @@ import Link from 'next/link'
 import AddressText from '@/components/AddressText'
 import BlocksRail, {type BlockCard} from '@/components/BlocksRail'
 import CopyBtn from '@/components/CopyBtn'
+import DotRow from '@/components/DotRow'
 import EmptyList from '@/components/EmptyList'
 import {DetailRow} from '@/components/Detail'
 import Refresh from '@/components/Refresh'
 import Section from '@/components/Section'
 import StatTile, {type StatChip} from '@/components/StatTile'
-import TimeAgo from '@/components/TimeAgo'
 import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
 import {LinesChart} from '@/components/charts'
@@ -27,7 +27,7 @@ import {ss58Encode} from '@/lib/ss58'
 export const dynamic = 'force-dynamic'
 
 // both lists hold five slots so the pair stays level however little data lands
-const ROW_H = 'h-[66px]'
+const ROW_H = 'sm:h-[66px]'
 const LIST_H = 'min-h-[332px]'
 
 function StatusRow({label, children}: {label: string; children: React.ReactNode}) {
@@ -249,10 +249,10 @@ export default async function Home() {
                     <Card size="flush" className={`divide-y ${LIST_H}`}>
                         {data.transfers.length === 0 && <EmptyList what="transfers" />}
                         {data.transfers.map(t => (
-                            <div key={t.id} className="flex flex-col justify-center gap-1.5 px-5 py-3 sm:h-[66px] sm:flex-row sm:items-center sm:gap-3 sm:py-0">
+                            <div key={t.id} className={`flex flex-col justify-center gap-1.5 px-5 py-3 ${ROW_H} sm:flex-row sm:items-center sm:gap-3 sm:py-0`}>
                                 <div className="sm:w-[230px] sm:shrink-0">
                                     {t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} /> : <span className="font-mono text-muted-foreground">—</span>}
-                                    <div className="mt-0.5 text-[11px] whitespace-nowrap text-muted-foreground">
+                                    <div className="mt-0.5 text-[11px] text-muted-foreground sm:whitespace-nowrap">
                                         <TimeCell iso={t.timestamp} cycle />
                                     </div>
                                 </div>
@@ -287,10 +287,12 @@ export default async function Home() {
                         {data.referendums.length === 0 && <EmptyList what="referenda" />}
                         {data.referendums.map(r => {
                             const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
+                            // phones stack the title, the facts, then the amount beside the status,
+                            // wider rows give the amount the title's line and the status the facts' line
                             return (
-                                <div key={r.id} className={`${ROW_H} flex items-center gap-3 px-5`}>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex min-w-0 items-baseline gap-2">
+                                <div key={r.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3 ${ROW_H} sm:flex-col sm:flex-nowrap sm:items-stretch sm:justify-center sm:gap-1 sm:py-0`}>
+                                    <div className="contents sm:flex sm:items-baseline sm:gap-3">
+                                        <div className="flex min-w-0 basis-full items-baseline gap-2 sm:grow sm:basis-0">
                                             <Link href={`/referendum/${r.index}`} className="shrink-0 font-mono text-primary hover:underline">
                                                 #{r.index}
                                             </Link>
@@ -298,23 +300,20 @@ export default async function Home() {
                                                 <span className="truncate text-[13px]">{title}</span>
                                             </Tip>
                                         </div>
-                                        <div className="mt-0.5 flex min-w-0 items-baseline gap-1.5 text-[11px] whitespace-nowrap text-muted-foreground">
-                                            <span className="truncate">{trackLabel(r.track.name)}</span>
-                                            <span className="text-dim">·</span>
-                                            <TimeAgo iso={r.submittedTimestamp} />
-                                        </div>
-                                    </div>
-                                    <div className="shrink-0 text-right">
-                                        <div className="font-mono text-sm">
+                                        <div className="order-1 font-mono text-sm whitespace-nowrap">
                                             {r.proposalAmount != null ? (
                                                 `${fmtInt(truncFixed(r.proposalAmount, 0, props.decimals))} ${props.symbol}`
                                             ) : (
                                                 <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>
                                             )}
                                         </div>
-                                        <div className="mt-1 flex justify-end">
-                                            <StatusBadge phase={phaseOf(r)} />
-                                        </div>
+                                    </div>
+                                    <div className="contents sm:flex sm:items-center sm:gap-3">
+                                        <DotRow className="min-w-0 basis-full gap-y-0 text-[11px] text-muted-foreground sm:grow sm:basis-0">
+                                            <span className="whitespace-nowrap">{trackLabel(r.track.name)}</span>
+                                            <TimeCell iso={r.submittedTimestamp} cycle />
+                                        </DotRow>
+                                        <StatusBadge phase={phaseOf(r)} className="order-1 ml-auto" />
                                     </div>
                                 </div>
                             )

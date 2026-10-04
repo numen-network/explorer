@@ -16,5 +16,5 @@ export default function TimeAgo({iso}: {iso: string}) {
         const t = setInterval(() => setText(label(iso)), 5000)
         return () => clearInterval(t)
     }, [iso])
-    return <span suppressHydrationWarning>{text}</span>
+    return <span className="whitespace-nowrap" suppressHydrationWarning>{text}</span>
 }

@@ -23,7 +23,7 @@ import {
     voteAction,
     voteData,
 } from '../../../../../mock/fixtures/governance.js'
-import {expectFits, expectNoHangingDots, PHONE} from '../../../../.storybook/fit'
+import {expectFits, expectNoHangingDots, expectTimesFit, PHONE} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 
@@ -253,10 +253,20 @@ export const TextHistoryLongTokensOnPhone = withPlay(
         ...story({...curated(6), title: refundTitle, description: refundPitch}, 'text', {}, [metadataAction(990_500, 4, 'MetadataSet', {title: refundTitle, description: refundPitch})]),
         globals: PHONE,
     },
-    async ({canvas}) => expectFits(...canvas.getAllByText(refundTitle), ...canvas.getAllByText(refundPitch))
+    async ({canvas, canvasElement}) => {
+        expectFits(...canvas.getAllByText(refundTitle), ...canvas.getAllByText(refundPitch))
+        expectTimesFit(canvasElement)
+    }
 )
 
 export const TimelineApprovedEarly = curatedCase(10, 'timeline')
+
+// on a phone the submission time in the header and every step's time break
+// inside their cards, with no line ending on a middle dot
+export const TimelineOnPhone = withPlay({...TimelineApprovedEarly, globals: PHONE}, async ({canvasElement}) => {
+    expectTimesFit(canvasElement)
+    expectNoHangingDots(canvasElement)
+})
 
 export const TimelineRejected = curatedCase(1, 'timeline')
 

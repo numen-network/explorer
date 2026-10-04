@@ -3,7 +3,7 @@ import {expect, screen, waitFor} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
 import {numn, PEOPLE} from '../../../../mock/fixtures.js'
 import {bounty, BOUNTY_STATUSES, counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
-import {axesLegible, expectFits, expectLegibleAxes, expectNoHangingDots, filterChips, PHONE} from '../../../.storybook/fit'
+import {axesLegible, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, filterChips, PHONE} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
 
@@ -59,7 +59,8 @@ const overlap = (a: Element, b: Element) => {
 }
 
 // on a phone the title row fits, a title it would cut short gets the line to
-// itself, the status keeps clear of the facts and no line ends on a middle dot
+// itself, the status keeps clear of the facts, no line ends on a middle dot
+// and the submission time breaks inside the card
 const fitsPhone = ({canvasElement}: {canvasElement: HTMLElement}) => {
     const cards = [...canvasElement.querySelectorAll('a[href^="/referendum/"]')].map(title => title.closest('[data-slot=card]')!)
     const heads = cards.map(card => card.firstElementChild!)
@@ -72,6 +73,7 @@ const fitsPhone = ({canvasElement}: {canvasElement: HTMLElement}) => {
         for (const fact of byline.firstElementChild!.children) expect(overlap(fact, byline.lastElementChild!)).toBe(false)
     }
     expectNoHangingDots(canvasElement)
+    expectTimesFit(canvasElement)
 }
 
 export const ReferendaEveryCaseOnPhone: StoryObj = {...ReferendaEveryCase, globals: PHONE, play: fitsPhone}

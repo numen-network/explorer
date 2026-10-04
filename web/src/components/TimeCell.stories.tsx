@@ -1,5 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
+import {expectTimesFit} from '../../.storybook/fit'
 import {TimeCell, TimeModeButton} from './TimeCell'
 
 const meta = {title: 'Components/TimeCell'} satisfies Meta
@@ -61,3 +62,24 @@ export const TableColumnLocal: Story = {...inTimezone(true), render: () => <Colu
 export const StandaloneUtc: Story = {...inTimezone(false), render: () => <Standalone />}
 
 export const StandaloneLocal: Story = {...inTimezone(true), render: () => <Standalone />}
+
+// a box too narrow for the whole stamp breaks it after the age first, and
+// splits the timezone off the date only once the date fills a line itself
+export const WrapsInNarrowBoxes: Story = {
+    ...inTimezone(false),
+    render: () => (
+        <div className="space-y-4 text-xs text-muted-foreground">
+            {['w-80', 'w-55', 'w-42'].map(width => (
+                <div key={width} className={width}>
+                    <TimeCell iso={TIMES[3]} cycle />
+                </div>
+            ))}
+        </div>
+    ),
+    play: async context => {
+        await inTimezone(false).play!(context)
+        expectTimesFit(context.canvasElement)
+        const lines = [...context.canvasElement.querySelectorAll('.space-y-4 > div')].map(box => Math.round(box.clientHeight / parseFloat(getComputedStyle(box).lineHeight)))
+        await expect(lines).toEqual([1, 2, 3])
+    },
+}
