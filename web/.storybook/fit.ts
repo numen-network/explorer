@@ -166,3 +166,14 @@ export function expectWholeWords(...boxes: Element[]) {
         }
     }
 }
+
+// the chips of the filter row named label, each read as its label and count,
+// the active one in brackets, or null when no such row shows
+export function filterChips(root: Element, label: string) {
+    const name = [...root.querySelectorAll('span')].find(span => span.textContent === label && span.nextElementSibling?.matches('a'))
+    if (!name) return null
+    return [...name.parentElement!.querySelectorAll('a')].map(chip => {
+        const text = [...chip.childNodes].map(node => node.textContent).join(' ')
+        return chip.dataset.variant === 'solid' ? `[${text}]` : text
+    })
+}

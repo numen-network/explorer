@@ -5,6 +5,7 @@ import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
 import {bountyStatusTone, RefCell} from '@/components/bounties'
 import {columnsFor, DataTable} from '@/components/DataTable'
+import {emptyText} from '@/components/EmptyList'
 import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
@@ -15,7 +16,7 @@ import {NONE} from '@/components/Detail'
 
 const col = columnsFor<BountyRow>()
 
-export function BountyTable({rows, chain}: {rows: BountyRow[]; chain: {ss58: number; decimals: number; symbol: string}}) {
+export function BountyTable({rows, chain, filtered}: {rows: BountyRow[]; chain: {ss58: number; decimals: number; symbol: string}; filtered?: boolean}) {
     const columns = useMemo(
         () => [
             col.display({id: 'index', header: '#', meta: {cellClassName: 'font-mono text-muted-foreground'}, cell: ({row}) => row.original.index}),
@@ -42,5 +43,5 @@ export function BountyTable({rows, chain}: {rows: BountyRow[]; chain: {ss58: num
         ],
         [chain]
     )
-    return <DataTable columns={columns} rows={rows} empty="No bounties yet." getRowId={b => b.id} />
+    return <DataTable columns={columns} rows={rows} empty={emptyText('bounties', filtered)} getRowId={b => b.id} />
 }

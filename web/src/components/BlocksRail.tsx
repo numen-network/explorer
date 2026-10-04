@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import Asteroid from './Asteroid'
 import DownloadObj from './DownloadObj'
+import EmptyList from './EmptyList'
 import TimeAgo from './TimeAgo'
 import AccountLink from './AccountLink'
 import {StatusDot} from './pills'
@@ -25,6 +26,12 @@ export interface BlockCard {
 }
 
 export default function BlocksRail({cards, faces}: {cards: BlockCard[]; faces: string}) {
+    if (cards.length === 0)
+        return (
+            <Card size="flush">
+                <EmptyList what="mined blocks" />
+            </Card>
+        )
     return (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
             {cards.map(c => (

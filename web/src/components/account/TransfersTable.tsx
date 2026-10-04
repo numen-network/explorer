@@ -4,6 +4,7 @@ import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
 import {CallPill} from '@/components/calls'
 import {columnsFor, DataTable} from '@/components/DataTable'
+import {emptyText} from '@/components/EmptyList'
 import {ExtrinsicLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import type {ChainProps} from '@/lib/chain'
@@ -14,7 +15,7 @@ import {NONE, SELF} from '@/components/Detail'
 
 const col = columnsFor<TransferRow>()
 
-export function TransfersTable({rows, hex, chain}: {rows: TransferRow[]; hex: string; chain: ChainProps}) {
+export function TransfersTable({rows, hex, chain, filtered}: {rows: TransferRow[]; hex: string; chain: ChainProps; filtered?: boolean}) {
     const columns = useMemo(() => {
         const side = (acc: AccountRef) => (acc.id === hex ? SELF : <AccountLink addr={ss58Encode(acc.id, chain.ss58)} acc={acc} />)
         return col.columns([
@@ -26,5 +27,5 @@ export function TransfersTable({rows, hex, chain}: {rows: TransferRow[]; hex: st
             col.display({id: 'amount', header: 'Amount', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtBalance(row.original.amount, chain.decimals, chain.symbol)}),
         ])
     }, [hex, chain])
-    return <DataTable emptyClassName="py-5" columns={columns} rows={rows} getRowId={t => t.id} />
+    return <DataTable empty={emptyText('transfers', filtered)} emptyClassName="py-5" columns={columns} rows={rows} getRowId={t => t.id} />
 }

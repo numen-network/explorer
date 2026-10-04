@@ -8,15 +8,17 @@ const meta = {title: 'Components/BountyTable'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-const table = (rows: object[]): Story => ({
+const table = (rows: object[], filtered?: boolean): Story => ({
     render: () => (
         <Card size="flush">
-            <BountyTable rows={rows as BountyRow[]} chain={CHAIN} />
+            <BountyTable rows={rows as BountyRow[]} chain={CHAIN} filtered={filtered} />
         </Card>
     ),
 })
 
 export const Empty = table([])
+
+export const FilteredEmpty = table([], true)
 
 export const One = table([bounty(0, 'Active')])
 

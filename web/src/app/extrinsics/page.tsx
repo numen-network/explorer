@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import AccountLink from '@/components/AccountLink'
 import DateRange from '@/components/DateRange'
+import {emptyText} from '@/components/EmptyList'
 import {ExtrinsicsTable} from '@/components/ExtrinsicsTable'
 import Pager from '@/components/Pager'
-import {FilterChip} from '@/components/pills'
+import {FilterRow} from '@/components/pills'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Field} from '@/components/ui/field'
@@ -31,6 +32,7 @@ const Carry = ({keep}: {keep: Record<string, string>}) => (
 )
 
 const LABEL = 'mr-1 w-14 text-xs font-normal text-muted-foreground'
+const RESULT_LABEL: Record<string, string> = {success: 'Success', failed: 'Failed'}
 const FIELD = 'h-auto rounded-lg bg-card px-2.5 py-1 text-xs font-normal hover:bg-card hover:text-primary'
 
 export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
@@ -68,30 +70,9 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
             </div>
 
             <Card size="flush" className="mt-3 space-y-3 px-5 py-4">
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className={LABEL}>Pallet</span>
-                    <FilterChip label="All" href={href({pallet: '', method: '', page: ''})} active={!pallet} />
-                    {pallets
-                        .filter(p => counts[p] > 0 || p === pallet)
-                        .map(p => (
-                            <FilterChip key={p} label={p} count={counts[p]} href={href({pallet: p, method: '', page: ''})} active={p === pallet} />
-                        ))}
-                </div>
-                {pallet && (
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className={LABEL}>Method</span>
-                        <FilterChip label="All" href={href({method: '', page: ''})} active={!method} />
-                        {methods.map(m => (
-                            <FilterChip key={m} label={m} href={href({method: m, page: ''})} active={m === method} />
-                        ))}
-                    </div>
-                )}
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className={LABEL}>Result</span>
-                    <FilterChip label="All" href={href({result: '', page: ''})} active={!result} />
-                    <FilterChip label="Success" href={href({result: 'success', page: ''})} active={result === 'success'} />
-                    <FilterChip label="Failed" href={href({result: 'failed', page: ''})} active={result === 'failed'} />
-                </div>
+                <FilterRow label="Pallet" labelClassName={LABEL} values={pallets} counts={counts} value={pallet} href={p => href({pallet: p, method: '', page: ''})} />
+                {pallet && <FilterRow label="Method" labelClassName={LABEL} values={methods} value={method} href={m => href({method: m, page: ''})} />}
+                <FilterRow label="Result" labelClassName={LABEL} values={Object.keys(RESULT_LABEL)} labelOf={r => RESULT_LABEL[r]} value={result ?? ''} href={r => href({result: r, page: ''})} />
                 <form action="/extrinsics">
                     <Field orientation="horizontal" className="flex-wrap gap-2 text-xs">
                         <Label className={LABEL}>Date</Label>
@@ -129,7 +110,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
             </Card>
 
             <Card size="flush" className="mt-4">
-                <ExtrinsicsTable rows={rows} leaves={Object.fromEntries(leaves)} chain={chain} view="list" empty="Nothing matches." />
+                <ExtrinsicsTable rows={rows} leaves={Object.fromEntries(leaves)} chain={chain} view="list" empty={emptyText('extrinsics', Object.values(filter).some(Boolean))} />
             </Card>
             <Pager paging={pg} total={total} href={href({})} />
         </div>

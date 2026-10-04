@@ -1,4 +1,5 @@
 import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {
@@ -42,7 +43,7 @@ import {
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {DESKTOP, expectWholeWords} from '../../../../.storybook/fit'
+import {DESKTOP, expectWholeWords, filterChips} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
@@ -136,7 +137,13 @@ export const Treasury = story({
     counts: {transfers: 312},
 })
 
-export const TransfersEmpty = story({account: subject({nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: at(0), lastActiveBlock: 0})})
+export const TransfersEmpty: StoryObj = {
+    ...story({account: subject({nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: at(0), lastActiveBlock: 0})}),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No transfers yet.')).toBeInTheDocument()
+        expect(filterChips(canvasElement, 'Direction')).toEqual(['[All]', 'Out', 'In'])
+    },
+}
 
 export const TransfersOne = story({transfers: accountTransfers(1)})
 
@@ -145,6 +152,14 @@ export const TransfersMany = story({transfers: [...accountTransfers(14), ...acco
 export const TransfersOut = story({transfers: accountTransfers(20, 'from'), counts: {transfers: 137, from: 46}}, {tab: 'transfers', dir: 'out'})
 
 export const TransfersIn = story({transfers: accountTransfers(20, 'to'), counts: {transfers: 137, to: 91}}, {tab: 'transfers', dir: 'in'})
+
+export const TransfersFilteredEmpty: StoryObj = {
+    ...story({transfers: accountTransfers(3, 'to')}, {tab: 'transfers', dir: 'out'}),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No matching transfers.')).toBeInTheDocument()
+        expect(filterChips(canvasElement, 'Direction')).toEqual(['All', '[Out]', 'In'])
+    },
+}
 
 export const TokensEmpty = story({account: mapped(), transfers: accountTransfers(2)}, {tab: 'tokens'})
 
@@ -282,13 +297,29 @@ export const MiningBeyondChart = story({minerDays: minedDays(60), counts: {mined
 
 const voting = (amount: string) => subject({...funds(numn(1250.5), '0', amount), locksJson: [lock('pyconvot', amount)]})
 
-export const DelegationsOut = story({account: voting(numn(3_000.5)), delegationsOut: delegatingTo(3)}, {tab: 'delegations'})
+// nobody delegates to this account, so the Delegated from list and its filter don't show
+export const DelegationsOut: StoryObj = {
+    ...story({account: voting(numn(3_000.5)), delegationsOut: delegatingTo(3)}, {tab: 'delegations'}),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText('Delegating to')).toBeInTheDocument()
+        await expect(canvas.queryByText('Delegated from')).toBeNull()
+    },
+}
 
 const SPENDERS = TRACKS.filter(t => t.name.endsWith('_spender'))
 
 export const DelegationsIn = story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'delegations'})
 
 export const DelegationsTrackFilter = story({delegationsIn: delegatedFrom(20, SPENDERS.slice(0, 1)), counts: {tracks: {30: 26, 31: 15, 32: 12}}}, {tab: 'delegations', dtrack: '30'})
+
+// a link to a track nobody delegates on any more keeps that track's chip
+export const DelegationsTrackFilterEmpty: StoryObj = {
+    ...story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'delegations', dtrack: '0'}),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No matching delegations.')).toBeInTheDocument()
+        expect(filterChips(canvasElement, 'Track')).toEqual(['All 45', '[Root 0]', 'Small Spender 18', 'Medium Spender 15', 'Big Spender 12'])
+    },
+}
 
 export const DelegationsBoth = story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'delegations'})
 

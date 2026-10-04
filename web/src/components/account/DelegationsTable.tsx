@@ -3,6 +3,7 @@
 import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
 import {columnsFor, DataTable} from '@/components/DataTable'
+import {emptyText} from '@/components/EmptyList'
 import {BlockLink} from '@/components/links'
 import type {ChainProps} from '@/lib/chain'
 import {convictionLabel} from '@/lib/conviction'
@@ -12,7 +13,7 @@ import {ss58Encode} from '@/lib/ss58'
 
 const col = columnsFor<DelegationRow>()
 
-export function DelegationsTable({label, rows, chain}: {label: string; rows: DelegationRow[]; chain: ChainProps}) {
+export function DelegationsTable({label, rows, chain, filtered}: {label: string; rows: DelegationRow[]; chain: ChainProps; filtered?: boolean}) {
     const columns = useMemo(
         () =>
             col.columns([
@@ -31,5 +32,5 @@ export function DelegationsTable({label, rows, chain}: {label: string; rows: Del
             ]),
         [label, chain]
     )
-    return <DataTable columns={columns} rows={rows} getRowId={d => d.id} />
+    return <DataTable columns={columns} rows={rows} empty={emptyText('delegations', filtered)} getRowId={d => d.id} />
 }

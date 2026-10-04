@@ -2,12 +2,13 @@ import Link from 'next/link'
 import {FileText} from 'lucide-react'
 import AccountLink from '@/components/AccountLink'
 import {BountyTable} from '@/components/BountyTable'
+import EmptyList from '@/components/EmptyList'
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
 import {TabBar} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
-import {FilterChip} from '@/components/pills'
+import {FilterRow} from '@/components/pills'
 import {ThresholdChart} from '@/components/charts'
 import {payouts, StatusBadge, ThresholdBar} from '@/components/referenda'
 import {Badge} from '@/components/ui/badge'
@@ -64,50 +65,34 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
         const next: Record<string, string> = {tab, ...on, ...(field ? {[field]: value} : {})}
         return `/governance?${Object.entries(next).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&')}`
     }
-    const FacetRow = ({label, field, values, counts, labelOf}: {label: string; field: string; values: string[]; counts: Record<string, number>; labelOf: (v: string) => string}) => {
-        const live = values.filter(v => (counts[v] ?? 0) > 0 || on[field as keyof typeof on] === v)
-        if (live.length === 0) return null
-        return (
-            <div className="flex flex-wrap items-center gap-2">
-                <span className="mr-1 w-12 shrink-0 text-xs text-muted-foreground">{label}</span>
-                <FilterChip label="All" href={facetHref(field, '')} active={!on[field as keyof typeof on]} />
-                {live.map(v => (
-                    <FilterChip key={v} label={labelOf(v)} count={counts[v] ?? 0} href={facetHref(field, v)} active={on[field as keyof typeof on] === v} />
-                ))}
-            </div>
-        )
-    }
+    const FacetRow = ({label, field, values, counts, labelOf}: {label: string; field: keyof typeof on; values: string[]; counts: Record<string, number>; labelOf: (v: string) => string}) => (
+        <FilterRow label={label} labelClassName="w-12" values={values} counts={counts} labelOf={labelOf} value={on[field]} href={v => facetHref(field, v)} />
+    )
     const trackName = (id: string) => trackLabel(sum.trackList.find(t => t.id === id)?.name ?? id)
 
-    const spendFilter = spends && (
+    const spendFilter = spends && spends.all > 0 && (
         <div className="mb-4 space-y-2">
-            <FacetRow label="Kind" field="kind" values={SPEND_KINDS} counts={spends.counts.kind ?? {}} labelOf={v => SPEND_KIND_LABEL[v]} />
-            <FacetRow label="Status" field="status" values={SPEND_STATUSES} counts={spends.counts.status ?? {}} labelOf={camelLabel} />
-            <FacetRow label="Track" field="track" values={trackIds} counts={spends.counts.track ?? {}} labelOf={trackName} />
+            <FacetRow label="Kind" field="kind" values={SPEND_KINDS} counts={spends.counts.kind} labelOf={v => SPEND_KIND_LABEL[v]} />
+            <FacetRow label="Status" field="status" values={SPEND_STATUSES} counts={spends.counts.status} labelOf={camelLabel} />
+            <FacetRow label="Track" field="track" values={trackIds} counts={spends.counts.track} labelOf={trackName} />
         </div>
     )
-    const bountyFilter = bounties && (
+    const bountyFilter = bounties && bounties.all > 0 && (
         <div className="mb-4 space-y-2">
-            <FacetRow label="Status" field="status" values={BOUNTY_STATUSES} counts={bounties.counts.status ?? {}} labelOf={camelLabel} />
-            <FacetRow label="Track" field="track" values={trackIds} counts={bounties.counts.track ?? {}} labelOf={trackName} />
+            <FacetRow label="Status" field="status" values={BOUNTY_STATUSES} counts={bounties.counts.status} labelOf={camelLabel} />
+            <FacetRow label="Track" field="track" values={trackIds} counts={bounties.counts.track} labelOf={trackName} />
         </div>
     )
 
     const trackFilter = refs && (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-xs text-muted-foreground">Track</span>
-            <FilterChip label="All" href="/governance?tab=referenda" active={!track} />
-            {sum.trackList.map(t => (
-                <FilterChip key={t.id} label={trackLabel(t.name)} href={`/governance?tab=referenda&track=${t.id}`} active={track === t.id} />
-            ))}
-        </div>
+        <FilterRow label="Track" className="mb-4" values={trackIds} labelOf={trackName} value={track} href={v => (v ? `/governance?tab=referenda&track=${v}` : '/governance?tab=referenda')} />
     )
 
     const referenda = refs && (
         <div className="space-y-3">
             {refs.referendums.length === 0 && (
-                <Card size="flush" className="px-6 py-6 text-sm text-muted-foreground">
-                    {track ? 'No referenda on this track.' : 'No referenda yet.'}
+                <Card size="flush">
+                    <EmptyList what="referenda" filtered={!!track} />
                 </Card>
             )}
             {refs.referendums.map(r => {
@@ -249,13 +234,13 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                     {spendFilter}
                     {spends && (
                         <Card size="flush">
-                            <TreasuryTable rows={spends.rows} chain={chain} />
+                            <TreasuryTable rows={spends.rows} chain={chain} filtered={spends.all > 0 && !!(kind || status || track)} />
                         </Card>
                     )}
                     {bountyFilter}
                     {bounties && (
                         <Card size="flush">
-                            <BountyTable rows={bounties.rows} chain={chain} />
+                            <BountyTable rows={bounties.rows} chain={chain} filtered={bounties.all > 0 && !!(status || track)} />
                         </Card>
                     )}
                     {tracks && (

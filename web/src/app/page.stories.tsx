@@ -111,7 +111,12 @@ const minedUpTo = (head: number, count: number, finalized = head - 5, traits: (h
 
 const TREASURY = {id: chainInfo.treasuryAccount, identityDisplay: null}
 
-export const HomeEmpty = pageStory(home({head: 0, days: [], validators: 0}))
+export const HomeEmpty: StoryObj = {
+    ...pageStory(home({head: 0, days: [], validators: 0})),
+    play: async ({canvas}) => {
+        for (const text of ['No mined blocks yet.', 'No transfers yet.', 'No referenda yet.']) await expect(canvas.getByText(text)).toBeInTheDocument()
+    },
+}
 
 // how much of the day has passed follows the clock, so the two plotted counts are pinned apart
 const freshDay = {...chainDays(1_234).at(-1)!, transfers: 12, transferVolume: numn(1_050)}

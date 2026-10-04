@@ -4,6 +4,7 @@ import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
 import {RefCell} from '@/components/bounties'
 import {columnsFor, DataTable} from '@/components/DataTable'
+import {emptyText} from '@/components/EmptyList'
 import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
@@ -27,7 +28,7 @@ const SPEND_KIND_LABEL: Record<string, string> = {spend_local: 'Local', spend: '
 
 const scol = columnsFor<TreasurySpendRow>()
 
-export function TreasuryTable({rows, chain}: {rows: TreasurySpendRow[]; chain: ChainProps}) {
+export function TreasuryTable({rows, chain, filtered}: {rows: TreasurySpendRow[]; chain: ChainProps; filtered?: boolean}) {
     const columns = useMemo(
         () =>
             scol.columns([
@@ -49,7 +50,7 @@ export function TreasuryTable({rows, chain}: {rows: TreasurySpendRow[]; chain: C
             ]),
         [chain]
     )
-    return <DataTable columns={columns} rows={rows} empty="No spends yet." getRowId={s => s.id} />
+    return <DataTable columns={columns} rows={rows} empty={emptyText('spends', filtered)} getRowId={s => s.id} />
 }
 
 const tcol = columnsFor<TrackRow>()

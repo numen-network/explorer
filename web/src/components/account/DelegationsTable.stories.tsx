@@ -8,13 +8,15 @@ const meta = {title: 'Components/Account/DelegationsTable'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-const table = (label: string, rows: DelegationRow[]) => (
+const table = (label: string, rows: DelegationRow[], filtered?: boolean) => (
     <Card size="flush">
-        <DelegationsTable label={label} rows={rows} chain={CHAIN} />
+        <DelegationsTable label={label} rows={rows} chain={CHAIN} filtered={filtered} />
     </Card>
 )
 
 export const Empty: Story = {render: () => table('Delegated from', [])}
+
+export const FilteredEmpty: Story = {render: () => table('Delegated from', [], true)}
 
 export const One: Story = {render: () => table('Delegating to', delegatingTo(1))}
 

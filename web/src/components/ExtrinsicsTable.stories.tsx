@@ -42,6 +42,6 @@ export const OneRow = table('list', ROWS.slice(2, 3))
 
 export const Empty = table('list', [])
 
-export const EmptyWithMessage = table('list', [], 'Nothing matches.')
+export const EmptyWithMessage = table('list', [], 'No matching extrinsics.')
 
 export const EmptyAccountView = table('account', [])

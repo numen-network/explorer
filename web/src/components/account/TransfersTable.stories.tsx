@@ -16,13 +16,15 @@ const meta = {title: 'Components/Account/TransfersTable', decorators: [wellKnown
 export default meta
 type Story = StoryObj<typeof meta>
 
-const table = (rows: TransferRow[]) => (
+const table = (rows: TransferRow[], filtered?: boolean) => (
     <Card size="flush">
-        <TransfersTable rows={rows} hex={SUBJECT} chain={CHAIN} />
+        <TransfersTable rows={rows} hex={SUBJECT} chain={CHAIN} filtered={filtered} />
     </Card>
 )
 
 export const Empty: Story = {render: () => table([])}
+
+export const FilteredEmpty: Story = {render: () => table([], true)}
 
 export const One: Story = {render: () => table(accountTransfers(1))}
 

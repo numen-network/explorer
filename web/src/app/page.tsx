@@ -2,6 +2,7 @@ import Link from 'next/link'
 import AddressText from '@/components/AddressText'
 import BlocksRail, {type BlockCard} from '@/components/BlocksRail'
 import CopyBtn from '@/components/CopyBtn'
+import EmptyList from '@/components/EmptyList'
 import {DetailRow} from '@/components/Detail'
 import Refresh from '@/components/Refresh'
 import Section from '@/components/Section'
@@ -248,7 +249,7 @@ export default async function Home() {
                         </Link>
                     </div>
                     <Card size="flush" className={`divide-y ${LIST_H}`}>
-                        {data.transfers.length === 0 && <div className="px-5 py-6 text-sm text-muted-foreground">No transfers yet.</div>}
+                        {data.transfers.length === 0 && <EmptyList what="transfers" />}
                         {data.transfers.map(t => (
                             <div key={t.id} className="flex flex-col justify-center gap-1.5 px-5 py-3 sm:h-[66px] sm:flex-row sm:items-center sm:gap-3 sm:py-0">
                                 <div className="sm:w-[230px] sm:shrink-0">
@@ -285,7 +286,7 @@ export default async function Home() {
                         </Link>
                     </div>
                     <Card size="flush" className={`divide-y ${LIST_H}`}>
-                        {data.referendums.length === 0 && <div className="px-5 py-6 text-sm text-muted-foreground">No referenda yet.</div>}
+                        {data.referendums.length === 0 && <EmptyList what="referenda" />}
                         {data.referendums.map(r => {
                             const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
                             return (

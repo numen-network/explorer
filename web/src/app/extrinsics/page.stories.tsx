@@ -3,6 +3,7 @@ import {expect, userEvent, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {chainInfo, HEAD, hex, numn, person} from '../../../../mock/fixtures.js'
 import {batchAll, busy, failedTransfer, failedVoteRemoval, heartbeat, mined, signedCall, subcalls, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
+import {filterChips} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import ExtrinsicsPage from './page'
 
@@ -78,7 +79,14 @@ const SEPTEMBER = Array.from({length: 10}, (_, i) => mined(HEAD - 30_000 - i * 1
 
 export const Many = list(take(RECENT))
 
-export const EmptyChain = pageStory({extrinsicsConnection: {totalCount: 0}})
+export const EmptyChain: StoryObj = {
+    ...pageStory({extrinsicsConnection: {totalCount: 0}}),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No extrinsics yet.')).toBeInTheDocument()
+        expect(filterChips(canvasElement, 'Pallet')).toEqual(['[All]'])
+        expect(filterChips(canvasElement, 'Result')).toEqual(['[All]', 'Success', 'Failed'])
+    },
+}
 
 export const FilterPallet = list(take(TRANSFERS, isTransfer), {pallet: 'Balances'})
 
@@ -91,7 +99,15 @@ export const FilterOneMatch = list(
 
 export const FilterFailed = list(take(FAILURES, x => !x.success), {result: 'failed'})
 
-export const FilterNothingMatches = list(take([]), {pallet: 'Referenda', result: 'failed'})
+// the chosen pallet never failed and keeps its chip at 0
+export const FilterNothingMatches: StoryObj = {
+    ...list(take([]), {pallet: 'Referenda', result: 'failed'}),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No matching extrinsics.')).toBeInTheDocument()
+        expect(filterChips(canvasElement, 'Pallet')).toEqual(['All', 'Balances 12', 'ConvictionVoting 1', '[Referenda 0]'])
+        expect(filterChips(canvasElement, 'Result')).toEqual(['All', 'Success', '[Failed]'])
+    },
+}
 
 export const FilterSigner = list(take(MY_BLOCKS, x => x.signer?.id === ME.id), {signer: ss58Encode(ME.id, chainInfo.ss58)}, [
     ['Balances.transfer_keep_alive', 6, 0],

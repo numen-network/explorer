@@ -3,7 +3,7 @@ import {expect} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
 import {numn} from '../../../../mock/fixtures.js'
 import {bounty, BOUNTY_STATUSES, counted, linear, listed, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
-import {axesLegible} from '../../../.storybook/fit'
+import {axesLegible, filterChips} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
 
@@ -11,7 +11,15 @@ export default {title: 'Pages/Governance', ...pageMeta(GovernancePage)}
 
 const referendaTab = (rows: object[]) => pageStory({...data, referendums: rows, referendumsConnection: referendaCount(rows)}, {searchParams: {tab: 'referenda'}})
 
-export const ReferendaEmpty = referendaTab([])
+const TRACKS = ['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender', 'Medium Spender', 'Big Spender']
+
+export const ReferendaEmpty: StoryObj = {
+    ...referendaTab([]),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No referenda yet.')).toBeInTheDocument()
+        expect(filterChips(canvasElement, 'Track')).toEqual(['[All]', ...TRACKS])
+    },
+}
 
 export const ReferendaOne = referendaTab(referenda.slice(0, 1))
 
@@ -39,14 +47,26 @@ const trackFilter = (id: string) =>
 
 export const ReferendaTrackFilter = trackFilter('31')
 
-export const ReferendaTrackFilterEmpty = trackFilter('0')
+export const ReferendaTrackFilterEmpty: StoryObj = {
+    ...trackFilter('0'),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No matching referenda.')).toBeInTheDocument()
+        expect(filterChips(canvasElement, 'Track')).toEqual(['All', '[Root]', ...TRACKS.slice(1)])
+    },
+}
 
 const treasuryTab = (rows: object[], filters: Record<string, string> = {}) =>
     pageStory({...data, treasurySpends: listed(rows), treasurySpendsConnection: counted(rows)}, {searchParams: {tab: 'treasury', ...filters}})
 
 const spends = Array.from({length: 47}, (_, i) => spend(i, SPEND_STATUSES[(i * 3) % SPEND_STATUSES.length]))
 
-export const TreasuryEmpty = treasuryTab([])
+export const TreasuryEmpty: StoryObj = {
+    ...treasuryTab([]),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No spends yet.')).toBeInTheDocument()
+        for (const row of ['Kind', 'Status', 'Track']) expect(filterChips(canvasElement, row)).toBeNull()
+    },
+}
 
 export const TreasuryOne = treasuryTab([spend(0, 'Paid')])
 
@@ -64,14 +84,29 @@ export const TreasuryMany = treasuryTab(spends)
 
 export const TreasuryFiltered = treasuryTab(spends, {kind: 'spend', status: 'Paid'})
 
-export const TreasuryFilteredEmpty = treasuryTab(spends, {status: 'PaymentFailed', track: '0'})
+// no spend went through Root, so the Kind row is down to All
+export const TreasuryFilteredEmpty: StoryObj = {
+    ...treasuryTab(spends, {status: 'PaymentFailed', track: '0'}),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No matching spends.')).toBeInTheDocument()
+        expect(filterChips(canvasElement, 'Kind')).toEqual(['[All]'])
+        expect(filterChips(canvasElement, 'Status')).toEqual(['All', '[Payment failed 0]'])
+        expect(filterChips(canvasElement, 'Track')).toEqual(['All', '[Root 0]', 'Small Spender 2', 'Medium Spender 3', 'Big Spender 2'])
+    },
+}
 
 const bountiesTab = (rows: object[], filters: Record<string, string> = {}) =>
     pageStory({...data, bounties: listed(rows), bountiesConnection: counted(rows)}, {searchParams: {tab: 'bounties', ...filters}})
 
 const bounties = Array.from({length: 45}, (_, i) => bounty(44 - i, BOUNTY_STATUSES[i % BOUNTY_STATUSES.length]))
 
-export const BountiesEmpty = bountiesTab([])
+export const BountiesEmpty: StoryObj = {
+    ...bountiesTab([]),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No bounties yet.')).toBeInTheDocument()
+        for (const row of ['Status', 'Track']) expect(filterChips(canvasElement, row)).toBeNull()
+    },
+}
 
 export const BountiesOne = bountiesTab([bounty(0, 'Active')])
 
@@ -87,6 +122,16 @@ export const BountiesEdgeCases = bountiesTab([
 export const BountiesMany = bountiesTab(bounties)
 
 export const BountiesFiltered = bountiesTab(bounties, {status: 'Active', track: '30'})
+
+// every bounty ran on a spender track, so none sits under Root
+export const BountiesFilteredEmpty: StoryObj = {
+    ...bountiesTab(bounties, {status: 'BountyClaimed', track: '0'}),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('No matching bounties.')).toBeInTheDocument()
+        expect(filterChips(canvasElement, 'Status')).toEqual(['All', '[Bounty claimed 0]'])
+        expect(filterChips(canvasElement, 'Track')).toEqual(['All', '[Root 0]', 'Small Spender 1', 'Medium Spender 2', 'Big Spender 1'])
+    },
+}
 
 const tracksTab = (rows: object[]): StoryObj => ({...pageStory({...data, tracks: listed(rows), tracksConnection: {totalCount: rows.length}}, {searchParams: {tab: 'tracks'}}), play: rows.length ? axesLegible : undefined})
 

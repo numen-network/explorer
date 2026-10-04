@@ -14,6 +14,33 @@ export function FilterChip({label, count, href, active}: {label: string; count?:
     )
 }
 
+interface FilterRowProps {
+    label: string
+    values: string[]
+    value: string
+    href: (value: string) => string
+    labelOf?: (value: string) => string
+    counts?: Record<string, number>
+    allCount?: number
+    className?: string
+    labelClassName?: string
+}
+
+// a value counting 0 drops out, but All and the active value always stay, so
+// a filter that matches nothing can still be undone
+export function FilterRow({label, values, value, href, labelOf = v => v, counts, allCount, className, labelClassName}: FilterRowProps) {
+    const shown = values.filter(v => !counts || counts[v] > 0 || v === value)
+    return (
+        <div className={cn('flex flex-wrap items-center gap-2', className)}>
+            <span className={cn('mr-1 shrink-0 text-xs text-muted-foreground', labelClassName)}>{label}</span>
+            <FilterChip label="All" count={allCount} href={href('')} active={!value} />
+            {shown.map(v => (
+                <FilterChip key={v} label={labelOf(v)} count={counts?.[v]} href={href(v)} active={v === value} />
+            ))}
+        </div>
+    )
+}
+
 const DOT_TONE = {
     pos: 'bg-good',
     warn: 'bg-warn',
