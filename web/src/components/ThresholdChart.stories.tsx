@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, waitFor} from 'storybook/test'
 import type {Curve} from '@/lib/curves'
 import {linear, reciprocal, stepped} from '../../../mock/fixtures/governance.js'
-import {axesLegible, axisTexts, expectLegibleAxes, PHONE} from '../../.storybook/fit'
+import {axesLegible, axisTexts, expectLegibleAxes, PHONE, tooltipsInView} from '../../.storybook/fit'
 import {ThresholdChart} from './charts'
 import {Card, CardContent, CardHeader, CardTitle} from './ui/card'
 
@@ -61,6 +61,8 @@ export const PeriodLengths = grid([
 ])
 
 export const PeriodLengthsOnPhone: Story = {...PeriodLengths, globals: PHONE}
+
+export const PeriodLengthsTooltipOnPhone: Story = {...PeriodLengths, globals: PHONE, play: tooltipsInView}
 
 // the end of a period with part of a day left falls between two day ticks
 export const PeriodsEndingMidDay: Story = {

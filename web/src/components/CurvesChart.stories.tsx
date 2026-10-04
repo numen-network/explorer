@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {Curve} from '@/lib/curves'
 import {HEAD} from '../../../mock/fixtures.js'
 import {linear, reciprocal} from '../../../mock/fixtures/governance.js'
-import {axesLegible} from '../../.storybook/fit'
+import {axesLegible, PHONE, tooltipsInView} from '../../.storybook/fit'
 import {CurvesChart} from './charts'
 import {Card} from './ui/card'
 
@@ -134,3 +134,6 @@ export const RejectedAtEndOfPeriod = chart({
     ],
     open: false,
 })
+
+// the tally runs to the end of the period, so readings list all four lines
+export const RejectedAtEndOfPeriodTooltipOnPhone: Story = {...RejectedAtEndOfPeriod, globals: PHONE, play: tooltipsInView}

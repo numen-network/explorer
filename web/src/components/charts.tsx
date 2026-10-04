@@ -72,6 +72,7 @@ function plotGrid({left = 0, right, top, bottom = 0}: {left?: number; right: num
 
 const TOOLTIP = {
     trigger: 'axis',
+    confine: true,
     backgroundColor: '#fff',
     borderColor: EDGE,
     textStyle: {color: '#1a1c22', fontSize: 12},

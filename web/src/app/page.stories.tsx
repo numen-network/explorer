@@ -3,7 +3,7 @@ import {expect, screen, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
-import {axesLegible, expectFits, lonePointsPainted, PHONE} from '../../.storybook/fit'
+import {axesLegible, expectFits, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
@@ -163,6 +163,8 @@ export const HomeManyOnPhone: StoryObj = {
         expectListsFit(canvasElement)
     },
 }
+
+export const HomeChartTooltipOnPhone: StoryObj = {...HomeMany, globals: PHONE, play: tooltipsInView}
 
 export const HomeReferendumTitleHovered: StoryObj = {
     ...HomeMany,

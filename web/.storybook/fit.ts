@@ -74,6 +74,42 @@ export function expectLonePointsPainted(root: Element) {
 // the dot draws in once the line's reveal animation reaches it
 export const lonePointsPainted = async ({canvasElement}: {canvasElement: Element}) => waitFor(() => expectLonePointsPainted(canvasElement), {timeout: 3000})
 
+// echarts appends the tooltip box to the chart container, next to the zrender viewport
+function tooltipOf(chart: echarts.ECharts) {
+    const viewport = chart.getZr().painter.getViewportRoot()
+    return [...chart.getDom().children].find(el => el !== viewport)!
+}
+
+// a tooltip shown at the first, last and middle value of each chart under
+// root lies whole inside the viewport
+export function expectTooltipsInView(root: Element) {
+    const charts = chartsIn(root)
+    expect(charts.length).toBeGreaterThan(0)
+    const view = document.documentElement
+    for (const chart of charts) {
+        // echarts throttles a tooltip with a transition and slides it into
+        // place, so turning the transition off lands every move at once
+        chart.setOption({tooltip: {transitionDuration: 0}})
+        chart.getDom().scrollIntoView({block: 'center'})
+        const last = (chart.getOption().series as Series[])[0].data.length - 1
+        for (const dataIndex of new Set([0, last, Math.floor(last / 2)])) {
+            chart.dispatchAction({type: 'showTip', seriesIndex: 0, dataIndex})
+            const box = tooltipOf(chart).getBoundingClientRect()
+            expect(box.left).toBeGreaterThanOrEqual(0)
+            expect(box.top).toBeGreaterThanOrEqual(0)
+            expect(box.right).toBeLessThanOrEqual(view.clientWidth)
+            expect(box.bottom).toBeLessThanOrEqual(view.clientHeight)
+        }
+    }
+}
+
+// waitFor reruns its callback on every DOM change and showing a tooltip makes
+// one, so a failing check would spin forever inside it
+export const tooltipsInView: StoryObj['play'] = async ({canvasElement}) => {
+    await waitFor(() => expect(chartsIn(canvasElement).length).toBeGreaterThan(0))
+    expectTooltipsInView(canvasElement)
+}
+
 // a middle dot shares its line with the item after it, so no line ends on one
 export function expectNoHangingDots(root: Element) {
     const mid = (el: Element) => {

@@ -3,7 +3,7 @@ import {expect, waitFor} from 'storybook/test'
 import {chartBySlug} from '@/lib/charts'
 import {numn} from '../../../../../mock/fixtures.js'
 import {DAILY} from '../../../../../mock/fixtures/home.js'
-import {axesLegible, expectLegibleAxes, lonePointsPainted} from '../../../../.storybook/fit'
+import {axesLegible, expectLegibleAxes, lonePointsPainted, PHONE, tooltipsInView} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import ChartPage from './page'
 
@@ -131,3 +131,7 @@ export const EvmTransactionsAfterQuietDay = chart('evm-transactions', DAILY.map(
 export const EvmTransactionsAllZero = chart('evm-transactions', DAILY.map(d => ({...d, evmTxs: 0})))
 
 export const DifficultyExtreme = chart('difficulty', DAILY.map(d => ({...d, difficultyClose: String(BigInt(d.difficultyClose) * 200_000n)})))
+
+// a nine digit NUMN reading fills most of a phone-wide chart
+export const IssuanceManyDaysTooltipOnPhone: StoryObj = {...IssuanceManyDays, globals: PHONE, play: tooltipsInView}
+export const IssuanceOneDayTooltipOnPhone: StoryObj = {...IssuanceOneDay, globals: PHONE, play: tooltipsInView}
