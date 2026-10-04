@@ -2,6 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {numn} from '../../../../../mock/fixtures.js'
 import {DAILY} from '../../../../../mock/fixtures/home.js'
+import {axesLegible} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import ChartPage from './page'
 
@@ -9,7 +10,7 @@ export default {title: 'Pages/Charts', ...pageMeta(ChartPage)}
 
 type Day = (typeof DAILY)[number]
 
-const chart = (slug: string, days: Day[], searchParams = {}) => pageStory({dailyStats: days}, {params: {slug}, searchParams})
+const chart = (slug: string, days: Day[], searchParams = {}): StoryObj => ({...pageStory({dailyStats: days}, {params: {slug}, searchParams}), play: days.length ? axesLegible : undefined})
 
 const NONE: Day[] = []
 const FIRST = DAILY.slice(0, 1)

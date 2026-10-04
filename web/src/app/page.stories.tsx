@@ -3,7 +3,7 @@ import {expect, screen, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
-import {expectFits, PHONE} from '../../.storybook/fit'
+import {axesLegible, expectFits, PHONE} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
@@ -139,7 +139,7 @@ const manyTransfers = [
 
 const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: minedUpTo(HEAD, 5, MANY_FINALIZED), transfers: manyTransfers, referendums: referenda.slice(4, 9)}
 
-export const HomeMany = pageStory(home(many))
+export const HomeMany: StoryObj = {...pageStory(home(many)), play: axesLegible}
 
 // a crowded referendum row squeezes its text column rather than overflowing
 function expectListsFit(root: HTMLElement) {

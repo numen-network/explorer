@@ -57,10 +57,11 @@ export function truncFixed(x: number | string | bigint, digits: number, decimals
     return signed(neg, digits ? `${cut.slice(0, -digits)}.${cut.slice(-digits)}` : cut)
 }
 
+const trimZeros = (fixed: string) => fixed.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
+
 function trimNum(planck: bigint, decimals: number): string {
     const {whole} = planckParts(planck, decimals)
-    const fixed = truncFixed(planck, whole >= 100n ? 0 : whole >= 10n ? 1 : 2, decimals)
-    return fixed.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
+    return trimZeros(truncFixed(planck, whole >= 100n ? 0 : whole >= 10n ? 1 : 2, decimals))
 }
 
 // four digits still read as a number, so K only starts at ten thousand
@@ -78,6 +79,14 @@ export function fmtCompact(x: number | string | bigint, decimals = 0): string {
     const [planck, scale] = planckOf(x, decimals)
     const [, shift, suffix] = unitFor(planckParts(planck, scale).whole)
     return trimNum(planck, scale + shift) + suffix
+}
+
+// ticks are whole multiples of the axis step, so every digit a tick has is one
+// that sets it apart from its neighbours
+export function fmtTick(v: number): string {
+    const [planck, scale] = planckOf(v, 0)
+    const [, shift, suffix] = unitFor(planckParts(planck, scale).whole)
+    return trimZeros(truncFixed(planck, scale + shift, scale + shift)) + suffix
 }
 
 export function fmtCompact3(planck: string | bigint, decimals: number, symbol?: string): string {

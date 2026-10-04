@@ -1,6 +1,6 @@
 'use client'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
-import {fmtBlockSpan, fmtCompact, fmtInt} from '@/lib/format'
+import {fmtBlockSpan, fmtInt, fmtTick} from '@/lib/format'
 import * as echarts from 'echarts'
 import {useEffect, useRef} from 'react'
 
@@ -13,6 +13,7 @@ const GREEN = '#4caf50'
 const SUPPORT = '#7c3aed'
 const GREEN_FILL = 'rgba(76,175,80,.11)'
 const SUB_FILL = 'rgba(124,130,142,.08)'
+const LABEL_FONT = '11px sans-serif'
 
 function useChart(option: echarts.EChartsOption) {
     const ref = useRef<HTMLDivElement>(null)
@@ -40,8 +41,15 @@ function catAxis(labels: string[]): echarts.EChartsOption['xAxis'] {
         data: labels,
         axisLine: {lineStyle: {color: EDGE}},
         axisTick: {show: false},
-        axisLabel: {color: SUB, fontSize: 11},
+        axisLabel: {color: SUB, fontSize: 11, textMargin: 0},
     }
+}
+
+// a label sits centred on its band with no text margin, and echarts picks the
+// labelled bands only after fitting labels in, so both ends keep half the
+// widest label free
+function catRoom(labels: string[]): number {
+    return Math.max(0, ...labels.map(l => echarts.format.getTextRect(l, LABEL_FONT).width)) / 2
 }
 
 function valAxis(scale = false): object {
@@ -51,8 +59,15 @@ function valAxis(scale = false): object {
         // axis there flattens every move it makes
         scale,
         splitLine: {lineStyle: {color: EDGE}},
-        axisLabel: {color: SUB, fontSize: 11, formatter: fmtCompact},
+        axisLabel: {color: SUB, fontSize: 11, textMargin: [0, 8], formatter: fmtTick},
     }
+}
+
+// echarts shrinks the plot from these offsets until every axis label and its
+// text margin fit on the canvas, the bottom offset staying clear for the
+// controls under a chart. a y label's side margin is its gap to the edge
+function plotGrid({left = 0, right, top, bottom = 0}: {left?: number; right: number; top: number; bottom?: number}) {
+    return {left, right, top, bottom, outerBounds: {left: 0, right: 0, top: 0, bottom}}
 }
 
 const TOOLTIP = {
@@ -63,9 +78,10 @@ const TOOLTIP = {
 } as const
 
 export function BarsChart({labels, values, height = 210}: {labels: string[]; values: number[]; height?: number}) {
+    const room = catRoom(labels)
     const ref = useChart({
         tooltip: {...TOOLTIP},
-        grid: {left: 8, right: 8, top: 12, bottom: 0, containLabel: true},
+        grid: plotGrid({left: room, right: room, top: 12}),
         xAxis: catAxis(labels),
         yAxis: valAxis() as never,
         series: [
@@ -103,7 +119,7 @@ export function ThresholdChart({approval, support, hours, height = 180}: {approv
             },
         },
         legend: {top: 0, right: 0, itemWidth: 18, itemGap: 14, textStyle: {color: SUB, fontSize: 11}},
-        grid: {left: 4, right: 10, top: 30, bottom: 0, containLabel: true},
+        grid: plotGrid({right: 10, top: 30}),
         xAxis: {
             type: 'value',
             min: 0,
@@ -113,7 +129,10 @@ export function ThresholdChart({approval, support, hours, height = 180}: {approv
             interval: Math.max(1, Math.ceil(span / 7)),
             axisLine: {lineStyle: {color: EDGE}},
             axisTick: {show: false},
-            axisLabel: {color: SUB, fontSize: 11, formatter: (v: number) => `${v}${unit}`},
+            // ticks land on whole days or hours, and only the end of a period
+            // with part of a day left lands between them, so it names the
+            // leftover hours and wins over the tick it would crowd
+            axisLabel: {color: SUB, fontSize: 11, showMaxLabel: true, formatter: (v: number) => (Number.isInteger(v) ? `${v}${unit}` : `${Math.floor(v)}d ${hours % 24}h`)},
             splitLine: {show: false},
         },
         yAxis: {
@@ -122,7 +141,7 @@ export function ThresholdChart({approval, support, hours, height = 180}: {approv
             max: 100,
             interval: 25,
             splitLine: {lineStyle: {color: EDGE}},
-            axisLabel: {color: SUB, fontSize: 11, formatter: (v: number) => `${v}%`},
+            axisLabel: {color: SUB, fontSize: 11, textMargin: [0, 4], formatter: (v: number) => `${v}%`},
         },
         series: [
             {name: 'Approval', type: 'line', symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: curveSamples(approval, span, SAMPLES)},
@@ -148,7 +167,7 @@ function windows(label: string | string[], color: string, fill: string, spans: [
             const x2 = Math.min(api.coord([api.value(1), 0])[0], sys.x + sys.width)
             if (x2 <= x1) return
             const y = sys.y - 12
-            const text = [label].flat().find(t => x2 - x1 >= echarts.format.getTextRect(t, '11px sans-serif').width + 24)
+            const text = [label].flat().find(t => x2 - x1 >= echarts.format.getTextRect(t, LABEL_FONT).width + 24)
             return {
                 type: 'group',
                 children: [
@@ -271,7 +290,7 @@ export function CurvesChart({
                 {name: 'Current support', lineStyle: {type: 'dashed'}},
             ],
         },
-        grid: {left: 8, right: 20, top: 32, bottom: 70, containLabel: true},
+        grid: plotGrid({right: 20, top: 32, bottom: 70}),
         // filter mode would drop the points behind the window edge and cut
         // the step lines off with them
         dataZoom: [
@@ -306,7 +325,7 @@ export function CurvesChart({
             max: 100,
             interval: 25,
             splitLine: {lineStyle: {color: EDGE}},
-            axisLabel: {color: SUB, fontSize: 11, formatter: (v: number) => `${v}%`},
+            axisLabel: {color: SUB, fontSize: 11, textMargin: [0, 8], formatter: (v: number) => `${v}%`},
         },
         series: [
             {
@@ -387,6 +406,7 @@ export function SeriesChart({
     kind: 'line' | 'bar'
     height?: number
 }) {
+    const room = catRoom(labels)
     const ref = useChart({
         tooltip: {
             ...TOOLTIP,
@@ -395,7 +415,7 @@ export function SeriesChart({
                 return `${p.axisValueLabel}<br/>${p.marker} ${name} <b>${tips[p.dataIndex] ?? p.value}</b>`
             },
         },
-        grid: {left: 8, right: 16, top: 20, bottom: 58, containLabel: true},
+        grid: plotGrid({left: room, right: room, top: 20, bottom: 58}),
         dataZoom: [
             {type: 'inside'},
             {
@@ -441,10 +461,11 @@ export interface LineSeries {
 }
 
 export function LinesChart({labels, series, height = 210, dualAxis = false}: {labels: string[]; series: LineSeries[]; height?: number; dualAxis?: boolean}) {
+    const room = catRoom(labels)
     const ref = useChart({
         tooltip: {...TOOLTIP},
         legend: series.length > 1 ? {top: 0, right: 0, icon: 'circle', itemWidth: 8, itemHeight: 8, textStyle: {color: SUB, fontSize: 11}} : undefined,
-        grid: {left: 8, right: 8, top: series.length > 1 ? 28 : 12, bottom: 0, containLabel: true},
+        grid: plotGrid({left: room, right: room, top: series.length > 1 ? 28 : 12}),
         xAxis: catAxis(labels),
         yAxis: dualAxis ? ([valAxis(), {...valAxis(), splitLine: {show: false}}] as never) : (valAxis() as never),
         series: series.map((s, i) => ({

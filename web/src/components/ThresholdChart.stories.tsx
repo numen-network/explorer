@@ -1,6 +1,8 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expect, waitFor} from 'storybook/test'
 import type {Curve} from '@/lib/curves'
 import {linear, reciprocal, stepped} from '../../../mock/fixtures/governance.js'
+import {axesLegible, axisTexts, expectLegibleAxes, PHONE} from '../../.storybook/fit'
 import {ThresholdChart} from './charts'
 import {Card, CardContent, CardHeader, CardTitle} from './ui/card'
 
@@ -41,6 +43,7 @@ const grid = (tracks: Spec[]): Story => ({
             ))}
         </div>
     ),
+    play: axesLegible,
 })
 
 export const EveryCurveKind = grid([
@@ -56,6 +59,22 @@ export const PeriodLengths = grid([
     {name: 'Seven days', approval: RECIPROCAL, support: SUPPORT, hours: 168},
     {name: 'One year', approval: RECIPROCAL, support: SUPPORT, hours: 8760},
 ])
+
+export const PeriodLengthsOnPhone: Story = {...PeriodLengths, globals: PHONE}
+
+// the end of a period with part of a day left falls between two day ticks
+export const PeriodsEndingMidDay: Story = {
+    ...grid([
+        {name: 'A hundred hours', approval: LINEAR, support: SUPPORT, hours: 100},
+        {name: 'A thousand hours', approval: RECIPROCAL, support: SUPPORT, hours: 1000},
+    ]),
+    play: async ({canvasElement}) => {
+        await waitFor(() => expectLegibleAxes(canvasElement))
+        const [hundred, thousand] = axisTexts(canvasElement).map(axes => axes.flat())
+        expect(hundred).toContain('4d 4h')
+        expect(thousand).toContain('41d 16h')
+    },
+}
 
 export const FlatAndSpikedCurves = grid([
     {name: 'Never relaxes', approval: linear(1e9, 1e9, 1e9), support: linear(1e9, 0, 0), hours: 672},

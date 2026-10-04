@@ -1,5 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import * as echarts from 'echarts'
+import {expect, waitFor} from 'storybook/test'
 
 export const PHONE = {viewport: {value: 'mobile1', isRotated: false}}
 export const DESKTOP = {viewport: {value: 'desktop', isRotated: false}}
@@ -11,6 +12,48 @@ export function expectFits(...boxes: Element[]) {
 }
 
 export const cardsFit: StoryObj['play'] = async ({canvasElement}) => expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+
+type Shape = ReturnType<echarts.graphic.Group['children']>[number]
+
+// echarts tags each tick label label_<value> and groups an axis's labels, so
+// this reads them back per axis with boxes in canvas pixels
+function axisLabels(chart: echarts.ECharts) {
+    const axes = new Map<Shape, {text: string; box: echarts.graphic.BoundingRect}[]>()
+    const walk = (el: Shape) => {
+        if (el instanceof echarts.graphic.Text && el.anid?.startsWith('label_') && !el.ignore) {
+            const box = el.getBoundingRect().clone()
+            box.applyTransform(el.getComputedTransform())
+            axes.set(el.parent, [...(axes.get(el.parent) ?? []), {text: String(el.style.text), box}])
+        }
+        if (el instanceof echarts.graphic.Group) el.children().forEach(walk)
+    }
+    chart.getZr().storage.getRoots().forEach(walk)
+    return [...axes.values()]
+}
+
+const chartsIn = (root: Element) => [...root.querySelectorAll<HTMLElement>('[_echarts_instance_]')].map(el => echarts.getInstanceByDom(el)!)
+
+// the tick labels each chart under root shows, one list per axis
+export const axisTexts = (root: Element) => chartsIn(root).map(chart => axisLabels(chart).map(labels => labels.map(l => l.text)))
+
+// every axis of every chart under root labels each tick once and shows every label whole
+export function expectLegibleAxes(root: Element) {
+    const charts = chartsIn(root)
+    expect(charts.length).toBeGreaterThan(0)
+    for (const chart of charts) {
+        const axes = axisLabels(chart)
+        expect(axes.length).toBeGreaterThan(0)
+        for (const labels of axes) {
+            const texts = labels.map(l => l.text)
+            expect(texts.filter((text, i) => texts.indexOf(text) !== i)).toEqual([])
+            const cut = labels.filter(({box}) => box.x < 0 || box.y < 0 || box.x + box.width > chart.getWidth() || box.y + box.height > chart.getHeight())
+            expect(cut.map(l => l.text)).toEqual([])
+        }
+    }
+}
+
+// a chart draws from an effect, which can run after the story has mounted
+export const axesLegible: StoryObj['play'] = async ({canvasElement}) => waitFor(() => expectLegibleAxes(canvasElement))
 
 // a middle dot shares its line with the item after it, so no line ends on one
 export function expectNoHangingDots(root: Element) {

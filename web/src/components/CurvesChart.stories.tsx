@@ -2,6 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {Curve} from '@/lib/curves'
 import {HEAD} from '../../../mock/fixtures.js'
 import {linear, reciprocal} from '../../../mock/fixtures/governance.js'
+import {axesLegible} from '../../.storybook/fit'
 import {CurvesChart} from './charts'
 import {Card} from './ui/card'
 
@@ -49,6 +50,7 @@ function chart({approval, support, zero, submitted, started, tally, open, confir
                 />
             </Card>
         ),
+        play: axesLegible,
     }
 }
 
