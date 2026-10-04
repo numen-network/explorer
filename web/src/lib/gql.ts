@@ -1462,13 +1462,21 @@ export interface TokenHit {
     symbol: string | null
 }
 
-export function searchNames(q: string) {
-    return gql<{accounts: AccountHit[]; tokens: TokenHit[]}>(
-        `query ($q: String!) {
-            accounts(where: {OR: [{identityDisplay_containsInsensitive: $q}, {username_containsInsensitive: $q}]}, orderBy: ${IDENTITY_ORDER}, limit: 20) { ${ACCOUNT_REF} username }
-            tokens(where: {OR: [{symbol_containsInsensitive: $q}, {name_containsInsensitive: $q}]}, orderBy: ${TOKEN_ORDER}, limit: 20) { id name symbol }
+// accounts sort by the name they show, their own display, else their super's
+// display and sub name, else their username
+const LABEL_ORDER = '[identityDisplay_ASC_NULLS_LAST, identitySuper_identityDisplay_ASC_NULLS_LAST, identitySubName_ASC_NULLS_LAST, username_ASC_NULLS_LAST, id_ASC]'
+
+export function searchNames(q: string, page: Slice) {
+    const account = '{OR: [{identityDisplay_containsInsensitive: $q}, {identitySubName_containsInsensitive: $q}, {username_containsInsensitive: $q}]}'
+    const token = '{OR: [{symbol_containsInsensitive: $q}, {name_containsInsensitive: $q}]}'
+    return gql<{accounts: AccountHit[]; accountCount: {totalCount: number}; tokens: TokenHit[]; tokenCount: {totalCount: number}}>(
+        `query ($q: String!, $limit: Int!, $offset: Int!) {
+            accounts(where: ${account}, orderBy: ${LABEL_ORDER}, limit: $limit, offset: $offset) { ${ACCOUNT_REF} username }
+            accountCount: accountsConnection(where: ${account}, orderBy: id_ASC) { totalCount }
+            tokens(where: ${token}, orderBy: ${TOKEN_ORDER}, limit: $limit, offset: $offset) { id name symbol }
+            tokenCount: tokensConnection(where: ${token}, orderBy: id_ASC) { totalCount }
         }`,
-        {q}
+        {q, limit: page.limit, offset: page.offset}
     )
 }
 

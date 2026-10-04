@@ -1,4 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {getURLFromRedirectError} from 'next/dist/client/components/redirect'
+import {isRedirectError} from 'next/dist/client/components/redirect-error'
 import {cloneElement, isValidElement, type ReactNode} from 'react'
 import {paging} from '../src/lib/paging'
 import {base} from '../../mock/fixtures.js'
@@ -29,15 +31,22 @@ async function settle(node: ReactNode): Promise<ReactNode> {
 export const pageMeta = <P extends PageProps>(page: (props: P) => Promise<ReactNode>) =>
     ({
         loaders: [
-            async ({parameters}) => ({
-                page: await settle(await page({params: Promise.resolve(parameters.params ?? {}), searchParams: Promise.resolve(parameters.searchParams ?? {})} as P)),
-            }),
+            async ({parameters}) => {
+                try {
+                    const tree = await settle(await page({params: Promise.resolve(parameters.params ?? {}), searchParams: Promise.resolve(parameters.searchParams ?? {})} as P))
+                    if (parameters.redirect) throw new Error(`the page rendered instead of redirecting to ${parameters.redirect}`)
+                    return {page: tree}
+                } catch (e) {
+                    if (isRedirectError(e) && getURLFromRedirectError(e) === parameters.redirect) return {page: null}
+                    throw e
+                }
+            },
         ],
         render: (_, {loaded}) => loaded.page,
     }) satisfies Meta
 
-export const pageStory = (data: Record<string, unknown>, {params = {}, searchParams = {}} = {}): StoryObj => ({
-    parameters: {params, searchParams, msw: [graphqlData({...base, ...data})]},
+export const pageStory = (data: Record<string, unknown>, {params = {}, searchParams = {}, redirect}: {params?: object; searchParams?: object; redirect?: string} = {}): StoryObj => ({
+    parameters: {params, searchParams, redirect, msw: [graphqlData({...base, ...data})]},
 })
 
 // the page a list ends on at the default page size

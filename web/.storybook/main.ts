@@ -30,6 +30,7 @@ const config: StorybookConfig = {
                     'echarts',
                     'lucide-react',
                     'msw-storybook-addon/csf3',
+                    'next/dist/client/components/redirect',
                     'radix-ui',
                     'react-day-picker',
                     'three',
