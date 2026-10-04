@@ -1,28 +1,23 @@
 import Link from 'next/link'
 import {FileText} from 'lucide-react'
-import AccountLink from '@/components/AccountLink'
 import {BountyTable} from '@/components/BountyTable'
 import EmptyList from '@/components/EmptyList'
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
 import {TabBar} from '@/components/Tabs'
-import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
 import {FilterRow} from '@/components/pills'
 import {ThresholdChart} from '@/components/charts'
-import {payouts, StatusBadge, ThresholdBar} from '@/components/referenda'
-import {Badge} from '@/components/ui/badge'
+import {payouts, ReferendumByline, ThresholdBar} from '@/components/referenda'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {camelLabel, fmtCompact, fmtCompact3, fmtCount, fmtInt, trackLabel, truncFixed} from '@/lib/format'
-import {isLive, phaseFraction, phaseOf} from '@/lib/referendum'
+import {isLive, phaseFraction} from '@/lib/referendum'
 import {bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
-import {ss58Encode} from '@/lib/ss58'
 import {TracksTable, TreasuryTable} from './tables'
-import {NONE} from '@/components/Detail'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Governance'}
@@ -103,7 +98,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                 const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
                 return (
                     <Card key={r.id} size="flush" className="px-7 py-5">
-                        <div className="flex items-baseline justify-between gap-6">
+                        <div className="flex items-baseline gap-x-6 gap-y-1 max-sm:flex-wrap">
                             <div className="flex min-w-0 items-baseline gap-2">
                                 <Tip text={r.title}>
                                     <Link href={`/referendum/${r.index}`} className="group min-w-0 truncate text-[15px]">
@@ -120,7 +115,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     </Tip>
                                 )}
                             </div>
-                            <span className="shrink-0 text-sm">
+                            <span className="ml-auto shrink-0 text-sm">
                                 {r.proposalAmount != null ? (
                                     <>
                                         <span className="font-semibold">{fmtInt(truncFixed(r.proposalAmount, 0, chain.decimals))}</span>{' '}
@@ -133,24 +128,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                             </span>
                         </div>
                         <Separator className="my-3" />
-                        <div className="flex items-center justify-between gap-6">
-                            <div className="flex min-w-0 items-center gap-2 text-xs">
-                                {r.submitter ? (
-                                    <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} />
-                                ) : (
-                                    NONE
-                                )}
-                                <span className="text-dim">·</span>
-                                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs text-muted-foreground">
-                                    {trackLabel(r.track.name)}
-                                </Badge>
-                                <span className="text-dim">·</span>
-                                <span className="-ml-0.5 text-muted-foreground">
-                                    <TimeCell iso={r.submittedTimestamp} cycle />
-                                </span>
-                            </div>
-                            <StatusBadge phase={phaseOf(r)} />
-                        </div>
+                        <ReferendumByline r={r} chain={chain} />
                         {at !== null && (
                             <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-3 sm:grid-cols-2">
                                 <ThresholdBar

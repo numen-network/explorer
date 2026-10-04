@@ -2,18 +2,15 @@ import type {ReactNode} from 'react'
 import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
-import {DetailCard, DetailRow, JsonBlock, NONE} from '@/components/Detail'
-import DotRow from '@/components/DotRow'
+import {DetailCard, DetailRow, JsonBlock} from '@/components/Detail'
 import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
-import {TimeCell} from '@/components/TimeCell'
 import {CurvesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink} from '@/components/links'
-import {Gauge, ProposalTree, StatusBadge} from '@/components/referenda'
+import {Gauge, ProposalTree, ReferendumByline} from '@/components/referenda'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
 import ActionList, {type ActionImpact, type ActionRow} from '@/components/actions'
-import {Badge} from '@/components/ui/badge'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
@@ -533,18 +530,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_1fr]">
                 <Card size="flush" className="min-w-0 px-7 py-5">
                     <p className="text-base font-semibold wrap-anywhere">{r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        <DotRow className="min-w-0">
-                            {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : NONE}
-                            <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs text-muted-foreground">
-                                {trackLabel(r.track.name)}
-                            </Badge>
-                            <span className="-ml-0.5 text-muted-foreground">
-                                <TimeCell iso={r.submittedTimestamp} cycle />
-                            </span>
-                        </DotRow>
-                        <StatusBadge phase={phaseOf(r)} className="ml-auto" />
-                    </div>
+                    <ReferendumByline r={r} chain={chain} className="mt-3" />
                     <Separator className="my-4" />
                     {r.description ? (
                         <p className="text-sm whitespace-pre-wrap wrap-anywhere">{r.description}</p>

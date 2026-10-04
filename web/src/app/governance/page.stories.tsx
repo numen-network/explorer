@@ -3,7 +3,7 @@ import {expect, screen, waitFor} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
 import {numn, PEOPLE} from '../../../../mock/fixtures.js'
 import {bounty, BOUNTY_STATUSES, counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
-import {axesLegible, expectLegibleAxes, filterChips} from '../../../.storybook/fit'
+import {axesLegible, expectFits, expectLegibleAxes, expectNoHangingDots, filterChips, PHONE} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
 
@@ -42,6 +42,65 @@ export const ReferendaTruncationEdges: StoryObj = {
     play: async ({canvas}) => {
         await expect(canvas.getByText('9,999,999,999')).toBeInTheDocument()
         for (const figure of ['aye 1.15M', 'nay 4.35', 'voted 8.2M', '99.99%', '15.61%']) await expect(canvas.getByText(figure)).toBeInTheDocument()
+    },
+}
+
+// no submitter on record, a description behind its icon, the longest display
+// name and a title short enough to keep its call on the same line
+export const ReferendaEdgeCases = referendaTab([
+    {...referenda[6], id: '22', index: 22, submitter: null, description: 'Pays three community teams for six months of translation work.'},
+    {...referenda[7], id: '21', index: 21, submitter: PEOPLE[7]},
+    {...referenda[2], id: '20', index: 20, title: 'Say hello', description: 'A remark to test the waters.'},
+])
+
+const overlap = (a: Element, b: Element) => {
+    const [r, s] = [a.getBoundingClientRect(), b.getBoundingClientRect()]
+    return r.left < s.right && s.left < r.right && r.top < s.bottom && s.top < r.bottom
+}
+
+// on a phone the title row fits, a title it would cut short gets the line to
+// itself, the status keeps clear of the facts and no line ends on a middle dot
+const fitsPhone = ({canvasElement}: {canvasElement: HTMLElement}) => {
+    const cards = [...canvasElement.querySelectorAll('a[href^="/referendum/"]')].map(title => title.closest('[data-slot=card]')!)
+    const heads = cards.map(card => card.firstElementChild!)
+    expectFits(...heads)
+    for (const head of heads) {
+        const title = head.querySelector('a')!
+        if (title.scrollWidth > title.clientWidth) expect(head.lastElementChild!.getBoundingClientRect().top).toBeGreaterThanOrEqual(title.getBoundingClientRect().bottom)
+    }
+    for (const byline of cards.map(card => card.querySelector('[data-slot=separator] + div')!)) {
+        for (const fact of byline.firstElementChild!.children) expect(overlap(fact, byline.lastElementChild!)).toBe(false)
+    }
+    expectNoHangingDots(canvasElement)
+}
+
+export const ReferendaEveryCaseOnPhone: StoryObj = {...ReferendaEveryCase, globals: PHONE, play: fitsPhone}
+
+export const ReferendaStagedPayoutsOnPhone: StoryObj = {
+    ...ReferendaStagedPayouts,
+    globals: PHONE,
+    play: async context => {
+        await ReferendaStagedPayouts.play!(context)
+        fitsPhone(context)
+    },
+}
+
+export const ReferendaTruncationEdgesOnPhone: StoryObj = {
+    ...ReferendaTruncationEdges,
+    globals: PHONE,
+    play: async context => {
+        await ReferendaTruncationEdges.play!(context)
+        fitsPhone(context)
+    },
+}
+
+export const ReferendaEdgeCasesOnPhone: StoryObj = {
+    ...ReferendaEdgeCases,
+    globals: PHONE,
+    play: async context => {
+        fitsPhone(context)
+        const head = context.canvas.getByText('Say hello').closest('a')!.parentElement!.parentElement!
+        expect(head.lastElementChild!.getBoundingClientRect().top).toBeLessThan(head.querySelector('a')!.getBoundingClientRect().bottom)
     },
 }
 

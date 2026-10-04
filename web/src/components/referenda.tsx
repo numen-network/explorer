@@ -1,11 +1,14 @@
 import type {ReactNode} from 'react'
 import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
+import {NONE} from '@/components/Detail'
+import DotRow from '@/components/DotRow'
+import {TimeCell} from '@/components/TimeCell'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtBalance, fmtCompact, fmtPct, fmtSpan, planckToNum} from '@/lib/format'
-import type {AccountRef, ProposalNode} from '@/lib/gql'
-import type {Phase} from '@/lib/referendum'
+import {camelLabel, fmtBalance, fmtCompact, fmtPct, fmtSpan, planckToNum, trackLabel} from '@/lib/format'
+import type {AccountRef, ProposalNode, ReferendumRow} from '@/lib/gql'
+import {phaseOf, type Phase} from '@/lib/referendum'
 import {ss58Encode} from '@/lib/ss58'
 
 const PHASE_BG: Record<Phase, string> = {
@@ -21,6 +24,23 @@ const PHASE_BG: Record<Phase, string> = {
 
 export function StatusBadge({phase, className}: {phase: Phase; className?: string}) {
     return <Badge className={cn('shrink-0 rounded-md px-3 py-1.5 text-xs leading-none font-semibold', PHASE_BG[phase], className)}>{camelLabel(phase)}</Badge>
+}
+
+export function ReferendumByline({r, chain, className}: {r: ReferendumRow; chain: ChainProps; className?: string}) {
+    return (
+        <div className={cn('flex flex-wrap items-center gap-2 text-xs', className)}>
+            <DotRow className="min-w-0">
+                {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : NONE}
+                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs text-muted-foreground">
+                    {trackLabel(r.track.name)}
+                </Badge>
+                <span className="-ml-0.5 text-muted-foreground">
+                    <TimeCell iso={r.submittedTimestamp} cycle />
+                </span>
+            </DotRow>
+            <StatusBadge phase={phaseOf(r)} className="ml-auto" />
+        </div>
+    )
 }
 
 // split reads green aye against red nay with the tally line between them,
