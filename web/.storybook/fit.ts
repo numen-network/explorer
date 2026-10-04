@@ -3,6 +3,7 @@ import * as echarts from 'echarts'
 import {expect, waitFor} from 'storybook/test'
 
 export const PHONE = {viewport: {value: 'mobile1', isRotated: false}}
+export const TABLET = {viewport: {value: 'tablet', isRotated: false}}
 export const DESKTOP = {viewport: {value: 'desktop', isRotated: false}}
 
 // content that runs past a box widens its scroll width, even when the box clips it

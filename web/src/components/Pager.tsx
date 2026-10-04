@@ -24,6 +24,14 @@ const JUMP = 5
 const off = 'pointer-events-none opacity-50'
 const ACTIVE = 'border-primary bg-primary bg-clip-border text-primary-foreground hover:bg-primary hover:text-primary-foreground'
 
+// px at text-sm, kept in step with the classes below
+const ARROWS = {icon: 68, label: 173}
+const LINK = {min: 32, inset: 14, digit: 9}
+const GAP = 2
+const OVERHANG = 6
+const slot = (p: pagination.Api['pages'][number]) => (p.type === 'page' ? Math.max(LINK.min, LINK.inset + LINK.digit * String(p.value).length) : LINK.min)
+const span = ({pages}: pagination.Api, arrows: number) => pages.reduce((px, p) => px + GAP + slot(p), arrows + GAP - OVERHANG)
+
 // the url is the state, the machines only lay out the page windows and their aria
 export default function Pager({paging: {page, size}, total, href, className = 'mt-3'}: Props) {
     const router = useRouter()
@@ -38,6 +46,7 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
     const props = {count: total, pageSize: size, page, type: 'link', getPageUrl: d => url(d.page, d.pageSize)} satisfies Partial<pagination.Props>
     const api = pagination.connect(useMachine(pagination.machine, {...props, id: useId(), siblingCount: 2}), normalizeProps)
     const narrow = pagination.connect(useMachine(pagination.machine, {...props, id: useId(), siblingCount: 0}), normalizeProps)
+    const narrowest = pagination.connect(useMachine(pagination.machine, {...props, id: useId(), siblingCount: 0, boundaryCount: 0}), normalizeProps)
     if (total <= PAGE_SIZES[0]) return null
     const paged = api.totalPages > 1
     const jump = () => {
@@ -46,24 +55,28 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
         setGoto('')
         router.push(url(n, size), {scroll: false})
     }
+    // a container query can't read a custom property, so every set of widths gets rules of its own
+    const widths = [span(api, ARROWS.label), span(narrow, ARROWS.label), span(narrow, ARROWS.icon)]
+    const fit = widths.join('-')
+    const swap = (px: number, media: string, hide: number, show: number) =>
+        `@container (width < ${px / 16}rem) { @media ${media} { [data-fit="${fit}"] [data-slots="${hide}"] { display: none } [data-fit="${fit}"] [data-slots="${show}"] { display: list-item } } }`
     // slots keep their nodes, so a sliding window changes the numbers under the accent instead of fading it through a neighbour
-    const slots = ({pages, totalPages, getItemProps}: pagination.Api, hide: string) =>
-        pages.map((p, i) => {
+    const slots = ({pages, totalPages, getItemProps}: pagination.Api, n: number, hide: string) => {
+        const current = pages.findIndex(p => p.type === 'page' && p.value === page)
+        return pages.map((p, i) => {
             if (p.type === 'page')
                 return (
-                    <PaginationItem key={i} className={hide}>
+                    <PaginationItem key={i} className={hide} data-slots={n}>
                         <PaginationLink {...getItemProps(p)} href={url(p.value, size)} scroll={false} isActive={p.value === page} size="default" className={cn('min-w-8 px-1.5 transition-none', p.value === page && ACTIVE)}>
                             {p.value}
                         </PaginationLink>
                     </PaginationItem>
                 )
-            // the page right after a gap says which side of the current page the gap is on
-            const next = pages[i + 1] as {value: number}
-            const back = next.value <= page
+            const back = i < current
             const label = `${back ? 'Previous' : 'Next'} ${fmtCount(JUMP, 'page')}`
             const Arrows = back ? ChevronsLeft : ChevronsRight
             return (
-                <PaginationItem key={i} className={hide}>
+                <PaginationItem key={i} className={hide} data-slots={n}>
                     <Tip text={label}>
                         <PaginationLink href={url(back ? Math.max(1, page - JUMP) : Math.min(totalPages, page + JUMP), size)} scroll={false} aria-label={label}>
                             <Ellipsis className="group-hover/button:hidden" />
@@ -73,15 +86,20 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
                 </PaginationItem>
             )
         })
+    }
     return (
-        <Pagination className={cn('flex-wrap items-center justify-end gap-x-4 gap-y-2', className)} {...api.getRootProps()}>
+        <Pagination className={cn('@container flex-wrap items-center justify-end gap-x-4 gap-y-2', className)} {...api.getRootProps()} data-fit={fit}>
             {paged && (
                 <PaginationContent className="-mr-1.5">
+                    <style href={fit} precedence="pager">
+                        {swap(widths[0], '(width >= 48rem)', 9, 5) + swap(widths[1], '(width >= 40rem)', 5, 3) + swap(widths[2], '(width < 40rem)', 5, 3)}
+                    </style>
                     <PaginationItem>
                         <PaginationPrevious {...api.getPrevTriggerProps()} href={url(api.previousPage ?? 1, size)} scroll={false} aria-disabled={api.previousPage === null} className={cn(api.previousPage === null && off)} />
                     </PaginationItem>
-                    {slots(narrow, 'md:hidden')}
-                    {slots(api, 'max-md:hidden')}
+                    {slots(narrowest, 3, 'hidden')}
+                    {slots(narrow, 5, 'md:hidden')}
+                    {slots(api, 9, 'max-md:hidden')}
                     <PaginationItem>
                         <PaginationNext {...api.getNextTriggerProps()} href={url(api.nextPage ?? page, size)} scroll={false} aria-disabled={api.nextPage === null} className={cn(api.nextPage === null && off)} />
                     </PaginationItem>
