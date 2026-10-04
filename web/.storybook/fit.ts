@@ -55,6 +55,25 @@ export function expectLegibleAxes(root: Element) {
 // a chart draws from an effect, which can run after the story has mounted
 export const axesLegible: StoryObj['play'] = async ({canvasElement}) => waitFor(() => expectLegibleAxes(canvasElement))
 
+type Series = {type: string; data: number[]; itemStyle: {color: string}}
+
+// a line needs two values for a segment, so each line under root that holds
+// a single value paints a dot of its colour on that value
+export function expectLonePointsPainted(root: Element) {
+    const lone = chartsIn(root)
+        .flatMap(chart => (chart.getOption().series as Series[]).map((series, seriesIndex) => ({chart, series, seriesIndex})))
+        .filter(({series}) => series.type === 'line' && series.data.length === 1)
+    expect(lone.length).toBeGreaterThan(0)
+    for (const {chart, series, seriesIndex} of lone) {
+        const [x, y] = chart.convertToPixel({seriesIndex}, [0, series.data[0]]).map(v => Math.round(v * chart.getDevicePixelRatio()))
+        const [r, g, b] = chart.getDom().querySelector('canvas')!.getContext('2d')!.getImageData(x, y, 1, 1).data
+        expect(echarts.color.toHex(`rgb(${r},${g},${b})`)).toBe(echarts.color.toHex(series.itemStyle.color))
+    }
+}
+
+// the dot draws in once the line's reveal animation reaches it
+export const lonePointsPainted = async ({canvasElement}: {canvasElement: Element}) => waitFor(() => expectLonePointsPainted(canvasElement), {timeout: 3000})
+
 // a middle dot shares its line with the item after it, so no line ends on one
 export function expectNoHangingDots(root: Element) {
     const mid = (el: Element) => {

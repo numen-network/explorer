@@ -3,7 +3,7 @@ import {expect, screen, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
-import {axesLegible, expectFits, PHONE} from '../../.storybook/fit'
+import {axesLegible, expectFits, lonePointsPainted, PHONE} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
@@ -113,19 +113,25 @@ const TREASURY = {id: chainInfo.treasuryAccount, identityDisplay: null}
 
 export const HomeEmpty = pageStory(home({head: 0, days: [], validators: 0}))
 
-export const FreshChain = pageStory(home({head: 1_234, days: chainDays(1_234).slice(-1), objects: minedUpTo(1_234, 5)}))
+// how much of the day has passed follows the clock, so the two plotted counts are pinned apart
+const freshDay = {...chainDays(1_234).at(-1)!, transfers: 12, transferVolume: numn(1_050)}
+
+export const FreshChain: StoryObj = {...pageStory(home({head: 1_234, days: [freshDay], objects: minedUpTo(1_234, 5)})), play: lonePointsPainted}
 
 const firstDay = chainDays(1)[0]
 
-export const HomeOne = pageStory(
-    home({
-        head: 1,
-        days: [{...firstDay, blocks: 2, extrinsicsSigned: 2, transfers: 1, transferVolume: numn(17), cumExtrinsicsSigned: '2', cumTransfers: '1', cumTransferVolume: numn(17), referendaTotal: 1, accountsTotal: 13}],
-        objects: minedUpTo(1, 5),
-        transfers: [transfer(1, 1, {amount: numn(17), timestamp: timeAt(1, 1)})],
-        referendums: [{...referenda[2], id: '0', index: 0, submittedAt: 1, submittedTimestamp: timeAt(1, 1)}],
-    })
-)
+export const HomeOne: StoryObj = {
+    ...pageStory(
+        home({
+            head: 1,
+            days: [{...firstDay, blocks: 2, extrinsicsSigned: 2, transfers: 1, transferVolume: numn(17), cumExtrinsicsSigned: '2', cumTransfers: '1', cumTransferVolume: numn(17), referendaTotal: 1, accountsTotal: 13}],
+            objects: minedUpTo(1, 5),
+            transfers: [transfer(1, 1, {amount: numn(17), timestamp: timeAt(1, 1)})],
+            referendums: [{...referenda[2], id: '0', index: 0, submittedAt: 1, submittedTimestamp: timeAt(1, 1)}],
+        })
+    ),
+    play: lonePointsPainted,
+}
 
 const MANY_FINALIZED = HEAD - 2
 

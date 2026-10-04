@@ -77,6 +77,11 @@ const TOOLTIP = {
     textStyle: {color: '#1a1c22', fontSize: 12},
 } as const
 
+// a line needs two values for a segment, so a lone value shows as a dot
+function lineSymbol(values: number[]) {
+    return {symbol: values.length === 1 ? 'circle' : 'none', symbolSize: 8}
+}
+
 export function BarsChart({labels, values, height = 210}: {labels: string[]; values: number[]; height?: number}) {
     const room = catRoom(labels)
     const ref = useChart({
@@ -430,6 +435,8 @@ export function SeriesChart({
                 moveHandleSize: 0,
                 showDetail: false,
                 brushSelect: false,
+                // a lone value has no outline for the rail to shadow
+                showDataShadow: values.length > 1,
                 labelFormatter: (_: number, s: string) => s,
             },
         ],
@@ -442,7 +449,7 @@ export function SeriesChart({
                       name,
                       type: 'line' as const,
                       smooth: 0.2,
-                      symbol: 'none',
+                      ...lineSymbol(values),
                       lineStyle: {width: 2, color: ACCENT},
                       itemStyle: {color: ACCENT},
                       areaStyle: {opacity: 0.07, color: ACCENT},
@@ -472,7 +479,7 @@ export function LinesChart({labels, series, height = 210, dualAxis = false}: {la
             name: s.name,
             type: 'line' as const,
             smooth: 0.35,
-            symbol: 'none',
+            ...lineSymbol(s.values),
             yAxisIndex: dualAxis ? i : 0,
             lineStyle: {width: 2, color: s.color ?? (i === 0 ? ACCENT : GRAY)},
             itemStyle: {color: s.color ?? (i === 0 ? ACCENT : GRAY)},

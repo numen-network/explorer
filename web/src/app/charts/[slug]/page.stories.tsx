@@ -1,8 +1,9 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, waitFor} from 'storybook/test'
+import {chartBySlug} from '@/lib/charts'
 import {numn} from '../../../../../mock/fixtures.js'
 import {DAILY} from '../../../../../mock/fixtures/home.js'
-import {axesLegible} from '../../../../.storybook/fit'
+import {axesLegible, expectLegibleAxes, lonePointsPainted} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import ChartPage from './page'
 
@@ -10,7 +11,16 @@ export default {title: 'Pages/Charts', ...pageMeta(ChartPage)}
 
 type Day = (typeof DAILY)[number]
 
-const chart = (slug: string, days: Day[], searchParams = {}): StoryObj => ({...pageStory({dailyStats: days}, {params: {slug}, searchParams}), play: days.length ? axesLegible : undefined})
+// a line through a single day has no segment to draw, so the day shows as a dot
+const oneDayLine: StoryObj['play'] = async context => {
+    await waitFor(() => expectLegibleAxes(context.canvasElement))
+    await lonePointsPainted(context)
+}
+
+const chart = (slug: string, days: Day[], searchParams = {}): StoryObj => ({
+    ...pageStory({dailyStats: days}, {params: {slug}, searchParams}),
+    play: days.length ? (days.length === 1 && chartBySlug(slug)!.kind === 'line' ? oneDayLine : axesLegible) : undefined,
+})
 
 const NONE: Day[] = []
 const FIRST = DAILY.slice(0, 1)
@@ -114,6 +124,7 @@ const TO = DAILY[60].id
 export const RangeCustom = chart('issuance', between(FROM, TO), {after: FROM, before: TO})
 export const RangeCustomFromOnly = chart('issuance', DAILY.filter(d => d.id >= TO), {after: TO})
 export const RangeCustomToOnly = chart('issuance', DAILY.filter(d => d.id <= FROM), {before: FROM})
+export const RangeCustomOneDay = chart('issuance', between(FROM, FROM), {after: FROM, before: FROM})
 
 export const EvmTransactionsAfterQuietDay = chart('evm-transactions', DAILY.map((d, i) => (i === DAILY.length - 2 ? {...d, evmTxs: 0} : d)))
 
