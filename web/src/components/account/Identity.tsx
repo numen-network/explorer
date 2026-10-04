@@ -5,7 +5,7 @@ import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
 import type {AccountRow} from '@/lib/gql'
-import {identityJudgements, identityLabel, identityRows} from '@/lib/identity'
+import {identityJudgements, identityRows, subLabel} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
 import {JUDGEMENT_TONE} from './shared'
 
@@ -51,14 +51,15 @@ export default function Identity({a, chain, retired}: {a: AccountRow; chain: Cha
     const sup = a.identitySuper
     return (
         <div className="grid gap-4">
-            {a.identityJson != null && (
+            {(a.identityJson != null || a.username != null) && (
                 <DetailCard title="Identity">
-                    <Registration json={a.identityJson} chain={chain} retired={retired} />
+                    {a.identityJson != null && <Registration json={a.identityJson} chain={chain} retired={retired} />}
+                    <DetailRow label="Username">{a.username ?? NONE}</DetailRow>
                 </DetailCard>
             )}
             {sup && (
                 <DetailCard title="Sub identity">
-                    <DetailRow label="Display">{identityLabel({identitySubName: a.identitySubName, identitySuper: sup}) ?? NONE}</DetailRow>
+                    <DetailRow label="Display">{subLabel(a) ?? NONE}</DetailRow>
                     <DetailRow label="Sub of">
                         <AccountLink addr={ss58Encode(sup.id, chain.ss58)} acc={sup} />
                     </DetailRow>

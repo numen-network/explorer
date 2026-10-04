@@ -1,5 +1,5 @@
 import data from '../data.js'
-import {account, acct, at, chainInfo, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subOf, transfer} from '../fixtures.js'
+import {account, acct, at, chainInfo, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer} from '../fixtures.js'
 
 // the account every account page story is about, and the H160 it maps from
 export const SUBJECT = account(77)
@@ -254,7 +254,7 @@ const SUB_NAMES = ['payouts', 'treasury-ops', 'cold-storage', 'validator-payouts
 // names in the order the query sorts them, the sub filed under a hash has no name and comes last
 export const subRows = count => {
     const named = Array.from({length: Math.max(1, count - 1)}, (_, i) => SUB_NAMES[i] ?? `node-${String(i).padStart(2, '0')}`).sort()
-    return [...named, null].slice(0, count).map((name, i) => ({id: account(300 + i), identitySubName: name}))
+    return [...named, null].slice(0, count).map((name, i) => ({id: account(300 + i), identitySubName: name, identitySubData: name == null ? {__kind: 'BlakeTwo256', value: hashOf('sub', 1)} : subData(name)}))
 }
 
 const identityInfo = fields => Object.fromEntries(['display', 'avatar', 'bio', 'web', 'email', 'github', 'matrix', 'x', 'telegram', 'discord'].map(k => [k, hex(fields[k] ?? '')]))

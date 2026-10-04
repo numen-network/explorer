@@ -11,21 +11,20 @@ import IdentityName from '@/components/IdentityName'
 import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
 import TokenIcon from '@/components/TokenIcon'
-import {isTokenAddress, searchLookups, searchNames, type AccountHit} from '@/lib/gql'
+import {isTokenAddress, searchLookups, searchNames, type AccountRef} from '@/lib/gql'
 import {identityLabel} from '@/lib/identity'
 import {paging, type Paging} from '@/lib/paging'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 
 const ROW = 'gap-3 rounded-none border-0 px-5 py-3 [a]:hover:bg-background/60'
 
-function AccountNames({a}: {a: AccountHit}) {
-    if (!identityLabel(a)) return <span className="truncate font-medium">{a.username}</span>
+function AccountNames({a}: {a: AccountRef}) {
     return (
         <>
             <span className="flex min-w-0 items-center gap-1">
                 <IdentityName acc={a} />
             </span>
-            {a.username && <span className="text-xs text-muted-foreground">{a.username}</span>}
+            {a.username && a.username !== identityLabel(a) && <span className="text-xs text-muted-foreground">{a.username}</span>}
         </>
     )
 }

@@ -4,9 +4,10 @@ import {expect} from 'storybook/test'
 import type {IdentityRef} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
 import {PRIME_KEY, TREASURY} from '../../../mock/fixtures/accounts.js'
-import {acct, chainInfo, hashOf, identity, PEOPLE} from '../../../mock/fixtures.js'
+import {acct, chainInfo, hashOf, identity, PEOPLE, subOf} from '../../../mock/fixtures.js'
 import {expectFits} from '../../.storybook/fit'
 import AccountLink from './AccountLink'
+import {shortAddr} from './AddressText'
 import {WellKnownProvider} from './wellKnown'
 
 const wellKnown: Decorator = Story => (
@@ -20,6 +21,10 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const addr = (acc: {id: string}) => ss58Encode(acc.id, chainInfo.ss58)
+const short = (acc: {id: string}) => shortAddr(addr(acc))
+
+// the text each link shows and the mark its judgement badge draws
+const shown = (links: HTMLElement[]) => links.map(l => [l.textContent, [...(l.querySelector('svg')?.classList ?? [])].find(c => c.startsWith('lucide-')) ?? null])
 
 function Case({label, children}: {label: string; children: ReactNode}) {
     return (
@@ -31,6 +36,10 @@ function Case({label, children}: {label: string; children: ReactNode}) {
 }
 
 const [polaris, orbit, bare, redshift, spamlord, nova, muddy, longName, sub] = PEOPLE
+
+const anon = acct(26, identity(null, {judgements: ['KnownGood']}))
+const anonSpam = acct(27, identity(null, {judgements: ['Erroneous']}))
+const anonSub = acct(29, subOf(anon, 'payouts'))
 
 const CASES: [string, IdentityRef & {id: string}][] = [
     ['KnownGood', polaris],
@@ -45,6 +54,12 @@ const CASES: [string, IdentityRef & {id: string}][] = [
     ['sub of a judged super', sub],
     ['sub with its own registration', acct(24, identity('Polaris Payouts', {judgements: []}), {identitySubName: 'payouts', identitySuper: polaris})],
     ['sub filed under a hash', acct(25, {identitySubName: null, identitySubData: {__kind: 'BlakeTwo256', value: hashOf('sub', 1)}, identitySuper: polaris})],
+    ['KnownGood, no display', anon],
+    ['Erroneous, no display', anonSpam],
+    ['no display, a username', acct(28, identity(null, {judgements: ['KnownGood']}), {username: 'anon.numen'})],
+    ['sub of a super with no display', anonSub],
+    ['a username and no identity', acct(30, {username: 'satoshi.numen'})],
+    ['a username beside a display', acct(31, identity('Nakamoto Labs'), {username: 'satoshin.numen'})],
     ['no identity', bare],
     ['label longer than its column', longName],
 ]
@@ -59,6 +74,29 @@ export const EveryIdentity: Story = {
             ))}
         </>
     ),
+    play: async ({canvas}) =>
+        expect(shown(canvas.getAllByRole('link'))).toEqual([
+            ['Polaris Guild', 'lucide-circle-check'],
+            ['Orbit Labs', 'lucide-circle-check'],
+            ['Redshift', 'lucide-circle-alert'],
+            ['Nova Fund', 'lucide-circle-question-mark'],
+            ['Muddy Waters', 'lucide-circle-question-mark'],
+            ['Quiet Registry', 'lucide-circle-question-mark'],
+            ['Lowball Ltd', 'lucide-circle-x'],
+            ['Spamlord', 'lucide-circle-x'],
+            ['Mixed Signals', 'lucide-circle-x'],
+            ['Polaris Guild/payouts', 'lucide-circle-check'],
+            ['Polaris Payouts', 'lucide-circle-question-mark'],
+            [`Polaris Guild/BlakeTwo256 ${hashOf('sub', 1)}`, 'lucide-circle-check'],
+            [short(anon), 'lucide-circle-check'],
+            [short(anonSpam), 'lucide-circle-x'],
+            ['anon.numen', 'lucide-circle-check'],
+            [short(anonSub), 'lucide-circle-check'],
+            ['satoshi.numen', null],
+            ['Nakamoto Labs', 'lucide-circle-check'],
+            [short(bare), null],
+            ['Longest display a chain can hold', 'lucide-circle-check'],
+        ]),
 }
 
 export const WellKnown: Story = {
@@ -86,6 +124,9 @@ export const AddressOnly: Story = {
             <Case label="full">
                 <AccountLink full addr={addr(bare)} />
             </Case>
+            <Case label="full, judged with no display">
+                <AccountLink full addr={addr(anon)} acc={anon} />
+            </Case>
             <Case label="plain hides the identity">
                 <AccountLink plain addr={addr(polaris)} acc={polaris} />
             </Case>
@@ -93,21 +134,25 @@ export const AddressOnly: Story = {
     ),
 }
 
-// a label truncates in a column too narrow for it, a full address wraps
+// a label truncates in a column too narrow for it, a full address wraps with
+// its badge on the first line
 export const NarrowColumn: Story = {
     render: () => (
         <div className="grid w-40 gap-2 rounded-md border p-2">
             <AccountLink addr={addr(longName)} acc={longName} />
             <AccountLink addr={addr(sub)} acc={sub} />
             <AccountLink full addr={addr(bare)} />
+            <AccountLink full addr={addr(anon)} acc={anon} />
         </div>
     ),
     play: async ({canvas, canvasElement}) => {
-        const [long, , full] = canvas.getAllByRole('link')
+        const [long, , full, judged] = canvas.getAllByRole('link')
         const label = long.lastElementChild!
         expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
         expect(full.innerText).toBe(addr(bare))
-        expectFits(canvasElement.firstElementChild!, full, ...full.querySelectorAll('span'))
+        expect(judged.innerText).toBe(addr(anon))
+        expect(judged.querySelector('svg')!.getBoundingClientRect().bottom - judged.getBoundingClientRect().top).toBeLessThanOrEqual(parseFloat(getComputedStyle(judged).lineHeight))
+        expectFits(canvasElement.firstElementChild!, full, ...full.querySelectorAll('span'), judged, ...judged.querySelectorAll('span'))
     },
 }
 

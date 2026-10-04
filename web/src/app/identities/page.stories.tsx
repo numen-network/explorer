@@ -1,6 +1,9 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {acct, at, hashOf, HEAD, identity, numn, paged, person} from '../../../../mock/fixtures.js'
+import {expect} from 'storybook/test'
+import {acct, at, chainInfo, hashOf, HEAD, identity, numn, paged, person, subOf} from '../../../../mock/fixtures.js'
+import {shortAddr} from '@/components/AddressText'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from '@/lib/identity'
+import {ss58Encode} from '@/lib/ss58'
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import IdentitiesPage from './page'
 
@@ -12,7 +15,8 @@ interface Row {
     id: string
     identityDisplay?: string | null
     identityJson: unknown
-    subs?: unknown[]
+    username?: string
+    subs?: {id: string}[]
 }
 
 const WIDEST = 'W'.repeat(32)
@@ -22,9 +26,9 @@ const KINDS = ['KnownGood', 'Reasonable', 'FeePaid', 'Unknown', 'OutOfDate', 'Lo
 
 const registered = (n: number, display: string, fields: Fields = {}): Row => acct(n, identity(display, fields))
 
-const nameless = (n: number, fields: Fields): Row => ({...registered(n, '', fields), identityDisplay: null})
+const nameless = (n: number, fields: Fields): Row => acct(n, identity(null, fields))
 
-const subsOf = (parent: string, names: (string | null)[]) => names.map((name, i) => ({id: hashOf('sub', parent, i), identitySubName: name}))
+const withSubs = (parent: Row, seed: string, names: (string | null)[]): Row => ({...parent, subs: names.map((name, i) => ({id: hashOf('sub', seed, i), ...subOf(parent, name)}))})
 
 const registrar = (index: number, traits: object = {}) => ({
     id: String(index),
@@ -59,10 +63,10 @@ const EVERY_VERDICT = [
 const CHANNEL_SETS: Fields[] = [{web: 'example.org', x: '@example'}, {}, {discord: 'example'}, {github: 'example', matrix: '@example:matrix.org', telegram: '@example'}]
 const NAMES = ['Aurora', 'Basalt', 'Cobalt', 'Delta', 'Ember', 'Fathom', 'Granite', 'Helix', 'Ion'].flatMap(a => ['Guild', 'Labs', 'Node', 'Pool', 'Works'].map(b => `${a} ${b}`))
 
-const MANY = NAMES.map((name, i) => ({
-    ...registered(30 + i, name, {judgements: [KINDS[i % KINDS.length]], ...CHANNEL_SETS[i % CHANNEL_SETS.length]}),
-    subs: i % 6 ? [] : subsOf(name, ['payouts', 'ops']),
-}))
+const MANY = NAMES.map((name, i) => {
+    const row = registered(30 + i, name, {judgements: [KINDS[i % KINDS.length]], ...CHANNEL_SETS[i % CHANNEL_SETS.length]})
+    return i % 6 ? {...row, subs: []} : withSubs(row, name, ['payouts', 'ops'])
+})
 
 const CHANNELS = [
     registered(80, 'All channels', {
@@ -84,24 +88,25 @@ const CHANNELS = [
 ]
 
 const WITH_SUBS = [
-    {...registered(90, 'Hundred Subs Collective'), subs: subsOf('hundred', Array.from({length: 100}, (_, i) => `miner-${String(i + 1).padStart(3, '0')}`))},
-    {...registered(91, 'Orbit Labs'), subs: subsOf('orbit', ['validator'])},
-    {...registered(92, 'Polaris Guild', {judgements: ['KnownGood']}), subs: subsOf('polaris', ['payouts', 'treasury desk', null])},
+    withSubs(registered(90, 'Hundred Subs Collective'), 'hundred', Array.from({length: 100}, (_, i) => `miner-${String(i + 1).padStart(3, '0')}`)),
+    withSubs(registered(91, 'Orbit Labs'), 'orbit', ['validator']),
+    withSubs(registered(92, 'Polaris Guild', {judgements: ['KnownGood']}), 'polaris', ['payouts', 'treasury desk', null]),
     registered(93, 'Solo'),
 ]
 
 const LONG_NAMES = [
     registered(100, 'Rocket Pool 🚀🚀🚀', {judgements: ['FeePaid'], web: 'rocket.example'}),
-    {...registered(101, WIDEST, {judgements: ['KnownGood', 'Erroneous'], web: `${'w'.repeat(60)}.org`, x: 'w'.repeat(31)}), subs: subsOf('widest', [WIDEST])},
+    withSubs(registered(101, WIDEST, {judgements: ['KnownGood', 'Erroneous'], web: `${'w'.repeat(60)}.org`, x: 'w'.repeat(31)}), 'widest', [WIDEST]),
     registered(102, 'the-longest-display-name-allowed', {judgements: ['OutOfDate']}),
     registered(103, '数值网络官方验证节点', {discord: '数值网络'}),
 ]
 
 const WITHOUT_DISPLAY = [
     registered(110, 'Named and known good', {judgements: ['KnownGood']}),
-    nameless(111, {judgements: ['KnownGood'], x: '@anon_validator', telegram: '@anon_validator', discord: 'anon_validator'}),
+    withSubs(nameless(111, {judgements: ['KnownGood'], x: '@anon_validator', telegram: '@anon_validator', discord: 'anon_validator'}), 'anon', ['payouts']),
     nameless(112, {judgements: ['Erroneous'], web: 'anon.example'}),
     nameless(113, {judgements: []}),
+    {...nameless(114, {judgements: ['Reasonable'], discord: 'anon_operator'}), username: 'anon.numen'},
 ]
 
 const subCount = (rows: Row[]) => rows.reduce((n, r) => n + (r.subs?.length ?? 0), 0)
@@ -186,7 +191,26 @@ export const IdentitiesSubsExpanded: StoryObj = {...identities(WITH_SUBS), play:
 
 export const IdentitiesLongNames: StoryObj = {...identities(LONG_NAMES), play: expandAll}
 
-export const IdentitiesWithoutDisplay = identities(WITHOUT_DISPLAY)
+const short = (row: {id: string}) => shortAddr(ss58Encode(row.id, chainInfo.ss58))
+
+// an identity with no display still shows its judgement, beside its username or else its address
+export const IdentitiesWithoutDisplay: StoryObj = {
+    ...identities(WITHOUT_DISPLAY),
+    play: async ctx => {
+        await expandAll!(ctx)
+        const links = [...ctx.canvasElement.querySelectorAll<HTMLElement>('a[href^="/account/"]')]
+        const marks = links.map(l => [l.textContent, [...(l.querySelector('svg')?.classList ?? [])].find(c => c.startsWith('lucide-')) ?? null])
+        const [, anon, spam, unjudged] = WITHOUT_DISPLAY
+        expect(marks).toEqual([
+            ['Named and known good', 'lucide-circle-check'],
+            [short(anon), 'lucide-circle-check'],
+            [short(anon.subs![0]), 'lucide-circle-check'],
+            [short(spam), 'lucide-circle-x'],
+            [short(unjudged), 'lucide-circle-question-mark'],
+            ['anon.numen', 'lucide-circle-check'],
+        ])
+    },
+}
 
 export const IdentitiesMany = identities(MANY)
 

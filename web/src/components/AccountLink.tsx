@@ -43,19 +43,15 @@ export default function AccountLink({addr, acc, className = '', full = false, pl
         <span className={cn('inline-flex max-w-full items-center align-top', (label || full) && 'min-w-0', className)}>
             <Tip text={details} align="start" sideOffset={4} className="sm:max-w-md flex-col items-start">
                 <Link href={`/account/${addr}`} className={`-mx-1 flex min-w-0 items-center gap-1 px-1 hover:text-primary ${cls}`} {...hot}>
-                    {label ? (
-                        known ? (
-                            <>
-                                <span className="shrink-0" aria-hidden>
-                                    {known.emoji}
-                                </span>
-                                <span className="truncate font-medium">{label}</span>
-                            </>
-                        ) : (
-                            <IdentityName acc={acc!} />
-                        )
+                    {known && label ? (
+                        <>
+                            <span className="shrink-0" aria-hidden>
+                                {known.emoji}
+                            </span>
+                            <span className="truncate font-medium">{label}</span>
+                        </>
                     ) : (
-                        <span className="min-w-0 font-mono font-medium"><AddressText addr={addr} full={full} /></span>
+                        <IdentityName acc={plain ? undefined : acc} fallback={<span className="min-w-0 font-mono font-medium"><AddressText addr={addr} full={full} /></span>} />
                     )}
                 </Link>
             </Tip>

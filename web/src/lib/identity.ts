@@ -6,17 +6,23 @@ export interface IdentityRef {
     identitySubName?: string | null
     identitySubData?: unknown
     identitySuper?: {identityDisplay?: string | null; identityJson?: unknown} | null
+    username?: string | null
+}
+
+export const subName = (acc: IdentityRef) => acc.identitySubName ?? dataText(acc.identitySubData)
+
+export function subLabel(acc: IdentityRef): string | undefined {
+    const sup = acc.identitySuper?.identityDisplay
+    const sub = subName(acc)
+    return sup != null && sub != null ? `${sup}/${sub}` : undefined
 }
 
 // the registration an account made itself answers for it whatever its
 // judgements say, only a sub with no registration of its own borrows the label
-// and the judgement of its super
+// and the judgement of its super. an account neither names goes by its username
 export function identityLabel(acc: IdentityRef | undefined): string | undefined {
     if (!acc) return undefined
-    const sup = acc.identitySuper
-    const sub = acc.identitySubName ?? dataText(acc.identitySubData)
-    if (acc.identityJson == null && sub != null && sup?.identityDisplay != null) return `${sup.identityDisplay}/${sub}`
-    return acc.identityDisplay ?? undefined
+    return (acc.identityJson == null ? subLabel(acc) : undefined) ?? acc.identityDisplay ?? acc.username ?? undefined
 }
 
 export function identityInfoJson(acc: IdentityRef | undefined): unknown {

@@ -106,6 +106,7 @@ export const AccountsMatchedByUsername: StoryObj = {
             acct(202, identity('Nakamoto Labs'), {username: 'satoshin.numen'}),
             named(3, 'Satoshi Fan Club'),
             acct(204, subOf(PEOPLE[0], 'vault'), {username: 'satoshivault.numen'}),
+            acct(203, identity(null, {judgements: ['KnownGood']}), {username: 'satoshi.anon'}),
             acct(201, {username: 'satoshi.numen'}),
         ],
         []
@@ -116,9 +117,10 @@ export const AccountsMatchedByUsername: StoryObj = {
             ['Nakamoto Labs', 'satoshin.numen'],
             ['Satoshi Fan Club'],
             ['Polaris Guild/vault', 'satoshivault.numen'],
+            ['satoshi.anon'],
             ['satoshi.numen'],
         ])
-        expect(rows.map(r => r.querySelector('svg') != null)).toEqual([true, true, true, false])
+        expect(rows.map(r => r.querySelector('svg') != null)).toEqual([true, true, true, true, false])
     },
 }
 

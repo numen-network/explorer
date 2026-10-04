@@ -55,14 +55,16 @@ export const base = {
 const FIELDS = ['display', 'avatar', 'bio', 'web', 'email', 'github', 'matrix', 'x', 'telegram', 'discord']
 
 export function identity(display, {judgements = ['Reasonable'], ...fields} = {}) {
-    const info = Object.fromEntries(FIELDS.map(key => [key, hex(key === 'display' ? display : (fields[key] ?? ''))]))
+    const info = Object.fromEntries(FIELDS.map(key => [key, hex(key === 'display' ? (display ?? '') : (fields[key] ?? ''))]))
     const verdicts = judgements.map((kind, registrar) => [registrar, kind === 'FeePaid' ? {__kind: kind, value: numn(2.5)} : {__kind: kind}])
     return {identityDisplay: display, identityJson: {info, judgements: verdicts, deposit: numn(5.41)}}
 }
 
+export const subData = name => (name == null ? {__kind: 'None'} : {__kind: `Raw${new TextEncoder().encode(name).length}`, value: hex(name)})
+
 export const subOf = (parent, name) => ({
     identitySubName: name,
-    identitySubData: {__kind: `Raw${new TextEncoder().encode(name).length}`, value: hex(name)},
+    identitySubData: subData(name),
     identitySuper: {identityDisplay: parent.identityDisplay, identityJson: parent.identityJson},
 })
 

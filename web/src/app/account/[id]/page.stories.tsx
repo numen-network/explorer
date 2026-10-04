@@ -1,5 +1,5 @@
 import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {
@@ -64,6 +64,8 @@ const build = accountPage as (spec: Spec) => Record<string, unknown>
 
 const story = (spec: Spec, searchParams: Record<string, string> = {}) => pageStory(build(spec), {params: {id: spec.account?.id ?? SUBJECT}, searchParams})
 
+const rowValue = (root: HTMLElement, label: string) => within(root).getByText(label, {selector: 'div'}).nextElementSibling!.textContent
+
 const IDENTITY_DEPOSIT = numn(5.41)
 const FEE_PAID = numn(2.5)
 const AURORA = {judgements: ['Reasonable'], web: 'aurora.example', x: '@aurora_labs', discord: 'auroralabs'}
@@ -86,12 +88,25 @@ export const IdentityEveryVerdict = story({
     transfers: accountTransfers(3),
 })
 
+export const IdentityWithoutDisplay: StoryObj = {
+    ...story({account: named({...identity(null, AURORA), username: 'aurora.numen'}), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect([rowValue(canvasElement, 'Display'), rowValue(canvasElement, 'Username')]).toEqual(['—', 'aurora.numen']),
+}
+
+export const UsernameOnly: StoryObj = {
+    ...story({account: subject({username: 'aurora.numen'}), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Username')).toBe('aurora.numen'),
+}
+
 export const SubIdentity = story({account: subject(subUnder(PEOPLE[0], 'payouts')), transfers: accountTransfers(3)})
 
-export const SubFiledUnderAHash = story({
-    account: subject({...subUnder(PEOPLE[0], 'payouts'), identitySubName: null, identitySubData: {__kind: 'BlakeTwo256', value: hashOf('sub', 1)}}),
-    transfers: accountTransfers(3),
-})
+export const SubFiledUnderAHash: StoryObj = {
+    ...story({
+        account: subject({...subUnder(PEOPLE[0], 'payouts'), identitySubName: null, identitySubData: {__kind: 'BlakeTwo256', value: hashOf('sub', 1)}}),
+        transfers: accountTransfers(3),
+    }),
+    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Display')).toBe(`Polaris Guild/BlakeTwo256 ${hashOf('sub', 1)}`),
+}
 
 export const SubWithOwnIdentity = story({account: named({...identity('Aurora Payouts'), ...subUnder(PEOPLE[0], 'payouts')}), transfers: accountTransfers(3)})
 

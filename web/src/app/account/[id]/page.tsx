@@ -72,7 +72,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const locks = lockRows(a, validator, s)
     const vest = schedules(a.vestingJson)
     const registrar = s.registrar[0]
-    const hasIdentity = a.identityJson != null || a.identitySuper != null
+    const hasIdentity = a.identityJson != null || a.identitySuper != null || a.username != null
 
     // polkadot.js formula. frozen is a floor on the total rather than a bucket of
     // its own, so reserved counts towards it, and an account that reserves or

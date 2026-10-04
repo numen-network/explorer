@@ -24,6 +24,7 @@ export interface AccountRef {
     identitySubName?: string | null
     identitySubData?: unknown
     identitySuper?: {identityDisplay: string | null; identityJson?: unknown} | null
+    username?: string | null
 }
 
 export interface BlockRow {
@@ -109,7 +110,7 @@ export interface DailyRow {
 }
 
 // every list that shows an account shows the same identity trimmings
-const ACCOUNT_REF = `id identityDisplay identityJson identitySubName identitySubData identitySuper { identityDisplay identityJson }`
+const ACCOUNT_REF = `id identityDisplay identityJson identitySubName identitySubData username identitySuper { identityDisplay identityJson }`
 
 const BLOCK_FIELDS = `id height hash parentHash timestamp finalized extrinsicCount eventCount difficulty reward minerFees treasuryFees nonce workHash specVersion author { ${ACCOUNT_REF} }`
 const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACCOUNT_REF} } to { ${ACCOUNT_REF} } block { height } extrinsic { id }`
@@ -351,7 +352,7 @@ export interface AccountRow extends AccountRef {
     firstSeenTimestamp: string
     lastActiveBlock: number
     identityJson: unknown
-    identitySuper?: {id: string; identityDisplay: string | null; identityJson?: unknown} | null
+    identitySuper?: AccountRef | null
     evmAddress: string | null
     vestingJson: unknown
     locksJson: {id: string; amount: string; reasons: string}[] | null
@@ -450,7 +451,7 @@ export function accountSummary(idHex: string) {
     const self = `{id_eq: $id}`
     return gql<AccountSummary>(
         `query ($id: String!) {
-            accountById(id: $id) { id free reserved balance frozen nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData identitySuper { id identityDisplay identityJson } evmAddress vestingJson locksJson holdsJson depositsJson }
+            accountById(id: $id) { id free reserved balance frozen nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData username identitySuper { ${ACCOUNT_REF} } evmAddress vestingJson locksJson holdsJson depositsJson }
             validators(where: {account: ${self}}, limit: 1) { ${VALIDATOR_FIELDS} }
             registrar: registrars(where: {account: ${self}}, orderBy: index_ASC, limit: 1) { index }
             retiredRegistrars: registrars(where: {retiredAt_isNull: false}) { index }
@@ -570,8 +571,7 @@ export function transfersPage(limit: number, offset: number) {
 
 export interface IdentityRow extends AccountRef {
     identityJson: unknown
-    username: string | null
-    subs: {id: string; identitySubName: string | null}[]
+    subs: AccountRef[]
 }
 
 const HAS_IDENTITY = '{identityJson_isNull: false}'
@@ -614,7 +614,7 @@ export function identitiesPage(limit: number, offset: number) {
     return gql<{accounts: IdentityRow[]}>(
         `query ($limit: Int!, $offset: Int!) {
             accounts(where: ${HAS_IDENTITY}, orderBy: ${IDENTITY_ORDER}, limit: $limit, offset: $offset) {
-                id identityDisplay identityJson username subs(orderBy: ${SUB_ORDER}) { id identitySubName }
+                ${ACCOUNT_REF} subs(orderBy: ${SUB_ORDER}) { ${ACCOUNT_REF} }
             }
         }`,
         {limit, offset}
@@ -794,9 +794,9 @@ export function identityTimeline(idHex: string, limit: number, offset: number) {
 }
 
 export function subIdentitiesPage(idHex: string, limit: number, offset: number) {
-    return gql<{accounts: {id: string; identitySubName: string | null}[]; conn: {totalCount: number}}>(
+    return gql<{accounts: {id: string; identitySubName: string | null; identitySubData: unknown}[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            accounts(where: {identitySuper: {id_eq: $id}}, orderBy: ${SUB_ORDER}, limit: $limit, offset: $offset) { id identitySubName }
+            accounts(where: {identitySuper: {id_eq: $id}}, orderBy: ${SUB_ORDER}, limit: $limit, offset: $offset) { id identitySubName identitySubData }
             conn: accountsConnection(orderBy: id_ASC, where: {identitySuper: {id_eq: $id}}) { totalCount }
         }`,
         {id: idHex, limit, offset}
@@ -1452,10 +1452,6 @@ export function isTokenAddress(address: string) {
     return gql<{tokens: {id: string}[]}>(`query ($a: String!) { tokens(where: {id_eq: $a}, limit: 1) { id } }`, {a: address}).then(r => r.tokens.length > 0)
 }
 
-export interface AccountHit extends AccountRef {
-    username: string | null
-}
-
 export interface TokenHit {
     id: string
     name: string | null
@@ -1469,9 +1465,9 @@ const LABEL_ORDER = '[identityDisplay_ASC_NULLS_LAST, identitySuper_identityDisp
 export function searchNames(q: string, page: Slice) {
     const account = '{OR: [{identityDisplay_containsInsensitive: $q}, {identitySubName_containsInsensitive: $q}, {username_containsInsensitive: $q}]}'
     const token = '{OR: [{symbol_containsInsensitive: $q}, {name_containsInsensitive: $q}]}'
-    return gql<{accounts: AccountHit[]; accountCount: {totalCount: number}; tokens: TokenHit[]; tokenCount: {totalCount: number}}>(
+    return gql<{accounts: AccountRef[]; accountCount: {totalCount: number}; tokens: TokenHit[]; tokenCount: {totalCount: number}}>(
         `query ($q: String!, $limit: Int!, $offset: Int!) {
-            accounts(where: ${account}, orderBy: ${LABEL_ORDER}, limit: $limit, offset: $offset) { ${ACCOUNT_REF} username }
+            accounts(where: ${account}, orderBy: ${LABEL_ORDER}, limit: $limit, offset: $offset) { ${ACCOUNT_REF} }
             accountCount: accountsConnection(where: ${account}, orderBy: id_ASC) { totalCount }
             tokens(where: ${token}, orderBy: ${TOKEN_ORDER}, limit: $limit, offset: $offset) { id name symbol }
             tokenCount: tokensConnection(where: ${token}, orderBy: id_ASC) { totalCount }
