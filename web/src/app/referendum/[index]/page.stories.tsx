@@ -480,7 +480,7 @@ export const DelegatorsAddUp = withPlay(withDelegators([delegation(anon(80), PEO
 
 const hugeSpend = '9999999999999999999999999'
 
-export const ExtremeAmounts = cast(
+const extremeAmounts = cast(
     {
         ...deciding(18, refundTitle),
         ...proposal([{pallet: 'Treasury', method: 'spend', depth: 0, amount: hugeSpend, beneficiary: PEOPLE[7].id, validFrom: null}], {
@@ -495,4 +495,29 @@ export const ExtremeAmounts = cast(
         {...standard(anon(9), false, 'None', '10'), block: 976_000},
     ],
     'call'
+)
+
+// the queries bound to the card under a title
+const card = (root: HTMLElement, title: string) => within(within(root).getByText(title).closest<HTMLElement>('[data-slot=card]')!)
+
+// a single planck of nay against 52M of aye keeps the aye share under 100%
+export const ExtremeAmounts = withPlay(extremeAmounts, async ({canvasElement}) => {
+    for (const figure of ['99.99%', '<0.01%']) await expect(card(canvasElement, 'Tally').getByText(figure)).toBeInTheDocument()
+})
+
+// four nay votes against 9,996 aye votes, support a sliver of active issuance,
+// and prepare and confirm periods that stop between whole units of time
+export const NearlyAllAyeOnUnevenTrack = withPlay(
+    cast(
+        {...deciding(23, 'Nearly every vote aye on a track with uneven periods'), track: {...(curated(5).track as object), preparePeriod: 540, confirmPeriod: 36_000}},
+        [
+            {...standard(PEOPLE[0], true, 'Locked6x', numn(1_666)), block: 952_000},
+            {...standard(PEOPLE[1], false, 'Locked1x', numn(4)), block: 953_000},
+        ],
+        'curves'
+    ),
+    async ({canvasElement}) => {
+        for (const figure of ['99.96%', '0.04%', '<0.01%']) await expect(card(canvasElement, 'Tally').getByText(figure)).toBeInTheDocument()
+        for (const span of ['1h 30m', '28d', '4d 4h', '1d']) await expect(card(canvasElement, 'Status').getByText(span)).toBeInTheDocument()
+    }
 )

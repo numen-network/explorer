@@ -20,7 +20,7 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps} from '@/lib/chain'
-import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, planckToNum, trackLabel, truncFixed} from '@/lib/format'
+import {fmtBalance, fmtCompact, fmtCompact3, fmtInt, fmtPct, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -60,7 +60,7 @@ export default async function Home() {
     const days = data.dailyStats
     const today: DailyRow | undefined = days[0]
 
-    const blockTime = today && today.blocks > 1 ? (Date.parse(today.tsLast) - Date.parse(today.tsFirst)) / 1000 / (today.blocks - 1) : null
+    const blockTime = today && today.blocks > 1 ? (Date.parse(today.tsLast) - Date.parse(today.tsFirst)) / ((today.blocks - 1) * 1000) : null
 
     const sessionIdx = data.sessionHead[0]?.lastActiveSession ?? 0
     const period = props.sessionLength
@@ -93,16 +93,14 @@ export default async function Home() {
     const chip = (n: number | bigint, note: string, decimals = 0): StatChip => {
         const v = BigInt(n)
         return {
-            text: v === 0n ? '0' : `${v > 0n ? '+' : '−'}${fmtCompact(v < 0n ? -v : v, decimals)}`,
+            text: `${signOf(v)}${fmtCompact(v < 0n ? -v : v, decimals)}`,
             note,
             tone: v > 0n ? 'pos' : v < 0n ? 'neg' : 'idle',
         }
     }
     const pctChip = (cur: number, prev: number, note: string): StatChip => {
-        if (prev <= 0) return {text: '—', note, tone: 'idle'}
-        const p = ((cur - prev) / prev) * 100
-        if (Math.abs(p) < 0.05) return {text: '0%', note, tone: 'idle'}
-        return {text: `${p > 0 ? '+' : ''}${p.toFixed(1)}%`, note, tone: p > 0 ? 'pos' : 'neg'}
+        const move = prev > 0 ? cur - prev : 0
+        return {text: `${signOf(move)}${fmtPct(Math.abs(cur - prev), prev)}`, note, tone: move > 0 ? 'pos' : move < 0 ? 'neg' : 'idle'}
     }
     const countChip = (n: number, note: string): StatChip => ({text: fmtCompact(n), note, tone: 'idle'})
     const curDifficulty = data.blocks[0] ? Number(data.blocks[0].difficulty) : today ? Number(today.difficultyClose) : 0
@@ -166,7 +164,7 @@ export default async function Home() {
                             </Link>
                         </StatusRow>
                         <StatusRow label="Finalized">{fmtInt(heads.finalized)}</StatusRow>
-                        <StatusRow label="Avg block time">{blockTime ? `${blockTime.toFixed(1)}s` : '—'}</StatusRow>
+                        <StatusRow label="Avg block time">{blockTime ? `${truncFixed(blockTime, 1)}s` : '—'}</StatusRow>
                         <StatusRow label="Validators">{fmtInt(data.validators.totalCount)}</StatusRow>
                         <StatusRow label="Session">#{fmtInt(sessionIdx)}</StatusRow>
                     </dl>

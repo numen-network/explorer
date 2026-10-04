@@ -1,6 +1,6 @@
 'use client'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
-import {fmtBlockSpan, fmtInt, fmtTick} from '@/lib/format'
+import {fmtInt, fmtPct, fmtSpan, fmtTick} from '@/lib/format'
 import * as echarts from 'echarts'
 import {useEffect, useRef} from 'react'
 
@@ -109,19 +109,19 @@ export function BarsChart({labels, values, height = 210}: {labels: string[]; val
 const SAMPLES = 121
 
 /** What a track demands of a referendum as its decision period runs out. */
-export function ThresholdChart({approval, support, hours, height = 180}: {approval: Curve; support: Curve; hours: number; height?: number}) {
+export function ThresholdChart({approval, support, seconds, height = 180}: {approval: Curve; support: Curve; seconds: number; height?: number}) {
     // a track running for weeks reads in days while a short one stays in hours
-    const unit = hours >= 48 ? 'd' : 'h'
-    const span = unit === 'd' ? hours / 24 : hours
+    const unit = seconds >= 48 * 3600 ? 'd' : 'h'
+    const span = seconds / (unit === 'd' ? 86400 : 3600)
     const ref = useChart({
         tooltip: {
             ...TOOLTIP,
             formatter: (params: unknown) => {
-                const list = params as {seriesName?: string; marker?: string; value: [number, number]}[]
+                const list = params as {seriesName?: string; marker?: string; value: [number, number]; dataIndex: number}[]
                 const rows = list
-                    .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${p.value[1].toFixed(2)}%</span></div>`)
+                    .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${fmtPct(p.value[1], 100)}</span></div>`)
                     .join('')
-                return `<div style="margin-bottom:4px">${list[0].value[0].toFixed(1)}${unit}</div>${rows}`
+                return `<div style="margin-bottom:4px">${fmtSpan((seconds * list[0].dataIndex) / (SAMPLES - 1))}</div>${rows}`
             },
         },
         legend: {top: 0, right: 0, itemWidth: 18, itemGap: 14, textStyle: {color: SUB, fontSize: 11}},
@@ -136,9 +136,9 @@ export function ThresholdChart({approval, support, hours, height = 180}: {approv
             axisLine: {lineStyle: {color: EDGE}},
             axisTick: {show: false},
             // ticks land on whole days or hours, and only the end of a period
-            // with part of a day left lands between them, so it names the
-            // leftover hours and wins over the tick it would crowd
-            axisLabel: {color: SUB, fontSize: 11, showMaxLabel: true, formatter: (v: number) => (Number.isInteger(v) ? `${v}${unit}` : `${Math.floor(v)}d ${hours % 24}h`)},
+            // with part of a day or an hour left lands between them, so it
+            // reads as the whole period and wins over the tick it would crowd
+            axisLabel: {color: SUB, fontSize: 11, showMaxLabel: true, formatter: (v: number) => (Number.isInteger(v) ? `${v}${unit}` : fmtSpan(seconds, unit))},
             splitLine: {show: false},
         },
         yAxis: {
@@ -268,16 +268,14 @@ export function CurvesChart({
             formatter: (params: unknown) => {
                 const list = params as {axisValue: number; seriesName?: string; marker?: string; value: [number, number]}[]
                 const at = list[0].axisValue
-                const h = Math.round(at)
+                const block = blockAt(at)
                 const head =
                     at < 0
-                        ? `Lead-in ${fmtBlockSpan(blockAt(at) - lead.submitted, clock.blockTime)} · #${fmtInt(blockAt(at))}`
-                        : clock.started
-                          ? `${h}h · #${fmtInt(blockAt(at))}`
-                          : `${h}h`
+                        ? `Lead-in ${fmtSpan((block - lead.submitted) * clock.blockTime)} · #${fmtInt(block)}`
+                        : `${fmtSpan((block - clock.zero) * clock.blockTime)}${clock.started ? ` · #${fmtInt(block)}` : ''}`
                 const rows = [...list]
                     .sort((a, b) => Number(b.seriesName?.toLowerCase().includes('approval')) - Number(a.seriesName?.toLowerCase().includes('approval')))
-                    .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${p.value[1].toFixed(2)}%</span></div>`)
+                    .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${fmtPct(p.value[1], 100)}</span></div>`)
                     .join('')
                 return `<div style="margin-bottom:4px">${head}</div>${rows}`
             },
@@ -322,7 +320,7 @@ export function CurvesChart({
             max: hours,
             axisLine: {lineStyle: {color: EDGE}},
             axisTick: {show: false},
-            axisLabel: {color: SUB, fontSize: 11, customValues: ticksIn(lead.from, hours), formatter: (v: number) => `${Math.round(v)}h`},
+            axisLabel: {color: SUB, fontSize: 11, customValues: ticksIn(lead.from, hours), formatter: (v: number) => `${v}h`},
             splitLine: {show: false},
         },
         yAxis: {
@@ -348,7 +346,7 @@ export function CurvesChart({
             walked('Current support', shown.currentSupport, SUPPORT),
             {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: shown.approval},
             walked('Current approval', shown.currentApproval, GREEN),
-            windows([`Lead-in ${fmtBlockSpan(clock.zero - lead.submitted, clock.blockTime)}`, 'Lead-in'], SUB, SUB_FILL, [[lead.from, 0]]),
+            windows([`Lead-in ${fmtSpan((clock.zero - lead.submitted) * clock.blockTime)}`, 'Lead-in'], SUB, SUB_FILL, [[lead.from, 0]]),
             windows('Confirmation', GREEN, GREEN_FILL, confirmations),
             windows(now ? 'Ends early' : 'Ended early', SUB, SUB_FILL, earlyEnd !== null ? [[earlyEnd, hours]] : []),
         ],

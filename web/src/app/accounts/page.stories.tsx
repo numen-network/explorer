@@ -1,4 +1,5 @@
 import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
+import {expect, screen} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {MAX_U128, PLANCK, PRIME_KEY, TREASURY} from '../../../../mock/fixtures/accounts.js'
@@ -57,6 +58,21 @@ export const Many = list(
     TIERS.map(([who, balance], i) => row(who, balance, i)),
     {total: 1_284, since: 0}
 )
+
+// what the share tip of the named account reads once its balance is hovered
+const shareTip =
+    (name: string, share: string): StoryObj['play'] =>
+    async ({canvas, userEvent}) => {
+        const row = canvas.getByText(name).closest('tr')!
+        await userEvent.hover(row.querySelector('td:nth-child(2) [data-slot=tooltip-trigger]')!)
+        await expect(await screen.findByRole('tooltip')).toHaveTextContent(`${share} of issuance`)
+    }
+
+// a share under a hundredth of a percent reads to six decimals
+export const SmallShareHovered: StoryObj = {...Many, play: shareTip('Spamlord', '0.006804%')}
+
+// a balance too thin for the sixth decimal still reads as a share of issuance
+export const DustShareHovered: StoryObj = {...Many, play: shareTip('Dust Collector', '<0.000001%')}
 
 // the treasury and prime cards wrap their full addresses, the table keeps 7…4
 export const ManyOnPhone: StoryObj = {

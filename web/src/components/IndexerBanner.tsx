@@ -8,11 +8,13 @@ const BEHIND_BLOCKS = 10
 const STALL_FACTOR = 10
 const STALL_FLOOR = 120
 
+// the stall in one unit spelled out and cut rather than rounded, each unit
+// kept until two of the next one have passed
 function since(seconds: number): string {
-    if (seconds < 120) return `${Math.round(seconds)} seconds`
-    if (seconds < 7200) return `${Math.round(seconds / 60)} minutes`
-    if (seconds < 172800) return `${Math.round(seconds / 3600)} hours`
-    return `${Math.round(seconds / 86400)} days`
+    if (seconds < 120) return `${Math.floor(seconds)} seconds`
+    if (seconds < 7200) return `${Math.floor(seconds / 60)} minutes`
+    if (seconds < 172800) return `${Math.floor(seconds / 3600)} hours`
+    return `${Math.floor(seconds / 86400)} days`
 }
 
 function warning(status: Awaited<ReturnType<typeof indexerStatus>>, now: number): string | null {

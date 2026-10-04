@@ -100,8 +100,6 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                 const nays = BigInt(r.nays)
                 const ran = isLive(r) ? phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best) : null
                 const at = ran !== null ? Math.min(1, Math.max(0, ran)) : null
-                const approval = ayes + nays > 0n ? Number((ayes * 10000n) / (ayes + nays)) / 100 : 0
-                const support = activeIssuance > 0n ? Number((BigInt(r.support) * 1000000n) / activeIssuance) / 10000 : 0
                 const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
                 return (
                     <Card key={r.id} size="flush" className="px-7 py-5">
@@ -158,7 +156,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                 <ThresholdBar
                                     label="Approval"
                                     variant="split"
-                                    value={ayes + nays > 0n ? approval : null}
+                                    part={ayes}
+                                    whole={ayes + nays}
                                     need={curveAt(r.track.minApproval as Curve, at) * 100}
                                     foot={
                                         <>
@@ -170,7 +169,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                 <ThresholdBar
                                     label="Support"
                                     variant="solid"
-                                    value={support}
+                                    part={BigInt(r.support)}
+                                    whole={activeIssuance}
                                     need={curveAt(r.track.minSupport as Curve, at) * 100}
                                     foot={
                                         <>
@@ -198,7 +198,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                         <ThresholdChart
                             approval={t.minApproval as Curve}
                             support={t.minSupport as Curve}
-                            hours={Math.max(1, Math.round((t.decisionPeriod * chain.blockTime) / 3600))}
+                            seconds={t.decisionPeriod * chain.blockTime}
                         />
                     </CardContent>
                 </Card>

@@ -1,4 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {account, acct, HEAD_TIME, identity, numn, person} from '../../../../mock/fixtures.js'
 import {expectAddressForm, PHONE} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
@@ -34,4 +35,11 @@ export const MinersWeekOnPhone: StoryObj = {...MinersWeek, globals: PHONE, play:
 
 export const MinersMonth = minersIn('30d', dailyRows(30, 12))
 
-export const MinersExtremeCounts = minersIn('24h', [minerDay(WIDEST, 0, INT_MAX, U128_MAX), minerDay(WIDEST, 1, INT_MAX), minerDay(miner(2), 0, 1, '0')])
+// one miner holds every block but one, the other holds that one
+export const MinersExtremeCounts: StoryObj = {
+    ...minersIn('24h', [minerDay(WIDEST, 0, INT_MAX, U128_MAX), minerDay(WIDEST, 1, INT_MAX), minerDay(miner(2), 0, 1, '0')]),
+    play: async ({canvasElement}) => {
+        const shares = [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].map(row => row.cells[3].textContent)
+        await expect(shares).toEqual(['99.99%', '<0.01%'])
+    },
+}

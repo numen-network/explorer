@@ -1,4 +1,5 @@
-import type {Decorator} from '@storybook/nextjs-vite'
+import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {HEAD, chainInfo} from '../../../mock/fixtures.js'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import IndexerBanner from './IndexerBanner'
@@ -28,7 +29,13 @@ export const FarBehindFromGenesis = status(12, HEAD, () => ago(4))
 
 export const StalledMinutes = status(HEAD, HEAD, () => ago(5 * 60))
 
-export const StalledHours = status(HEAD, HEAD, () => ago(3 * 3600 + 600))
+// most of the way to a fourth hour
+export const StalledHours: StoryObj = {
+    ...status(HEAD, HEAD, () => ago(3 * 3600 + 2400)),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText(/^No new block indexed for/)).toHaveTextContent('No new block indexed for 3 hours.')
+    },
+}
 
 export const StalledDays = status(HEAD, HEAD, () => ago(4 * 86400))
 

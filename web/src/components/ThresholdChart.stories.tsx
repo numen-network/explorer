@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, waitFor} from 'storybook/test'
 import type {Curve} from '@/lib/curves'
 import {linear, reciprocal, stepped} from '../../../mock/fixtures/governance.js'
-import {axesLegible, axisTexts, expectLegibleAxes, PHONE, tooltipsInView} from '../../.storybook/fit'
+import {axesLegible, axisTexts, expectLegibleAxes, lastTooltipLines, PHONE, tooltipsInView} from '../../.storybook/fit'
 import {ThresholdChart} from './charts'
 import {Card, CardContent, CardHeader, CardTitle} from './ui/card'
 
@@ -29,7 +29,7 @@ function Track({name, approval, support, hours}: Spec) {
                 <CardTitle className="text-[13px] leading-normal">{name}</CardTitle>
             </CardHeader>
             <CardContent>
-                <ThresholdChart approval={approval as Curve} support={support as Curve} hours={hours} />
+                <ThresholdChart approval={approval as Curve} support={support as Curve} seconds={hours * 3600} />
             </CardContent>
         </Card>
     )
@@ -64,7 +64,9 @@ export const PeriodLengthsOnPhone: Story = {...PeriodLengths, globals: PHONE}
 
 export const PeriodLengthsTooltipOnPhone: Story = {...PeriodLengths, globals: PHONE, play: tooltipsInView}
 
-// the end of a period with part of a day left falls between two day ticks
+// the end of a period with part of a day left falls between two day ticks and
+// the axis names it in days, while the tooltip there reads a month once the
+// period runs past thirty days
 export const PeriodsEndingMidDay: Story = {
     ...grid([
         {name: 'A hundred hours', approval: LINEAR, support: SUPPORT, hours: 100},
@@ -75,6 +77,22 @@ export const PeriodsEndingMidDay: Story = {
         const [hundred, thousand] = axisTexts(canvasElement).map(axes => axes.flat())
         expect(hundred).toContain('4d 4h')
         expect(thousand).toContain('41d 16h')
+        expect(lastTooltipLines(canvasElement).map(([title]) => title)).toEqual(['4d 4h', '1mo 11d'])
+    },
+}
+
+// periods under a day that stop part way through an hour
+export const PeriodsEndingMidHour: Story = {
+    ...grid([
+        {name: 'Ten minutes', approval: LINEAR, support: SUPPORT, hours: 10 / 60},
+        {name: 'Ninety minutes', approval: LINEAR, support: SUPPORT, hours: 1.5},
+    ]),
+    play: async ({canvasElement}) => {
+        await waitFor(() => expectLegibleAxes(canvasElement))
+        const [ten, ninety] = axisTexts(canvasElement).map(axes => axes.flat())
+        expect(ten).toContain('10m')
+        expect(ninety).toContain('1h 30m')
+        expect(lastTooltipLines(canvasElement).map(([title]) => title)).toEqual(['10m', '1h 30m'])
     },
 }
 

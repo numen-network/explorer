@@ -115,6 +115,17 @@ export const BlockRewardsTruncationEdge: StoryObj = {
     },
 }
 
+// a day of a thousand and one blocks, each the given milliseconds after the last
+const paced = (d: Day, ms: number) => ({...d, blocks: 1_001, tsLast: new Date(Date.parse(d.tsFirst) + ms * 1_000).toISOString()})
+
+// the newest day's blocks came 9.9961s apart and the day before's exactly 10s
+export const BlockTimeTruncationEdge: StoryObj = {
+    ...chart('block-time', [...DAILY.slice(0, -2), paced(DAILY.at(-2)!, 10_000), paced(DAILY.at(-1)!, 9_996.1)]),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText('The latest value of Average Block Time is 9.99. Compared with the day before it is down by 0.03%.')).toBeInTheDocument()
+    },
+}
+
 const checked = (story: StoryObj, check: Play): StoryObj => ({
     ...story,
     play: async context => {

@@ -1,8 +1,9 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import type {TokenRow} from '@/lib/gql'
 import {rows} from '../../../../../mock/fixtures.js'
 import {evmAddress, holder, holders, token, tokenTransfer, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
-import {cardsFit, expectAddressForm, PHONE} from '../../../../.storybook/fit'
+import {cardsFit, expectAddressForm, expectFits, PHONE} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import TokenPage from './page'
 
@@ -42,7 +43,14 @@ export const HoldersOne = tokenPage(solo, {holders: [holder(solo, evmAddress(0),
 
 export const HoldersEmpty = tokenPage(burnt)
 
-export const SupplyUnknown = tokenPage({...orbit, totalSupply: null, holderCount: 5}, {holders: holders(orbit, 5)})
+// what each holder reads in the Share column, in table order
+const shares = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].map(row => row.lastElementChild!.textContent)
+
+// a share of a supply nobody read has no figure
+export const SupplyUnknown: StoryObj = {
+    ...tokenPage({...orbit, totalSupply: null, holderCount: 5}, {holders: holders(orbit, 5)}),
+    play: async ({canvasElement}) => expect(shares(canvasElement)).toEqual(Array(5).fill('—')),
+}
 
 export const NoDeployBlock = tokenPage({...orbit, deployBlock: null}, {holders: holders(orbit, 5)})
 
@@ -50,7 +58,14 @@ export const NoMetadata = {...tokenPage(bare, {holders: holders(bare, 5)}), play
 
 export const NoMetadataTransfers = tokenPage(bare, {transfers: rows(5, (h: number, i: number) => tokenTransfer(token(1), h, i, {token: bare}))}, TRANSFERS_TAB)
 
-export const ExtremeNumbers = {...tokenPage(huge, {holders: [holder(huge, evmAddress(0), (BigInt(UINT256_MAX) / 2n).toString()), holder(huge, evmAddress(1), '1')]}), play: cardsFit}
+// a holder just short of half the largest supply and one holding its smallest unit
+export const ExtremeNumbers: StoryObj = {
+    ...tokenPage(huge, {holders: [holder(huge, evmAddress(0), (BigInt(UINT256_MAX) / 2n).toString()), holder(huge, evmAddress(1), '1')]}),
+    play: async ({canvasElement}) => {
+        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+        await expect(shares(canvasElement)).toEqual(['49.99%', '<0.01%'])
+    },
+}
 
 export const TransfersMany = tokenPage(WTMR, {transfers: rows(20, (h: number, i: number) => tokenTransfer(WTMR, h, i))}, TRANSFERS_TAB)
 

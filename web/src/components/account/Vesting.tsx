@@ -3,7 +3,7 @@ import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {chainHeads, type ChainProps} from '@/lib/chain'
-import {fmtBalance} from '@/lib/format'
+import {fmtBalance, fmtPct} from '@/lib/format'
 import {vestedAt, type Schedule} from './shared'
 
 export default async function Vesting({vest, chain}: {vest: Schedule[]; chain: ChainProps}) {
@@ -24,7 +24,7 @@ export default async function Vesting({vest, chain}: {vest: Schedule[]; chain: C
                     <div key={i}>
                         <div className="flex flex-wrap items-baseline justify-between gap-3">
                             <span className="text-sm font-medium">{fmtBalance(v.locked, chain.decimals, chain.symbol)}</span>
-                            <span className="text-xs text-muted-foreground">{pct.toFixed(2)}% released</span>
+                            <span className="text-xs text-muted-foreground">{fmtPct(done, v.locked)} released</span>
                         </div>
                         <Progress value={Math.min(100, pct)} className="mt-2 h-1.5 bg-background" />
                         <dl className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">

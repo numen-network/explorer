@@ -1,9 +1,9 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, waitFor} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
 import {numn} from '../../../../mock/fixtures.js'
 import {bounty, BOUNTY_STATUSES, counted, linear, listed, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
-import {axesLegible, filterChips} from '../../../.storybook/fit'
+import {axesLegible, expectLegibleAxes, filterChips} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
 
@@ -27,12 +27,13 @@ export const ReferendaEveryCase = referendaTab(referenda)
 
 export const ReferendaMany = referendaTab(Array.from({length: 40}, (_, i) => ({...referenda[i % referenda.length], id: String(i), index: i})))
 
-// a proposal just short of ten billion whole tokens and a tally ending on the last digits shown
+// a proposal just short of ten billion whole tokens, a tally ending on the last
+// digits shown and an approval a few nays short of all
 export const ReferendaTruncationEdges: StoryObj = {
     ...referendaTab([{...referenda[6], proposalAmount: '9999999999999999999999999999', ayes: numn(1_150_000), nays: numn(4.35), support: numn(8_200_000)}]),
     play: async ({canvas}) => {
         await expect(canvas.getByText('9,999,999,999')).toBeInTheDocument()
-        for (const figure of ['aye 1.15M', 'nay 4.35', 'voted 8.2M']) await expect(canvas.getByText(figure)).toBeInTheDocument()
+        for (const figure of ['aye 1.15M', 'nay 4.35', 'voted 8.2M', '99.99%', '15.61%']) await expect(canvas.getByText(figure)).toBeInTheDocument()
     },
 }
 
@@ -155,5 +156,15 @@ export const TracksExtremes = tracksTab([
         minSupport: reciprocal('1', '1', '0'),
     }),
 ])
+
+// periods that stop between two whole units of time
+export const TracksUnevenPeriods: StoryObj = {
+    ...tracksTab([track('60', 'uneven_track', {preparePeriod: 540, decisionPeriod: 36_000, confirmPeriod: 2_100, minEnactmentPeriod: 45})]),
+    play: async ({canvasElement}) => {
+        await waitFor(() => expectLegibleAxes(canvasElement))
+        const row = canvasElement.querySelector<HTMLTableRowElement>('tbody tr')!
+        await expect([...row.cells].slice(-4).map(cell => cell.textContent)).toEqual(['1h 30m', '4d 4h', '5h 50m', '7m 30s'])
+    },
+}
 
 export const TracksMany = tracksTab(Array.from({length: 24}, (_, i) => track(String(i), `track_${i}`, {minApproval: CURVES[i % 3], minSupport: linear(1e9, 0, 2e8 + i * 1e7)})))

@@ -187,14 +187,22 @@ export const HomeReferendaEnded = pageStory(home({...many, referendums: [undecod
 
 export const HomeIndexing = pageStory(home({...many, best: HEAD + 4_000, finalized: HEAD + 3_998}))
 
-// every move ends exactly on the last digit its chip shows
+// every move ends exactly on the last digit its chip shows, but the day's
+// difficulty moves by a sliver and the day's blocks came 9.96s apart
 const latest = DAILY.at(-1)!
 const plus = (planck: string, n: number) => String(BigInt(planck) + BigInt(numn(n)))
-const edgeToday = {...latest, issuanceTotal: plus(latest.issuanceTotal, 0.3), difficultyClose: '4350000000'}
+const edgeToday = {
+    ...latest,
+    issuanceTotal: plus(latest.issuanceTotal, 0.3),
+    difficultyClose: '4350000000',
+    blocks: 1_001,
+    tsLast: new Date(Date.parse(latest.tsFirst) + 9_960_000).toISOString(),
+}
 const edgeDays = [
     ...DAILY.slice(0, -31),
     {
         ...DAILY.at(-31)!,
+        difficultyClose: '4000000000',
         issuanceTotal: plus(edgeToday.issuanceTotal, -1_150_000),
         issuanceInactive: latest.issuanceInactive,
         issuanceTransferable: plus(latest.issuanceTransferable, -8_200_000),
@@ -203,6 +211,7 @@ const edgeDays = [
     ...DAILY.slice(-30, -2),
     {
         ...DAILY.at(-2)!,
+        difficultyClose: '4350000001',
         issuanceTotal: plus(latest.issuanceTotal, 0.1),
         issuanceInactive: latest.issuanceInactive,
         issuanceTransferable: plus(latest.issuanceTransferable, 2.01),
@@ -231,6 +240,8 @@ export const HomeTruncationEdges: StoryObj = {
         await expect(chips('transferable-issuance')).toEqual(['−2.01 · 24h', '+8.2M · 30d'])
         await expect(chips('treasury')).toEqual(['−1.15 · 24h', '+5.1M · 30d'])
         await expect(tile('difficulty').querySelector('[data-slot=card-title]')).toHaveTextContent('4.35B')
+        await expect(chips('difficulty')).toEqual(['−<0.01% · 24h', '+8.75% · 30d'])
+        await expect(within(canvasElement).getByText('Avg block time').nextElementSibling).toHaveTextContent('9.9s')
         await expect(within(canvasElement).getByText('9,999,999,999 NUMN')).toBeInTheDocument()
     },
 }

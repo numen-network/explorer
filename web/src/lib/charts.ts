@@ -1,4 +1,4 @@
-import {fmtInt, planckToNum, truncFixed} from './format'
+import {fmtInt, fmtPct, planckToNum, truncFixed} from './format'
 import type {DailyRow} from './gql'
 
 export interface ChartInput {
@@ -20,7 +20,6 @@ export interface ChartDef {
 }
 
 const num = (v: number) => fmtInt(Math.round(v))
-const fixed = (digits: number) => (v: number) => v.toFixed(digits)
 const token = (v: number, {symbol}: ChartInput) => `${fmtInt(truncFixed(v, v < 1000 ? 2 : 0))} ${symbol}`
 
 const planck = (pick: (d: DailyRow) => string) => (input: ChartInput) => input.days.map(d => planckToNum(pick(d), input.decimals))
@@ -45,8 +44,8 @@ export const CHARTS: ChartDef[] = [
         about: 'Mean seconds between blocks, measured across the day rather than smoothed. Proof of work spaces blocks randomly, so single days wander around the target.',
         kind: 'line',
         unit: 'Seconds',
-        values: count(d => (d.blocks > 1 ? (Date.parse(d.tsLast) - Date.parse(d.tsFirst)) / 1000 / (d.blocks - 1) : 0)),
-        format: fixed(2),
+        values: count(d => (d.blocks > 1 ? (Date.parse(d.tsLast) - Date.parse(d.tsFirst)) / ((d.blocks - 1) * 1000) : 0)),
+        format: v => truncFixed(v, 2),
     },
     {
         slug: 'difficulty',
@@ -232,7 +231,6 @@ export function highlight(def: ChartDef, values: number[], input: ChartInput): s
     const prev = values[values.length - 2]
     const now = `The latest value of ${def.title} is ${def.format(last, input)}.`
     if (prev == null || prev === 0) return now
-    const pct = ((last - prev) / prev) * 100
-    const dir = pct >= 0 ? 'up' : 'down'
-    return `${now} Compared with the day before it is ${dir} by ${Math.abs(pct).toFixed(2)}%.`
+    const dir = last >= prev ? 'up' : 'down'
+    return `${now} Compared with the day before it is ${dir} by ${fmtPct(Math.abs(last - prev), prev)}.`
 }

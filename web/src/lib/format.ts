@@ -25,6 +25,11 @@ function planckParts(planck: string | bigint, decimals: number): {neg: boolean; 
 
 const signed = (neg: boolean, out: string, symbol?: string) => `${neg ? '-' : ''}${out}${symbol ? ` ${symbol}` : ''}`
 
+const MINUS = '−'
+
+// the direction of a move, + for a rise and the minus sign for a fall
+export const signOf = (n: number | bigint) => (n > 0 ? '+' : n < 0 ? MINUS : '')
+
 // every planck the chain holds, trailing zeros trimmed. a balance is never
 // rounded for looks, the reader is owed the whole number
 export function fmtBalance(planck: string | bigint, decimals: number, symbol?: string): string {
@@ -110,8 +115,22 @@ export function shortHash(s: string, pre = 5, post = 4): string {
     return `${s.slice(0, pre)}…${s.slice(-post)}`
 }
 
-export function pct(x: number, digits = 2): string {
-    return `${(x * 100).toFixed(digits)}%`
+// a float worked out by multiplying or dividing carries noise past its fifteenth digit
+const decimalOf = (x: number | string | bigint) => planckOf(typeof x === 'number' ? Number(x.toPrecision(15)) : x, 0)
+
+// part of a whole as a percent cut to two decimals, or to finer ones a caller
+// asks for, and never rounded up. zeros past the second decimal drop off, a
+// sliver too thin for the last decimal still reads as more than none, and a
+// part of nothing or of an unknown whole has no figure
+export function fmtPct(part: number | string | bigint, whole: number | string | bigint | null, digits = 2): string {
+    if (whole === null) return '—'
+    const [p, ps] = decimalOf(part)
+    const [w, ws] = decimalOf(whole)
+    if (w === 0n) return '—'
+    const cut = (p * 10n ** BigInt(ws + digits + 2)) / (w * 10n ** BigInt(ps))
+    const sign = p !== 0n && p < 0n !== w < 0n ? MINUS : ''
+    const figure = cut === 0n && p !== 0n ? `<0.${'1'.padStart(digits, '0')}` : truncFixed(cut < 0n ? -cut : cut, digits, digits).replace(/(\.\d{2}\d*?)0+$/, '$1')
+    return `${sign}${figure}%`
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -123,36 +142,30 @@ export function fmtDateTime(iso: string, utc: boolean): string {
         : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
 
-// governance periods are counted in blocks, the chain reports its target pace
-export function fmtBlockSpan(blocks: number, blockTime: number): string {
-    const secs = Math.max(0, blocks * blockTime)
-    if (secs >= 86400) return `${Math.round(secs / 86400)}d`
-    if (secs >= 3600) return `${Math.round(secs / 3600)}h`
-    if (secs >= 60) return `${Math.round(secs / 60)}m`
-    return `${secs}s`
-}
+type SpanUnit = 'y' | 'mo' | 'd' | 'h' | 'm' | 's'
 
-const MONTH_DAYS = 30
-const YEAR_DAYS = 365
+// a month is 30 days and a year 365, which is what anybody reading a schedule
+// takes them for
+const SPAN_UNITS: [seconds: number, unit: SpanUnit][] = [
+    [31_536_000, 'y'],
+    [2_592_000, 'mo'],
+    [86_400, 'd'],
+    [3_600, 'h'],
+    [60, 'm'],
+    [1, 's'],
+]
 
-/**
- * A wait in calendar units, since a payout months away reads as nothing in days.
- * A month is 30 days and a year 365, which is what anybody reading a schedule
- * takes them for.
- */
-export function fmtDaySpan(blocks: number, blockTime: number): string {
-    const days = Math.max(1, Math.ceil((blocks * blockTime) / 86400))
-    if (days >= YEAR_DAYS) {
-        const years = Math.floor(days / YEAR_DAYS)
-        const months = Math.floor((days % YEAR_DAYS) / MONTH_DAYS)
-        return months > 0 ? `${years}y ${months}mo` : `${years}y`
-    }
-    if (days >= MONTH_DAYS) {
-        const months = Math.floor(days / MONTH_DAYS)
-        const rest = days % MONTH_DAYS
-        return rest > 0 ? `${months}mo ${rest}d` : `${months}mo`
-    }
-    return `${days}d`
+// a stretch of time in its largest whole unit and the one below it, both cut
+// and never rounded up, so a hundred hours reads 4d 4h. an axis that counts
+// in days or hours caps the units at its own
+export function fmtSpan(seconds: number, largest: SpanUnit = 'y'): string {
+    const units = SPAN_UNITS.slice(SPAN_UNITS.findIndex(([, unit]) => unit === largest))
+    const secs = Math.max(0, Math.floor(seconds))
+    const i = units.findIndex(([size]) => size <= Math.max(1, secs))
+    const [size, unit] = units[i]
+    const [subSize, subUnit] = units[i + 1] ?? [size, '']
+    const rest = Math.floor((secs % size) / subSize)
+    return `${Math.floor(secs / size)}${unit}${rest ? ` ${rest}${subUnit}` : ''}`
 }
 
 // squid mints 0000069254-4a12b-000001, the url wants height and index

@@ -3,7 +3,7 @@ import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtBalance, fmtCompact, fmtDaySpan, planckToNum} from '@/lib/format'
+import {camelLabel, fmtBalance, fmtCompact, fmtPct, fmtSpan, planckToNum} from '@/lib/format'
 import type {AccountRef, ProposalNode} from '@/lib/gql'
 import type {Phase} from '@/lib/referendum'
 import {ss58Encode} from '@/lib/ss58'
@@ -60,15 +60,16 @@ export function TallyBar({r, decimals, className = 'w-40'}: {r: {ayes: string; n
     )
 }
 
-export function ThresholdBar({label, value, need, variant, foot}: {label: string; value: number | null; need: number; variant: 'split' | 'solid'; foot?: ReactNode}) {
-    const pass = value !== null && value >= need
+export function ThresholdBar({label, part, whole, need, variant, foot}: {label: string; part: bigint; whole: bigint; need: number; variant: 'split' | 'solid'; foot?: ReactNode}) {
+    const value = whole > 0n ? Number((part * 10n ** 12n) / whole) / 1e10 : null
+    const tone = value === null ? 'text-muted-foreground' : value >= need ? 'text-good' : 'text-destructive'
     return (
         <div className="min-w-0">
             <div className="flex items-baseline justify-between gap-2 text-[11px]">
                 <span className="text-muted-foreground">{label}</span>
                 <span className="font-mono">
-                    <span className={pass ? 'text-good' : 'text-destructive'}>{(value ?? 0).toFixed(1)}%</span>
-                    <span className="text-muted-foreground"> need {need.toFixed(1)}%</span>
+                    <span className={tone}>{fmtPct(part, whole)}</span>
+                    <span className="text-muted-foreground"> need {fmtPct(need, 100)}</span>
                 </span>
             </div>
             <div className="mt-1">
@@ -85,7 +86,7 @@ export const payouts = (nodes: ProposalNode[] | null) => (nodes ?? []).filter(no
 // a payout the chain still holds back says how long is left on it
 function release(validFrom: number | null | undefined, best: number, blockTime: number): string {
     if (validFrom == null || validFrom <= best) return 'immediately'
-    return `in ${fmtDaySpan(validFrom - best, blockTime)}`
+    return `in ${fmtSpan((validFrom - best) * blockTime)}`
 }
 
 /**

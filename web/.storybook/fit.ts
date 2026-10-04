@@ -103,6 +103,15 @@ export function expectTooltipsInView(root: Element) {
     }
 }
 
+// the lines of the tooltip each chart under root shows at the last value of its first series
+export function lastTooltipLines(root: Element) {
+    return chartsIn(root).map(chart => {
+        chart.setOption({tooltip: {transitionDuration: 0}})
+        chart.dispatchAction({type: 'showTip', seriesIndex: 0, dataIndex: (chart.getOption().series as Series[])[0].data.length - 1})
+        return [...tooltipOf(chart).children].map(line => line.textContent)
+    })
+}
+
 // waitFor reruns its callback on every DOM change and showing a tooltip makes
 // one, so a failing check would spin forever inside it
 export const tooltipsInView: StoryObj['play'] = async ({canvasElement}) => {

@@ -9,7 +9,7 @@ import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtBalance, fmtBlockSpan, fmtInt, trackLabel} from '@/lib/format'
+import {camelLabel, fmtBalance, fmtInt, fmtSpan, trackLabel} from '@/lib/format'
 import type {TrackRow, TreasurySpendRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {NONE} from '@/components/Detail'
@@ -61,7 +61,7 @@ export function TracksTable({rows, chain}: {rows: TrackRow[]; chain: ChainProps}
         // periods are stored in blocks, the block count stays on hover
         const span = (blocks: number) => (
             <Tip text={`${fmtInt(blocks)} blocks`}>
-                <span>{fmtBlockSpan(blocks, chain.blockTime)}</span>
+                <span>{fmtSpan(blocks * chain.blockTime)}</span>
             </Tip>
         )
         return tcol.columns([

@@ -1,4 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import type {AccountRef, ProposalNode} from '@/lib/gql'
 import {HEAD, numn, PEOPLE} from '../../../mock/fixtures.js'
 import {CHAIN} from '../../../mock/fixtures/governance.js'
@@ -28,15 +29,22 @@ export const SingleLocalSpend = tree([{pallet: 'Treasury', method: 'spend_local'
 
 export const NonSpendCall = tree([{pallet: 'Identity', method: 'add_registrar', depth: 0}])
 
-export const EveryRelease = tree([
-    {pallet: 'Utility', method: 'batch_all', depth: 0},
-    spend(1, numn(200_000), 0),
-    spend(1, numn(150_000), 1, HEAD - 2_000),
-    spend(1, numn(120_000), 3, HEAD + 1),
-    spend(1, numn(90_000), 5, HEAD + 45 * DAY),
-    spend(1, numn(80_000), 7, HEAD + 400 * DAY),
-    spend(1, numn(70_000), 2, HEAD + 3 * 365 * DAY),
-])
+// paid now, opened already, a block away, then days, more than a year and three years out
+export const EveryRelease: Story = {
+    ...tree([
+        {pallet: 'Utility', method: 'batch_all', depth: 0},
+        spend(1, numn(200_000), 0),
+        spend(1, numn(150_000), 1, HEAD - 2_000),
+        spend(1, numn(120_000), 3, HEAD + 1),
+        spend(1, numn(90_000), 5, HEAD + 45 * DAY + 1_234),
+        spend(1, numn(80_000), 7, HEAD + 400 * DAY),
+        spend(1, numn(70_000), 2, HEAD + 3 * 365 * DAY),
+    ]),
+    play: async ({canvas}) => {
+        const waits = canvas.getAllByText(/^(immediately|in .+)$/).map(wait => wait.textContent)
+        await expect(waits).toEqual(['immediately', 'immediately', 'in 10s', 'in 1mo 15d', 'in 1y 1mo', 'in 3y'])
+    },
+}
 
 export const NestedBatches = tree([
     {pallet: 'Utility', method: 'batch_all', depth: 0},

@@ -8,7 +8,7 @@ import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
-import {fmtApprox, fmtInt, sentenceCase} from '@/lib/format'
+import {fmtApprox, fmtInt, fmtPct, sentenceCase, signOf} from '@/lib/format'
 import {identityLabel, type IdentityRef} from '@/lib/identity'
 import {NONE} from '@/components/Detail'
 
@@ -18,8 +18,8 @@ export interface ActionActor {
 }
 
 export interface ActionImpact {
-    approval: number
-    support: number
+    approval: [part: bigint, whole: bigint]
+    support: [part: bigint, whole: bigint]
 }
 
 export type ActionRow =
@@ -27,9 +27,6 @@ export type ActionRow =
     | {id: string; block: number; iso: string; actor: ActionActor; amount: string; own: string; delegated: string; impact?: ActionImpact; kind: 'delegate' | 'undelegate'; by: ActionActor}
 
 const TONE: Record<string, string> = {aye: 'text-good', nay: 'text-destructive'}
-
-// both the cell and the filter call a move flat once it rounds to 0.00
-const FLAT = 0.005
 
 // radix reserves the empty item value for its placeholder, the catch-all
 // entries carry their own sentinels instead
@@ -70,13 +67,12 @@ function Action({a}: {a: ActionRow}) {
     }
 }
 
-function Delta({label, value}: {label: string; value: number}) {
-    const flat = Math.abs(value) < FLAT
-    const tone = flat ? 'text-muted-foreground' : value > 0 ? 'text-good' : 'text-destructive'
+function Delta({label, value: [part, whole]}: {label: string; value: [part: bigint, whole: bigint]}) {
+    const tone = part > 0n ? 'text-good' : part < 0n ? 'text-destructive' : 'text-muted-foreground'
     return (
         <div>
             <span className="text-muted-foreground">{label} </span>
-            <span className={tone}>{flat ? '0.00%' : `${value > 0 ? '+' : ''}${value.toFixed(2)}%`}</span>
+            <span className={tone}>{`${signOf(part)}${fmtPct(part < 0n ? -part : part, whole)}`}</span>
         </div>
     )
 }
@@ -100,9 +96,8 @@ function Picker({value, options, onChange}: {value: string; options: {value: str
 
 const moveHit = (i: ActionImpact | undefined, move: string) => {
     if (i == null) return false
-    const v = move.startsWith('approval') ? i.approval : i.support
-    if (Math.abs(v) < FLAT) return false
-    return move.endsWith('up') ? v > 0 : v < 0
+    const [part] = move.startsWith('approval') ? i.approval : i.support
+    return move.endsWith('up') ? part > 0n : part < 0n
 }
 
 const hay = (a: ActionRow) => {

@@ -20,7 +20,7 @@ import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {decisionOf, votesOf} from '@/lib/conviction'
 import {curveAt, type Curve} from '@/lib/curves'
-import {camelLabel, fmtBalance, fmtBlockSpan, fmtCompact, fmtInt, planckToNum, trackLabel} from '@/lib/format'
+import {camelLabel, fmtBalance, fmtCompact, fmtInt, fmtPct, fmtSpan, planckToNum, trackLabel} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
 import {accountRefs, delegationActionsFor, eventsByIds, referendumDetail, tallySnapshots, type TallySnapshotRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -84,6 +84,13 @@ function PhaseBar({label, span, at}: {label: string; span: string; at: number | 
             </div>
         </div>
     )
+}
+
+// approval as a fraction of the votes cast, none cast reading as none approving
+function approvalOf(s: {ayes: string; nays: string}): [part: bigint, whole: bigint] {
+    const ayes = BigInt(s.ayes)
+    const cast = ayes + BigInt(s.nays)
+    return cast > 0n ? [ayes, cast] : [0n, 1n]
 }
 
 function Slot({value, label, className = ''}: {value: string; label: string; className?: string}) {
@@ -195,9 +202,12 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const impactByBlock = new Map<number, ActionImpact>()
     let prev: TallySnapshotRow | undefined
     for (const s of snapshots) {
-        const p = snapPct(s)
-        const before = prev ? snapPct({...prev, totalIssuance: s.totalIssuance, inactiveIssuance: s.inactiveIssuance}) : {approval: 0, support: 0}
-        impactByBlock.set(s.block, {approval: p.approval - before.approval, support: p.support - before.support})
+        const [a1, n1] = approvalOf(s)
+        const [a0, n0] = prev ? approvalOf(prev) : [0n, 1n]
+        impactByBlock.set(s.block, {
+            approval: [a1 * n0 - a0 * n1, n1 * n0],
+            support: [BigInt(s.support) - BigInt(prev?.support ?? 0), BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance)],
+        })
         prev = s
     }
     const seen = new Set<number>()
@@ -217,7 +227,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const approvalNow = total > 0 ? (ayes / total) * 100 : 0
     const supportNow = activeIssuance > 0 ? (supportVal / activeIssuance) * 100 : 0
 
-    const decisionHours = Math.max(1, Math.round((r.track.decisionPeriod * chain.blockTime) / 3600))
+    const decisionHours = (r.track.decisionPeriod * chain.blockTime) / 3600
     const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best)
     const x = isLive(r) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
 
@@ -226,7 +236,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     // before it keeps its true length
     const clock = {
         zero: r.decidingSince ?? r.endedAt ?? Math.max(heads.best, r.submittedAt + r.track.preparePeriod),
-        perHour: r.track.decisionPeriod / decisionHours,
+        perHour: 3600 / chain.blockTime,
         blockTime: chain.blockTime,
         started: r.decidingSince !== null,
     }
@@ -266,7 +276,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const enactAt = r.status === 'Approved' ? phaseFraction(r.endedAt, r.track.minEnactmentPeriod, heads.best) : null
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
-    const pct = (n: number) => `${n.toFixed(n < 1 ? 2 : 1)}%`
+    const tallied = BigInt(r.ayes) + BigInt(r.nays)
 
     // enactment only starts once the referendum is approved, keep the card
     // up through that phase
@@ -276,10 +286,10 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <CardTitle className="text-[15px] leading-normal font-semibold">Status</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <PhaseBar label="Prepare" span={fmtBlockSpan(r.track.preparePeriod, chain.blockTime)} at={prepareAt} />
-                <PhaseBar label="Decision" span={fmtBlockSpan(r.track.decisionPeriod, chain.blockTime)} at={decisionAt} />
-                <PhaseBar label="Confirmation" span={fmtBlockSpan(r.track.confirmPeriod, chain.blockTime)} at={confirmAt} />
-                <PhaseBar label="Enactment" span={fmtBlockSpan(r.track.minEnactmentPeriod, chain.blockTime)} at={enactAt} />
+                <PhaseBar label="Prepare" span={fmtSpan(r.track.preparePeriod * chain.blockTime)} at={prepareAt} />
+                <PhaseBar label="Decision" span={fmtSpan(r.track.decisionPeriod * chain.blockTime)} at={decisionAt} />
+                <PhaseBar label="Confirmation" span={fmtSpan(r.track.confirmPeriod * chain.blockTime)} at={confirmAt} />
+                <PhaseBar label="Enactment" span={fmtSpan(r.track.minEnactmentPeriod * chain.blockTime)} at={enactAt} />
                 <div className="flex items-baseline justify-between border-t pt-3 text-sm">
                     <span className="text-muted-foreground">Attempts</span>
                     <span className="font-mono">{trail.filter(s => s.name === 'Referenda.ConfirmStarted').length}</span>
@@ -298,9 +308,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <Gauge value={total > 0 ? approvalNow : null} need={approvalNeed} variant="split" />
             </div>
             <div className="mt-1.5 flex text-[11px]">
-                <Slot className="flex-1 text-left text-good" value={pct(approvalNow)} label="Aye" />
-                <Slot className="flex-1 text-center text-muted-foreground" value={approvalNeed !== null ? pct(approvalNeed) : '—'} label="Threshold" />
-                <Slot className="flex-1 text-right text-destructive" value={pct(total > 0 ? 100 - approvalNow : 0)} label="Nay" />
+                <Slot className="flex-1 text-left text-good" value={fmtPct(r.ayes, tallied)} label="Aye" />
+                <Slot className="flex-1 text-center text-muted-foreground" value={approvalNeed !== null ? fmtPct(approvalNeed, 100) : '—'} label="Threshold" />
+                <Slot className="flex-1 text-right text-destructive" value={fmtPct(r.nays, tallied)} label="Nay" />
             </div>
 
             <div className="mt-4 divide-y border-t text-sm">
@@ -328,8 +338,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <Gauge value={supportNow} need={supportNeed} variant="solid" />
             </div>
             <div className="mt-1.5 flex justify-between text-[11px]">
-                <Slot className="text-support" value={pct(supportNow)} label="Support" />
-                <Slot className="text-right text-muted-foreground" value={supportNeed !== null ? pct(supportNeed) : '—'} label="Threshold" />
+                <Slot className="text-support" value={fmtPct(r.support, activePlanck)} label="Support" />
+                <Slot className="text-right text-muted-foreground" value={supportNeed !== null ? fmtPct(supportNeed, 100) : '—'} label="Threshold" />
             </div>
 
             <div className="mt-4 divide-y border-t text-sm">

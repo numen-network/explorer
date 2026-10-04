@@ -28,9 +28,9 @@ export const RisingChips: Story = {args: {label: 'Transfers', value: '30,411', h
 
 export const FallingChips: Story = {args: {label: 'Treasury pot', value: '549.926M NUMN', href: '/charts/treasury', chips: chips(['−528', '24h', 'neg'], ['−70K', '30d', 'neg'])}}
 
-export const MixedPercentChips: Story = {args: {label: 'Difficulty', value: '5.11B', href: '/charts/difficulty', chips: chips(['−0.2%', '24h', 'neg'], ['+5.8%', '30d', 'pos'])}}
+export const MixedPercentChips: Story = {args: {label: 'Difficulty', value: '5.11B', href: '/charts/difficulty', chips: chips(['−0.21%', '24h', 'neg'], ['+5.83%', '30d', 'pos'])}}
 
-export const IdleChips: Story = {args: {label: 'Difficulty', value: '3.68B', href: '/charts/difficulty', chips: chips(['0%', '24h', 'idle'], ['—', '30d', 'idle'])}}
+export const IdleChips: Story = {args: {label: 'Difficulty', value: '3.68B', href: '/charts/difficulty', chips: chips(['0.00%', '24h', 'idle'], ['—', '30d', 'idle'])}}
 
 export const CountChips: Story = {args: {label: 'Miners', value: '23', href: '/charts/miners', chips: chips(['43', '30d', 'idle'], ['54', 'total', 'idle'])}}
 
@@ -38,7 +38,7 @@ export const ZeroValue: Story = {args: {label: 'EVM txs', value: '0', href: '/ch
 
 export const NoValue: Story = {args: {label: 'Difficulty', value: '—', href: '/charts/difficulty', chips: chips(['—', '24h', 'idle'], ['—', '30d', 'idle'])}}
 
-export const LongValue: Story = {args: {label: 'Transferable issuance', value: '876,543,210,987.654 NUMN', href: '/charts/transferable-issuance', chips: chips(['+19269511.6%', '24h', 'pos'], ['−987,654,321', '30d', 'neg'])}}
+export const LongValue: Story = {args: {label: 'Transferable issuance', value: '876,543,210,987.654 NUMN', href: '/charts/transferable-issuance', chips: chips(['+19269511.62%', '24h', 'pos'], ['−987,654,321', '30d', 'neg'])}}
 
 export const LongValueOnPhone: Story = {
     ...LongValue,

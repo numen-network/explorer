@@ -4,7 +4,7 @@ import {useMemo} from 'react'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {EvmAddrLink} from '@/components/links'
 import {Progress} from '@/components/ui/progress'
-import {fmtBalance} from '@/lib/format'
+import {fmtBalance, fmtPct} from '@/lib/format'
 
 export interface Holder {
     id: string
@@ -30,7 +30,7 @@ export function HoldersTable({rows, offset, supply, decimals, symbol}: {rows: Ho
                     return (
                         <div className="inline-flex items-center gap-2">
                             <Progress value={Math.min(100, share)} className="h-1.5 w-16" />
-                            <span className="w-14 text-right font-mono text-xs text-muted-foreground">{share.toFixed(2)}%</span>
+                            <span className="w-14 text-right font-mono text-xs text-muted-foreground">{fmtPct(row.original.balance, supply)}</span>
                         </div>
                     )
                 },

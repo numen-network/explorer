@@ -7,6 +7,7 @@ import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import type {ChainProps} from '@/lib/chain'
+import {fmtPct} from '@/lib/format'
 import type {AccountListRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -21,7 +22,8 @@ const TIERS: [min: number, emoji: string][] = [
 
 const tier = (pct: number) => TIERS.find(([min]) => pct >= min)?.[1] ?? ''
 
-const fmtShare = (pct: number) => (pct >= 0.01 ? pct.toFixed(2) : pct.toFixed(6).replace(/0+$/, '')) + '% of issuance'
+// a share under a hundredth of a percent keeps six decimals, so the smaller tiers still read apart
+const shareDigits = (pct: number) => (pct >= 0.01 ? 2 : 6)
 
 const col = columnsFor<AccountListRow>()
 
@@ -40,7 +42,7 @@ export function AccountsTable({rows, chain, issuance}: {rows: AccountListRow[]; 
                     const pct = share(held)
                     const mark = held > 0n ? tier(pct) : ''
                     return (
-                        <Tip text={held > 0n ? fmtShare(pct) : undefined}>
+                        <Tip text={held > 0n ? `${fmtPct(held, total, shareDigits(pct))} of issuance` : undefined}>
                             <span>
                                 {mark && <span className="mr-1.5">{mark}</span>}
                                 <Balance planck={held} chain={chain} />
