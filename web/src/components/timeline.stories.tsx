@@ -1,4 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expectFits, expectWholeWords, PHONE} from '../../.storybook/fit'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows} from './timeline'
 
 const meta = {title: 'Components/Timeline'} satisfies Meta
@@ -60,4 +61,35 @@ export const WithDetail: Story = {
             />
         </TimelineList>
     ),
+}
+
+const AMOUNT = '1,000,000.12345678 NUMN'
+const PROSE = "minted reward plus the miner's cut of any fees and tips paid here"
+
+// a phone leaves the value column narrower than each of these, words wrap
+// whole and the hash breaks where the line runs out
+export const DetailWrapsOnPhone: Story = {
+    globals: PHONE,
+    render: () => (
+        <TimelineList>
+            <TimelineItem
+                tone="idle"
+                icon={RING}
+                title="Submitted"
+                detail={
+                    <TimelineRows
+                        rows={[
+                            ['Amount', AMOUNT],
+                            ['Note', PROSE],
+                            ['Hash', '0x' + 'a1'.repeat(32)],
+                        ]}
+                    />
+                }
+            />
+        </TimelineList>
+    ),
+    play: async ({canvas, canvasElement}) => {
+        expectWholeWords(canvas.getByText(AMOUNT), canvas.getByText(PROSE))
+        expectFits(...canvasElement.querySelectorAll('dd'))
+    },
 }

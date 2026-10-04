@@ -3,6 +3,7 @@ import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow, JsonBlock, NONE} from '@/components/Detail'
+import DotRow from '@/components/DotRow'
 import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
@@ -523,15 +524,15 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <Card size="flush" className="min-w-0 px-7 py-5">
                     <p className="text-base font-semibold wrap-anywhere">{r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                        {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : NONE}
-                        <span className="text-dim">·</span>
-                        <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs text-muted-foreground">
-                            {trackLabel(r.track.name)}
-                        </Badge>
-                        <span className="text-dim">·</span>
-                        <span className="-ml-0.5 text-muted-foreground">
-                            <TimeCell iso={r.submittedTimestamp} cycle />
-                        </span>
+                        <DotRow className="min-w-0">
+                            {r.submitter ? <AccountLink addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} /> : NONE}
+                            <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs text-muted-foreground">
+                                {trackLabel(r.track.name)}
+                            </Badge>
+                            <span className="-ml-0.5 text-muted-foreground">
+                                <TimeCell iso={r.submittedTimestamp} cycle />
+                            </span>
+                        </DotRow>
                         <StatusBadge phase={phaseOf(r)} className="ml-auto" />
                     </div>
                     <Separator className="my-4" />

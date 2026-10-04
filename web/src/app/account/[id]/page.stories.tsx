@@ -1,4 +1,4 @@
-import type {Decorator} from '@storybook/nextjs-vite'
+import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {
@@ -42,6 +42,7 @@ import {
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
+import {DESKTOP, expectWholeWords} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
@@ -121,6 +122,13 @@ export const EveryRole = story({
     proxiesIn: proxyFor(2),
     transfers: accountTransfers(4),
 })
+
+// beside the identity card the H160 leaves its note little room on the line
+export const EveryRoleOnDesktop: StoryObj = {
+    ...EveryRole,
+    globals: DESKTOP,
+    play: async ({canvas}) => expectWholeWords(await canvas.findByText('mapped account of this H160')),
+}
 
 export const Treasury = story({
     account: subject({id: TREASURY.id, ...funds(issuance.treasuryPot), nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: at(0)}),

@@ -1,7 +1,10 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {ss58Encode} from '@/lib/ss58'
-import {account, chainInfo} from '../../../mock/fixtures.js'
+import {CHAIN, SUBJECT_EVM} from '../../../mock/fixtures/accounts.js'
+import {account, chainInfo, numn} from '../../../mock/fixtures.js'
+import {cardsFit, expectFits, expectWholeWords} from '../../.storybook/fit'
 import AddressText from './AddressText'
+import Balance from './Balance'
 import CopyBtn from './CopyBtn'
 import {DetailCard, DetailRow, JsonBlock, NONE, SELF} from './Detail'
 
@@ -59,6 +62,32 @@ export const LongUnbrokenValue: Story = {
             <DetailRow label="A label long enough to wrap in its column">value</DetailRow>
         </DetailCard>
     ),
+    play: cardsFit,
+}
+
+const NOTE = 'mapped account of this H160'
+const PROSE = "minted reward plus the miner's cut of any fees and tips paid here"
+
+// a card narrower than every value in it, words wrap whole and the address
+// breaks where the line runs out
+export const WrapsBetweenWords: Story = {
+    render: () => (
+        <div className="max-w-[480px]">
+            <DetailCard>
+                <DetailRow label="EVM origin">
+                    <span className="text-primary">{SUBJECT_EVM}</span> <span className="ml-1 text-xs text-dim">{NOTE}</span>
+                </DetailRow>
+                <DetailRow label="Balance">
+                    <Balance planck={numn(1_250_005.41)} chain={CHAIN} />
+                </DetailRow>
+                <DetailRow label="Reward">{PROSE}</DetailRow>
+            </DetailCard>
+        </div>
+    ),
+    play: async ({canvas, canvasElement}) => {
+        expectWholeWords(canvas.getByText(NOTE), canvas.getByText(/NUMN$/), canvas.getByText(PROSE))
+        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+    },
 }
 
 export const JsonNull: Story = {

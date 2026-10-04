@@ -179,8 +179,8 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                             <DetailRow label="EVM origin">
                                 <Link href={`/address/${a.evmAddress}`} className="text-primary hover:underline">
                                     {a.evmAddress}
-                                </Link>
-                                <span className="ml-2 text-xs text-dim">mapped account of this H160</span>
+                                </Link>{' '}
+                                <span className="ml-1 text-xs text-dim">mapped account of this H160</span>
                             </DetailRow>
                         )}
                     </DetailCard>

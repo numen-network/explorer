@@ -19,7 +19,7 @@ export function DetailRow({label, children}: {label: string; children: ReactNode
     return (
         <div className="flex flex-col gap-0.5 px-5 py-2.5 text-sm sm:flex-row sm:gap-4">
             <div className="shrink-0 text-muted-foreground sm:w-40">{label}</div>
-            <div className="min-w-0 font-mono break-all">{children}</div>
+            <div className="min-w-0 font-mono wrap-anywhere">{children}</div>
         </div>
     )
 }

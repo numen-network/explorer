@@ -23,7 +23,7 @@ import {
     voteAction,
     voteData,
 } from '../../../../../mock/fixtures/governance.js'
-import {expectFits, PHONE} from '../../../../.storybook/fit'
+import {expectFits, expectNoHangingDots, PHONE} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 
@@ -197,7 +197,20 @@ export const CallUnreadable = story(
     'call'
 )
 
-export const MetadataEveryField = curatedCase(6, 'metadata')
+// each depositor shares the first line of its row with the deposit
+const depositorsInline: Play = async ({canvas}) => {
+    for (const label of ['Submission deposit', 'Decision deposit']) {
+        const value = (await canvas.findByText(label)).nextElementSibling as HTMLElement
+        expect(within(value).getByRole('link').getBoundingClientRect().top).toBeCloseTo(value.getBoundingClientRect().top, 0)
+    }
+}
+
+export const MetadataEveryField = withPlay(curatedCase(6, 'metadata'), depositorsInline)
+
+export const MetadataEveryFieldOnPhone = withPlay({...curatedCase(6, 'metadata'), globals: PHONE}, async context => {
+    await depositorsInline(context)
+    expectNoHangingDots(context.canvasElement)
+})
 
 export const MetadataEmptyFields = story(
     {...curated(7), id: '16', index: 16, origin: null, proposalHash: null, submitter: null, submissionDepositor: null, submissionDeposit: null},

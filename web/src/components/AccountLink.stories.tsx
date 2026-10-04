@@ -1,9 +1,11 @@
 import type {Decorator, Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
+import {expect} from 'storybook/test'
 import type {IdentityRef} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
 import {PRIME_KEY, TREASURY} from '../../../mock/fixtures/accounts.js'
 import {acct, chainInfo, hashOf, identity, PEOPLE} from '../../../mock/fixtures.js'
+import {expectFits} from '../../.storybook/fit'
 import AccountLink from './AccountLink'
 import {WellKnownProvider} from './wellKnown'
 
@@ -93,12 +95,35 @@ export const AddressOnly: Story = {
 
 export const NarrowColumn: Story = {
     render: () => (
-        <div className="w-40 space-y-2 rounded-md border p-2">
+        <div className="grid w-40 gap-2 rounded-md border p-2">
             <AccountLink addr={addr(longName)} acc={longName} />
             <AccountLink addr={addr(sub)} acc={sub} />
             <AccountLink full addr={addr(bare)} />
         </div>
     ),
+}
+
+// an account named in a line of text stays on that line, and one too long for
+// what is left of it moves down and truncates
+export const InText: Story = {
+    render: () => (
+        <div className="space-y-3 text-sm">
+            <div>
+                5 NUMN <span className="text-dim">·</span> <AccountLink addr={addr(polaris)} acc={polaris} />
+            </div>
+            <div className="w-56 rounded-md border p-2">
+                200 NUMN <span className="text-dim">·</span> <AccountLink addr={addr(longName)} acc={longName} />
+            </div>
+        </div>
+    ),
+    play: async ({canvas}) => {
+        const [inline, wrapped] = canvas.getAllByRole('link')
+        const top = (el: Element) => el.getBoundingClientRect().top
+        const line = (link: HTMLElement) => link.closest('.space-y-3 > div')!
+        expect(top(inline)).toBeCloseTo(top(line(inline)), 0)
+        expect(top(wrapped)).toBeGreaterThan(top(line(wrapped)) + 10)
+        expectFits(line(wrapped))
+    },
 }
 
 export const HoverCard: Story = {

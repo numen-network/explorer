@@ -62,7 +62,7 @@ function Action({a}: {a: ActionRow}) {
             )
         default:
             return (
-                <span className="block">
+                <span className="flex flex-col">
                     {a.kind === 'delegate' ? 'Delegated by' : 'Undelegated by'}
                     <AccountLink addr={a.by.addr} acc={a.by.acc} />
                 </span>

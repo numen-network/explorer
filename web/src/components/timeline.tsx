@@ -60,7 +60,7 @@ export function TimelineRows({rows}: {rows: [string, ReactNode][]}) {
             {rows.map(([label, value]) => (
                 <div key={label} className="flex flex-col gap-0.5 sm:flex-row sm:gap-4">
                     <dt className="shrink-0 text-muted-foreground sm:w-40">{label}</dt>
-                    <dd className="min-w-0 break-all">{value}</dd>
+                    <dd className="min-w-0 wrap-anywhere">{value}</dd>
                 </div>
             ))}
         </dl>

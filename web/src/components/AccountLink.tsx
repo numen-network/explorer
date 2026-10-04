@@ -40,7 +40,7 @@ export default function AccountLink({addr, acc, className = '', full = false, pl
         </>
     )
     return (
-        <span className={`flex min-w-0 items-center ${className}`}>
+        <span className={`inline-flex min-w-0 max-w-full items-center align-top ${className}`}>
             <Tip text={details} align="start" sideOffset={4} className="sm:max-w-md flex-col items-start">
                 <Link href={`/account/${addr}`} className={`-mx-1 flex min-w-0 items-center gap-1 px-1 hover:text-primary ${cls}`} {...hot}>
                     {label ? (
