@@ -491,7 +491,7 @@ export async function tokenCounts(address: string) {
     const {transfers, holdings} = await gql<{transfers: {totalCount: number}; holdings: {totalCount: number}}>(
         `query ($a: String!) {
             transfers: tokenTransfersConnection(orderBy: id_ASC, where: {OR: [{from_eq: $a}, {to_eq: $a}]}) { totalCount }
-            holdings: tokenHoldersConnection(orderBy: id_ASC, where: {address_eq: $a}) { totalCount }
+            holdings: tokenHoldersConnection(orderBy: id_ASC, where: {address_eq: $a, ${HELD}}) { totalCount }
         }`,
         {a: address}
     )
@@ -673,8 +673,8 @@ export function tokenTransfersFor(address: string, limit: number, offset: number
 export function tokenHoldingsFor(address: string, limit: number, offset: number) {
     return gql<{holdings: HoldingRow[]; conn: {totalCount: number}}>(
         `query ($a: String!, $limit: Int!, $offset: Int!) {
-            holdings: tokenHolders(where: {address_eq: $a}, orderBy: ${HOLDER_ORDER}, limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
-            conn: tokenHoldersConnection(where: {address_eq: $a}, orderBy: id_ASC) { totalCount }
+            holdings: tokenHolders(where: {address_eq: $a, ${HELD}}, orderBy: ${HOLDING_ORDER}, limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
+            conn: tokenHoldersConnection(where: {address_eq: $a, ${HELD}}, orderBy: id_ASC) { totalCount }
         }`,
         {a: address, limit, offset}
     )
@@ -844,13 +844,17 @@ export interface TokenRow {
 }
 
 export interface HoldingRow {
-    balance: string | null
+    balance: string
     token: TokenRow
 }
 
 const TOKEN_FIELDS = `id name symbol decimals totalSupply holderCount transferCount deployBlock firstBlock`
 const TOKEN_ORDER = '[transferCount_DESC, id_ASC]'
+// holders are the addresses whose last balanceOf answer was above zero, as Token.holderCount counts them
+const HELD = 'balance_gt: 0'
 const HOLDER_ORDER = '[balance_DESC_NULLS_LAST, id_ASC]'
+// balances of different tokens don't compare, so an address's holdings go by token name
+const HOLDING_ORDER = '[token_name_ASC_NULLS_LAST, id_ASC]'
 
 export function tokensPage(limit: number, offset: number) {
     return gql<{tokens: TokenRow[]; conn: {totalCount: number}}>(
@@ -880,12 +884,12 @@ const TOKEN_TRANSFER_ORDER = '[timestamp_DESC, transaction_txIndex_DESC, id_DESC
 export function tokenDetail(address: string, page: Slice) {
     return gql<{
         tokenById: TokenRow | null
-        tokenHolders: {id: string; address: string; balance: string | null}[]
+        tokenHolders: {id: string; address: string; balance: string}[]
         tokenTransfers: TokenTransferRow[]
     }>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
             tokenById(id: $id) { ${TOKEN_FIELDS} }
-            tokenHolders(where: {token: {id_eq: $id}, balance_gt: 0}, orderBy: ${HOLDER_ORDER}, limit: $limit, offset: $offset) { id address balance }
+            tokenHolders(where: {token: {id_eq: $id}, ${HELD}}, orderBy: ${HOLDER_ORDER}, limit: $limit, offset: $offset) { id address balance }
             tokenTransfers(where: {token: {id_eq: $id}}, orderBy: ${TOKEN_TRANSFER_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
         }`,
         {id: address, limit: page.limit, offset: page.offset}
@@ -953,8 +957,8 @@ export function evmAddressData(address: string, page: Slice) {
         `query ($a: String!, $limit: Int!, $offset: Int!) {
             txs: evmTransactions(where: ${txs}, orderBy: [timestamp_DESC, txIndex_DESC], limit: $limit, offset: $offset) { ${EVM_TX_FIELDS} }
             txCount: evmTransactionsConnection(where: ${txs}, orderBy: id_ASC) { totalCount }
-            holdings: tokenHolders(where: {address_eq: $a}, orderBy: ${HOLDER_ORDER}, limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
-            holdingCount: tokenHoldersConnection(where: {address_eq: $a}, orderBy: id_ASC) { totalCount }
+            holdings: tokenHolders(where: {address_eq: $a, ${HELD}}, orderBy: ${HOLDING_ORDER}, limit: $limit, offset: $offset) { balance token { ${TOKEN_FIELDS} } }
+            holdingCount: tokenHoldersConnection(where: {address_eq: $a, ${HELD}}, orderBy: id_ASC) { totalCount }
             created: evmTransactions(where: {contractAddress_eq: $a}, limit: 1) { id }
             asToken: tokenById(id: $a) { ${TOKEN_FIELDS} }
         }`,

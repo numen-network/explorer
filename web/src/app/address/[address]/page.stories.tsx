@@ -1,5 +1,9 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
+import {shortAddr} from '@/components/AddressText'
 import {paged, rows} from '../../../../../mock/fixtures.js'
-import {bytecode, calldata, EVERY_HOLDING, evmAddress, evmTx, exit, EXIT, holding, holdings, SELECTOR, token, UINT256_MAX, units, WTMR} from '../../../../../mock/fixtures/evm.js'
+import {bytecode, calldata, EVERY_HOLDING, evmAddress, evmTx, exit, EXIT, holding, holdings, NOT_HELD, SELECTOR, token, UINT256_MAX, units, WTMR} from '../../../../../mock/fixtures/evm.js'
+import {tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import EvmAddressPage from './page'
 
@@ -9,22 +13,28 @@ export default {title: 'Pages/EVM Address', ...pageMeta(EvmAddressPage)}
 interface AddressData {
     txs?: object[]
     holdings?: object[]
+    notHeld?: object[]
     created?: object[]
     asToken?: object | null
 }
 
-// the page asks evmTransactions twice, for the address's own list and for the tx that created it
-const addressPage = (address: string, {txs = [], holdings = [], created = [], asToken = null}: AddressData = {}, searchParams = {}) =>
-    pageStory(
+type HolderArgs = {where: {balance_gt?: number}; limit: number; offset: number}
+
+// the page asks evmTransactions twice, for the address's own list and for the tx that created it.
+// the index keeps rows for tokens the address doesn't hold, only a query asking for a balance above zero leaves them out
+const addressPage = (address: string, {txs = [], holdings = [], notHeld = [], created = [], asToken = null}: AddressData = {}, searchParams = {}) => {
+    const holderRows = ({where}: HolderArgs) => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
+    return pageStory(
         {
             evmTransactions: (args: {where: {OR?: unknown}; limit: number; offset: number}) => (args.where.OR ? paged(txs)(args) : created),
             evmTransactionsConnection: {totalCount: txs.length},
-            tokenHolders: paged(holdings),
-            tokenHoldersConnection: {totalCount: holdings.length},
+            tokenHolders: (args: HolderArgs) => paged(holderRows(args))(args),
+            tokenHoldersConnection: (args: HolderArgs) => ({totalCount: holderRows(args).length}),
             tokenById: asToken,
         },
         {params: {address}, searchParams}
     )
+}
 
 const HOLDINGS_TAB = {tab: 'holdings'}
 
@@ -57,13 +67,50 @@ export const EoaTxsPage2 = addressPage(alice, {txs: manyTxs}, {page: '2'})
 
 export const EoaTxsLastPage = addressPage(alice, {txs: manyTxs}, {page: lastPage(manyTxs.length)})
 
-export const EoaHoldings = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: EVERY_HOLDING}, HOLDINGS_TAB)
+export const EoaHoldings: StoryObj = {
+    ...addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: EVERY_HOLDING}, HOLDINGS_TAB),
+    play: async ({canvasElement}) =>
+        expect(tokenLabels(canvasElement)).toEqual([
+            'A token name long enough to crowd its balance off a phone screen',
+            'Comet Points',
+            'Nova Fund Share',
+            'Orbit Dollar',
+            'Polaris Governance',
+            'Spectral Shard',
+            'Wrapped WTMR',
+            shortAddr(token(2).id),
+        ]),
+}
 
 export const EoaHoldingsOne = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: [holding(WTMR, units(1_234.5, 1))]}, HOLDINGS_TAB)
 
+// a token at a zero balance or with no answer to balanceOf is neither listed nor counted
+export const EoaHoldingsSkipNotHeld: StoryObj = {
+    ...addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: [holding(token(1), units(5_000_000, 18)), holding(WTMR, units(1_234.5, 1))], notHeld: NOT_HELD}, HOLDINGS_TAB),
+    play: async ({canvasElement}) => {
+        expect(tokenLabels(canvasElement)).toEqual(['Polaris Governance', 'Wrapped WTMR'])
+        expect(tabCount(canvasElement, 'holdings')).toBe('2')
+    },
+}
+
+// with nothing held there is no tokens tab, and a link to it opens the first tab
+export const EoaHoldingsNoneHeld: StoryObj = {
+    ...addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], notHeld: NOT_HELD}, HOLDINGS_TAB),
+    play: async ({canvas, canvasElement}) => {
+        expect(tabCount(canvasElement, 'holdings')).toBeNull()
+        expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^Transactions/)
+    },
+}
+
 const manyHoldings = holdings(50)
 
-export const EoaHoldingsMany = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: manyHoldings}, HOLDINGS_TAB)
+// fifty holdings share ten token names, five rows to a name
+const fiveEach = (...names: string[]) => names.flatMap(name => Array(5).fill(name))
+
+export const EoaHoldingsMany: StoryObj = {
+    ...addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: manyHoldings}, HOLDINGS_TAB),
+    play: async ({canvasElement}) => expect(tokenLabels(canvasElement)).toEqual(fiveEach('Asteroid Ore', 'Comet Points', 'Kuiper Belt Dust', 'Lunar Bond')),
+}
 
 export const EoaHoldingsPage2 = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: manyHoldings}, {...HOLDINGS_TAB, page: '2'})
 

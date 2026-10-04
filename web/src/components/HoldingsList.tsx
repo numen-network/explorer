@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import AddressText from '@/components/AddressText'
-import {NONE} from '@/components/Detail'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
 import TokenIcon from '@/components/TokenIcon'
 import {fmtBalance} from '@/lib/format'
@@ -22,7 +21,7 @@ export default function HoldingsList({rows}: {rows: HoldingRow[]}) {
                         </>
                     }
                 >
-                    <span className="font-mono">{h.balance != null ? fmtBalance(h.balance, h.token.decimals ?? 0, h.token.symbol ?? undefined) : NONE}</span>
+                    <span className="font-mono">{fmtBalance(h.balance, h.token.decimals ?? 0, h.token.symbol ?? undefined)}</span>
                 </SplitRow>
             ))}
         </SplitRows>

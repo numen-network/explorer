@@ -350,11 +350,14 @@ const TOKENS = [
 
 export const HOLDING = {balance: numn(1_532.75), token: TOKENS[0]}
 
-// raw balance first and the token that answered nothing last, the way the query orders them
+// by token name with the nameless token last, the way the query orders them
 export const holdingRows = count => {
-    const plain = Array.from({length: count - TOKENS.length}, (_, i) => ({balance: numn(1_000 / (i + 1)), token: tokenRow(contract(10 + i), {name: `Token ${i + 1}`, symbol: `TK${i + 1}`})}))
-    return [{balance: MAX_U128, token: TOKENS[3]}, HOLDING, ...plain, {balance: '1234567890', token: TOKENS[1]}, {balance: null, token: TOKENS[2]}]
+    const plain = Array.from({length: count - TOKENS.length}, (_, i) => ({balance: numn(1_000 / (i + 1)), token: tokenRow(contract(10 + i), {name: `Token ${String(i + 1).padStart(2, '0')}`, symbol: `TK${i + 1}`})}))
+    return [{balance: MAX_U128, token: TOKENS[3]}, {balance: '1234567890', token: TOKENS[1]}, ...plain, HOLDING, {balance: '42', token: TOKENS[2]}]
 }
+
+// rows the index keeps for tokens the account doesn't hold, a zero balance or no answer to balanceOf
+export const NOT_HELD = [{balance: '0', token: TOKENS[1]}, {balance: null, token: TOKENS[2]}]
 
 const tokenTransfer = (h, i, traits = {}) => {
     const token = TOKENS[i % 2]
@@ -417,6 +420,7 @@ export function accountPage({
     tokens = 0,
     tokenTransfers = [],
     holdings = [],
+    notHeld = [],
     counts = {},
 }) {
     const self = account.id
@@ -426,6 +430,8 @@ export function accountPage({
     const perTrack = id => counts.tracks?.[id] ?? onTrack(id).length
     const allIn = counts.tracks ? Object.values(counts.tracks).reduce((a, b) => a + b, 0) : delegationsIn.length
     const deployed = Array.from({length: deploys}, (_, i) => ({contractAddress: contract(100 + i)}))
+    // the index keeps rows for tokens the account doesn't hold, only a query asking for a balance above zero leaves them out
+    const holderRows = where => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
     return {
         accountById: account,
         validators: validator ? [validator] : [],
@@ -468,7 +474,7 @@ export function accountPage({
         tokens: deployed.slice(0, tokens).map(d => ({id: d.contractAddress})),
         tokenTransfersConnection: count(counts.tokenTransfers ?? tokenTransfers.length),
         tokenTransfers,
-        tokenHoldersConnection: count(counts.holdings ?? holdings.length),
-        tokenHolders: holdings,
+        tokenHoldersConnection: ({where}) => count(counts.holdings ?? holderRows(where).length),
+        tokenHolders: ({where}) => holderRows(where),
     }
 }

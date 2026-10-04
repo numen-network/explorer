@@ -167,6 +167,15 @@ export function expectWholeWords(...boxes: Element[]) {
     }
 }
 
+// what every token link under root reads, in page order
+export const tokenLabels = (root: Element) => [...root.querySelectorAll('a[href^="/token/"]')].map(link => link.textContent)
+
+// the count on the tab that opens slug, or null when the page shows no such tab
+export function tabCount(root: Element, slug: string) {
+    const tab = root.querySelector(`[role=tab][href$="?tab=${slug}"]`)
+    return tab && tab.querySelector('[data-slot=badge]')!.textContent
+}
+
 // the chips of the filter row named label, each read as its label and count,
 // the active one in brackets, or null when no such row shows
 export function filterChips(root: Element, label: string) {

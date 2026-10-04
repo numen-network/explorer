@@ -22,6 +22,7 @@ import {
     MULTISIG_ENDS,
     multisigOp,
     multisigOps,
+    NOT_HELD,
     PRIME_KEY,
     proxyDelegates,
     proxyFor,
@@ -43,7 +44,7 @@ import {
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {DESKTOP, expectWholeWords, filterChips} from '../../../../.storybook/fit'
+import {DESKTOP, expectWholeWords, filterChips, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
@@ -184,7 +185,37 @@ export const TokensMany = story({account: mapped(), deploys: 2, tokenTransfers: 
 
 export const HoldingsOne = story({account: mapped(), holdings: [HOLDING]}, {tab: 'holdings'})
 
-export const HoldingsMany = story({account: mapped(), holdings: holdingRows(20), counts: {holdings: 33}}, {tab: 'holdings'})
+// a token at a zero balance or with no answer to balanceOf is neither listed nor counted
+export const HoldingsSkipNotHeld: StoryObj = {
+    ...story({account: mapped(), holdings: [HOLDING], notHeld: NOT_HELD}, {tab: 'holdings'}),
+    play: async ({canvasElement}) => {
+        expect(tokenLabels(canvasElement)).toEqual(['Wrapped Tumor'])
+        expect(tabCount(canvasElement, 'holdings')).toBe('1')
+    },
+}
+
+// with nothing held there is no tokens tab, and a link to it opens the first tab
+export const HoldingsNoneHeld: StoryObj = {
+    ...story({account: mapped(), transfers: accountTransfers(2), notHeld: NOT_HELD}, {tab: 'holdings'}),
+    play: async ({canvas, canvasElement}) => {
+        expect(tabCount(canvasElement, 'holdings')).toBeNull()
+        const [group, member] = canvas.getAllByRole('tab', {selected: true})
+        expect(group).toHaveAccessibleName(/^Transfers/)
+        expect(member).toHaveAccessibleName(/^Native/)
+    },
+}
+
+export const HoldingsMany: StoryObj = {
+    ...story({account: mapped(), holdings: holdingRows(20), counts: {holdings: 33}}, {tab: 'holdings'}),
+    play: async ({canvasElement}) =>
+        expect(tokenLabels(canvasElement)).toEqual([
+            'A token name long enough to crowd its balance off the row',
+            'Orbit Credits',
+            ...Array.from({length: 16}, (_, i) => `Token ${String(i + 1).padStart(2, '0')}`),
+            'Wrapped Tumor',
+            '0xe2e2e…e2e2',
+        ]),
+}
 
 export const ExtrinsicsEmpty = story({account: subject({nonce: 0}), transfers: rows(3, (h: number, i: number) => transfer(h, i, {to: ME}))}, {tab: 'extrinsics'})
 

@@ -81,25 +81,26 @@ export const holders = (tok, count, offset = 0) =>
 
 export const holding = (tok, balance) => ({balance, token: tok})
 
-// balance_DESC_NULLS_LAST compares raw integers, whatever decimals each token has
+// by token name and then token address, the order the holdings list asks for
 export const holdings = count =>
     Array.from({length: count}, (_, i) => token(i))
         .map((t, i) => holding(t, units(37 * (i + 1), t.decimals)))
-        .sort((a, b) => (BigInt(a.balance) < BigInt(b.balance) ? 1 : -1))
+        .sort((a, b) => a.token.name.localeCompare(b.token.name) || (a.token.id < b.token.id ? -1 : 1))
 
 // one row per way a holding can render, in the order the query returns them
 export const EVERY_HOLDING = [
-    holding(token(4, {totalSupply: UINT256_MAX}), UINT256_MAX),
-    holding(token(1), units(5_000_000, 18)),
-    holding(token(2, {name: null}), units(250_000, 18)),
     holding(token(8, {name: 'A token name long enough to crowd its balance off a phone screen'}), units(42, 18)),
+    holding(token(4, {totalSupply: UINT256_MAX}), UINT256_MAX),
     holding(token(3, {decimals: null}), units(77, 12)),
-    holding(token(6, {symbol: null}), units(1_234, 9)),
     holding(token(0), units(12.5, 6)),
+    holding(token(1), units(5_000_000, 18)),
+    holding(token(6, {symbol: null}), units(1_234, 9)),
     holding(WTMR, units(1_234.5, 1)),
-    holding(token(7), '0'),
-    holding(token(5), null),
+    holding(token(2, {name: null}), units(250_000, 18)),
 ]
+
+// rows the index keeps for tokens an address doesn't hold, a zero balance or no answer to balanceOf
+export const NOT_HELD = [holding(token(7), '0'), holding(token(5), null)]
 
 export const EXIT = {
     stopped: {__kind: 'Succeed', value: {__kind: 'Stopped'}},
