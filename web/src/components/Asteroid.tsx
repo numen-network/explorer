@@ -50,7 +50,8 @@ export default function Asteroid({vertices, faces, size = 150, interactive = fal
 
             renderer = new THREE.WebGLRenderer({antialias: true, alpha: true})
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-            renderer.setSize(size, size)
+            renderer.setSize(size, size, false)
+            renderer.domElement.style.width = '100%'
             renderer.domElement.style.opacity = '0'
             renderer.domElement.style.transition = 'opacity 300ms'
             el.replaceChildren(renderer.domElement)
@@ -81,5 +82,5 @@ export default function Asteroid({vertices, faces, size = 150, interactive = fal
             el.replaceChildren()
         }
     }, [vertices, faces, size, interactive])
-    return <div ref={ref} style={{width: size, height: size}} />
+    return <div ref={ref} className="aspect-square w-full" style={{maxWidth: size}} />
 }

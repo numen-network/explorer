@@ -2,7 +2,8 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {HEAD, hashOf, person} from '../../../../../mock/fixtures.js'
 import {busy, DIGEST, GENESIS, heartbeat, mined, minedObject, sessionStart, subcalls, timestampSet, TOPOLOGY, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
-import {pageMeta, pageStory} from '../../../../.storybook/page'
+import {drawnCanvases, expectInContentBox, PHONE} from '../../../../.storybook/fit'
+import {inSiteGutters, pageMeta, pageStory} from '../../../../.storybook/page'
 import BlockPage from './page'
 
 export default {title: 'Pages/Block', ...pageMeta(BlockPage)}
@@ -45,6 +46,15 @@ function detail(b: Mined, {tab = '', page = 1} = {}) {
 const genesis = (tab = '') => pageStory({blocks: [GENESIS]}, {params: {id: '0'}, searchParams: tab ? {tab} : {}})
 
 export const Extrinsics = detail(BUSY)
+
+// a phone narrows the object to its card, clear of the padding
+export const ExtrinsicsOnPhone: StoryObj = {
+    ...inSiteGutters(Extrinsics, PHONE),
+    play: async ({canvasElement}) => {
+        const [object] = await drawnCanvases(canvasElement, 1)
+        expectInContentBox(object.closest('[data-slot=card]')!, object)
+    },
+}
 
 export const ExtrinsicsOne = detail(QUIET)
 

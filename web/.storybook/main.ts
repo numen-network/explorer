@@ -33,6 +33,7 @@ const config: StorybookConfig = {
                     'next/dist/client/components/redirect',
                     'radix-ui',
                     'react-day-picker',
+                    'storybook/viewport',
                     'three',
                     'three/addons/controls/OrbitControls.js',
                     'zustand',

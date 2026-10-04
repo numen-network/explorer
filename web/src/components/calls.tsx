@@ -16,7 +16,7 @@ export function CallPill({call}: {call: CallRef | null}) {
     if (!call) return <span className="text-[11px] text-dim">—</span>
     return (
         <Tip text={qualified(call)}>
-            <Badge variant="primary" className="font-mono">
+            <Badge variant="primary" className="min-w-0 shrink truncate font-mono">
                 {call.method}
             </Badge>
         </Tip>
@@ -69,10 +69,10 @@ export function CallTree({calls, chain, signer}: {calls: CallRow[]; chain: Chain
                 const dispatched = c.origin && c.origin.id !== signer?.id ? c.origin : null
                 return (
                     <Collapsible key={c.id} defaultOpen={c.address.length === 0} className="group py-2.5 pr-5">
-                        <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-3 text-left text-sm" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
-                            <span className="font-mono text-[13px]">{qualified(c)}</span>
+                        <CollapsibleTrigger className="flex w-full cursor-pointer flex-wrap items-center gap-x-3 text-left text-sm" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
+                            <span className="font-mono text-[13px] wrap-anywhere">{qualified(c)}</span>
                             {!c.success && <Badge variant="neg">Failed</Badge>}
-                            {c.events.length > 0 && <span className="text-[11px] text-dim">{fmtCount(c.events.length, 'event')}</span>}
+                            {c.events.length > 0 && <span className="text-[11px] whitespace-nowrap text-dim">{fmtCount(c.events.length, 'event')}</span>}
                         </CollapsibleTrigger>
                         <CollapsibleContent className="mt-2 space-y-2" style={{paddingLeft: `${36 + c.address.length * 22}px`}}>
                             {dispatched && (
@@ -85,9 +85,11 @@ export function CallTree({calls, chain, signer}: {calls: CallRow[]; chain: Chain
                             {raised.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5">
                                     {raised.map(name => (
-                                        <Badge key={name} variant="outline" className="bg-background font-mono text-muted-foreground">
-                                            {name}
-                                        </Badge>
+                                        <Tip key={name} text={name}>
+                                            <Badge variant="outline" className="min-w-0 shrink truncate bg-background font-mono text-muted-foreground">
+                                                {name}
+                                            </Badge>
+                                        </Tip>
                                     ))}
                                 </div>
                             )}

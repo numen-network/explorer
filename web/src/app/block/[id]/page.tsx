@@ -106,7 +106,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                             </div>
                         </>
                     ) : (
-                        <div className="grid h-[290px] place-items-center text-sm text-dim">object not indexed</div>
+                        <div className="grid aspect-square w-full max-w-[290px] place-items-center text-sm text-dim">object not indexed</div>
                     )}
                 </Card>
 

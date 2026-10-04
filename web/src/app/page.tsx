@@ -267,8 +267,8 @@ export default async function Home() {
                                     </div>
                                 </div>
                                 <div className="flex shrink-0 items-baseline justify-between gap-3 sm:block sm:text-right">
-                                    <div className="font-mono text-sm">{fmtCompact3(t.amount, props.decimals, props.symbol)}</div>
-                                    <div className="flex justify-end sm:mt-1">
+                                    <div className="font-mono text-sm whitespace-nowrap">{fmtCompact3(t.amount, props.decimals, props.symbol)}</div>
+                                    <div className="flex min-w-0 justify-end sm:mt-1">
                                         <CallPill call={t.call} />
                                     </div>
                                 </div>

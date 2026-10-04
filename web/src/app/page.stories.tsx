@@ -3,8 +3,8 @@ import {expect, screen, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
-import {axesLegible, expectFits, expectNoHangingDots, expectOneLine, expectTimesFit, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
-import {pageMeta, pageStory} from '../../.storybook/page'
+import {axesLegible, drawnCanvases, expectFits, expectInContentBox, expectNoHangingDots, expectOneLine, expectTimesFit, LAPTOP, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
+import {inSiteGutters, pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
 export default {title: 'Pages/Home', ...pageMeta(Home)}
@@ -161,10 +161,12 @@ export const HomeMany: StoryObj = {
     },
 }
 
-// a crowded referendum row squeezes its title and wraps its facts rather than overflowing
+// a crowded transfer row keeps its amount whole and cuts its call short, a
+// crowded referendum row squeezes its title and wraps its facts, rather than overflowing
 function expectListsFit(root: HTMLElement) {
-    const rows = (heading: string) => [...within(root).getByRole('heading', {name: heading}).parentElement!.nextElementSibling!.children]
+    const rows = (heading: string) => [...within(root).getByRole('heading', {name: heading}).parentElement!.nextElementSibling!.children] as HTMLElement[]
     expectFits(...rows('Transfers'), ...rows('Referenda').flatMap(row => [row, ...row.querySelectorAll(':scope > * > *')]))
+    expectOneLine(...rows('Transfers').map(row => within(row).getByText(/ NUMN$/)))
 }
 
 // every block card keeps its rows inside the card, its miner on one line and
@@ -185,7 +187,19 @@ const fitsPhone = async ({canvasElement}: {canvasElement: HTMLElement}) => {
     expectTimesFit(canvasElement)
 }
 
-export const HomeManyOnPhone: StoryObj = {...HomeMany, globals: PHONE, play: fitsPhone}
+export const HomeManyOnPhone: StoryObj = {...inSiteGutters(HomeMany, PHONE), play: fitsPhone}
+
+// lg fits five block cards in a row, each keeps its object clear of the
+// padding and its protocol on one line
+export const HomeManyOnLaptop: StoryObj = {
+    ...inSiteGutters(HomeMany, LAPTOP),
+    play: async ({canvasElement}) => {
+        const rail = within(canvasElement).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
+        for (const object of await drawnCanvases(rail, 5)) expectInContentBox(object.closest('[data-slot=card]')!, object)
+        expectOneLine(...within(rail).getAllByText(PROTOCOL))
+        expectBlockCardsFit(canvasElement)
+    },
+}
 
 export const HomeChartTooltipOnPhone: StoryObj = {...HomeMany, globals: PHONE, play: tooltipsInView}
 
@@ -264,7 +278,7 @@ export const HomeTruncationEdges: StoryObj = {
     },
 }
 
-export const HomeTruncationEdgesOnPhone: StoryObj = {...HomeTruncationEdges, globals: PHONE, play: fitsPhone}
+export const HomeTruncationEdgesOnPhone: StoryObj = {...inSiteGutters(HomeTruncationEdges, PHONE), play: fitsPhone}
 
 const FAR = 987_654_321
 const HUGE = '987654321098765432109876543210'
@@ -322,4 +336,4 @@ export const HomeExtremes: StoryObj = {
     },
 }
 
-export const HomeExtremesOnPhone: StoryObj = {...HomeExtremes, globals: PHONE, play: fitsPhone}
+export const HomeExtremesOnPhone: StoryObj = {...inSiteGutters(HomeExtremes, PHONE), play: fitsPhone}

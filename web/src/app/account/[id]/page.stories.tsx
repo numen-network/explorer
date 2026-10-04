@@ -44,8 +44,8 @@ import {
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {DESKTOP, expectWholeWords, filterChips, tabCount, tokenLabels} from '../../../../.storybook/fit'
-import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
+import {DESKTOP, expectFits, expectWholeWords, filterChips, PHONE, tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {inSiteGutters, lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
 const wellKnown: Decorator = Story => (
@@ -314,6 +314,9 @@ export const TimelineMany = story(
     },
     {tab: 'timeline'}
 )
+
+// a phone breaks the longest event name inside its card
+export const TimelineManyOnPhone: StoryObj = {...inSiteGutters(TimelineMany, PHONE), play: async ({canvas}) => expectFits(canvas.getByText('DanglingUsernameRemoved'))}
 
 const withSubs = (n: number) => named({...funds(numn(48_210.75), reservedOf(IDENTITY_DEPOSIT, numn(2.01 * n))), depositsJson: [{id: 'subs', amount: numn(2.01 * n)}]})
 

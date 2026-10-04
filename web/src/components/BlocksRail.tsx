@@ -68,7 +68,7 @@ export default function BlocksRail({cards, faces}: {cards: BlockCard[]; faces: s
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-2 font-mono text-[11px] text-dim">
                         <span className="truncate">OBJ {shortHash(c.workHash, 6, 4)}</span>
-                        <span>{c.protocol}</span>
+                        <span className="whitespace-nowrap">{c.protocol}</span>
                     </div>
                 </Card>
             ))}

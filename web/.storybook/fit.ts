@@ -4,6 +4,7 @@ import {expect, waitFor} from 'storybook/test'
 
 export const PHONE = {viewport: {value: 'mobile1', isRotated: false}}
 export const TABLET = {viewport: {value: 'tablet', isRotated: false}}
+export const LAPTOP = {viewport: {value: 'laptop', isRotated: false}}
 export const DESKTOP = {viewport: {value: 'desktop', isRotated: false}}
 
 // content that runs past a box widens its scroll width, even when the box clips it
@@ -145,6 +146,28 @@ function contentEdges(box: Element) {
     const style = getComputedStyle(box)
     return {left: r.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft), right: r.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight)}
 }
+
+// each element stays clear of the border and padding of box
+export function expectInContentBox(box: Element, ...els: Element[]) {
+    expect(els.length).toBeGreaterThan(0)
+    const edges = contentEdges(box)
+    for (const el of els) {
+        const r = el.getBoundingClientRect()
+        const name = el.textContent || el.tagName
+        expect({name, inside: r.left >= edges.left - 0.5 && r.right <= edges.right + 0.5}).toEqual({name, inside: true})
+    }
+}
+
+// a 3D object draws from an effect once its mesh unpacks, after the story has mounted
+export const drawnCanvases = (root: Element, count: number) =>
+    waitFor(
+        () => {
+            const canvases = [...root.querySelectorAll('canvas')]
+            expect(canvases).toHaveLength(count)
+            return canvases
+        },
+        {timeout: 5000}
+    )
 
 // the box of every run of text under el, one per line it takes up
 function textBoxes(el: Element) {

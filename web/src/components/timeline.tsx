@@ -40,7 +40,7 @@ export function TimelineItem({tone, icon: Icon, title, iso, links, detail}: {ton
                 <Icon className="size-[15px]" strokeWidth={1.5} />
             </span>
             <div className="min-w-0">
-                <div className="text-sm font-medium">{title}</div>
+                <div className="text-sm font-medium wrap-anywhere">{title}</div>
                 {iso && (
                     <div className="mt-1 text-xs text-muted-foreground">
                         <TimeCell iso={iso} cycle />
