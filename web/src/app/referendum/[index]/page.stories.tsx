@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, within} from 'storybook/test'
+import {expect, waitFor, within} from 'storybook/test'
 import data, {referenda} from '../../../../../mock/data.js'
 import {at, HEAD, numn, paged, PEOPLE} from '../../../../../mock/fixtures.js'
 import {
@@ -23,7 +23,7 @@ import {
     voteAction,
     voteData,
 } from '../../../../../mock/fixtures/governance.js'
-import {expectFits, expectNoHangingDots, expectTimesFit, PHONE} from '../../../../.storybook/fit'
+import {expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, lastTooltipLines, PHONE} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 
@@ -490,30 +490,59 @@ export const DelegatorsAddUp = withPlay(withDelegators([delegation(anon(80), PEO
 
 const hugeSpend = '9999999999999999999999999'
 
-const extremeAmounts = cast(
-    {
-        ...deciding(18, refundTitle),
-        ...proposal([{pallet: 'Treasury', method: 'spend', depth: 0, amount: hugeSpend, beneficiary: PEOPLE[7].id, validFrom: null}], {
-            assetKind: null,
-            amount: hugeSpend,
-            beneficiary: PEOPLE[7].id,
-            validFrom: null,
-        }),
-    },
-    [
-        {...standard(PEOPLE[7], true, 'Locked1x', numn(52_000_000)), block: 975_000},
-        {...standard(anon(9), false, 'None', '10'), block: 976_000},
-    ],
-    'call'
-)
+const extremeAmounts = (tab: string) =>
+    cast(
+        {
+            ...deciding(18, refundTitle),
+            ...proposal([{pallet: 'Treasury', method: 'spend', depth: 0, amount: hugeSpend, beneficiary: PEOPLE[7].id, validFrom: null}], {
+                assetKind: null,
+                amount: hugeSpend,
+                beneficiary: PEOPLE[7].id,
+                validFrom: null,
+            }),
+        },
+        [
+            {...standard(PEOPLE[7], true, 'Locked1x', numn(52_000_000)), block: 975_000},
+            {...standard(anon(9), false, 'None', '10'), block: 976_000},
+        ],
+        tab
+    )
 
 // the queries bound to the card under a title
 const card = (root: HTMLElement, title: string) => within(within(root).getByText(title).closest<HTMLElement>('[data-slot=card]')!)
 
 // a single planck of nay against 52M of aye keeps the aye share under 100%
-export const ExtremeAmounts = withPlay(extremeAmounts, async ({canvasElement}) => {
+export const ExtremeAmounts = withPlay(extremeAmounts('call'), async ({canvasElement}) => {
     for (const figure of ['99.99%', '<0.01%']) await expect(card(canvasElement, 'Tally').getByText(figure)).toBeInTheDocument()
 })
+
+// the lines of the curves tooltip at the newest step of the tally
+const tallyReadings = async (root: HTMLElement) => {
+    await waitFor(() => expectLegibleAxes(root))
+    return lastTooltipLines(root, 'Current approval')[0]
+}
+
+// the curves read that planck of nay off the tally too
+export const CurvesExtremeAmounts = withPlay(extremeAmounts('curves'), async ({canvasElement}) => {
+    await expect(await tallyReadings(canvasElement)).toContain('Current approval99.99%')
+})
+
+// a planck of aye against a million of nay is a sliver of approval and of
+// support, not none
+export const CurvesDustAye = withPlay(
+    cast(
+        deciding(24, 'A planck of aye against a million of nay'),
+        [
+            {...standard(PEOPLE[0], true, 'None', '10'), block: 952_000},
+            {...standard(PEOPLE[1], false, 'Locked1x', numn(1_000_000)), block: 953_000},
+        ],
+        'curves'
+    ),
+    async ({canvasElement}) => {
+        const lines = await tallyReadings(canvasElement)
+        for (const line of ['Current approval<0.01%', 'Current support<0.01%']) await expect(lines).toContain(line)
+    }
+)
 
 // four nay votes against 9,996 aye votes, support a sliver of active issuance,
 // and prepare and confirm periods that stop between whole units of time

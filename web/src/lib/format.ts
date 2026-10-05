@@ -48,6 +48,15 @@ export function planckToNum(planck: string | bigint, decimals: number): number {
     return Number(BigInt(planck) / 10n ** BigInt(shift)) / 10 ** (decimals - shift)
 }
 
+// a part of a whole, which fmtPct prints and pctToNum draws
+export type Share = [part: bigint, whole: bigint]
+
+// a share as the float percent a bar or a line draws, the figure beside it
+// comes from fmtPct. a share of nothing draws as none
+export function pctToNum(part: bigint, whole: bigint): number {
+    return whole > 0n ? Number((part * 10n ** 12n) / whole) / 1e10 : 0
+}
+
 // a plain number counts as the shortest decimal that round-trips to it, so
 // 1.15 is 115 at two decimals and not the 1.1499… its binary holds
 function planckOf(x: number | string | bigint, decimals: number): [planck: bigint, decimals: number] {

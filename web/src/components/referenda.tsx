@@ -6,7 +6,7 @@ import DotRow from '@/components/DotRow'
 import {TimeCell} from '@/components/TimeCell'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtBalance, fmtPct, fmtSpan, trackLabel} from '@/lib/format'
+import {camelLabel, fmtBalance, fmtPct, fmtSpan, pctToNum, trackLabel} from '@/lib/format'
 import type {AccountRef, ProposalNode, ReferendumRow} from '@/lib/gql'
 import {phaseOf, type Phase} from '@/lib/referendum'
 import {ss58Encode} from '@/lib/ss58'
@@ -66,7 +66,7 @@ export function Gauge({value, need, variant}: {value: number | null; need?: numb
 }
 
 export function ThresholdBar({label, part, whole, need, variant, foot}: {label: string; part: bigint; whole: bigint; need: number; variant: 'split' | 'solid'; foot?: ReactNode}) {
-    const value = whole > 0n ? Number((part * 10n ** 12n) / whole) / 1e10 : null
+    const value = whole > 0n ? pctToNum(part, whole) : null
     const tone = value === null ? 'text-muted-foreground' : value >= need ? 'text-good' : 'text-destructive'
     return (
         <div className="min-w-0">

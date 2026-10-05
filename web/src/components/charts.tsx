@@ -1,6 +1,6 @@
 'use client'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
-import {fmtInt, fmtPct, fmtSpan, fmtTick} from '@/lib/format'
+import {fmtInt, fmtPct, fmtSpan, fmtTick, pctToNum, type Share} from '@/lib/format'
 import * as echarts from 'echarts'
 import {useEffect, useRef} from 'react'
 
@@ -201,12 +201,22 @@ function ticksIn(from: number, to: number): number[] {
 const GRID = 600
 const evenly = (from: number, to: number) => Array.from({length: GRID + 1}, (_, k) => from + ((to - from) * k) / GRID)
 
-// a step line holds the last recorded value at each hour
-function heldAt(steps: [number, number][], grid: number[]): [number, number][] {
+// a tally step holds its share of the vote from its hour on
+export type TallyStep = [hour: number, share: Share]
+
+interface HeldPoint {
+    value: [hour: number, pct: number]
+    share: Share
+}
+
+// a step line holds the last recorded share at each hour, and each point
+// carries that share for the tooltip to print
+function heldAt(steps: TallyStep[], grid: number[]): HeldPoint[] {
     let i = 0
     return grid.map(h => {
         while (i + 1 < steps.length && steps[i + 1][0] <= h) i++
-        return [h, steps[i][1]]
+        const share = steps[i][1]
+        return {value: [h, pctToNum(...share)], share}
     })
 }
 
@@ -229,9 +239,9 @@ export function CurvesChart({
 }: {
     approval: Curve
     support: Curve
-    currentApproval: [number, number][]
-    currentSupport: [number, number][]
-    now: {at: number; approval: number; support: number} | null
+    currentApproval: TallyStep[]
+    currentSupport: TallyStep[]
+    now: {at: number} | null
     confirmations: [number, number][]
     earlyEnd: number | null
     hours: number
@@ -239,7 +249,7 @@ export function CurvesChart({
     lead: {from: number; submitted: number}
     height?: number
 }) {
-    const walked = (name: string, data: [number, number][], color: string) => ({
+    const walked = (name: string, data: HeldPoint[], color: string) => ({
         name,
         type: 'line' as const,
         symbol: 'none',
@@ -266,16 +276,18 @@ export function CurvesChart({
         tooltip: {
             ...TOOLTIP,
             formatter: (params: unknown) => {
-                const list = params as {axisValue: number; seriesName?: string; marker?: string; value: [number, number]}[]
+                const list = params as {axisValue: number; seriesName?: string; marker?: string; value: [number, number]; data: [number, number] | HeldPoint}[]
                 const at = list[0].axisValue
                 const block = blockAt(at)
                 const head =
                     at < 0
                         ? `Lead-in ${fmtSpan((block - lead.submitted) * clock.blockTime)} · #${fmtInt(block)}`
                         : `${fmtSpan((block - clock.zero) * clock.blockTime)}${clock.started ? ` · #${fmtInt(block)}` : ''}`
+                // a tally point reads the share it holds, a threshold point the curve value it plots
+                const reading = ({data, value}: (typeof list)[number]) => ('share' in data ? fmtPct(...data.share) : fmtPct(value[1], 100))
                 const rows = [...list]
                     .sort((a, b) => Number(b.seriesName?.toLowerCase().includes('approval')) - Number(a.seriesName?.toLowerCase().includes('approval')))
-                    .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${fmtPct(p.value[1], 100)}</span></div>`)
+                    .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${reading(p)}</span></div>`)
                     .join('')
                 return `<div style="margin-bottom:4px">${head}</div>${rows}`
             },
@@ -462,6 +474,8 @@ export function SeriesChart({
 export interface LineSeries {
     name: string
     values: number[]
+    // what the tooltip prints for each value
+    tips: string[]
     color?: string
     area?: boolean
 }
@@ -483,6 +497,7 @@ export function LinesChart({labels, series, height = 210, dualAxis = false}: {la
             lineStyle: {width: 2, color: s.color ?? (i === 0 ? ACCENT : GRAY)},
             itemStyle: {color: s.color ?? (i === 0 ? ACCENT : GRAY)},
             areaStyle: s.area ? {opacity: 0.08} : undefined,
+            tooltip: {valueFormatter: (_: unknown, dataIndex: number) => s.tips[dataIndex]},
             data: s.values,
         })),
     })

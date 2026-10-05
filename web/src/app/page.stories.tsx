@@ -1,10 +1,10 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, screen, within} from 'storybook/test'
+import {expect, screen, waitFor, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {minedObject, topology} from '../../../mock/fixtures/blocks.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
-import {axesLegible, drawnCanvases, drawnFaces, expectFits, expectInContentBox, expectNoHangingDots, expectOneLine, expectTimesFit, LAPTOP, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
+import {axesLegible, drawnCanvases, drawnFaces, expectFits, expectInContentBox, expectLegibleAxes, expectNoHangingDots, expectOneLine, expectTimesFit, LAPTOP, lastTooltipLines, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
 import {inSiteGutters, pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
@@ -294,6 +294,29 @@ export const HomeTruncationEdges: StoryObj = {
 }
 
 export const HomeTruncationEdgesOnPhone: StoryObj = {...inSiteGutters(HomeTruncationEdges, PHONE), play: fitsPhone}
+
+// difficulty a whisker under a quintillion, one up on the day before and a
+// ninth up on the month before, where a float no longer tells neighbouring
+// integers apart, and the day's volume more millionths of a coin than a float
+// holds exactly
+const pastFloatDays = [
+    ...DAILY.slice(0, -31),
+    {...DAILY.at(-31)!, difficultyClose: '900000000000000000'},
+    ...DAILY.slice(-30, -2),
+    {...DAILY.at(-2)!, difficultyClose: '999999999999999998'},
+    {...DAILY.at(-1)!, difficultyClose: '999999999999999999', transferVolume: '9999999999999999999999999999'},
+]
+
+export const HomePastFloat: StoryObj = {
+    ...pageStory(home({...many, days: pastFloatDays})),
+    play: async ({canvasElement}) => {
+        const tile = canvasElement.querySelector('a[href="/charts/difficulty"]')!.closest('[data-slot=card]')!
+        await expect(tile.querySelector('[data-slot=card-title]')).toHaveTextContent('999,999,999B')
+        await expect([...tile.querySelectorAll('[data-slot=card-content] > span')].map(chip => chip.textContent)).toEqual(['+<0.01% · 24h', '+11.11% · 30d'])
+        await waitFor(() => expectLegibleAxes(canvasElement))
+        expect(lastTooltipLines(canvasElement)[0].join('')).toContain('Volume (NUMN)9,999,999,999.999999')
+    },
+}
 
 const FAR = 987_654_321
 const HUGE = '987654321098765432109876543210'

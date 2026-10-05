@@ -88,6 +88,8 @@ export default async function Home() {
     const txLabels = chrono.map(d => d.id.slice(5))
     const volSeries = chrono.map(d => planckToNum(d.transferVolume, props.decimals))
     const cntSeries = chrono.map(d => d.transfers)
+    // the tooltip reads a volume down to the millionth of a coin the line plots
+    const volTips = chrono.map(d => fmtBalance(truncFixed(d.transferVolume, 6, props.decimals).replace('.', ''), 6))
 
 
     const chip = (n: number | bigint, note: string, decimals = 0): StatChip => {
@@ -98,12 +100,12 @@ export default async function Home() {
             tone: v > 0n ? 'pos' : v < 0n ? 'neg' : 'idle',
         }
     }
-    const pctChip = (cur: number, prev: number, note: string): StatChip => {
-        const move = prev > 0 ? cur - prev : 0
-        return {text: `${signOf(move)}${fmtPct(Math.abs(cur - prev), prev)}`, note, tone: move > 0 ? 'pos' : move < 0 ? 'neg' : 'idle'}
+    const pctChip = (cur: bigint, prev: bigint, note: string): StatChip => {
+        const move = prev > 0n ? cur - prev : 0n
+        return {text: `${signOf(move)}${fmtPct(move < 0n ? -move : move, prev)}`, note, tone: move > 0n ? 'pos' : move < 0n ? 'neg' : 'idle'}
     }
     const countChip = (n: number, note: string): StatChip => ({text: fmtCompact(n), note, tone: 'idle'})
-    const curDifficulty = data.blocks[0] ? Number(data.blocks[0].difficulty) : today ? Number(today.difficultyClose) : 0
+    const curDifficulty = data.blocks[0] ? BigInt(data.blocks[0].difficulty) : today ? BigInt(today.difficultyClose) : 0n
 
     const base24 = data.base24[0]
     const base30 = data.base30[0]
@@ -111,7 +113,7 @@ export default async function Home() {
     const at = (r: BaselineRow | undefined, get: (r: BaselineRow) => bigint) => (r ? get(r) : 0n)
     const stockChips = (now: bigint, get: (r: BaselineRow) => bigint) => [chip(now - at(base24, get), '24h', props.decimals), chip(now - at(base30, get), '30d', props.decimals)]
     const traAt = (r: HourlyRow | undefined) => (r ? BigInt(r.issuanceTransferable) - BigInt(r.issuanceInactive) : 0n)
-    const diffAt = (r: BaselineRow | undefined) => (r ? Number(r.difficulty) : 0)
+    const diffAt = (r: BaselineRow | undefined) => (r ? BigInt(r.difficulty) : 0n)
     const issNow = BigInt(today?.issuanceTotal ?? 0)
     const inactiveNow = BigInt(today?.issuanceInactive ?? 0)
     const traNow = today ? BigInt(today.issuanceTransferable) - inactiveNow : 0n
@@ -131,8 +133,8 @@ export default async function Home() {
                             dualAxis
                             height={208}
                             series={[
-                                {name: `Volume (${props.symbol})`, values: volSeries},
-                                {name: 'Count', values: cntSeries},
+                                {name: `Volume (${props.symbol})`, values: volSeries, tips: volTips},
+                                {name: 'Count', values: cntSeries, tips: cntSeries.map(n => fmtInt(n))},
                             ]}
                         />
                     </CardContent>
@@ -229,7 +231,7 @@ export default async function Home() {
                 />
                 <StatTile
                     label="Difficulty" href="/charts/difficulty"
-                    value={curDifficulty > 0 ? fmtCompact(curDifficulty) : '—'}
+                    value={curDifficulty > 0n ? fmtCompact(curDifficulty, 0) : '—'}
                     chips={[pctChip(curDifficulty, diffAt(base24), '24h'), pctChip(curDifficulty, diffAt(base30), '30d')]}
                 />
             </div>

@@ -7,6 +7,10 @@ export interface ChartInput {
     symbol: string
 }
 
+// a day's value as the exact quotient num / den. the tooltip and the highlight
+// print from it, only the plotted point is a float
+export type Ratio = [num: bigint, den: bigint]
+
 export interface ChartDef {
     slug: string
     group: string
@@ -15,16 +19,33 @@ export interface ChartDef {
     kind: 'line' | 'bar'
     // names the series in the tooltip and the legend
     unit: string
-    values: (input: ChartInput) => number[]
-    format: (v: number, input: ChartInput) => string
+    values: (input: ChartInput) => Ratio[]
+    plot: (v: Ratio, input: ChartInput) => number
+    format: (v: Ratio, input: ChartInput) => string
 }
 
-const num = (v: number) => fmtInt(Math.round(v))
-const token = (v: number, {symbol}: ChartInput) => `${fmtInt(truncFixed(v, v < 1000 ? 2 : 0))} ${symbol}`
+type Reading = Pick<ChartDef, 'values' | 'plot' | 'format'>
 
-const planck = (pick: (d: DailyRow) => string) => (input: ChartInput) => input.days.map(d => planckToNum(pick(d), input.decimals))
-const count = (pick: (d: DailyRow) => number) => (input: ChartInput) => input.days.map(pick)
-const bigint = (pick: (d: DailyRow) => string) => (input: ChartInput) => input.days.map(d => Number(pick(d)))
+const ratioToNum = ([num, den]: Ratio) => Number(num) / Number(den)
+
+const count = (pick: (d: DailyRow) => number | string): Reading => ({
+    values: ({days}) => days.map(d => [BigInt(pick(d)), 1n]),
+    plot: ratioToNum,
+    format: ([n]) => fmtInt(n),
+})
+
+// an amount is its planck over the planck in one coin
+const amount = (pick: (d: DailyRow) => bigint | string): Reading => ({
+    values: ({days, decimals}) => days.map(d => [BigInt(pick(d)), 10n ** BigInt(decimals)]),
+    plot: ([planck], {decimals}) => planckToNum(planck, decimals),
+    format: ([planck, coin], {decimals, symbol}) => `${fmtInt(truncFixed(planck, planck < 1000n * coin ? 2 : 0, decimals))} ${symbol}`,
+})
+
+const blockTime: Reading = {
+    values: ({days}) => days.map(d => (d.blocks > 1 ? [BigInt(Date.parse(d.tsLast) - Date.parse(d.tsFirst)), BigInt((d.blocks - 1) * 1000)] : [0n, 1n])),
+    plot: ratioToNum,
+    format: ([num, den]) => truncFixed((num * 100n) / den, 2, 2),
+}
 
 export const CHARTS: ChartDef[] = [
     {
@@ -34,8 +55,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Blocks sealed each day. A day short of the target count means the network spent time above its difficulty.',
         kind: 'bar',
         unit: 'Blocks',
-        values: count(d => d.blocks),
-        format: num,
+        ...count(d => d.blocks),
     },
     {
         slug: 'block-time',
@@ -44,8 +64,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Mean seconds between blocks, measured across the day rather than smoothed. Proof of work spaces blocks randomly, so single days wander around the target.',
         kind: 'line',
         unit: 'Seconds',
-        values: count(d => (d.blocks > 1 ? (Date.parse(d.tsLast) - Date.parse(d.tsFirst)) / ((d.blocks - 1) * 1000) : 0)),
-        format: v => truncFixed(v, 2),
+        ...blockTime,
     },
     {
         slug: 'difficulty',
@@ -54,8 +73,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Difficulty at the last block of each day. It tracks how much scanning work the network is throwing at the chain.',
         kind: 'line',
         unit: 'Difficulty',
-        values: bigint(d => d.difficultyClose),
-        format: num,
+        ...count(d => d.difficultyClose),
     },
     {
         slug: 'miners',
@@ -64,8 +82,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Accounts that sealed at least one block that day.',
         kind: 'line',
         unit: 'Miners',
-        values: count(d => d.minersActive),
-        format: num,
+        ...count(d => d.minersActive),
     },
     {
         slug: 'block-rewards',
@@ -74,8 +91,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Newly issued coins paid to miners each day. The reward pallet keeps no events, so this is the deposit into the author at finalization.',
         kind: 'line',
         unit: 'Rewards',
-        values: planck(d => d.rewards),
-        format: token,
+        ...amount(d => d.rewards),
     },
     {
         slug: 'extrinsics',
@@ -84,8 +100,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Extrinsics carrying a signature, so the inherents every block must include are left out.',
         kind: 'bar',
         unit: 'Extrinsics',
-        values: count(d => d.extrinsicsSigned),
-        format: num,
+        ...count(d => d.extrinsicsSigned),
     },
     {
         slug: 'extrinsics-total',
@@ -94,8 +109,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Running total of signed extrinsics since genesis.',
         kind: 'line',
         unit: 'Extrinsics',
-        values: bigint(d => d.cumExtrinsicsSigned),
-        format: num,
+        ...count(d => d.cumExtrinsicsSigned),
     },
     {
         slug: 'evm-transactions',
@@ -104,8 +118,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Ethereum transactions executed through the EVM each day. They ride inside an extrinsic, so they also count once in the signed extrinsic chart.',
         kind: 'bar',
         unit: 'Transactions',
-        values: count(d => d.evmTxs),
-        format: num,
+        ...count(d => d.evmTxs),
     },
     {
         slug: 'fees',
@@ -114,8 +127,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Fees paid each day, tips and EVM gas included.',
         kind: 'line',
         unit: 'Fees',
-        values: planck(d => d.fees),
-        format: token,
+        ...amount(d => d.fees),
     },
     {
         slug: 'transfers',
@@ -124,8 +136,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Native coin transfers each day. Transfers made inside a batch are counted individually.',
         kind: 'bar',
         unit: 'Transfers',
-        values: count(d => d.transfers),
-        format: num,
+        ...count(d => d.transfers),
     },
     {
         slug: 'transfers-total',
@@ -134,8 +145,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Running total of native transfers since genesis.',
         kind: 'line',
         unit: 'Transfers',
-        values: bigint(d => d.cumTransfers),
-        format: num,
+        ...count(d => d.cumTransfers),
     },
     {
         slug: 'transfer-volume',
@@ -144,8 +154,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Value moved by native transfers each day.',
         kind: 'line',
         unit: 'Volume',
-        values: planck(d => d.transferVolume),
-        format: token,
+        ...amount(d => d.transferVolume),
     },
     {
         slug: 'transfer-volume-total',
@@ -154,8 +163,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Running total of transferred value since genesis.',
         kind: 'line',
         unit: 'Volume',
-        values: planck(d => d.cumTransferVolume),
-        format: token,
+        ...amount(d => d.cumTransferVolume),
     },
     {
         slug: 'accounts',
@@ -164,8 +172,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Accounts the chain has ever seen. An account joins the count on the day a block first touched it, and nothing removes it again.',
         kind: 'line',
         unit: 'Accounts',
-        values: count(d => d.accountsTotal),
-        format: num,
+        ...count(d => d.accountsTotal),
     },
     {
         slug: 'referenda',
@@ -174,8 +181,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Referenda submitted since genesis, whatever they decided.',
         kind: 'line',
         unit: 'Referenda',
-        values: count(d => d.referendaTotal),
-        format: num,
+        ...count(d => d.referendaTotal),
     },
     {
         slug: 'issuance',
@@ -184,8 +190,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Every coin in existence, mining rewards included.',
         kind: 'line',
         unit: 'Issuance',
-        values: planck(d => d.issuanceTotal),
-        format: token,
+        ...amount(d => d.issuanceTotal),
     },
     {
         slug: 'active-issuance',
@@ -194,8 +199,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Issuance minus the deactivated part. Governance support is measured against this number, not against total issuance.',
         kind: 'line',
         unit: 'Issuance',
-        values: input => input.days.map(d => planckToNum(BigInt(d.issuanceTotal) - BigInt(d.issuanceInactive), input.decimals)),
-        format: token,
+        ...amount(d => BigInt(d.issuanceTotal) - BigInt(d.issuanceInactive)),
     },
     {
         slug: 'transferable-issuance',
@@ -204,8 +208,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Active issuance minus everything locked or reserved. Vested coins only count once claimed.',
         kind: 'line',
         unit: 'Issuance',
-        values: input => input.days.map(d => planckToNum(BigInt(d.issuanceTransferable) - BigInt(d.issuanceInactive), input.decimals)),
-        format: token,
+        ...amount(d => BigInt(d.issuanceTransferable) - BigInt(d.issuanceInactive)),
     },
     {
         slug: 'treasury',
@@ -214,8 +217,7 @@ export const CHARTS: ChartDef[] = [
         about: 'Balance of the treasury account. It is deactivated every block, which is why it drops out of the active issuance above.',
         kind: 'line',
         unit: 'Treasury',
-        values: planck(d => d.treasuryPot),
-        format: token,
+        ...amount(d => d.treasuryPot),
     },
 ]
 
@@ -225,12 +227,14 @@ export function chartBySlug(slug: string): ChartDef | undefined {
     return CHARTS.find(c => c.slug === slug)
 }
 
-export function highlight(def: ChartDef, values: number[], input: ChartInput): string | null {
+export function highlight(def: ChartDef, values: Ratio[], input: ChartInput): string | null {
     const last = values[values.length - 1]
     if (last == null) return null
     const prev = values[values.length - 2]
     const now = `The latest value of ${def.title} is ${def.format(last, input)}.`
-    if (prev == null || prev === 0) return now
-    const dir = last >= prev ? 'up' : 'down'
-    return `${now} Compared with the day before it is ${dir} by ${fmtPct(Math.abs(last - prev), prev)}.`
+    if (prev == null || prev[0] === 0n) return now
+    // both days over the product of their denominators
+    const [cur, was] = [last[0] * prev[1], prev[0] * last[1]]
+    const dir = cur >= was ? 'up' : 'down'
+    return `${now} Compared with the day before it is ${dir} by ${fmtPct(cur >= was ? cur - was : was - cur, was)}.`
 }

@@ -3,7 +3,7 @@ import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {chainHeads, type ChainProps} from '@/lib/chain'
-import {fmtBalance, fmtPct} from '@/lib/format'
+import {fmtBalance, fmtPct, pctToNum} from '@/lib/format'
 import {vestedAt, type Schedule} from './shared'
 
 export default async function Vesting({vest, chain}: {vest: Schedule[]; chain: ChainProps}) {
@@ -12,7 +12,7 @@ export default async function Vesting({vest, chain}: {vest: Schedule[]; chain: C
         <Card size="flush" className="space-y-6 px-6 py-5">
             {vest.map((v, i) => {
                 const done = vestedAt(v, best)
-                const pct = v.locked > 0n ? Number((done * 10000n) / v.locked) / 100 : 100
+                const pct = v.locked > 0n ? pctToNum(done, v.locked) : 100
                 const rows: [string, ReactNode][] = [
                     ['Per block', fmtBalance(v.perBlock, chain.decimals, chain.symbol)],
                     ['Released', fmtBalance(done, chain.decimals, chain.symbol)],

@@ -82,7 +82,7 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
                             <EmptyDescription className="text-sm text-dim">No data in this range.</EmptyDescription>
                         </Empty>
                     ) : (
-                        <SeriesChart labels={labels} values={values} tips={values.map(v => def.format(v, input))} name={def.unit} kind={def.kind} />
+                        <SeriesChart labels={labels} values={values.map(v => def.plot(v, input))} tips={values.map(v => def.format(v, input))} name={def.unit} kind={def.kind} />
                     )}
                     <dl className="mt-4 space-y-1.5 border-t pt-4 text-sm">
                         <div className="flex gap-4">

@@ -105,11 +105,14 @@ export function expectTooltipsInView(root: Element) {
     }
 }
 
-// the lines of the tooltip each chart under root shows at the last value of its first series
-export function lastTooltipLines(root: Element) {
+// the lines of the tooltip each chart under root shows at the last value of
+// the series with that name, or of its first series
+export function lastTooltipLines(root: Element, name?: string) {
     return chartsIn(root).map(chart => {
         chart.setOption({tooltip: {transitionDuration: 0}})
-        chart.dispatchAction({type: 'showTip', seriesIndex: 0, dataIndex: (chart.getOption().series as Series[])[0].data.length - 1})
+        const series = chart.getOption().series as (Series & {name?: string})[]
+        const seriesIndex = name === undefined ? 0 : series.findIndex(s => s.name === name)
+        chart.dispatchAction({type: 'showTip', seriesIndex, dataIndex: series[seriesIndex].data.length - 1})
         return [...tooltipOf(chart).children].map(line => line.textContent)
     })
 }

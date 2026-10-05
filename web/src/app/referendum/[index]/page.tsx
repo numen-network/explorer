@@ -5,7 +5,7 @@ import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow, JsonBlock} from '@/components/Detail'
 import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
-import {CurvesChart} from '@/components/charts'
+import {CurvesChart, type TallyStep} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink} from '@/components/links'
 import {Gauge, ProposalTree, ReferendumByline} from '@/components/referenda'
@@ -17,7 +17,7 @@ import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {decisionOf, votesOf} from '@/lib/conviction'
 import {curveAt, type Curve} from '@/lib/curves'
-import {camelLabel, fmtBalance, fmtCompact, fmtInt, fmtPct, fmtSpan, planckToNum, trackLabel} from '@/lib/format'
+import {camelLabel, fmtBalance, fmtCompact, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
 import {accountRefs, delegationActionsFor, eventsByIds, referendumDetail, tallySnapshots, type TallySnapshotRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -185,15 +185,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         })),
     ].sort((x, y) => y.block - x.block || y.id.localeCompare(x.id))
 
-    const snapPct = (s: TallySnapshotRow) => {
-        const a = planckToNum(s.ayes, chain.decimals)
-        const n = planckToNum(s.nays, chain.decimals)
-        const act = planckToNum(BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance), chain.decimals)
-        return {
-            approval: a + n > 0 ? (a / (a + n)) * 100 : 0,
-            support: act > 0 ? (planckToNum(s.support, chain.decimals) / act) * 100 : 0,
-        }
-    }
     // tally snapshots record end of block state, so a block's whole move
     // lands on its latest action row
     const impactByBlock = new Map<number, ActionImpact>()
@@ -216,13 +207,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const latest = data.dailyStats[0]
     const activePlanck = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
-    const activeIssuance = planckToNum(activePlanck, chain.decimals)
-    const ayes = planckToNum(r.ayes, chain.decimals)
-    const nays = planckToNum(r.nays, chain.decimals)
-    const supportVal = planckToNum(r.support, chain.decimals)
-    const total = ayes + nays
-    const approvalNow = total > 0 ? (ayes / total) * 100 : 0
-    const supportNow = activeIssuance > 0 ? (supportVal / activeIssuance) * 100 : 0
+    const approvalNow = approvalOf(r)
+    const supportNow: Share = [BigInt(r.support), activePlanck]
 
     const decisionHours = (r.track.decisionPeriod * chain.blockTime) / 3600
     const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best)
@@ -239,19 +225,18 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     }
     const toX = (b: number) => Math.min(decisionHours, (b - clock.zero) / clock.perHour)
     const lead = {from: toX(r.submittedAt), submitted: r.submittedAt}
-    const now = r.status === 'Ongoing' ? {at: toX(heads.best), approval: approvalNow, support: supportNow} : null
+    const now = r.status === 'Ongoing' ? {at: toX(heads.best)} : null
 
     // a tally starts empty at submission
-    const currentApproval: [number, number][] = [[lead.from, 0]]
-    const currentSupport: [number, number][] = [[lead.from, 0]]
+    const currentApproval: TallyStep[] = [[lead.from, [0n, 1n]]]
+    const currentSupport: TallyStep[] = [[lead.from, [0n, 1n]]]
     for (const s of snapshots) {
-        const p = snapPct(s)
-        currentApproval.push([toX(s.block), p.approval])
-        currentSupport.push([toX(s.block), p.support])
+        currentApproval.push([toX(s.block), approvalOf(s)])
+        currentSupport.push([toX(s.block), [BigInt(s.support), BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance)]])
     }
     if (now) {
-        currentApproval.push([now.at, now.approval])
-        currentSupport.push([now.at, now.support])
+        currentApproval.push([now.at, approvalNow])
+        currentSupport.push([now.at, supportNow])
     }
     // a kill, a cancellation or a rejection past the decision period cuts a
     // confirmation off with no abort event, an open one runs to the block the
@@ -302,7 +287,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             </CardHeader>
             <CardContent>
             <div>
-                <Gauge value={total > 0 ? approvalNow : null} need={approvalNeed} variant="split" />
+                <Gauge value={tallied > 0n ? pctToNum(...approvalNow) : null} need={approvalNeed} variant="split" />
             </div>
             <div className="mt-1.5 flex text-[11px]">
                 <Slot className="flex-1 text-left text-good" value={fmtPct(r.ayes, tallied)} label="Aye" />
@@ -332,7 +317,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             </div>
 
             <div className="mt-4">
-                <Gauge value={supportNow} need={supportNeed} variant="solid" />
+                <Gauge value={pctToNum(...supportNow)} need={supportNeed} variant="solid" />
             </div>
             <div className="mt-1.5 flex justify-between text-[11px]">
                 <Slot className="text-support" value={fmtPct(r.support, activePlanck)} label="Support" />

@@ -5,7 +5,7 @@ import AccountLink from '@/components/AccountLink'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {Progress} from '@/components/ui/progress'
 import type {ChainProps} from '@/lib/chain'
-import {fmtBalance, fmtInt, fmtPct} from '@/lib/format'
+import {fmtBalance, fmtInt, fmtPct, pctToNum} from '@/lib/format'
 import type {AccountRef} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -29,7 +29,7 @@ export function MinersTable({rows, totalBlocks, chain}: {rows: MinerStat[]; tota
                     id: 'share',
                     header: 'Share',
                     cell: ({row}) => {
-                        const share = totalBlocks > 0 ? (row.original.blocks / totalBlocks) * 100 : 0
+                        const share = pctToNum(BigInt(row.original.blocks), BigInt(totalBlocks))
                         return (
                             <div className="flex items-center gap-2">
                                 <Progress value={share} className="h-1.5 w-40" />

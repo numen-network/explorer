@@ -3,7 +3,7 @@ import {expect, waitFor, within} from 'storybook/test'
 import {chartBySlug} from '@/lib/charts'
 import {numn} from '../../../../../mock/fixtures.js'
 import {DAILY} from '../../../../../mock/fixtures/home.js'
-import {axesLegible, expectLegibleAxes, expectNamedNavs, lonePointsPainted, PHONE, tooltipsInView} from '../../../../.storybook/fit'
+import {axesLegible, expectLegibleAxes, expectNamedNavs, lastTooltipLines, lonePointsPainted, PHONE, tooltipsInView} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import ChartPage from './page'
 
@@ -172,6 +172,39 @@ export const EvmTransactionsAfterQuietDay = chart('evm-transactions', DAILY.map(
 export const EvmTransactionsAllZero = chart('evm-transactions', DAILY.map(d => ({...d, evmTxs: 0})))
 
 export const DifficultyExtreme = chart('difficulty', DAILY.map(d => ({...d, difficultyClose: String(BigInt(d.difficultyClose) * 200_000n)})))
+
+// the newest two days climb from just under a quintillion to just over it,
+// where a float no longer tells neighbouring integers apart
+const quintillions = DAILY.map(d => ({...d, difficultyClose: String(BigInt(d.difficultyClose) * 200_000_000n)}))
+const pastQuintillion = [...quintillions.slice(0, -2), {...quintillions.at(-2)!, difficultyClose: '999999999999999999'}, {...quintillions.at(-1)!, difficultyClose: '1000000000000000001'}]
+
+export const DifficultyPastFloat = checked(chart('difficulty', pastQuintillion), async ({canvas, canvasElement}) => {
+    await expect(canvas.getByText('The latest value of Difficulty is 1,000,000,000,000,000,001. Compared with the day before it is up by <0.01%.')).toBeInTheDocument()
+    expect(lastTooltipLines(canvasElement)[0]).toContain('1,000,000,000,000,000,001')
+})
+
+// issuance near ten billion coins, more millionths of a coin than a float
+// holds exactly, the newest day one planck short of ten billion
+const tenBillions = DAILY.map(d => ({...d, issuanceTotal: String(BigInt(d.issuanceTotal) + 9_397_000_000n * 10n ** 18n)}))
+const justUnderTenBillion = [...tenBillions.slice(0, -1), {...tenBillions.at(-1)!, issuanceTotal: '9999999999999999999999999999'}]
+
+export const IssuancePastFloat = checked(chart('issuance', justUnderTenBillion), async ({canvas, canvasElement}) => {
+    await expect(canvas.getByText(/^The latest value of Total Issuance is 9,999,999,999 NUMN\./)).toBeInTheDocument()
+    expect(lastTooltipLines(canvasElement)[0]).toContain('9,999,999,999 NUMN')
+})
+
+// the newest day's fees are exactly a tenth over the day before's, down to a
+// digit past the millionth of a coin
+const feesUpATenth = [...DAILY.slice(0, -2), {...DAILY.at(-2)!, fees: '3000001000000000000'}, {...DAILY.at(-1)!, fees: '3300001100000000000'}]
+
+export const FeesChangeEdge = checked(chart('fees', feesUpATenth), async ({canvas}) => {
+    await expect(canvas.getByText('The latest value of Transaction Fees is 3.30 NUMN. Compared with the day before it is up by 10.00%.')).toBeInTheDocument()
+})
+
+// the newest day's blocks came 10.1s apart and the day before's exactly 10s
+export const BlockTimeChangeEdge = checked(chart('block-time', [...DAILY.slice(0, -2), paced(DAILY.at(-2)!, 10_000), paced(DAILY.at(-1)!, 10_100)]), async ({canvas}) => {
+    await expect(canvas.getByText('The latest value of Average Block Time is 10.10. Compared with the day before it is up by 1.00%.')).toBeInTheDocument()
+})
 
 // a nine digit NUMN reading fills most of a phone-wide chart
 export const IssuanceManyDaysTooltipOnPhone: StoryObj = {...IssuanceManyDays, globals: PHONE, play: tooltipsInView}

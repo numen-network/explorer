@@ -4,7 +4,7 @@ import {useMemo} from 'react'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {EvmAddrLink} from '@/components/links'
 import {Progress} from '@/components/ui/progress'
-import {fmtBalance, fmtPct} from '@/lib/format'
+import {fmtBalance, fmtPct, pctToNum} from '@/lib/format'
 
 export interface Holder {
     id: string
@@ -26,7 +26,7 @@ export function HoldersTable({rows, offset, supply, decimals, symbol}: {rows: Ho
                 header: 'Share',
                 meta: {align: 'right'},
                 cell: ({row}) => {
-                    const share = total > 0n ? Number((BigInt(row.original.balance) * 10000n) / total) / 100 : 0
+                    const share = pctToNum(BigInt(row.original.balance), total)
                     return (
                         <div className="inline-flex items-center gap-2">
                             <Progress value={Math.min(100, share)} className="h-1.5 w-16" />
