@@ -109,9 +109,9 @@ function topicToAddress(topic: string): string {
 const SELECTORS = {name: '0x06fdde03', symbol: '0x95d89b41', decimals: '0x313ce567', totalSupply: '0x18160ddd', balanceOf: '0x70a08231'}
 
 export interface Erc20Metadata {
-    name?: string
-    symbol?: string
-    decimals?: number
+    name: string | null
+    symbol: string | null
+    decimals: number | null
 }
 
 /** `at` is the block the answers hold for, as an eth block number. */
@@ -124,37 +124,37 @@ export async function fetchErc20Metadata(rpc: RpcClient, token: string, at: stri
     return {name, symbol, decimals}
 }
 
-export async function fetchErc20Supply(rpc: RpcClient, token: string, at: string): Promise<bigint | undefined> {
+export async function fetchErc20Supply(rpc: RpcClient, token: string, at: string): Promise<bigint | null> {
     return abiDecodeUint(await ethCall(rpc, token, SELECTORS.totalSupply, at))
 }
 
-export async function fetchErc20Balance(rpc: RpcClient, token: string, holder: string, at: string): Promise<bigint | undefined> {
+export async function fetchErc20Balance(rpc: RpcClient, token: string, holder: string, at: string): Promise<bigint | null> {
     return abiDecodeUint(await ethCall(rpc, token, SELECTORS.balanceOf + holder.slice(2).padStart(64, '0'), at))
 }
 
 // a revert is the contract's own answer, anything else is the node failing us
-async function ethCall(rpc: RpcClient, to: string, data: string, at: string): Promise<string | undefined> {
+async function ethCall(rpc: RpcClient, to: string, data: string, at: string): Promise<string | null> {
     try {
         return await rpc.call('eth_call', [{to, data}, at])
     } catch (e) {
-        if (e instanceof RpcError) return undefined
+        if (e instanceof RpcError) return null
         throw e
     }
 }
 
-function abiDecodeString(ret: string | undefined): string | undefined {
-    if (!ret || ret === '0x' || ret.length < 130) return undefined
+function abiDecodeString(ret: string | null): string | null {
+    if (!ret || ret === '0x' || ret.length < 130) return null
     const len = Number(BigInt('0x' + ret.slice(66, 130)))
-    if (len === 0 || ret.length < 130 + len * 2) return undefined
-    return decodeUtf8('0x' + ret.slice(130, 130 + len * 2)) ?? undefined
+    if (len === 0 || ret.length < 130 + len * 2) return null
+    return decodeUtf8('0x' + ret.slice(130, 130 + len * 2))
 }
 
-function abiDecodeUint(ret: string | undefined): bigint | undefined {
-    if (!ret || ret.length !== 66) return undefined
+function abiDecodeUint(ret: string | null): bigint | null {
+    if (!ret || ret.length !== 66) return null
     return BigInt(ret)
 }
 
-function abiDecodeUint8(ret: string | undefined): number | undefined {
+function abiDecodeUint8(ret: string | null): number | null {
     const v = abiDecodeUint(ret)
-    return v != null && v <= 255n ? Number(v) : undefined
+    return v != null && v <= 255n ? Number(v) : null
 }

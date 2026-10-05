@@ -207,7 +207,7 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Pro
         extrinsic.fee = gasUsed * baseFee
         extrinsic.tip = gasUsed * (decoded.gasPrice - baseFee)
         // canonical home of the tx payload is EvmTransaction, keep the call row lean
-        batch.callById.get(ext.call!.id)!.args = undefined
+        batch.callById.get(ext.call!.id)!.args = null
         batch.touch(evmMappedAccount(decoded.from), h.height).evmAddress = decoded.from
         const evmTx = new EvmTransaction({
             id: decoded.hash,
