@@ -134,7 +134,16 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
                             '—'
                         )}
                     </DetailRow>
-                    <DetailRow label="Tip">{x.tip && x.tip !== '0' ? fmtBalance(x.tip, chain.decimals, chain.symbol) : '—'}</DetailRow>
+                    <DetailRow label="Tip">
+                        {x.tip && x.tip !== '0' ? (
+                            <>
+                                {fmtBalance(x.tip, chain.decimals, chain.symbol)}
+                                <div className="mt-0.5 text-xs text-muted-foreground">to miner</div>
+                            </>
+                        ) : (
+                            '—'
+                        )}
+                    </DetailRow>
                     {data.evm[0] && (
                         <DetailRow label="EVM view">
                             <EvmTxLink hash={data.evm[0].id} full />

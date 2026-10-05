@@ -105,13 +105,14 @@ const on = (address, ...events) => events.map(([name, args]) => [name, args, add
 export const FUNDS_UNAVAILABLE = {__kind: 'Token', value: {__kind: 'FundsUnavailable'}}
 export const NOT_VOTER = {__kind: 'Module', value: {index: 20, error: '0x01000000'}}
 
-// the inclusion fee goes one part to the miner and four to the treasury, the tip reaches the miner whole
-function charge(who, height, fee, tip = 0n) {
+// what the payer was charged over the fee and the tip comes back first, then the inclusion fee goes one part to the miner and four to the treasury, the tip reaches the miner whole
+function charge(who, height, fee, tip = 0n, refund = 0n) {
     const share = fee / 5n
     return {
-        traits: {fee: String(fee + tip), tip: String(tip), minerFee: String(share), treasuryFee: String(fee - share)},
-        withdraw: ['Balances.Withdraw', {who, amount: String(fee + tip)}],
+        traits: {fee: String(fee), tip: String(tip), minerFee: String(share), treasuryFee: String(fee - share)},
+        withdraw: ['Balances.Withdraw', {who, amount: String(fee + tip + refund)}],
         paid: [
+            ...(refund > 0n ? [['Balances.Deposit', {who, amount: String(refund)}]] : []),
             ['Balances.Deposit', {who: miner(height), amount: String(share)}],
             ['Balances.Deposit', {who: TREASURY, amount: String(fee - share)}],
             ['Balances.Deposit', {who: miner(height), amount: String(tip)}],
@@ -175,9 +176,9 @@ export function batchAll(height, {from = person(height + 1), count = 7, fee = 12
 }
 
 // a plain batch stops at the first failing item, the items after it never ran and leave no call behind
-export function batchInterrupted(height, {from = person(height + 6), fee = 9_870_412_000_000_000n} = {}) {
+export function batchInterrupted(height, {from = person(height + 6), fee = 9_870_412_000_000_000n, tip = 0n, refund = 0n} = {}) {
     const pays = [0, 1, 2, 3].map(i => [payee(height, i), amount(height, i)])
-    const pay = charge(from.id, height, fee)
+    const pay = charge(from.id, height, fee, tip, refund)
     return {
         pallet: 'Utility',
         method: 'batch',
@@ -367,10 +368,7 @@ export function evmTransact(height, {gasUsed = 51_234n, baseFee = 1_000_000_000_
         pallet: 'Ethereum',
         method: 'transact',
         signer: null,
-        fee: String(fee),
-        tip: String(tip),
-        minerFee: pay.traits.minerFee,
-        treasuryFee: pay.traits.treasuryFee,
+        ...pay.traits,
         calls: [[[], 'Ethereum.transact', null]],
         events: [
             ...on([], pay.withdraw, ['Balances.Deposit', {who: sender, amount: '0'}], ...pay.paid.slice(0, 3)),

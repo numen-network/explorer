@@ -19,6 +19,7 @@ import {constants, events, storage} from './types'
 import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
 import {parseEvmBlockHash, parsePowDigest} from './digest'
+import {Deposit, feeShares} from './fees'
 import {fetchObj, parseMesh} from './objects'
 import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply} from './evm'
 import {collectGovEvent, finalizeGovernance} from './governance'
@@ -142,17 +143,20 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     await mapEvm(batch, b, block)
     let transferVolume = 0n
     for (let i = transfersBefore; i < batch.transfers.length; i++) transferVolume += batch.transfers[i].amount
+    const deposits = depositsByExtrinsic(b.events)
     let fees = 0n
     let signed = 0
-    // the tip lands in the miner's deposit next to the fee share, so it comes
-    // back out of the share
     for (const ext of b.extrinsics) {
         const x = batch.extrinsicById.get(ext.id)!
-        // the block keeps the whole take because that is what the miner earned
-        block.minerFees += x.minerFee
+        const tip = x.tip ?? 0n
+        if (x.fee != null && x.fee > 0n) {
+            const shares = feeShares(x.id, deposits.get(ext.index) ?? [], author, treasury)
+            x.minerFee = shares.miner
+            x.treasuryFee = shares.treasury
+        }
+        block.minerFees += x.minerFee + tip
         block.treasuryFees += x.treasuryFee
-        fees += x.minerFee + x.treasuryFee
-        x.minerFee -= x.tip ?? 0n
+        fees += x.minerFee + x.treasuryFee + tip
         if (ext.signature != null) signed += 1
     }
     accumulateDay(batch, block, h, {
@@ -163,6 +167,17 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         fees,
         referendaNew: b.events.reduce((n, ev) => n + (ev.name === 'Referenda.Submitted' ? 1 : 0), 0),
     })
+}
+
+function depositsByExtrinsic(evs: EventData<Fields>[]): Map<number, Deposit[]> {
+    const out = new Map<number, Deposit[]>()
+    for (const ev of evs) {
+        if (ev.extrinsicIndex == null || !events.balances.deposit.v100.is(ev)) continue
+        let list = out.get(ev.extrinsicIndex)
+        if (list == null) out.set(ev.extrinsicIndex, (list = []))
+        list.push(events.balances.deposit.v100.decode(ev))
+    }
+    return out
 }
 
 async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Promise<void> {
@@ -427,23 +442,17 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
             })
         )
     }
-    // the reward is minted on finalization, so a deposit reaching the miner
-    // while extrinsics run is a share of a fee or a tip
     if (events.balances.deposit.v100.is(ev)) {
         const d = events.balances.deposit.v100.decode(ev)
         // the treasury never signs, so its fee share is what keeps
         // its account row current
         if (d.who === treasury) batch.touch(treasury, block.height)
+        // the reward is minted on finalization, after every extrinsic has run
         if (d.who === author && ev.phase === 'Finalization') block.reward += d.amount
-        else if (d.who === author && extrinsic) extrinsic.minerFee += d.amount
-        else if (d.who === treasury && extrinsic) extrinsic.treasuryFee += d.amount
     }
-    // a slash reaches the treasury through the pallet, and the pallet's own
-    // event is what separates it from a fee share
-    if (ev.name === 'Treasury.Deposit' && extrinsic) extrinsic.treasuryFee -= BigInt(ev.args.value)
     if (ev.name === 'TransactionPayment.TransactionFeePaid' && extrinsic) {
-        extrinsic.fee = BigInt(ev.args.actualFee)
         extrinsic.tip = BigInt(ev.args.tip)
+        extrinsic.fee = BigInt(ev.args.actualFee) - extrinsic.tip
     }
     const name = ev.name ?? ''
     collectGovEvent(batch, ev.id, name, ev.args, block.height, ev.block, signerOf(ev.extrinsic), ev.call?.args)

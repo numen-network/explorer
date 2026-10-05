@@ -116,11 +116,11 @@ type Extrinsic @entity {
   transfers: [Transfer!]! @derivedFrom(field: "extrinsic")
   success: Boolean!
   error: JSON
-  "what running this extrinsic cost with the tip left out, null when it paid nothing"
+  "what running this extrinsic cost with the tip left out, null when it is unsigned and not an EVM call"
   fee: BigInt
   "tip the sender added, an EVM priority fee counted as one"
   tip: BigInt
-  "share of the fee the miner kept, with the tip paid on top"
+  "share of the fee the miner kept, not counting the tip it also collects"
   minerFee: BigInt!
   "part of the fee that funded the treasury"
   treasuryFee: BigInt!

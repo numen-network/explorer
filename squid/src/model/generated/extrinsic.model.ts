@@ -49,7 +49,7 @@ export class Extrinsic {
     error!: unknown | undefined | null
 
     /**
-     * what running this extrinsic cost with the tip left out, null when it paid nothing
+     * what running this extrinsic cost with the tip left out, null when it is unsigned and not an EVM call
      */
     @BigIntColumn_({nullable: true})
     fee!: bigint | undefined | null
@@ -61,7 +61,7 @@ export class Extrinsic {
     tip!: bigint | undefined | null
 
     /**
-     * share of the fee the miner kept, with the tip paid on top
+     * share of the fee the miner kept, not counting the tip it also collects
      */
     @BigIntColumn_({nullable: false})
     minerFee!: bigint
