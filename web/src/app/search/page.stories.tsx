@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {PEOPLE, acct, chainInfo, identity, paged, subOf} from '../../../../mock/fixtures.js'
-import {expectFits, PHONE} from '../../../.storybook/fit'
+import {expectFits, expectPagersFit, PHONE} from '../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import SearchPage from './page'
 
@@ -74,7 +74,10 @@ export const AccountsPageTwo: StoryObj = {...results('scan', SCANNERS, SCAN_TOKE
 export const AccountsPageTwoOnPhone: StoryObj = {
     ...AccountsPageTwo,
     globals: PHONE,
-    play: async ({canvasElement}) => expectFits(canvasElement.querySelector('[data-slot=pagination]')!, ...accountRows(canvasElement)),
+    play: async ({canvasElement}) => {
+        expectPagersFit(canvasElement)
+        expectFits(...accountRows(canvasElement))
+    },
 }
 
 export const AccountsLastPage: StoryObj = {

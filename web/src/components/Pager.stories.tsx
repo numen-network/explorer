@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, waitFor, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import {fmtInt} from '@/lib/format'
-import {PHONE, TABLET} from '../../.storybook/fit'
+import {expectPagersFit, PHONE, TABLET} from '../../.storybook/fit'
 import Pager from './Pager'
 
 const at = (page: number, size = 20) => ({page, size, offset: (page - 1) * size})
@@ -22,35 +22,21 @@ const meta = {
     title: 'Components/Pager',
     component: Pager,
     args: {paging: at(1), total: 1_000, href: '/blocks'},
-    // the list it pages sits right above it inside the site's gutters, the way every list page lays them out
-    parameters: {layout: 'fullscreen'},
+    // the list it pages sits right above it, the way every list page lays them out
     decorators: [
         (Story, {args}) => (
-            <div className="px-6 py-4">
+            <>
                 <Card size="flush" className="px-5 py-4 text-sm text-muted-foreground">
                     {fmtInt(args.total)} rows
                 </Card>
                 <Story />
-            </div>
+            </>
         ),
     ],
     play: async ({canvasElement}) => paddingKept(canvasElement),
 } satisfies Meta<typeof Pager>
 export default meta
 type Story = StoryObj<typeof meta>
-
-// each page row stays inside the gutters, bar the padding of the next arrow that hangs into the right one
-function rowsInside(root: HTMLElement) {
-    const navs = root.querySelectorAll('nav')
-    expect(navs.length).toBeGreaterThan(0)
-    for (const nav of navs) {
-        const row = nav.querySelector('ul')!
-        const box = nav.getBoundingClientRect()
-        const edges = row.getBoundingClientRect()
-        expect(Math.round(edges.left - box.left)).toBeGreaterThanOrEqual(0)
-        expect(Math.round(box.right - parseFloat(getComputedStyle(row).marginRight) - edges.right)).toBeGreaterThanOrEqual(0)
-    }
-}
 
 // the first, middle and last page of a page count
 const lengths = (pages: number): Story => ({
@@ -64,7 +50,7 @@ const lengths = (pages: number): Story => ({
     ),
     play: async ({canvasElement}) => {
         await paddingKept(canvasElement)
-        rowsInside(canvasElement)
+        expectPagersFit(canvasElement)
     },
 })
 

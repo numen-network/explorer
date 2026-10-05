@@ -50,7 +50,7 @@ export const ReferendaTruncationEdges: StoryObj = {
 export const ReferendaEdgeCases = referendaTab([
     {...referenda[6], id: '22', index: 22, submitter: null, description: 'Pays three community teams for six months of translation work.'},
     {...referenda[7], id: '21', index: 21, submitter: PEOPLE[7]},
-    {...referenda[2], id: '20', index: 20, title: 'Say hello', description: 'A remark to test the waters.'},
+    {...referenda[2], id: '20', index: 20, title: 'Hello', description: 'A remark to test the waters.'},
 ])
 
 const overlap = (a: Element, b: Element) => {
@@ -101,7 +101,7 @@ export const ReferendaEdgeCasesOnPhone: StoryObj = {
     globals: PHONE,
     play: async context => {
         fitsPhone(context)
-        const head = context.canvas.getByText('Say hello').closest('a')!.parentElement!.parentElement!
+        const head = context.canvas.getByText('Hello').closest('a')!.parentElement!.parentElement!
         expect(head.lastElementChild!.getBoundingClientRect().top).toBeLessThan(head.querySelector('a')!.getBoundingClientRect().bottom)
     },
 }

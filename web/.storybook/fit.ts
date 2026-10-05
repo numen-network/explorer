@@ -13,6 +13,21 @@ export function expectFits(...boxes: Element[]) {
     for (const box of boxes) expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth)
 }
 
+// each pager under root keeps its page row and controls inside it, bar the
+// padding of the next arrow that hangs past its right edge
+export function expectPagersFit(root: Element) {
+    const pagers = root.querySelectorAll('[data-slot=pagination]')
+    expect(pagers.length).toBeGreaterThan(0)
+    for (const pager of pagers) {
+        const box = pager.getBoundingClientRect()
+        for (const item of pager.children) {
+            const edges = item.getBoundingClientRect()
+            expect(Math.round(edges.left - box.left)).toBeGreaterThanOrEqual(0)
+            expect(Math.round(box.right - parseFloat(getComputedStyle(item).marginRight) - edges.right)).toBeGreaterThanOrEqual(0)
+        }
+    }
+}
+
 export const cardsFit: StoryObj['play'] = async ({canvasElement}) => expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
 
 type Shape = ReturnType<echarts.graphic.Group['children']>[number]

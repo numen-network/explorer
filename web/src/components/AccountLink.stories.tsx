@@ -145,14 +145,14 @@ export const NarrowColumn: Story = {
             <AccountLink full addr={addr(anon)} acc={anon} />
         </div>
     ),
-    play: async ({canvas, canvasElement}) => {
+    play: async ({canvas}) => {
         const [long, , full, judged] = canvas.getAllByRole('link')
         const label = long.lastElementChild!
         expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
         expect(full.innerText).toBe(addr(bare))
         expect(judged.innerText).toBe(addr(anon))
         expect(judged.querySelector('svg')!.getBoundingClientRect().bottom - judged.getBoundingClientRect().top).toBeLessThanOrEqual(parseFloat(getComputedStyle(judged).lineHeight))
-        expectFits(canvasElement.firstElementChild!, full, ...full.querySelectorAll('span'), judged, ...judged.querySelectorAll('span'))
+        expectFits(full.closest('.w-40')!, full, ...full.querySelectorAll('span'), judged, ...judged.querySelectorAll('span'))
     },
 }
 

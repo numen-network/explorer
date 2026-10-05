@@ -5,7 +5,7 @@ import {minedObject, topology} from '../../../mock/fixtures/blocks.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
 import {axesLegible, drawnCanvases, drawnFaces, expectFits, expectInContentBox, expectLegibleAxes, expectNoHangingDots, expectOneLine, expectTimesFit, LAPTOP, lastTooltipLines, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
-import {inSiteGutters, pageMeta, pageStory} from '../../.storybook/page'
+import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
 export default {title: 'Pages/Home', ...pageMeta(Home)}
@@ -188,12 +188,13 @@ const fitsPhone = async ({canvasElement}: {canvasElement: HTMLElement}) => {
     expectTimesFit(canvasElement)
 }
 
-export const HomeManyOnPhone: StoryObj = {...inSiteGutters(HomeMany, PHONE), play: fitsPhone}
+export const HomeManyOnPhone: StoryObj = {...HomeMany, globals: PHONE, play: fitsPhone}
 
 // lg fits five block cards in a row, each keeps its object clear of the
 // padding and its protocol on one line
 export const HomeManyOnLaptop: StoryObj = {
-    ...inSiteGutters(HomeMany, LAPTOP),
+    ...HomeMany,
+    globals: LAPTOP,
     play: async ({canvasElement}) => {
         const rail = within(canvasElement).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
         for (const object of await drawnCanvases(rail, 5)) expectInContentBox(object.closest('[data-slot=card]')!, object)
@@ -293,7 +294,7 @@ export const HomeTruncationEdges: StoryObj = {
     },
 }
 
-export const HomeTruncationEdgesOnPhone: StoryObj = {...inSiteGutters(HomeTruncationEdges, PHONE), play: fitsPhone}
+export const HomeTruncationEdgesOnPhone: StoryObj = {...HomeTruncationEdges, globals: PHONE, play: fitsPhone}
 
 // difficulty a whisker under a quintillion, one up on the day before and a
 // ninth up on the month before, where a float no longer tells neighbouring
@@ -374,4 +375,4 @@ export const HomeExtremes: StoryObj = {
     },
 }
 
-export const HomeExtremesOnPhone: StoryObj = {...inSiteGutters(HomeExtremes, PHONE), play: fitsPhone}
+export const HomeExtremesOnPhone: StoryObj = {...HomeExtremes, globals: PHONE, play: fitsPhone}

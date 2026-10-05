@@ -3,7 +3,7 @@ import {userEvent, within} from 'storybook/test'
 import {extrinsic, HEAD, hashOf, paged} from '../../../../../mock/fixtures.js'
 import {batchAll, batchInterrupted, batchOfProxies, evmTransact, evmTxHash, failedVoteRemoval, heartbeat, mined, pick, proxied, referendumSubmission, signedCall, timestampSet, tipped, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
 import {expectAddressForm, expectFits, expectInContentBox, expectTimesFit, PHONE} from '../../../../.storybook/fit'
-import {inSiteGutters, lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
+import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ExtrinsicPage from './page'
 
 export default {title: 'Pages/Extrinsic', ...pageMeta(ExtrinsicPage)}
@@ -61,7 +61,8 @@ export const Transfer = detail(of(transfer))
 // the timestamp breaks after its age inside its own, and the call keeps its
 // events inside its row
 export const TransferOnPhone: StoryObj = {
-    ...inSiteGutters(Transfer, PHONE),
+    ...Transfer,
+    globals: PHONE,
     play: async ({canvasElement}) => {
         expectAddressForm(canvasElement, 'full')
         expectFits(canvasElement.querySelector('a[href^="/account/"]')!.closest('[data-slot=card] > *')!)
@@ -77,7 +78,7 @@ export const TransferWithTip = detail(of(tipped))
 export const Failed = detail(of(failedVoteRemoval))
 
 // a failed call that can't fit its badge beside its name moves the badge under it
-export const FailedOnPhone: StoryObj = {...inSiteGutters(Failed, PHONE), play: async ({canvasElement}) => expectCallRowsFit(canvasElement)}
+export const FailedOnPhone: StoryObj = {...Failed, globals: PHONE, play: async ({canvasElement}) => expectCallRowsFit(canvasElement)}
 
 export const FailedEvents = detail(of(failedVoteRemoval), {tab: 'events'})
 
@@ -99,7 +100,8 @@ export const ProxyNestedExpanded: StoryObj = {...detail(of(proxied)), play: expa
 
 // a nested call that can't fit its event count beside its name moves the count under it
 export const ProxyNestedExpandedOnPhone: StoryObj = {
-    ...inSiteGutters(ProxyNestedExpanded, PHONE),
+    ...ProxyNestedExpanded,
+    globals: PHONE,
     play: async context => {
         await expandAll!(context)
         expectCallRowsFit(context.canvasElement)

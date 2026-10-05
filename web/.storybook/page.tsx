@@ -49,20 +49,5 @@ export const pageStory = (data: Record<string, unknown>, {params = {}, searchPar
     parameters: {params, searchParams, redirect, msw: [graphqlData({...base, ...data})]},
 })
 
-// the site pads a page 24px each side, Storybook 16px and the test runner
-// nothing, so a story checking how a page fits a viewport pads it the site's way
-export const inSiteGutters = (story: StoryObj, viewport: StoryObj['globals']): StoryObj => ({
-    ...story,
-    globals: viewport,
-    parameters: {...story.parameters, layout: 'fullscreen'},
-    decorators: [
-        Story => (
-            <div className="px-6">
-                <Story />
-            </div>
-        ),
-    ],
-})
-
 // the page a list ends on at the default page size
 export const lastPage = (total: number) => String(Math.ceil(total / paging({}).size))
