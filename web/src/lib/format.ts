@@ -12,9 +12,6 @@ export function fmtCount(n: number, noun: string, plural = `${noun}s`): string {
 
 export const sentenceCase = (s: string) => s[0].toUpperCase() + s.slice(1)
 
-// snake_case status names read as a sentence
-export const humanize = (s: string) => sentenceCase(s.replaceAll('_', ' '))
-
 // a chain variant or event name reads as a sentence, BountyClaimed as Bounty
 // claimed. the pallets spell both BountyCanceled and Referenda.Cancelled, the
 // labels stick to cancelled

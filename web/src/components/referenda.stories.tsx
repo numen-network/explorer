@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
 import {expect} from 'storybook/test'
 import type {Phase} from '@/lib/referendum'
-import {Gauge, StatusBadge, TallyBar, ThresholdBar} from './referenda'
+import {Gauge, StatusBadge, ThresholdBar} from './referenda'
 
 const meta = {title: 'Components/Referenda'} satisfies Meta
 export default meta
@@ -10,7 +10,6 @@ type Story = StoryObj<typeof meta>
 
 const PHASES: Phase[] = ['Submitted', 'Deciding', 'Confirming', 'Approved', 'Rejected', 'Cancelled', 'TimedOut', 'Killed']
 const NUMN = 10n ** 18n
-const numn = (n: number) => (BigInt(n) * NUMN).toString()
 
 function Case({label, children}: {label: string; children: ReactNode}) {
     return (
@@ -118,23 +117,4 @@ export const ThresholdBars: Story = {
         ])
         for (const none of canvas.getAllByText('—')) await expect(none).toHaveClass('text-muted-foreground')
     },
-}
-
-export const TallyBars: Story = {
-    render: () => (
-        <>
-            <Case label="no votes">
-                <TallyBar r={{ayes: '0', nays: '0'}} decimals={18} />
-            </Case>
-            <Case label="ayes only">
-                <TallyBar r={{ayes: numn(3_200_000), nays: '0'}} decimals={18} />
-            </Case>
-            <Case label="mixed">
-                <TallyBar r={{ayes: numn(2_800_000), nays: numn(1_900_000)}} decimals={18} />
-            </Case>
-            <Case label="nays only">
-                <TallyBar r={{ayes: '0', nays: numn(4_100_000)}} decimals={18} />
-            </Case>
-        </>
-    ),
 }

@@ -6,7 +6,7 @@ import DotRow from '@/components/DotRow'
 import {TimeCell} from '@/components/TimeCell'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtBalance, fmtCompact, fmtPct, fmtSpan, planckToNum, trackLabel} from '@/lib/format'
+import {camelLabel, fmtBalance, fmtPct, fmtSpan, trackLabel} from '@/lib/format'
 import type {AccountRef, ProposalNode, ReferendumRow} from '@/lib/gql'
 import {phaseOf, type Phase} from '@/lib/referendum'
 import {ss58Encode} from '@/lib/ss58'
@@ -61,21 +61,6 @@ export function Gauge({value, need, variant}: {value: number | null; need?: numb
                 </>
             )}
             {need != null && <span className="absolute top-0 h-full w-px bg-foreground" style={{left: `${clamp(need)}%`}} />}
-        </div>
-    )
-}
-
-export function TallyBar({r, decimals, className = 'w-40'}: {r: {ayes: string; nays: string}; decimals: number; className?: string}) {
-    const ayes = planckToNum(r.ayes, decimals)
-    const nays = planckToNum(r.nays, decimals)
-    const total = ayes + nays
-    return (
-        <div className={className}>
-            <Gauge value={total > 0 ? (ayes / total) * 100 : null} variant="split" />
-            <div className="mt-1 flex justify-between font-mono text-[10px] text-muted-foreground">
-                <span>aye {fmtCompact(r.ayes, decimals)}</span>
-                <span>nay {fmtCompact(r.nays, decimals)}</span>
-            </div>
         </div>
     )
 }
