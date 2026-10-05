@@ -10,10 +10,10 @@ export interface Deposit {
  * first two of the three deposits that close the extrinsic, whoever the payer
  * is and whatever its call deposited before them.
  */
-export function feeShares(extrinsicId: string, deposits: Deposit[], author: string | undefined, treasury: string): {miner: bigint; treasury: bigint} {
-    const [miner, pot, tip] = deposits.slice(-3)
-    if (deposits.length < 3 || miner.who !== author || pot.who !== treasury || tip.who !== author) {
-        throw new Error(`extrinsic ${extrinsicId} does not close with the miner share, the treasury share and the tip`)
+export function feeShares(extrinsicId: string, tip: bigint, deposits: Deposit[], author: string | undefined, treasury: string): {miner: bigint; treasury: bigint} {
+    const [miner, pot, tipped] = deposits.slice(-3)
+    if (deposits.length < 3 || miner.who !== author || pot.who !== treasury || tipped.who !== author || tipped.amount !== tip) {
+        throw new Error(`extrinsic ${extrinsicId} does not close with the miner share, the treasury share and its tip of ${tip}`)
     }
     return {miner: miner.amount, treasury: pot.amount}
 }

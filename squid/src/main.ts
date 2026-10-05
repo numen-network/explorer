@@ -150,7 +150,7 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         const x = batch.extrinsicById.get(ext.id)!
         const tip = x.tip ?? 0n
         if (x.fee != null && x.fee > 0n) {
-            const shares = feeShares(x.id, deposits.get(ext.index) ?? [], author, treasury)
+            const shares = feeShares(x.id, tip, deposits.get(ext.index) ?? [], author, treasury)
             x.minerFee = shares.miner
             x.treasuryFee = shares.treasury
         }
@@ -184,14 +184,17 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Pro
     const transacts = b.extrinsics.filter(x => x.call?.name === 'Ethereum.transact')
     if (transacts.length === 0) return
     const h = b.header
+    // on_finalize sets the base fee for the block after, so a block's txs pay
+    // the one its parent left
+    const parent = h.getParent()
     const receiptsStore = storage.ethereum.currentReceipts.v100
     const baseFeeStore = storage.baseFee.baseFeePerGas.v100
     const facadeConst = constants.precompiles.balancesErc20.v100
-    if (!receiptsStore.is(h) || !baseFeeStore.is(h) || !facadeConst.is(h)) {
+    if (!receiptsStore.is(h) || !baseFeeStore.is(parent) || !facadeConst.is(h)) {
         throw new Error(`unhandled spec version at block ${h.height}`)
     }
     const receipts = (await receiptsStore.get(h)) ?? []
-    const baseFee = (await baseFeeStore.get(h)) ?? 0n
+    const baseFee = (await baseFeeStore.get(parent)) ?? baseFeeStore.getDefault(parent)
     const nativeFacade = facadeConst.get(h)
     if (receipts.length !== transacts.length) {
         throw new Error(`receipt count ${receipts.length} does not match evm tx count ${transacts.length} at block ${h.height}`)
