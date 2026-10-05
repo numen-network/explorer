@@ -190,6 +190,48 @@ export async function drawnFaces(root: Element, count: number) {
     }
 }
 
+interface Frame {
+    pixels: Uint8Array
+    width: number
+    height: number
+}
+
+// the blank pixels a frame leaves past its ink on each side, its rows bottom up as readPixels hands them over
+function blankEdges({pixels, width, height}: Frame) {
+    const range = (n: number) => Array.from({length: n}, (_, i) => i)
+    const inked = (x: number, y: number) => pixels[(y * width + x) * 4 + 3] > 0
+    const rows = range(height).filter(y => range(width).some(x => inked(x, y)))
+    const cols = range(width).filter(x => rows.some(y => inked(x, y)))
+    expect(rows.length).toBeGreaterThan(0)
+    return {top: height - 1 - rows.at(-1)!, right: width - 1 - cols.at(-1)!, bottom: rows[0], left: cols[0]}
+}
+
+// the blank pixels between each 3D object under root and each edge of its
+// canvas. the browser wipes a WebGL frame once it is on screen, so each frame
+// is read straight after the draw call an interactive object repeats every frame
+export async function drawnMargins(root: Element, count: number) {
+    const draw = WebGL2RenderingContext.prototype.drawElements
+    const frames = new Map<WebGL2RenderingContext['canvas'], Frame>()
+    const spy = spyOn(WebGL2RenderingContext.prototype, 'drawElements').mockImplementation(function (this: WebGL2RenderingContext, ...args) {
+        draw.apply(this, args)
+        const {drawingBufferWidth: width, drawingBufferHeight: height} = this
+        const pixels = new Uint8Array(width * height * 4)
+        this.readPixels(0, 0, width, height, this.RGBA, this.UNSIGNED_BYTE, pixels)
+        frames.set(this.canvas, {pixels, width, height})
+    })
+    try {
+        const canvases = await drawnCanvases(root, count)
+        return await waitFor(() =>
+            canvases.map(canvas => {
+                expect(frames.has(canvas)).toBe(true)
+                return blankEdges(frames.get(canvas)!)
+            })
+        )
+    } finally {
+        spy.mockRestore()
+    }
+}
+
 // the box of every run of text under el, one per line it takes up
 function textBoxes(el: Element) {
     const boxes: DOMRect[] = []

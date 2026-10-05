@@ -34,7 +34,8 @@ export default function Asteroid({vertices, faces, size = 150, interactive = fal
 
             const scene = new THREE.Scene()
             const camera = new THREE.PerspectiveCamera(38, 1, r / 10, r * 10)
-            camera.position.set(r * 1.6, r * 1.1, r * 2.2)
+            // at this distance the bounding sphere plus 4% fits the view from any angle
+            camera.position.set(1.6, 1.1, 2.2).setLength((1.04 * r) / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)))
             camera.lookAt(0, 0, 0)
 
             scene.add(new THREE.HemisphereLight(0xffffff, 0xcfc8bb, 1.25))
