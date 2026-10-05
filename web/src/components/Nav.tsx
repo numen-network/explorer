@@ -27,6 +27,7 @@ export default function Nav({chain}: {chain: string}) {
     const path = usePathname()
     const [open, setOpen] = useState(false)
     const tone = (href: string) => ((href === '/' ? path === '/' : path.startsWith(href)) ? 'font-medium text-primary' : 'hover:text-primary')
+    const current = (href: string) => (href === path ? 'page' : undefined)
     return (
         <header className="border-b bg-card">
             <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-7 px-6">
@@ -39,9 +40,9 @@ export default function Nav({chain}: {chain: string}) {
                         </SheetTrigger>
                         <SheetContent side="left" aria-describedby={undefined} className="gap-0 overflow-y-auto bg-card p-6 data-[side=left]:w-72">
                             <SheetTitle className="sr-only">Menu</SheetTitle>
-                            <nav className="mt-6 text-sm">
+                            <nav aria-label="Main" className="mt-6 text-sm">
                                 {ITEMS.map(([href, label]) => (
-                                    <Link key={href} href={href} onClick={() => setOpen(false)} className={`block py-2 ${tone(href)}`}>
+                                    <Link key={href} href={href} aria-current={current(href)} onClick={() => setOpen(false)} className={`block py-2 ${tone(href)}`}>
                                         {label}
                                     </Link>
                                 ))}
@@ -57,9 +58,9 @@ export default function Nav({chain}: {chain: string}) {
                 </div>
                 {/* eleven labels fit beside the brand only on a wide screen,
                     so narrower screens tuck them behind the burger */}
-                <nav className="hidden items-center gap-6 text-sm xl:flex">
+                <nav aria-label="Main" className="hidden items-center gap-6 text-sm xl:flex">
                     {ITEMS.map(([href, label]) => (
-                        <Link key={href} href={href} className={`whitespace-nowrap ${tone(href)}`}>
+                        <Link key={href} href={href} aria-current={current(href)} className={`whitespace-nowrap ${tone(href)}`}>
                             {label}
                         </Link>
                     ))}

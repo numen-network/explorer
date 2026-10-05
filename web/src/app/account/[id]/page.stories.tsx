@@ -44,7 +44,7 @@ import {
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {DESKTOP, expectFits, expectWholeWords, filterChips, PHONE, tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {DESKTOP, expectFits, expectNamedNavs, expectWholeWords, filterChips, PHONE, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {inSiteGutters, lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
@@ -199,9 +199,9 @@ export const HoldingsNoneHeld: StoryObj = {
     ...story({account: mapped(), transfers: accountTransfers(2), notHeld: NOT_HELD}, {tab: 'holdings'}),
     play: async ({canvas, canvasElement}) => {
         expect(tabCount(canvasElement, 'holdings')).toBeNull()
-        const [group, member] = canvas.getAllByRole('tab', {selected: true})
-        expect(group).toHaveAccessibleName(/^Transfers/)
-        expect(member).toHaveAccessibleName(/^Native/)
+        expectNamedNavs(canvasElement)
+        expect(within(canvas.getByRole('navigation', {name: 'Account'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Transfers/)
+        expect(within(canvas.getByRole('navigation', {name: 'Transfers'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Native/)
     },
 }
 

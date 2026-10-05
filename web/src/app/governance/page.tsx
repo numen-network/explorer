@@ -199,6 +199,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
 
             <div className="mt-7">
                 <TabBar
+                    aria-label="Governance"
                     items={[
                         {label: 'Referenda', count: sum.refs.totalCount, href: '/governance?tab=referenda', active: tab === 'referenda'},
                         {label: 'Treasury spends', count: sum.spends.totalCount, href: '/governance?tab=treasury', active: tab === 'treasury'},

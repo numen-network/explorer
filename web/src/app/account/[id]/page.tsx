@@ -125,7 +125,6 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
 
     const active = tabs.find(t => t.slug === sp.tab) ?? tabs[0]
     const groups = [...new Set(tabs.map(t => t.group ?? t.label))]
-    const siblings = active.group ? tabs.filter(t => t.group === active.group) : []
 
     return (
         <div>
@@ -191,6 +190,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
 
             <div className="mt-7">
                 <TabBar
+                    aria-label="Account"
                     items={groups.map(g => {
                         const members = tabs.filter(t => (t.group ?? t.label) === g)
                         const counted = members.filter(t => t.count != null)
@@ -202,9 +202,9 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                         }
                     })}
                 />
-                {siblings.length > 0 && (
+                {active.group && (
                     <div className="mt-4">
-                        <TabBar items={siblings.map(t => ({label: t.label, count: t.count, href: tabHref(addr, t.slug), active: t.slug === active.slug}))} />
+                        <TabBar aria-label={active.group} items={tabs.filter(t => t.group === active.group).map(t => ({label: t.label, count: t.count, href: tabHref(addr, t.slug), active: t.slug === active.slug}))} />
                     </div>
                 )}
                 <div className="mt-4">{active.body()}</div>

@@ -12,7 +12,7 @@ export default function ChartList({active, className = ''}: {active: string; cla
     const hits = needle ? CHARTS.filter(c => c.title.toLowerCase().includes(needle) || c.group.toLowerCase().includes(needle)) : CHARTS
 
     return (
-        <nav className={`${className} lg:sticky lg:top-6`}>
+        <nav aria-label="Charts" className={`${className} lg:sticky lg:top-6`}>
             <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Search by chart name" spellCheck={false} className="h-auto rounded-none border-0 border-b px-3 py-2 text-sm placeholder:text-dim focus-visible:border-border focus-visible:ring-0 md:text-sm" />
             <div className="mt-3 space-y-4">
                 {GROUPS.filter(g => hits.some(c => c.group === g)).map(g => (
@@ -23,7 +23,7 @@ export default function ChartList({active, className = ''}: {active: string; cla
                                 .filter(c => c.group === g)
                                 .map(c => (
                                     <Button key={c.slug} asChild variant="ghost" size="sm" className={cn('h-auto w-full justify-start rounded-lg border-0 px-3 py-1.5 text-[13px] leading-snug font-normal whitespace-normal', c.slug === active && 'bg-primary/8 font-medium text-primary hover:bg-primary/8 hover:text-primary')}>
-                                        <Link href={`/charts/${c.slug}`}>{c.title}</Link>
+                                        <Link href={`/charts/${c.slug}`} aria-current={c.slug === active ? 'page' : undefined}>{c.title}</Link>
                                     </Button>
                                 ))}
                         </div>

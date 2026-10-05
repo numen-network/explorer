@@ -73,7 +73,7 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
                                 Apply
                             </Button>
                         </form>
-                        <TabBar variant="pill" items={RANGES.map(([k, label]) => ({label, href: `/charts/${slug}${k === '365' ? '' : `?r=${k}`}`, active: k === range}))} />
+                        <TabBar aria-label="Range" variant="pill" items={RANGES.map(([k, label]) => ({label, href: `/charts/${slug}${k === '365' ? '' : `?r=${k}`}`, active: k === range}))} />
                     </div>
                 </CardHeader>
                 <CardContent>

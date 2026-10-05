@@ -74,7 +74,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
             <div className="mt-6 flex items-center gap-3">
                 <h1 className="text-lg font-semibold">Block #{fmtInt(block.height)}</h1>
                 <Badge variant={block.finalized ? 'pos' : 'warn'}>{block.finalized ? 'Finalized' : 'Confirming'}</Badge>
-                <Pagination className="mr-0 ml-auto w-auto">
+                <Pagination aria-label="Block" className="mr-0 ml-auto w-auto">
                     <PaginationContent>
                         {block.height > 0 && (
                             <PaginationItem>

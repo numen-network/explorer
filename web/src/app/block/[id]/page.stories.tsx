@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {HEAD, hashOf, person} from '../../../../../mock/fixtures.js'
 import {busy, DIGEST, GENESIS, heartbeat, mined, minedObject, sessionStart, subcalls, timestampSet, topology, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
-import {drawnCanvases, drawnFaces, expectInContentBox, PHONE} from '../../../../.storybook/fit'
+import {drawnCanvases, drawnFaces, expectInContentBox, expectNamedNavs, PHONE} from '../../../../.storybook/fit'
 import {inSiteGutters, pageMeta, pageStory} from '../../../../.storybook/page'
 import BlockPage from './page'
 
@@ -60,7 +60,8 @@ export const ExtrinsicsOnPhone: StoryObj = {
 
 export const ExtrinsicsOne = detail(QUIET)
 
-export const ExtrinsicsMany = detail(CROWDED)
+// the links to the neighbouring blocks share the page with the list's pager
+export const ExtrinsicsMany: StoryObj = {...detail(CROWDED), play: async ({canvasElement}) => expectNamedNavs(canvasElement)}
 
 export const ExtrinsicsManyLastPage = detail(CROWDED, {page: 3})
 

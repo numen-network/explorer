@@ -47,6 +47,7 @@ export default async function IdentitiesPage(props: PageProps<'/identities'>) {
 
             <div className="mt-7">
                 <TabBar
+                    aria-label="Identities"
                     items={[
                         {label: 'Identities', count: counts.direct, href: '/identities', active: tab === 'identities'},
                         {label: 'Registrars', count: counts.registrars, href: '/identities?tab=registrars', active: tab === 'registrars'},

@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import * as echarts from 'echarts'
-import {expect, spyOn, waitFor} from 'storybook/test'
+import {expect, spyOn, waitFor, within} from 'storybook/test'
 
 export const PHONE = {viewport: {value: 'mobile1', isRotated: false}}
 export const TABLET = {viewport: {value: 'tablet', isRotated: false}}
@@ -276,9 +276,19 @@ export function expectOneLine(...boxes: Element[]) {
 // what every token link under root reads, in page order
 export const tokenLabels = (root: Element) => [...root.querySelectorAll('a[href^="/token/"]')].map(link => link.textContent)
 
+// every navigation landmark under root carries a name of its own
+export function expectNamedNavs(root: HTMLElement) {
+    const navs = within(root).getAllByRole('navigation')
+    for (const nav of navs) {
+        const name = nav.getAttribute('aria-label')
+        expect(name).toBeTruthy()
+        expect(within(root).getAllByRole('navigation', {name: name!})).toEqual([nav])
+    }
+}
+
 // the count on the tab that opens slug, or null when the page shows no such tab
 export function tabCount(root: Element, slug: string) {
-    const tab = root.querySelector(`[role=tab][href$="?tab=${slug}"]`)
+    const tab = root.querySelector(`:is([role=tablist], nav) a[href$="?tab=${slug}"]`)
     return tab && tab.querySelector('[data-slot=badge]')!.textContent
 }
 

@@ -1,9 +1,9 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, waitFor} from 'storybook/test'
+import {expect, waitFor, within} from 'storybook/test'
 import {chartBySlug} from '@/lib/charts'
 import {numn} from '../../../../../mock/fixtures.js'
 import {DAILY} from '../../../../../mock/fixtures/home.js'
-import {axesLegible, expectLegibleAxes, lonePointsPainted, PHONE, tooltipsInView} from '../../../../.storybook/fit'
+import {axesLegible, expectLegibleAxes, expectNamedNavs, lonePointsPainted, PHONE, tooltipsInView} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import ChartPage from './page'
 
@@ -137,15 +137,16 @@ const checked = (story: StoryObj, check: Play): StoryObj => ({
 // one control in the header holds the pick, a preset or the date range
 const preset =
     (label: string): Play =>
-    async ({canvas}) => {
-        await expect(canvas.getByRole('tab', {selected: true})).toHaveTextContent(label)
+    async ({canvas, canvasElement}) => {
+        expectNamedNavs(canvasElement)
+        await expect(within(canvas.getByRole('navigation', {name: 'Range'})).getByRole('link', {current: 'page'})).toHaveTextContent(label)
         await expect(canvas.getByRole('button', {name: 'Any date'})).toHaveAttribute('data-active', 'false')
     }
 
 const custom =
     (range: string): Play =>
     async ({canvas}) => {
-        for (const tab of canvas.getAllByRole('tab')) await expect(tab).toHaveAttribute('aria-selected', 'false')
+        await expect(within(canvas.getByRole('navigation', {name: 'Range'})).queryByRole('link', {current: 'page'})).toBeNull()
         await expect(canvas.getByRole('button', {name: range})).toHaveAttribute('data-active', 'true')
     }
 

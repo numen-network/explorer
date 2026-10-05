@@ -18,14 +18,21 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const FirstActive: Story = {}
+// only the chart being read is the current page
+const current =
+    (href: string): Story['play'] =>
+    async ({canvas}) =>
+        expect(canvas.getAllByRole('link', {current: 'page'}).map(link => link.getAttribute('href'))).toEqual([href])
 
-export const LastActive: Story = {args: {active: 'treasury'}}
+export const FirstActive: Story = {play: current('/charts/blocks')}
+
+export const LastActive: Story = {args: {active: 'treasury'}, play: current('/charts/treasury')}
 
 export const FilteredByTitle: Story = {
     play: async ({canvas, userEvent}) => {
         await userEvent.type(canvas.getByPlaceholderText('Search by chart name'), 'issu')
         await expect(canvas.getAllByRole('link')).toHaveLength(3)
+        await expect(canvas.queryByRole('link', {current: 'page'})).toBeNull()
     },
 }
 
