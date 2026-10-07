@@ -26,7 +26,7 @@ export class TreasurySpend {
 
     @Index_("idx_treasury_spend_beneficiary_264a9618")
     @ManyToOne_(() => Account, {nullable: true})
-    beneficiary!: Relation_<Account> | undefined | null
+    beneficiary!: Relation_<Account>
 
     @BigIntColumn_({nullable: false})
     amount!: bigint

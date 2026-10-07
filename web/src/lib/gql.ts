@@ -1040,7 +1040,7 @@ export interface TreasurySpendRow {
     amount: string
     status: string
     block: number
-    beneficiary: AccountRef | null
+    beneficiary: AccountRef
 }
 
 export interface BountyRow {

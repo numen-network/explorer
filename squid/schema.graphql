@@ -450,7 +450,7 @@ type TreasurySpend @entity {
   referendum: Referendum @index
   "the Treasury call family, spend_local or spend"
   kind: String!
-  beneficiary: Account
+  beneficiary: Account!
   amount: BigInt!
   "method of the last Treasury event the spend raised"
   status: String! @index

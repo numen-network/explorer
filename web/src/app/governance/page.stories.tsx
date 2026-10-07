@@ -143,7 +143,7 @@ export const TreasuryOne = treasuryTab([spend(0, 'Paid')])
 export const TreasuryEveryStatus = treasuryTab(SPEND_STATUSES.map((status, i) => spend(i, status)))
 
 export const TreasuryEdgeCases = treasuryTab([
-    spend(0, 'AssetSpendApproved', {beneficiary: null}),
+    spend(0, 'AssetSpendApproved', {beneficiary: PEOPLE[7]}),
     spend(1, 'Awarded', {referendum: null}),
     spend(2, 'Paid', {amount: '0'}),
     spend(3, 'SpendApproved', {amount: '1'}),

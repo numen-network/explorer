@@ -12,7 +12,6 @@ import type {ChainProps} from '@/lib/chain'
 import {camelLabel, fmtBalance, fmtCount, fmtInt, fmtSpan, trackLabel} from '@/lib/format'
 import type {TrackRow, TreasurySpendRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
-import {NONE} from '@/components/Detail'
 
 const SPEND_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle'> = {
     SpendApproved: 'warn',
@@ -37,7 +36,7 @@ export function TreasuryTable({rows, chain, filtered}: {rows: TreasurySpendRow[]
                 scol.display({
                     id: 'beneficiary',
                     header: 'Beneficiary', meta: {className: 'w-full'},
-                    cell: ({row}) => (row.original.beneficiary ? <AccountLink addr={ss58Encode(row.original.beneficiary.id, chain.ss58)} acc={row.original.beneficiary} /> : NONE),
+                    cell: ({row}) => <AccountLink addr={ss58Encode(row.original.beneficiary.id, chain.ss58)} acc={row.original.beneficiary} />,
                 }),
                 scol.display({id: 'referendum', header: 'Referendum', cell: ({row}) => <RefCell r={row.original.referendum} />}),
                 scol.display({
