@@ -400,12 +400,16 @@ async function loadTouchedReferenda(ctx: {store: any}, batch: BatchData): Promis
     for (const r of rows) batch.referenda.set(r.index, r)
 }
 
-// a dispatch names a task id, only approved referenda can own one
+// a named dispatch carries its task id, only approved referenda can own one
 async function loadEnactments(ctx: {store: any}, batch: BatchData): Promise<void> {
-    if (!batch.govEvents.some(e => e.name === 'Scheduler.Dispatched')) return
+    const named = batch.govEvents.filter(e => e.name === 'Scheduler.Dispatched' && e.args.id != null)
+    if (named.length === 0) return
+    const ids = new Set(named.map(e => e.args.id))
     const rows: Referendum[] = await ctx.store.find(Referendum, {where: {status: ReferendumStatus.Approved}, relations: {track: true}})
     for (const r of rows) {
-        batch.enactments.set(enactmentId(r.index), r.index)
+        const id = enactmentId(r.index)
+        if (!ids.has(id)) continue
+        batch.enactments.set(id, r.index)
         if (!batch.referenda.has(r.index)) batch.referenda.set(r.index, r)
     }
 }
@@ -470,31 +474,17 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
         case 'ConfirmAborted':
             r.confirmingSince = null
             break
+        // the pallet schedules the enactment as it confirms
         case 'Confirmed':
+            batch.enactments.set(enactmentId(args.index), args.index)
             setTally(r, args.tally)
-            break
-        case 'Approved':
-            r.status = ReferendumStatus.Approved
-            r.endedAt = ev.height
             break
         case 'Rejected':
-            r.status = ReferendumStatus.Rejected
-            r.endedAt = ev.height
-            setTally(r, args.tally)
-            break
         case 'TimedOut':
-            r.status = ReferendumStatus.TimedOut
-            r.endedAt = ev.height
-            setTally(r, args.tally)
-            break
         case 'Cancelled':
-            r.status = ReferendumStatus.Cancelled
-            r.endedAt = ev.height
             setTally(r, args.tally)
             break
         case 'Killed':
-            r.status = ReferendumStatus.Killed
-            r.endedAt = ev.height
             setTally(r, args.tally)
             // a kill slashes both deposits
             r.submissionDepositor = null
@@ -671,6 +661,8 @@ function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): voi
     }
 }
 
+// status is the ReferendumInfoFor variant, an ended one stores the block it
+// ended at but no tally, the end event carried the final one
 async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: any): Promise<void> {
     const open: Referendum[] = await ctx.store.find(Referendum, {
         where: {status: ReferendumStatus.Ongoing},
@@ -687,12 +679,17 @@ async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: a
     indices.forEach((idx, i) => {
         const info = infos[i]
         const r = all.get(idx)!
-        if (info?.__kind !== 'Ongoing') return
-        setTally(r, info.value.tally)
-        r.submissionDepositor = info.value.submissionDeposit.who
-        r.submissionDeposit = info.value.submissionDeposit.amount
-        r.decisionDepositor = info.value.decisionDeposit?.who ?? null
-        r.decisionDeposit = info.value.decisionDeposit?.amount ?? null
+        if (info == null) throw new Error(`referendum ${idx} has no info at block ${lastHeader.height}`)
+        if (info.__kind === 'Ongoing') {
+            setTally(r, info.value.tally)
+            r.submissionDepositor = info.value.submissionDeposit.who
+            r.submissionDeposit = info.value.submissionDeposit.amount
+            r.decisionDepositor = info.value.decisionDeposit?.who ?? null
+            r.decisionDeposit = info.value.decisionDeposit?.amount ?? null
+        } else {
+            r.status = ReferendumStatus[info.__kind]
+            r.endedAt = info.__kind === 'Killed' ? info.value : info.value[0]
+        }
         batch.referenda.set(idx, r)
     })
 }

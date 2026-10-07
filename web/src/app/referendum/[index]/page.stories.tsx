@@ -217,6 +217,12 @@ export const MetadataEmptyFields = story(
     'metadata'
 )
 
+export const MetadataApproved = withPlay(curatedCase(0, 'metadata'), async ({canvas}) => {
+    await expect(canvas.getByText('Approved')).toBeInTheDocument()
+    const ended = (await canvas.findByText('Ended at')).nextElementSibling as HTMLElement
+    await expect(within(ended).getByRole('link', {name: '#588,640'})).toBeInTheDocument()
+})
+
 export const TextHistoryEmpty = curatedCase(6, 'text')
 
 const pitch = `Pays a pilot cohort of three community teams from the medium spender track.
@@ -259,7 +265,17 @@ export const TextHistoryLongTokensOnPhone = withPlay(
     }
 )
 
-export const TimelineApprovedEarly = curatedCase(10, 'timeline')
+// an approved referendum ends where it confirmed and its rail runs on to the
+// enactment, with no step of its own reading Approved
+const approvedRail = (confirmed: string, enacted: string): Play => async ({canvas}) => {
+    await expect(canvas.getByText('Approved')).toBeInTheDocument()
+    for (const [title, block] of [['Confirmed', confirmed], ['Enacted', enacted]]) {
+        const item = (await canvas.findByText(title)).closest<HTMLElement>('li')!
+        await expect(within(item).getByRole('link', {name: block})).toBeInTheDocument()
+    }
+}
+
+export const TimelineApprovedEarly = withPlay(curatedCase(10, 'timeline'), approvedRail('#698,640', '#707,280'))
 
 // on a phone the submission time in the header and every step's time break
 // inside their cards, with no line ending on a middle dot
@@ -303,7 +319,6 @@ const secondAttempt = {
         step('Referenda.ConfirmAborted', 724_000, 0),
         step('Referenda.ConfirmStarted', 735_000, 0),
         step('Referenda.Confirmed', 743_640, 0),
-        step('Referenda.Approved', 743_640, 1),
         step('Scheduler.Dispatched', 752_280, 0),
         step('Referenda.SubmissionDepositRefunded', 760_000, 2),
         step('Referenda.DecisionDepositRefunded', 760_000, 3),
@@ -318,7 +333,7 @@ const secondAttempt = {
     ]),
 }
 
-export const TimelineTwoConfirmAttempts = story(secondAttempt, 'timeline', castFromSnapshots(secondAttempt))
+export const TimelineTwoConfirmAttempts = withPlay(story(secondAttempt, 'timeline', castFromSnapshots(secondAttempt)), approvedRail('#743,640', '#752,280'))
 
 export const CurvesTwoConfirmAttempts = story(secondAttempt, 'curves', castFromSnapshots(secondAttempt))
 

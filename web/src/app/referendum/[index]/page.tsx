@@ -39,7 +39,6 @@ const STEP_LABEL: Record<string, string> = {
     'Referenda.ConfirmStarted': 'Confirming',
     'Referenda.ConfirmAborted': 'Confirm aborted',
     'Referenda.Confirmed': 'Confirmed',
-    'Referenda.Approved': 'Approved',
     'Referenda.Rejected': 'Rejected',
     'Referenda.TimedOut': 'Timed out',
     'Referenda.Cancelled': 'Cancelled',
@@ -58,14 +57,13 @@ const STEP_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle' | 'primary'> = {
     'Referenda.DecisionStarted': 'primary',
     'Referenda.ConfirmStarted': 'warn',
     'Referenda.Confirmed': 'pos',
-    'Referenda.Approved': 'pos',
     'Referenda.Rejected': 'neg',
     'Referenda.Killed': 'neg',
     'Referenda.DepositSlashed': 'neg',
     'Scheduler.Dispatched': 'pos',
 }
 
-const STEP_ICON = (name: string) => (name === 'Referenda.Approved' || name === 'Scheduler.Dispatched' ? TICK : /Rejected|Killed|Cancelled|TimedOut|Slashed/.test(name) ? CROSS : RING)
+const STEP_ICON = (name: string) => (name === 'Referenda.Confirmed' || name === 'Scheduler.Dispatched' ? TICK : /Rejected|Killed|Cancelled|TimedOut|Slashed/.test(name) ? CROSS : RING)
 
 function Mark({icon: Icon, className}: {icon: LucideIcon; className: string}) {
     return <Icon className={`size-3.5 shrink-0 ${className}`} strokeWidth={2.2} />
