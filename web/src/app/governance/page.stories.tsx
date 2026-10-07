@@ -3,7 +3,7 @@ import {expect, screen, waitFor} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
 import {numn, PEOPLE} from '../../../../mock/fixtures.js'
 import {bounty, BOUNTY_STATUSES, counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
-import {axesLegible, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, filterChips, PHONE} from '../../../.storybook/fit'
+import {axesLegible, columnTexts, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, filterChips, PHONE} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
 
@@ -255,4 +255,13 @@ export const TracksUnevenPeriods: StoryObj = {
     },
 }
 
-export const TracksMany = tracksTab(Array.from({length: 24}, (_, i) => track(String(i), `track_${i}`, {minApproval: CURVES[i % 3], minSupport: linear(1e9, 0, 2e8 + i * 1e7)})))
+const manyTracks = tracksTab(Array.from({length: 24}, (_, i) => track(String(i), `track_${i}`, {minApproval: CURVES[i % 3], minSupport: linear(1e9, 0, 2e8 + i * 1e7)})))
+
+// two-digit ids come after the single digits
+export const TracksMany: StoryObj = {
+    ...manyTracks,
+    play: async context => {
+        await manyTracks.play!(context)
+        await expect(columnTexts(context.canvasElement, 'Track')).toEqual(Array.from({length: 20}, (_, i) => `Track ${i}`))
+    },
+}

@@ -28,7 +28,7 @@ import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, fina
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig} from './multisig'
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
 import {accumulateDay, finalizeStats, treasuryAccount} from './stats'
-import {readTracks} from './tracks'
+import {readBatchTracks} from './tracks'
 
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT
 if (!RPC_ENDPOINT) throw new Error('RPC_ENDPOINT is not set')
@@ -53,18 +53,11 @@ const processor = new SubstrateBatchProcessor()
 type Fields = SubstrateBatchProcessorFields<typeof processor>
 type Ctx = DataHandlerContext<Store, Fields>
 
-let tracksSpec = -1
 let chainProps: {name: string; symbol: string; decimals: number; ss58: number} | undefined
 
 processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     if (ctx.blocks.length === 0) return
-    // the tracks live in the runtime, so a spec bump is the only thing that
-    // can move them
-    const spec = ctx.blocks[0].header.specVersion
-    if (spec !== tracksSpec) {
-        await ctx.store.upsert(readTracks(ctx.blocks[0].header))
-        tracksSpec = spec
-    }
+    await ctx.store.upsert(readBatchTracks(ctx.blocks.map(b => b.header)))
     const finalizedHeight = await fetchFinalizedHeight()
     const batch = new BatchData()
     const lastHeader = ctx.blocks[ctx.blocks.length - 1].header

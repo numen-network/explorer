@@ -513,7 +513,7 @@ export function votesFor(idHex: string, limit: number, offset: number) {
 export function delegationsOutFor(idHex: string) {
     return gql<{delegations: DelegationRow[]}>(
         `query ($id: String!) {
-            delegations(where: {who: {id_eq: $id}}, orderBy: track_id_ASC, limit: 100) { id conviction balance block track { id name } target { ${ACCOUNT_REF} } }
+            delegations(where: {who: {id_eq: $id}}, orderBy: [track_index_ASC, id_ASC], limit: 100) { id conviction balance block track { id name } target { ${ACCOUNT_REF} } }
         }`,
         {id: idHex}
     )
@@ -1114,8 +1114,8 @@ export function governanceSummary() {
             ongoing: referendumsConnection(orderBy: index_ASC, where: {status_eq: Ongoing}) { totalCount }
             spends: treasurySpendsConnection(orderBy: block_DESC) { totalCount }
             bounties: bountiesConnection(orderBy: index_ASC) { totalCount }
-            tracks: tracksConnection(orderBy: id_ASC) { totalCount }
-            trackList: tracks(orderBy: id_ASC) { id name }
+            tracks: tracksConnection(orderBy: index_ASC) { totalCount }
+            trackList: tracks(orderBy: index_ASC) { id name }
         }`
     )
 }
@@ -1177,7 +1177,7 @@ export function bountiesPage(limit: number, offset: number, facets: Facets, on: 
 export function tracksPage(limit: number, offset: number) {
     return gql<{tracks: TrackRow[]}>(
         `query ($limit: Int!, $offset: Int!) {
-            tracks(orderBy: id_ASC, limit: $limit, offset: $offset) { ${TRACK_FIELDS} }
+            tracks(orderBy: index_ASC, limit: $limit, offset: $offset) { ${TRACK_FIELDS} }
         }`,
         {limit, offset}
     )
@@ -1321,7 +1321,7 @@ export function eventsByIds(ids: string[]): Promise<{events: TimelineEventRow[]}
 }
 
 export function trackList() {
-    return gql<{tracks: {id: string; name: string}[]}>(`query { tracks(orderBy: id_ASC) { id name } }`)
+    return gql<{tracks: {id: string; name: string}[]}>(`query { tracks(orderBy: index_ASC) { id name } }`)
 }
 
 const DELEGATION_ORDER = '[balance_DESC, id_ASC]'

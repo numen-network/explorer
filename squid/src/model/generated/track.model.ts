@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, StringColumn as StringColumn_, IntColumn as IntColumn_, BigIntColumn as BigIntColumn_, JSONColumn as JSONColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, JSONColumn as JSONColumn_} from "@subsquid/typeorm-store"
 
 @Entity_()
 export class Track {
@@ -8,6 +8,13 @@ export class Track {
 
     @PrimaryColumn_()
     id!: string
+
+    /**
+     * the TrackId as a number, id holds it as a string
+     */
+    @Index_("idx_track_index_ef7c4ac1", {unique: true})
+    @IntColumn_({nullable: false})
+    index!: number
 
     @StringColumn_({nullable: false})
     name!: string

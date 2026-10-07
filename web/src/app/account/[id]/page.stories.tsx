@@ -44,7 +44,7 @@ import {
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
 import {chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {DESKTOP, expectFits, expectNamedNavs, expectWholeWords, filterChips, PHONE, tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {columnTexts, DESKTOP, expectFits, expectNamedNavs, expectWholeWords, filterChips, PHONE, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
@@ -374,7 +374,15 @@ export const DelegationsTrackFilterEmpty: StoryObj = {
     },
 }
 
-export const DelegationsBoth = story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'delegations'})
+// Delegating to rows and Track chips go by track id, two-digit ids after the single digits
+export const DelegationsBoth: StoryObj = {
+    ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'delegations'}),
+    play: async ({canvas, canvasElement}) => {
+        const out = canvas.getByRole('columnheader', {name: 'Delegating to'}).closest('table')!
+        await expect(columnTexts(out, 'Track')).toEqual(['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender'])
+        await expect(filterChips(canvasElement, 'Track')).toEqual(['[All 5]', 'Root 1', 'Runtime Upgrade 1', 'Wish For Change 1', 'Identity Admin 1', 'Referendum Canceller 1'])
+    },
+}
 
 const proxied = (n: number) => subject({...funds(numn(1250.5), numn(1.75 * n)), depositsJson: [{id: 'proxy', amount: numn(1.75 * n)}]})
 
