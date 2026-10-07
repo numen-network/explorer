@@ -99,6 +99,8 @@ export interface RawStep {
     name: string
     block: number
     timestamp: string
+    /** What an enactment dispatch failed with, null when it went through. */
+    error?: string | null
 }
 
 export function rawSteps(timeline: unknown): RawStep[] {

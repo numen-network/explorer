@@ -23,7 +23,8 @@ import {
     voteAction,
     voteData,
 } from '../../../../../mock/fixtures/governance.js'
-import {expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, lastTooltipLines, PHONE} from '../../../../.storybook/fit'
+import type {RawStep} from '@/components/timeline'
+import {DESKTOP, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, expectWholeWords, lastTooltipLines, PHONE} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 
@@ -265,13 +266,25 @@ export const TextHistoryLongTokensOnPhone = withPlay(
     }
 )
 
-// an approved referendum ends where it confirmed and its rail runs on to the
-// enactment, with no step of its own reading Approved
-const approvedRail = (confirmed: string, enacted: string): Play => async ({canvas}) => {
+// an approved referendum ends where it confirmed and no step of its own reads
+// Approved, its enactment ticks when the dispatch went through and otherwise
+// reads Failed with the error, which wraps between whole words
+const approvedRail = (confirmed: string, enacted: string, error: string | null = null): Play => async ({canvas}) => {
     await expect(canvas.getByText('Approved')).toBeInTheDocument()
-    for (const [title, block] of [['Confirmed', confirmed], ['Enacted', enacted]]) {
+    const step = async (title: string, block: string) => {
         const item = (await canvas.findByText(title)).closest<HTMLElement>('li')!
         await expect(within(item).getByRole('link', {name: block})).toBeInTheDocument()
+        return item
+    }
+    await step('Confirmed', confirmed)
+    const enactment = await step('Enacted', enacted)
+    if (error == null) {
+        await expect(enactment.querySelector('.lucide-check')).not.toBeNull()
+        await expect(within(enactment).queryByText('Failed')).toBeNull()
+    } else {
+        await expect(enactment.querySelector('.lucide-x')).not.toBeNull()
+        await expect(within(enactment).getByText('Failed')).toBeInTheDocument()
+        expectWholeWords(within(enactment).getByText(error))
     }
 }
 
@@ -319,7 +332,7 @@ const secondAttempt = {
         step('Referenda.ConfirmAborted', 724_000, 0),
         step('Referenda.ConfirmStarted', 735_000, 0),
         step('Referenda.Confirmed', 743_640, 0),
-        step('Scheduler.Dispatched', 752_280, 0),
+        {...step('Scheduler.Dispatched', 752_280, 0), error: null},
         step('Referenda.SubmissionDepositRefunded', 760_000, 2),
         step('Referenda.DecisionDepositRefunded', 760_000, 3),
     ],
@@ -336,6 +349,31 @@ const secondAttempt = {
 export const TimelineTwoConfirmAttempts = withPlay(story(secondAttempt, 'timeline', castFromSnapshots(secondAttempt)), approvedRail('#743,640', '#752,280'))
 
 export const CurvesTwoConfirmAttempts = story(secondAttempt, 'curves', castFromSnapshots(secondAttempt))
+
+// the spend asks for more than the small spender track may pay, which only
+// the enactment checks, and the runtime encodes that refusal as error 2 of
+// Treasury at pallet index 23
+const overCap = {
+    ...curated(0),
+    id: '25',
+    index: 25,
+    title: 'Spend over the small spender cap, approved and refused at enactment',
+    ...proposal([{pallet: 'Treasury', method: 'spend', depth: 0, amount: numn(250_000), beneficiary: PEOPLE[2].id, validFrom: null}], {
+        assetKind: null,
+        amount: numn(250_000),
+        beneficiary: PEOPLE[2].id,
+        validFrom: null,
+    }),
+    timeline: (curated(0).timeline as RawStep[]).map(s => (s.name === 'Scheduler.Dispatched' ? {...s, error: 'Treasury.InsufficientPermission'} : s)),
+}
+const refused = {__kind: 'Err', value: {__kind: 'Module', value: {index: 23, error: '0x02000000'}}}
+const enactment = overCap.timeline.find(s => s.name === 'Scheduler.Dispatched')!.event
+const overCapEvents = stepEvents(overCap).map((e: {id: string; args: object}) => (e.id === enactment ? {...e, args: {...e.args, result: refused}} : e))
+
+export const TimelineEnactmentFailed = {
+    ...withPlay(story(overCap, 'timeline', {...castFromSnapshots(overCap), events: eventsById(overCapEvents)}), approvedRail('#588,640', '#597,280', 'Treasury.InsufficientPermission')),
+    globals: DESKTOP,
+}
 
 // more snapshots than one read returns, packed early so the second read carries most of the run and a swing in nays
 const longRun = {

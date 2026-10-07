@@ -114,7 +114,7 @@ export class Referendum {
     support!: bigint
 
     /**
-     * one step per lifecycle event, its id, qualified name, block and timestamp
+     * one step per lifecycle event, its id, qualified name, block and timestamp, an enactment step adds the error its dispatch failed with or null
      */
     @JSONColumn_({nullable: false})
     timeline!: unknown

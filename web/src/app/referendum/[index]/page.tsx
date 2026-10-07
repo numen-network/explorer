@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react'
+import {Fragment, type ReactNode} from 'react'
 import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
@@ -11,6 +11,7 @@ import {BlockLink} from '@/components/links'
 import {Gauge, ProposalTree, ReferendumByline} from '@/components/referenda'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
 import ActionList, {type ActionImpact, type ActionRow} from '@/components/actions'
+import {Badge} from '@/components/ui/badge'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
@@ -64,6 +65,11 @@ const STEP_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle' | 'primary'> = {
 }
 
 const STEP_ICON = (name: string) => (name === 'Referenda.Confirmed' || name === 'Scheduler.Dispatched' ? TICK : /Rejected|Killed|Cancelled|TimedOut|Slashed/.test(name) ? CROSS : RING)
+
+// a pallet error wraps after the pallet rather than inside a word
+function ErrorName({name}: {name: string}) {
+    return <span className="font-mono">{name.split('.').map((part, i) => (i > 0 ? <Fragment key={i}>.<wbr />{part}</Fragment> : part))}</span>
+}
 
 function Mark({icon: Icon, className}: {icon: LucideIcon; className: string}) {
     return <Icon className={`size-3.5 shrink-0 ${className}`} strokeWidth={2.2} />
@@ -481,6 +487,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         <TimelineList empty={rail.length === 0}>
             {rail.map(e => {
                 const s = stepOf.get(e.id)!
+                const error = s.error
+                const failed = error != null
+                const label = STEP_LABEL[s.name] ?? camelLabel(s.name.split('.')[1])
                 const rows = stepRows(e.args, s.name === 'Referenda.DecisionDepositPlaced' ? 'Decision deposit' : 'Amount')
                 // the Submitted event names neither party nor deposit, the
                 // referendum record fills the step in
@@ -488,12 +497,22 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     if (r.submitter) rows.unshift(['Who', <AccountLink key="s" addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} />])
                     if (r.submissionDeposit != null) rows.push(['Submission deposit', fmtBalance(r.submissionDeposit, chain.decimals, chain.symbol)])
                 }
+                if (failed) rows.push(['Error', <ErrorName key="error" name={error} />])
                 return (
                     <TimelineItem
                         key={e.id}
-                        tone={STEP_TONE[s.name] ?? 'idle'}
-                        icon={STEP_ICON(s.name)}
-                        title={STEP_LABEL[s.name] ?? camelLabel(s.name.split('.')[1])}
+                        tone={failed ? 'neg' : (STEP_TONE[s.name] ?? 'idle')}
+                        icon={failed ? CROSS : STEP_ICON(s.name)}
+                        title={
+                            failed ? (
+                                <span className="flex flex-wrap items-center gap-x-2">
+                                    {label}
+                                    <Badge variant="neg">Failed</Badge>
+                                </span>
+                            ) : (
+                                label
+                            )
+                        }
                         iso={s.timestamp}
                         links={<StepLinks block={s.block} event={e} />}
                         detail={rows.length > 0 ? <TimelineRows rows={rows} /> : undefined}

@@ -331,7 +331,7 @@ type Referendum @entity {
   ayes: BigInt!
   nays: BigInt!
   support: BigInt!
-  "one step per lifecycle event, its id, qualified name, block and timestamp"
+  "one step per lifecycle event, its id, qualified name, block and timestamp, an enactment step adds the error its dispatch failed with or null"
   timeline: JSON!
   "plain reserves the chain records no reason for, cleared once refunded or slashed"
   submissionDepositor: String @index

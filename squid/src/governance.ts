@@ -422,8 +422,8 @@ function applyGovEvent(batch: BatchData, ev: GovEvent): void {
     else if (pallet === 'Scheduler' && method === 'Dispatched') applyDispatch(batch, ev)
 }
 
-function pushTimeline(r: Referendum, ev: GovEvent): void {
-    r.timeline = [...((r.timeline as any[]) ?? []), {event: ev.id, name: ev.name, block: ev.height, timestamp: stampOf(ev).toISOString()}]
+function pushTimeline(r: Referendum, ev: GovEvent, extra: object = {}): void {
+    r.timeline = [...((r.timeline as any[]) ?? []), {event: ev.id, name: ev.name, block: ev.height, timestamp: stampOf(ev).toISOString(), ...extra}]
 }
 
 function setTally(r: Referendum, tally: any): void {
@@ -582,11 +582,25 @@ function applyDispatch(batch: BatchData, ev: GovEvent): void {
     const index = batch.enactments.get(id)
     if (index == null) return
     const r = batch.referenda.get(index)
-    if (r != null) pushTimeline(r, ev)
+    const result = ev.args.result
+    if (r != null) pushTimeline(r, ev, {error: result.__kind === 'Err' ? dispatchErrorName(result.value, ev.header._runtime) : null})
     for (const spendId of pending) {
         const s = batch.spends.get(spendId)
         if (s != null) s.referendum = new Referendum({id: String(index)})
     }
+}
+
+// a module error is a pallet index and an index into that pallet's error enum,
+// the metadata of the runtime the block ran names both
+function dispatchErrorName(err: any, runtime: Runtime): string {
+    if (err.__kind !== 'Module') return err.value?.__kind == null ? err.__kind : `${err.__kind}.${err.value.__kind}`
+    const meta = runtime.metadata
+    if (meta.__kind !== 'V14') throw new Error(`unhandled metadata ${meta.__kind}`)
+    const pallet = meta.value.pallets.find(p => p.index === err.value.index)
+    const def = meta.value.lookup.types.find(t => t.id === pallet?.errors?.type)?.type.def
+    const variant = def?.__kind === 'Variant' ? def.value.variants.find(v => v.index === parseInt(err.value.error.slice(2, 4), 16)) : undefined
+    if (pallet == null || variant == null) throw new Error(`no module error ${err.value.error} in pallet ${err.value.index}`)
+    return `${pallet.name}.${variant.name}`
 }
 
 // a spend_local is keyed by proposal index and a spend by its own index, the
