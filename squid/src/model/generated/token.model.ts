@@ -41,6 +41,13 @@ export class Token {
     deployBlock!: number | undefined | null
 
     /**
+     * sender of the create tx, absent for factory built contracts and for deployments older than the index range
+     */
+    @Index_("idx_token_deployer_388fb311")
+    @StringColumn_({nullable: true})
+    deployer!: string | undefined | null
+
+    /**
      * block the first transfer landed in, the earliest the token can be known without a create tx
      */
     @IntColumn_({nullable: false})

@@ -494,15 +494,17 @@ export function accountSummary(idHex: string) {
     )
 }
 
-export async function tokenCounts(address: string) {
-    const {transfers, holdings} = await gql<{transfers: {totalCount: number}; holdings: {totalCount: number}}>(
+export async function evmCounts(address: string) {
+    const {transfers, holdings, contracts, tokens} = await gql<Record<'transfers' | 'holdings' | 'contracts' | 'tokens', {totalCount: number}>>(
         `query ($a: String!) {
             transfers: tokenTransfersConnection(orderBy: id_ASC, where: {OR: [{from_eq: $a}, {to_eq: $a}]}) { totalCount }
             holdings: tokenHoldersConnection(orderBy: id_ASC, where: {address_eq: $a, ${HELD}}) { totalCount }
+            contracts: evmTransactionsConnection(orderBy: id_ASC, where: {from_eq: $a, contractAddress_isNull: false, status_eq: "Succeed"}) { totalCount }
+            tokens: tokensConnection(orderBy: id_ASC, where: {deployer_eq: $a}) { totalCount }
         }`,
         {a: address}
     )
-    return {transfers: transfers.totalCount, holdings: holdings.totalCount}
+    return {transfers: transfers.totalCount, holdings: holdings.totalCount, contracts: contracts.totalCount, tokens: tokens.totalCount}
 }
 
 export function votesFor(idHex: string, limit: number, offset: number) {
@@ -548,22 +550,6 @@ export function multisigOpsFor(idHex: string, limit: number, offset: number) {
         }`,
         {id: idHex, limit, offset}
     )
-}
-
-// most accounts have deployed nothing, so the token lookup only runs when the
-// first query finds contracts to look up
-export async function evmDeployments(address: string): Promise<{contracts: number; tokens: number}> {
-    const {deploys} = await gql<{deploys: {contractAddress: string}[]}>(
-        `query ($a: String!) { deploys: evmTransactions(where: {from_eq: $a, contractAddress_isNull: false}, limit: 100) { contractAddress } }`,
-        {a: address}
-    )
-    if (deploys.length === 0) return {contracts: 0, tokens: 0}
-    const ids = deploys.map(d => d.contractAddress)
-    const {tokens} = await gql<{tokens: {id: string}[]}>(
-        `query ($ids: [String!]!) { tokens(where: {id_in: $ids}, limit: 100) { id } }`,
-        {ids}
-    )
-    return {contracts: deploys.length, tokens: tokens.length}
 }
 
 export function transfersPage(limit: number, offset: number) {

@@ -441,7 +441,6 @@ export function accountPage({
     const onTrack = id => delegationsIn.filter(d => d.track.id === id)
     const perTrack = id => counts.tracks?.[id] ?? onTrack(id).length
     const allIn = counts.tracks ? Object.values(counts.tracks).reduce((a, b) => a + b, 0) : delegationsIn.length
-    const deployed = Array.from({length: deploys}, (_, i) => ({contractAddress: contract(100 + i)}))
     // the index keeps rows for tokens the account doesn't hold, only a query asking for a balance above zero leaves them out
     const holderRows = where => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
     return {
@@ -481,8 +480,8 @@ export function accountPage({
         childBounties: childBountyDeposits,
         votesConnection: count(votes.length),
         votes: paged(votes),
-        evmTransactions: deployed,
-        tokens: deployed.slice(0, tokens).map(d => ({id: d.contractAddress})),
+        evmTransactionsConnection: count(deploys),
+        tokensConnection: count(tokens),
         tokenTransfersConnection: count(counts.tokenTransfers ?? tokenTransfers.length),
         tokenTransfers,
         tokenHoldersConnection: ({where}) => count(counts.holdings ?? holderRows(where).length),

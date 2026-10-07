@@ -27,7 +27,7 @@ import {lockRows, schedules, tabHref, type TabCtx} from '@/components/account/sh
 import {chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
 import {fmtAge, fmtInt} from '@/lib/format'
-import {accountSummary, evmDeployments, tokenCounts} from '@/lib/gql'
+import {accountSummary, evmCounts} from '@/lib/gql'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {PRIME, TREASURY} from '@/lib/wellKnown'
 
@@ -61,10 +61,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const a = s.accountById
     if (!a) notFound()
 
-    const [evm, {transfers: nTokens, holdings: nHoldings}] = await Promise.all([
-        a.evmAddress ? evmDeployments(a.evmAddress) : {contracts: 0, tokens: 0},
-        a.evmAddress ? tokenCounts(a.evmAddress) : {transfers: 0, holdings: 0},
-    ])
+    const evm = a.evmAddress ? await evmCounts(a.evmAddress) : {transfers: 0, holdings: 0, contracts: 0, tokens: 0}
 
     const ctx: TabCtx = {hex, addr, chain, sp}
     const validator = s.validators[0]
@@ -102,8 +99,8 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nProxyIn.totalCount > 0) roles.push({text: 'Proxy', tone: 'idle'})
 
     const tabs: Tab[] = [{slug: 'transfers', label: 'Native', group: 'Transfers', count: s.nTransfers.totalCount, body: () => <Transfers {...ctx} />}]
-    if (a.evmAddress) tabs.push({slug: 'tokens', label: 'Tokens', group: 'Transfers', count: nTokens, body: () => <TokenTransfers {...ctx} evm={a.evmAddress!} />})
-    if (nHoldings > 0) tabs.push({slug: 'holdings', label: 'Tokens', count: nHoldings, body: () => <Holdings {...ctx} evm={a.evmAddress!} />})
+    if (a.evmAddress) tabs.push({slug: 'tokens', label: 'Tokens', group: 'Transfers', count: evm.transfers, body: () => <TokenTransfers {...ctx} evm={a.evmAddress!} />})
+    if (evm.holdings > 0) tabs.push({slug: 'holdings', label: 'Tokens', count: evm.holdings, body: () => <Holdings {...ctx} evm={a.evmAddress!} />})
     tabs.push({slug: 'extrinsics', label: 'Extrinsics', count: s.nExtrinsics.totalCount, body: () => <Extrinsics {...ctx} />})
     if (locks.length > 0) tabs.push({slug: 'locks', label: 'Locks', count: locks.length, body: () => <Locks rows={locks} chain={chain} />})
     if (vest.length > 0) tabs.push({slug: 'vesting', label: 'Vesting', count: vest.length, body: () => <Vesting vest={vest} chain={chain} />})

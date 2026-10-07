@@ -150,6 +150,24 @@ export const EveryRoleOnDesktop: StoryObj = {
     play: async ({canvas}) => expectWholeWords(await canvas.findByText('mapped account of this H160')),
 }
 
+const roles = (root: HTMLElement) => [...within(root).getByRole('heading', {name: 'Account'}).parentElement!.querySelectorAll('[data-slot=badge]')].map(b => b.textContent)
+
+// the roles an account earns from the contracts and tokens it deployed
+const deployed = (contracts: number, tokens: number, earned: string[]): StoryObj => ({
+    ...story({account: mapped(), deploys: contracts, tokens}),
+    play: async ({canvasElement}) => expect(roles(canvasElement)).toEqual(earned),
+})
+
+export const DeployedNothing = deployed(0, 0, [])
+
+export const DeployedContractsOnly = deployed(3, 0, ['Contract deployer'])
+
+export const DeployedOneToken = deployed(1, 1, ['Token issuer'])
+
+export const DeployedManyTokens = deployed(150, 150, ['Token issuer · 150'])
+
+export const DeployedMoreContractsThanTokens = deployed(160, 150, ['Token issuer · 150', 'Contract deployer'])
+
 // born at genesis, which carries no timestamp, so its active age has no figure
 export const Treasury: StoryObj = {
     ...story({

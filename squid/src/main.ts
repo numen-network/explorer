@@ -275,7 +275,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
     const at = '0x' + header.height.toString(16)
     const tokenIds = [...new Set(batch.erc20Queue.map(q => q.token))]
     const tokens = new Map((await ctx.store.findBy(Token, {id: In(tokenIds)})).map(t => [t.id, t]))
-    const deploys = await deployBlocks(ctx, batch, tokenIds.filter(id => !tokens.has(id)))
+    const created = await createTxs(ctx, batch, tokenIds.filter(id => !tokens.has(id)))
     const holderIds = new Set<string>()
     for (const q of batch.erc20Queue) {
         if (q.from !== ZERO_ADDRESS) holderIds.add(`${q.token}-${q.from}`)
@@ -293,6 +293,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
         let token = tokens.get(q.token)
         if (token == null) {
             const meta = await fetchErc20Metadata(rpc, q.token, at)
+            const create = created.get(q.token)
             token = new Token({
                 id: q.token,
                 name: meta.name,
@@ -300,7 +301,8 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
                 decimals: meta.decimals,
                 holderCount: 0,
                 transferCount: 0,
-                deployBlock: deploys.get(q.token),
+                deployBlock: create?.block.height ?? null,
+                deployer: create?.from ?? null,
                 firstBlock: q.block.height,
             })
             tokens.set(q.token, token)
@@ -349,15 +351,15 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
 
 // a create tx names the contract it made, but a token only surfaces at its
 // first transfer, which can be many batches later or in this very batch
-async function deployBlocks(ctx: Ctx, batch: BatchData, ids: string[]): Promise<Map<string, number>> {
-    const out = new Map<string, number>()
+async function createTxs(ctx: Ctx, batch: BatchData, ids: string[]): Promise<Map<string, EvmTransaction>> {
+    const out = new Map<string, EvmTransaction>()
     if (ids.length === 0) return out
     const want = new Set(ids)
     for (const tx of batch.evmTxs) {
-        if (tx.contractAddress != null && want.has(tx.contractAddress)) out.set(tx.contractAddress, tx.block.height)
+        if (tx.contractAddress != null && want.has(tx.contractAddress)) out.set(tx.contractAddress, tx)
     }
     for (const tx of await ctx.store.find(EvmTransaction, {where: {contractAddress: In(ids)}, relations: {block: true}})) {
-        if (tx.contractAddress != null) out.set(tx.contractAddress, tx.block.height)
+        if (tx.contractAddress != null) out.set(tx.contractAddress, tx)
     }
     return out
 }

@@ -208,6 +208,8 @@ type Token @entity {
   transferCount: Int!
   "block the create tx landed in, absent for factory built contracts and for deployments older than the index range"
   deployBlock: Int
+  "sender of the create tx, absent for factory built contracts and for deployments older than the index range"
+  deployer: String @index
   "block the first transfer landed in, the earliest the token can be known without a create tx"
   firstBlock: Int!
 }
