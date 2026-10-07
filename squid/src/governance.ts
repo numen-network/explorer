@@ -613,46 +613,37 @@ async function loadTouchedSpends(ctx: {store: any}, batch: BatchData): Promise<v
     for (const s of rows) batch.spends.set(s.id, s)
 }
 
+// the call family each approval event comes from, the runtime pays both to an
+// account
+const APPROVED_KIND = new Map([
+    ['SpendApproved', 'spend_local'],
+    ['AssetSpendApproved', 'spend'],
+])
+
 function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): void {
     const args = ev.args
     const id = spendId(method, args)
     if (id == null) return
-    switch (method) {
-        case 'SpendApproved':
-            batch.spendsAtHeight.set(ev.height, [...(batch.spendsAtHeight.get(ev.height) ?? []), id])
-            batch.spends.set(
-                id,
-                new TreasurySpend({
-                    id,
-                    kind: 'spend_local',
-                    beneficiary: batch.touch(args.beneficiary, ev.height),
-                    amount: BigInt(args.amount),
-                    status: method,
-                    block: ev.height,
-                    indexInBlock: ev.indexInBlock,
-                })
-            )
-            break
-        case 'AssetSpendApproved':
-            batch.spends.set(
-                id,
-                new TreasurySpend({
-                    id,
-                    kind: 'spend',
-                    beneficiary: typeof args.beneficiary === 'string' ? batch.touch(args.beneficiary, ev.height) : undefined,
-                    amount: BigInt(args.amount),
-                    status: method,
-                    block: ev.height,
-                    indexInBlock: ev.indexInBlock,
-                })
-            )
-            break
-        default: {
-            const s = batch.spends.get(id)
-            if (s == null) throw new Error(`Treasury.${method} names spend ${id}, which was never approved`)
-            s.status = method
-        }
+    const kind = APPROVED_KIND.get(method)
+    if (kind == null) {
+        const s = batch.spends.get(id)
+        if (s == null) throw new Error(`Treasury.${method} names spend ${id}, which was never approved`)
+        s.status = method
+        return
     }
+    batch.spendsAtHeight.set(ev.height, [...(batch.spendsAtHeight.get(ev.height) ?? []), id])
+    batch.spends.set(
+        id,
+        new TreasurySpend({
+            id,
+            kind,
+            beneficiary: batch.touch(args.beneficiary, ev.height),
+            amount: BigInt(args.amount),
+            status: method,
+            block: ev.height,
+            indexInBlock: ev.indexInBlock,
+        })
+    )
 }
 
 // status is the ReferendumInfoFor variant, an ended one stores the block it
