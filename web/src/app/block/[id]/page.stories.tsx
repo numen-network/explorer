@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {HEAD, hashOf, person} from '../../../../../mock/fixtures.js'
-import {busy, DIGEST, GENESIS, heartbeat, mined, minedObject, sessionStart, subcalls, timestampSet, topology, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
+import {busy, DIGEST, GENESIS, heartbeat, mined, minedObject, sessionStart, timestampSet, topology, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
 import {drawnCanvases, drawnFaces, expectInContentBox, expectNamedNavs, PHONE} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import BlockPage from './page'
@@ -18,6 +18,8 @@ const crowd = (i: number) => (i % 4 === 0 ? heartbeat : (height: number) => tran
 const CROWDED = mined(HEAD - 400, [timestampSet, ...Array.from({length: 44}, (_, i) => crowd(i))])
 const SESSION = mined(HEAD - 160, [timestampSet, transfer], {initialization: sessionStart(HEAD - 160)})
 const AIRDROP = mined(HEAD - 500, [timestampSet, heartbeat, vestingPayout])
+const PAYOUT_SIZES = [526, 731, 412, 650]
+const PAYOUTS = mined(HEAD - 520, [timestampSet, ...PAYOUT_SIZES.map(count => (height: number) => vestingPayout(height, {count}))])
 const FRESH = mined(HEAD - 1, [timestampSet, transfer])
 
 const whale = (height: number) => transfer(height, {tip: 1_234_567_891_234_567_891_234_567n})
@@ -38,7 +40,6 @@ function detail(b: Mined, {tab = '', page = 1, protocols = ['poscan-v1']} = {}) 
         blocks: [b.block],
         extrinsics: slice(b.extrinsics),
         events: slice(b.events),
-        calls: subcalls(b.calls),
         minedObjects: [minedObject(b.block.height, protocols.at(-1))],
         meshTopologies: protocols.map(topology),
     }
@@ -69,6 +70,14 @@ export const ExtrinsicsOne = detail(QUIET)
 export const ExtrinsicsMany: StoryObj = {...detail(CROWDED), play: async ({canvasElement}) => expectNamedNavs(canvasElement)}
 
 export const ExtrinsicsManyLastPage = detail(CROWDED, {page: 3})
+
+// thousands of leaf calls across one block, each row counting its own
+export const ExtrinsicsPayoutBatches: StoryObj = {
+    ...detail(PAYOUTS),
+    play: async ({canvas}) => {
+        for (const count of PAYOUT_SIZES) await expect(canvas.getByText(`${count}× Vesting.vested_transfer`)).toBeVisible()
+    },
+}
 
 export const ExtrinsicsEmptyGenesis = genesis()
 

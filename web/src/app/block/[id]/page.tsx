@@ -18,7 +18,7 @@ import {chainProps} from '@/lib/chain'
 import {parseDigest} from '@/lib/digest'
 import {isH256} from '@/lib/evm'
 import {fmtBalance, fmtCount, fmtInt, shortHash} from '@/lib/format'
-import {blockDetail, leafCalls} from '@/lib/gql'
+import {blockDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {DigestTable} from './tables'
@@ -39,7 +39,6 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     const [chain, data] = await Promise.all([chainProps(), blockDetail(id, {limit: pg.size, offset: pg.offset})])
     const block = data.blocks[0]
     if (!block) notFound()
-    const leaves = await leafCalls(data.extrinsics.map(x => x.id))
     const object = data.minedObjects[0]
     // a block with no extrinsics pays the miner nothing beyond the mint
     const minerTake = [block.reward, block.minerFees].filter(v => v !== '0')
@@ -48,7 +47,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     const extrinsics = (
         <>
             <Card size="flush">
-                <ExtrinsicsTable rows={data.extrinsics} leaves={Object.fromEntries(leaves)} chain={chain} view="block" />
+                <ExtrinsicsTable rows={data.extrinsics} chain={chain} view="block" />
             </Card>
             <Pager paging={pg} total={block.extrinsicCount} href={`/block/${id}?tab=extrinsics`} />
         </>

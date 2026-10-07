@@ -77,6 +77,10 @@ export interface CallRef {
     method: string
 }
 
+export interface CallCount extends CallRef {
+    count: number
+}
+
 export interface TransferRow {
     id: string
     amount: string
@@ -232,6 +236,7 @@ export interface ExtrinsicRow {
     hash: string
     pallet: string
     method: string
+    leafCalls: CallCount[] | null
     success: boolean
     error: unknown
     fee: string | null
@@ -264,7 +269,7 @@ export interface EventRow {
     extrinsic: {id: string} | null
 }
 
-const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp }`
+const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method leafCalls success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp }`
 const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id }`
 
 // newest first by chain position. event indices run across the whole
@@ -738,34 +743,7 @@ export async function extrinsicsPage(limit: number, offset: number, f: Extrinsic
         rows: box.rows,
         total: box.conn.totalCount,
         counts: Object.fromEntries(pallets.map((p, i) => [p, box[`p${i}`]?.totalCount ?? 0])),
-        leaves: await leafCalls(box.rows.map(r => r.id)),
     }
-}
-
-/**
- * What a list of wrappers actually ran, keyed by extrinsic. The root is left
- * out because the row already names it, and a call holding children is another
- * wrapper, so only the leaves survive.
- */
-export async function leafCalls(ids: string[]): Promise<Map<string, CallRef[]>> {
-    const out = new Map<string, CallRef[]>()
-    if (ids.length === 0) return out
-    const {calls} = await gql<{calls: {id: string; pallet: string; method: string; extrinsic: {id: string}; parent: {id: string} | null}[]}>(
-        `query ($ids: [String!]!) {
-            calls(where: {extrinsic: {id_in: $ids}, parent_isNull: false}, orderBy: id_ASC, limit: 2000) {
-                id pallet method extrinsic { id } parent { id }
-            }
-        }`,
-        {ids}
-    )
-    const wrappers = new Set(calls.map(c => c.parent?.id))
-    for (const c of calls) {
-        if (wrappers.has(c.id)) continue
-        const arr = out.get(c.extrinsic.id) ?? []
-        arr.push({pallet: c.pallet, method: c.method})
-        out.set(c.extrinsic.id, arr)
-    }
-    return out
 }
 
 export interface IdentityEventRow {

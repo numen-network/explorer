@@ -114,6 +114,7 @@ export const extrinsic = (height, index, traits = {}) => ({
     hash: hashOf('extrinsic', height, index),
     pallet: 'Balances',
     method: 'transfer_keep_alive',
+    leafCalls: null,
     signer: person(height + index),
     success: true,
     error: null,

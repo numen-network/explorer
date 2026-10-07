@@ -379,6 +379,18 @@ export function evmTransact(height, {gasUsed = 51_234n, baseFee = 1_000_000_000_
     }
 }
 
+// the indexer counts the calls at the bottom of the tree under the root by name, in preorder, and writes null when the root wraps nothing
+function leafCalls(tree) {
+    const wrappers = new Set(tree.map(c => c.id.split('-').slice(0, -1).join('-')))
+    const counts = new Map()
+    for (const {id, address, pallet, method} of tree) {
+        if (address.length === 0 || wrappers.has(id)) continue
+        const name = `${pallet}.${method}`
+        counts.set(name, {pallet, method, count: (counts.get(name)?.count ?? 0) + 1})
+    }
+    return counts.size > 0 ? [...counts.values()] : null
+}
+
 // one extrinsic, its call tree and the events it raised, joined by the ids the indexer gives them
 function scene(height, index, first, {calls, events, ...traits}) {
     const x = extrinsic(height, index, traits)
@@ -394,7 +406,7 @@ function scene(height, index, first, {calls, events, ...traits}) {
         const [pallet, method] = name.split('.')
         return event(height, first + k, {pallet, method, args, extrinsic: {id: x.id}, call: raisedBy(address)})
     })
-    return {extrinsic: x, calls: tree, events: raised}
+    return {extrinsic: {...x, leafCalls: leafCalls(tree)}, calls: tree, events: raised}
 }
 
 const runtimeEvents = (height, list, phase, first) =>
@@ -453,9 +465,3 @@ export function pick({extrinsics, calls, events}, index) {
     const tree = calls.filter(c => c.id === x.id || c.id.startsWith(x.id + '-'))
     return {extrinsics: [x], calls: tree.map(c => ({...c, events: raised.filter(e => e.call?.id === c.id)})), events: raised}
 }
-
-// what the list pages read from the calls table, every call under a root with its parent and extrinsic
-export const subcalls = calls =>
-    calls
-        .filter(c => c.address.length > 0)
-        .map(c => ({id: c.id, pallet: c.pallet, method: c.method, extrinsic: {id: c.id.split('-').slice(0, 3).join('-')}, parent: {id: c.id.split('-').slice(0, -1).join('-')}}))

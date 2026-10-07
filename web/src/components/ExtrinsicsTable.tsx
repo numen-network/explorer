@@ -9,7 +9,7 @@ import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
-import type {CallRef, ExtrinsicRow} from '@/lib/gql'
+import type {ExtrinsicRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 const col = columnsFor<ExtrinsicRow>()
@@ -24,13 +24,13 @@ const VIEW: Record<ExtrinsicsView, string[]> = {
     account: ['extrinsic', 'block', 'time', 'call', 'result'],
 }
 
-export function ExtrinsicsTable({rows, leaves, chain, view, empty}: {rows: ExtrinsicRow[]; leaves: Record<string, CallRef[]>; chain: ChainProps; view: ExtrinsicsView; empty?: string}) {
+export function ExtrinsicsTable({rows, chain, view, empty}: {rows: ExtrinsicRow[]; chain: ChainProps; view: ExtrinsicsView; empty?: string}) {
     const columns = useMemo(() => {
         const all = {
             extrinsic: col.display({id: 'extrinsic', header: 'Extrinsic', cell: ({row}) => <ExtrinsicLink id={row.original.id} />}),
             block: col.display({id: 'block', header: 'Block', cell: ({row}) => <BlockLink height={row.original.block.height} />}),
             time: col.display({id: 'time', header: () => <TimeModeButton />, meta: {cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.block.timestamp} />}),
-            call: col.display({id: 'call', header: 'Call', meta: view === 'account' ? {className: 'w-full'} : undefined, cell: ({row}) => <CallCell call={row.original} leaves={leaves[row.original.id]} />}),
+            call: col.display({id: 'call', header: 'Call', meta: view === 'account' ? {className: 'w-full'} : undefined, cell: ({row}) => <CallCell call={row.original} leaves={row.original.leafCalls} />}),
             signer: col.display({
                 id: 'signer',
                 header: 'Signer', meta: {className: 'w-full'},
@@ -46,6 +46,6 @@ export function ExtrinsicsTable({rows, leaves, chain, view, empty}: {rows: Extri
             tip: col.display({id: 'tip', header: 'Tip', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => (row.original.tip && row.original.tip !== '0' ? fmtBalance(row.original.tip, chain.decimals) : '—')}),
         }
         return col.columns(VIEW[view].map(k => all[k as keyof typeof all]))
-    }, [leaves, chain, view])
+    }, [chain, view])
     return <DataTable columns={columns} rows={rows} empty={empty} emptyClassName={view === 'account' ? 'py-5' : undefined} getRowId={x => x.id} />
 }

@@ -41,7 +41,7 @@ module.exports = class Data1789984491159 {
         await db.query(`CREATE INDEX "idx_transfer_timestamp_cc1edef1" ON "transfer" ("timestamp") `)
         await db.query(`CREATE INDEX "idx_transfer_to_timestamp_7c7a109c" ON "transfer" ("to_id", "timestamp") `)
         await db.query(`CREATE INDEX "idx_transfer_from_timestamp_7990c96e" ON "transfer" ("from_id", "timestamp") `)
-        await db.query(`CREATE TABLE "extrinsic" ("id" character varying NOT NULL, "index_in_block" integer NOT NULL, "hash" text NOT NULL, "pallet" text NOT NULL, "method" text NOT NULL, "success" boolean NOT NULL, "error" jsonb, "fee" numeric, "tip" numeric, "miner_fee" numeric NOT NULL, "treasury_fee" numeric NOT NULL, "block_id" character varying, "signer_id" character varying, CONSTRAINT "PK_80d7db0e4b1e83e30336bc76755" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "extrinsic" ("id" character varying NOT NULL, "index_in_block" integer NOT NULL, "hash" text NOT NULL, "pallet" text NOT NULL, "method" text NOT NULL, "leaf_calls" jsonb, "success" boolean NOT NULL, "error" jsonb, "fee" numeric, "tip" numeric, "miner_fee" numeric NOT NULL, "treasury_fee" numeric NOT NULL, "block_id" character varying, "signer_id" character varying, CONSTRAINT "PK_80d7db0e4b1e83e30336bc76755" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_extrinsic_block_bdb25d72" ON "extrinsic" ("block_id") `)
         await db.query(`CREATE INDEX "idx_extrinsic_hash_fb7b0484" ON "extrinsic" ("hash") `)
         await db.query(`CREATE INDEX "idx_extrinsic_pallet_10b2b37c" ON "extrinsic" ("pallet") `)

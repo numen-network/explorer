@@ -116,6 +116,7 @@ const accountExtrinsic = (h, i, traits = {}) => ({
     hash: hashOf('extrinsic', h, i),
     pallet: 'Balances',
     method: 'transfer_keep_alive',
+    leafCalls: null,
     signer: ME,
     success: true,
     error: null,
@@ -138,19 +139,17 @@ const CALLS = [
 
 const FAILED = {__kind: 'Module', value: {index: 10, error: '0x02000000'}}
 
+// what a wrapper ran, counted by name the way the indexer writes it for the list to print under the call
+const LEAVES = {
+    batch_all: [{pallet: 'Balances', method: 'transfer_keep_alive', count: 3}, {pallet: 'Identity', method: 'set_identity', count: 1}],
+    proxy: [{pallet: 'ConvictionVoting', method: 'vote', count: 1}],
+}
+
 export const accountExtrinsics = count =>
     rows(count, (h, i) => {
         const [pallet, method] = CALLS[i % CALLS.length]
-        return accountExtrinsic(h, i % 4, {pallet, method, success: i % 5 !== 3, error: i % 5 === 3 ? FAILED : null})
+        return accountExtrinsic(h, i % 4, {pallet, method, leafCalls: LEAVES[method] ?? null, success: i % 5 !== 3, error: i % 5 === 3 ? FAILED : null})
     })
-
-// what a wrapper ran, which the list prints under its call
-const leavesOf = (ext, calls) => calls.map(([pallet, method], i) => ({id: `${ext.id}-${i + 1}`, pallet, method, extrinsic: {id: ext.id}, parent: {id: `${ext.id}-0`}}))
-
-const BATCH = [['Balances', 'transfer_keep_alive'], ['Balances', 'transfer_keep_alive'], ['Balances', 'transfer_keep_alive'], ['Identity', 'set_identity']]
-
-const leafCalls = extrinsics =>
-    extrinsics.flatMap(e => (e.method === 'batch_all' ? leavesOf(e, BATCH) : e.method === 'proxy' ? leavesOf(e, [['ConvictionVoting', 'vote']]) : []))
 
 const delegation = (i, traits = {}) => ({
     id: `delegation-${i}`,
@@ -416,7 +415,6 @@ export function accountPage({
     childCurated = 0,
     transfers = [],
     extrinsics = [],
-    calls = leafCalls(extrinsics),
     timeline = [],
     verdicts = [],
     subs = [],
@@ -460,7 +458,6 @@ export function accountPage({
         transfers: ({where}) => (where.OR ? transfers : sent(where)),
         extrinsicsConnection: count(counts.extrinsics ?? extrinsics.length),
         extrinsics,
-        calls,
         eventsConnection: count(counts.timeline ?? timeline.length),
         events: timeline,
         judgements: ({where}) => (where.id_in ? verdicts : judged),

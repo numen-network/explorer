@@ -373,6 +373,7 @@ function mapExtrinsic(batch: BatchData, block: Block, ext: ExtrinsicData<Fields>
         pallet,
         method,
         signer: signer ? batch.touch(signer, block.height) : undefined,
+        leafCalls: leafCalls(ext),
         success: ext.success,
         error: ext.error != null ? toJSON(ext.error) : undefined,
         tip: ext.tip,
@@ -383,6 +384,25 @@ function mapExtrinsic(batch: BatchData, block: Block, ext: ExtrinsicData<Fields>
     batch.extrinsicById.set(e.id, e)
     const kind = `${pallet}.${method}`
     if (!batch.callKinds.has(kind)) batch.callKinds.set(kind, new CallKind({id: kind, pallet, method}))
+}
+
+interface CallCount {
+    pallet: string
+    method: string
+    count: number
+}
+
+// a call id spells out its address, so id order walks the tree in preorder
+function leafCalls(ext: ExtrinsicData<Fields>): CallCount[] | null {
+    const leaves = ext.subcalls.filter(c => c.address.length > 0 && c.subcalls.length === 0).sort((a, b) => (a.id < b.id ? -1 : 1))
+    if (leaves.length === 0) return null
+    const counts = new Map<string, CallCount>()
+    for (const c of leaves) {
+        const [pallet, method] = splitName(c.name)
+        const name = `${pallet}.${method}`
+        counts.set(name, {pallet, method, count: (counts.get(name)?.count ?? 0) + 1})
+    }
+    return [...counts.values()]
 }
 
 // the whole tree, so what a batch or a proxy wraps is a row of its own rather

@@ -6,7 +6,7 @@ import {Card} from '@/components/ui/card'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import type {ChainProps} from '@/lib/chain'
 import {fmtCount, fmtInt} from '@/lib/format'
-import type {AccountRef, CallRef, CallRow} from '@/lib/gql'
+import type {AccountRef, CallCount, CallRef, CallRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 const qualified = (c: CallRef) => `${c.pallet}.${c.method}`
@@ -28,11 +28,13 @@ const SEP = ' · '
 // how many characters of the inner line a row can hold
 const LINE = 46
 
-// identical names collapse into a count, which is what a batch of payouts is
+// a repeated name shows once with its count, which is what a batch of payouts is
+const counted = (name: string, count: number) => (count > 1 ? `${fmtInt(count)}× ${name}` : name)
+
 function tally(refs: CallRef[]): string[] {
     const n = new Map<string, number>()
     for (const c of refs) n.set(qualified(c), (n.get(qualified(c)) ?? 0) + 1)
-    return [...n].map(([name, count]) => (count > 1 ? `${fmtInt(count)}× ${name}` : name))
+    return [...n].map(([name, count]) => counted(name, count))
 }
 
 // a wide batch names more calls than the row can hold, so the line keeps whole
@@ -45,12 +47,12 @@ function fit(parts: string[]): string {
 }
 
 /** A list row for a call, with what it ran underneath when it wraps anything. */
-export function CallCell({call, leaves}: {call: CallRef; leaves?: CallRef[]}) {
-    const parts = leaves && leaves.length > 0 ? tally(leaves) : []
+export function CallCell({call, leaves}: {call: CallRef; leaves: CallCount[] | null}) {
+    const parts = leaves?.map(c => counted(qualified(c), c.count))
     return (
         <div className="font-mono text-[13px]">
             <div>{qualified(call)}</div>
-            {parts.length > 0 && (
+            {parts && (
                 <Tip text={parts.join(SEP)}>
                     <div className="mt-0.5 text-[11px] text-dim">{fit(parts)}</div>
                 </Tip>

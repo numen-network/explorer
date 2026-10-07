@@ -115,6 +115,8 @@ type Extrinsic @entity {
   method: String! @index
   signer: Account @index
   calls: [Call!]! @derivedFrom(field: "extrinsic")
+  "leaf calls under the root counted by name, as pallet, method and count in preorder of first appearance, null when the root wraps no call"
+  leafCalls: JSON
   transfers: [Transfer!]! @derivedFrom(field: "extrinsic")
   success: Boolean!
   error: JSON

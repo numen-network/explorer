@@ -53,7 +53,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
 
     const filter: ExtrinsicFilter = {pallet, method, signer, result, after, before}
     const pallets = [...new Set(kinds.map(k => k.pallet))].sort()
-    const {rows, total, counts, leaves} = await extrinsicsPage(pg.size, pg.offset, filter, pallets)
+    const {rows, total, counts} = await extrinsicsPage(pg.size, pg.offset, filter, pallets)
 
     const href = (patch: Record<string, string>) => {
         const q = new URLSearchParams()
@@ -110,7 +110,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
             </Card>
 
             <Card size="flush" className="mt-4">
-                <ExtrinsicsTable rows={rows} leaves={Object.fromEntries(leaves)} chain={chain} view="list" empty={emptyText('extrinsics', Object.values(filter).some(Boolean))} />
+                <ExtrinsicsTable rows={rows} chain={chain} view="list" empty={emptyText('extrinsics', Object.values(filter).some(Boolean))} />
             </Card>
             <Pager paging={pg} total={total} href={href({})} />
         </div>

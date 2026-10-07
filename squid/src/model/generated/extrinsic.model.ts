@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, IntColumn as IntColumn_, StringColumn as StringColumn_, OneToMany as OneToMany_, BooleanColumn as BooleanColumn_, JSONColumn as JSONColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, IntColumn as IntColumn_, StringColumn as StringColumn_, OneToMany as OneToMany_, JSONColumn as JSONColumn_, BooleanColumn as BooleanColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
 import {Block} from "./block.model"
 import {Account} from "./account.model"
 import {Call} from "./call.model"
@@ -38,6 +38,12 @@ export class Extrinsic {
 
     @OneToMany_(() => Call, e => e.extrinsic)
     calls!: Relation_<Call[]>
+
+    /**
+     * leaf calls under the root counted by name, as pallet, method and count in preorder of first appearance, null when the root wraps no call
+     */
+    @JSONColumn_({nullable: true})
+    leafCalls!: unknown | undefined | null
 
     @OneToMany_(() => Transfer, e => e.extrinsic)
     transfers!: Relation_<Transfer[]>

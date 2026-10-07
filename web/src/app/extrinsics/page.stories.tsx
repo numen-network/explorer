@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, userEvent, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {chainInfo, HEAD, hex, numn, person} from '../../../../mock/fixtures.js'
-import {batchAll, busy, failedTransfer, failedVoteRemoval, heartbeat, mined, signedCall, subcalls, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
+import {batchAll, busy, failedTransfer, failedVoteRemoval, heartbeat, mined, signedCall, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
 import {filterChips} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import ExtrinsicsPage from './page'
@@ -47,10 +47,10 @@ const counting =
     (kinds: Kind[]) =>
     ({where}: {where?: Where}) => ({totalCount: kinds.filter(([id]) => matches(id, where)).reduce((n, k) => n + outcome(k, where), 0)})
 
-const take = (blocks: Mined[], keep: (x: Row) => boolean = () => true) => ({extrinsics: blocks.flatMap(b => b.extrinsics).filter(keep).slice(0, 20), calls: subcalls(blocks.flatMap(b => b.calls))})
+const take = (blocks: Mined[], keep: (x: Row) => boolean = () => true) => blocks.flatMap(b => b.extrinsics).filter(keep).slice(0, 20)
 
-const list = ({extrinsics, calls}: ReturnType<typeof take>, searchParams: Record<string, string> = {}, kinds = KINDS) =>
-    pageStory({callKinds, extrinsics, calls, extrinsicsConnection: counting(kinds)}, {searchParams})
+const list = (extrinsics: Row[], searchParams: Record<string, string> = {}, kinds = KINDS) =>
+    pageStory({callKinds, extrinsics, extrinsicsConnection: counting(kinds)}, {searchParams})
 
 const RECENT = [
     mined(HEAD, [timestampSet, transfer]),
@@ -126,12 +126,11 @@ export const FilterDateRange = list(take(SEPTEMBER), {after: '2026-09-01', befor
 
 // the canned rows only answer a query without a date, so they show while the bad day stays out of it
 const badDay = (after: string): StoryObj => {
-    const {extrinsics, calls} = take(RECENT)
+    const extrinsics = take(RECENT)
     return {
         ...pageStory(
             {
                 callKinds,
-                calls,
                 extrinsics: ({where}: {where?: Where}) => (where?.block ? [] : extrinsics),
                 extrinsicsConnection: ({where}: {where?: Where}) => (where?.block ? {totalCount: 0} : counting(KINDS)({where})),
             },
