@@ -167,6 +167,9 @@ export const delegatingTo = count => Array.from({length: count}, (_, i) => deleg
 export const delegatedFrom = (count, tracks = TRACKS) =>
     Array.from({length: count}, (_, i) => delegation(i + 100, {who: person(i + 1), track: tracks[i % tracks.length], balance: numn(500 * (count - i) + 0.5)}))
 
+// one account delegating the same balance on each track given, which the incoming list keeps in track order
+export const delegatedOnTracks = (who, tracks, balance) => tracks.map((track, i) => delegation(i + 200, {who, track, balance, conviction: 'Locked3x', block: HEAD - 2_000}))
+
 const PROXY_TYPES = ['Any', 'Governance', 'NonTransfer']
 
 const proxy = (i, traits = {}) => ({id: `proxy-${i}`, proxyType: PROXY_TYPES[i % PROXY_TYPES.length], delay: [0, 100, 14_400][Math.floor(i / 3) % 3], ...traits})

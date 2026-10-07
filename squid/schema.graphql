@@ -455,6 +455,8 @@ type TreasurySpend @entity {
   "method of the last Treasury event the spend raised"
   status: String! @index
   block: Int!
+  "indexInBlock of the event that approved the spend"
+  indexInBlock: Int!
 }
 
 type Bounty @entity {

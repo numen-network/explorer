@@ -480,7 +480,7 @@ export function accountSummary(idHex: string) {
             bountyDeposits: bounties(where: {OR: [{proposer: ${self}}, {curator: ${self}}]}, orderBy: index_ASC) {
                 index bond curatorDeposit proposer { id } curator { id }
             }
-            childBountyDeposits: childBounties(where: {curator: ${self}}, orderBy: id_ASC) {
+            childBountyDeposits: childBounties(where: {curator: ${self}}, orderBy: [parent_index_ASC, childIndex_ASC, id_ASC]) {
                 parent { index } childIndex curatorDeposit
             }
             nVotes: votesConnection(orderBy: id_ASC, where: {voter: ${self}}) { totalCount }
@@ -503,7 +503,7 @@ export async function tokenCounts(address: string) {
 export function votesFor(idHex: string, limit: number, offset: number) {
     return gql<{votes: VoteRow[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            votes(where: {voter: {id_eq: $id}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index status endedAt } }
+            votes(where: {voter: {id_eq: $id}}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index status endedAt } }
             conn: votesConnection(where: {voter: {id_eq: $id}}, orderBy: id_ASC) { totalCount }
         }`,
         {id: idHex, limit, offset}
@@ -1167,7 +1167,7 @@ async function facetPage<T>(entity: string, sel: string, order: string, limit: n
 const SPEND_FIELDS = `id kind amount status block referendum { index status } beneficiary { ${ACCOUNT_REF} }`
 
 export function treasurySpendsPage(limit: number, offset: number, facets: Facets, on: Selected) {
-    return facetPage<TreasurySpendRow>('treasurySpends', SPEND_FIELDS, '[block_DESC, id_DESC]', limit, offset, facets, on)
+    return facetPage<TreasurySpendRow>('treasurySpends', SPEND_FIELDS, '[block_DESC, indexInBlock_DESC, id_DESC]', limit, offset, facets, on)
 }
 
 export function bountiesPage(limit: number, offset: number, facets: Facets, on: Selected) {
@@ -1324,7 +1324,7 @@ export function trackList() {
     return gql<{tracks: {id: string; name: string}[]}>(`query { tracks(orderBy: index_ASC) { id name } }`)
 }
 
-const DELEGATION_ORDER = '[balance_DESC, id_ASC]'
+const DELEGATION_ORDER = '[balance_DESC, who_id_ASC, track_index_ASC, id_ASC]'
 
 // track ids are the pallet class numbers, safe to splice into aliases
 export async function delegationsInPage(id: string, tracks: string[], track: string, limit: number, offset: number) {

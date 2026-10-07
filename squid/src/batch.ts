@@ -38,6 +38,7 @@ import {BountyEvent} from './bounties'
 
 export interface GovEvent {
     id: string
+    indexInBlock: number
     name: string
     args: any
     height: number

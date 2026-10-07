@@ -117,7 +117,7 @@ module.exports = class Data1789984491159 {
         await db.query(`CREATE INDEX "idx_delegation_who_4c79bac5" ON "delegation" ("who_id") `)
         await db.query(`CREATE INDEX "idx_delegation_target_54f285e6" ON "delegation" ("target_id") `)
         await db.query(`CREATE INDEX "idx_delegation_track_c05b90a8" ON "delegation" ("track_id") `)
-        await db.query(`CREATE TABLE "treasury_spend" ("id" character varying NOT NULL, "kind" text NOT NULL, "amount" numeric NOT NULL, "status" text NOT NULL, "block" integer NOT NULL, "referendum_id" character varying, "beneficiary_id" character varying, CONSTRAINT "PK_8c06eb3f1cf0be0d565ef90ce69" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "treasury_spend" ("id" character varying NOT NULL, "kind" text NOT NULL, "amount" numeric NOT NULL, "status" text NOT NULL, "block" integer NOT NULL, "index_in_block" integer NOT NULL, "referendum_id" character varying, "beneficiary_id" character varying, CONSTRAINT "PK_8c06eb3f1cf0be0d565ef90ce69" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_treasury_spend_referendum_f3bdda66" ON "treasury_spend" ("referendum_id") `)
         await db.query(`CREATE INDEX "idx_treasury_spend_beneficiary_264a9618" ON "treasury_spend" ("beneficiary_id") `)
         await db.query(`CREATE INDEX "idx_treasury_spend_status_607b4e2e" ON "treasury_spend" ("status") `)

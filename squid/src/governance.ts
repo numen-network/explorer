@@ -25,8 +25,8 @@ const MAX_PROPOSAL_DEPTH = 4
 
 const stampOf = (ev: GovEvent) => new Date(ev.header.timestamp)
 
-export function collectGovEvent(batch: BatchData, id: string, name: string, args: any, height: number, header: any, signer?: string, callArgs?: any): void {
-    if (GOV_PALLETS.has(name.split('.')[0])) batch.govEvents.push({id, name, args, height, header, signer, callArgs})
+export function collectGovEvent(batch: BatchData, id: string, indexInBlock: number, name: string, args: any, height: number, header: any, signer?: string, callArgs?: any): void {
+    if (GOV_PALLETS.has(name.split('.')[0])) batch.govEvents.push({id, indexInBlock, name, args, height, header, signer, callArgs})
 }
 
 export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, lastHeader: any, rpc: RpcClient): Promise<void> {
@@ -645,6 +645,7 @@ function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): voi
                     amount: BigInt(args.amount),
                     status: method,
                     block: ev.height,
+                    indexInBlock: ev.indexInBlock,
                 })
             )
             break
@@ -658,6 +659,7 @@ function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): voi
                     amount: BigInt(args.amount),
                     status: method,
                     block: ev.height,
+                    indexInBlock: ev.indexInBlock,
                 })
             )
             break

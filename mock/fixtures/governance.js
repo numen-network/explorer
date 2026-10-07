@@ -54,6 +54,9 @@ export const spend = (n, status, traits = {}) => ({
     ...traits,
 })
 
+// [index, status] pairs approved in one block, newest approval first like the whole list, each amount its place among the block's approvals so the order shows on screen
+export const spendsInOneBlock = (height, approvals) => approvals.map(([n, status], i) => spend(n, status, {block: height, amount: numn(approvals.length - i)}))
+
 export const linear = (length, floor, ceil) => ({__kind: 'LinearDecreasing', length, floor, ceil})
 export const reciprocal = (factor, xOffset, yOffset) => ({__kind: 'Reciprocal', factor, xOffset, yOffset})
 export const stepped = (begin, end, step, period) => ({__kind: 'SteppedDecreasing', begin, end, step, period})

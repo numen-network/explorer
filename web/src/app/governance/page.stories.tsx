@@ -1,8 +1,8 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, screen, waitFor} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
-import {numn, PEOPLE} from '../../../../mock/fixtures.js'
-import {bounty, BOUNTY_STATUSES, counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, stepped, track} from '../../../../mock/fixtures/governance.js'
+import {HEAD, numn, PEOPLE} from '../../../../mock/fixtures.js'
+import {bounty, BOUNTY_STATUSES, counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, spendsInOneBlock, stepped, track} from '../../../../mock/fixtures/governance.js'
 import {axesLegible, columnTexts, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, filterChips, PHONE} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
@@ -151,6 +151,15 @@ export const TreasuryEdgeCases = treasuryTab([
 ])
 
 export const TreasuryMany = treasuryTab(spends)
+
+// spends and spend_local proposals approved in turn in one block, newest first, each kind's #10 between its #11 and #9
+export const TreasuryInOneBlock: StoryObj = {
+    ...treasuryTab(spendsInOneBlock(HEAD - 600, [[11, 'SpendApproved'], [11, 'AssetSpendApproved'], [10, 'SpendApproved'], [10, 'AssetSpendApproved'], [9, 'SpendApproved'], [9, 'AssetSpendApproved']])),
+    play: async ({canvasElement}) => {
+        await expect(columnTexts(canvasElement, 'Id')).toEqual(['#11', '#11', '#10', '#10', '#9', '#9'])
+        await expect(columnTexts(canvasElement, 'Kind')).toEqual(['Local', 'Spend', 'Local', 'Spend', 'Local', 'Spend'])
+    },
+}
 
 export const TreasuryFiltered = treasuryTab(spends, {kind: 'spend', status: 'Paid'})
 

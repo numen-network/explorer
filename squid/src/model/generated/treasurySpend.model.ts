@@ -40,4 +40,10 @@ export class TreasurySpend {
 
     @IntColumn_({nullable: false})
     block!: number
+
+    /**
+     * indexInBlock of the event that approved the spend
+     */
+    @IntColumn_({nullable: false})
+    indexInBlock!: number
 }

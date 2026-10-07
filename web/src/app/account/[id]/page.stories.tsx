@@ -8,6 +8,7 @@ import {
     accountTransferCases,
     accountTransfers,
     delegatedFrom,
+    delegatedOnTracks,
     delegatingTo,
     FULL_FIELDS,
     funds,
@@ -304,6 +305,15 @@ export const LocksEveryKind = story(
     {tab: 'locks'}
 )
 
+const curating = [[2, 9], [2, 10], [2, 11], [10, 1]].map(([index, childIndex]) => ({parent: {index}, childIndex, curatorDeposit: numn(25)}))
+
+// child bounty deposits go by parent then child, #2-10 between #2-9 and #2-11 and parent #10 after #2
+export const LocksChildBounties: StoryObj = {
+    ...story({account: subject(funds(numn(1250.5), numn(100))), childCurated: curating.length, childBountyDeposits: curating}, {tab: 'locks'}),
+    play: async ({canvasElement}) =>
+        expect(columnTexts(canvasElement, 'Source')).toEqual(['#2-9', '#2-10', '#2-11', '#10-1'].map(child => `Child bounty ${child} curator deposit`)),
+}
+
 export const VestingOne = story({account: subject({...funds(numn(1_001_250.5), '0', numn(400_000)), vestingJson: [PARTIAL], locksJson: [lock('vesting', numn(400_000))]})}, {tab: 'vesting'})
 
 export const VestingSchedules = story(
@@ -394,6 +404,13 @@ export const DelegationsBoth: StoryObj = {
     },
 }
 
+// one account delegating the same balance on every track, its rows in track order with two-digit ids after the single digits
+export const DelegationsInEveryTrack: StoryObj = {
+    ...story({delegationsIn: delegatedOnTracks(person(1), TRACKS, numn(5_000))}, {tab: 'delegations'}),
+    play: async ({canvasElement}) =>
+        expect(columnTexts(canvasElement, 'Track')).toEqual(['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender', 'Medium Spender', 'Big Spender']),
+}
+
 const proxied = (n: number) => subject({...funds(numn(1250.5), numn(1.75 * n)), depositsJson: [{id: 'proxy', amount: numn(1.75 * n)}]})
 
 export const ProxiesOut = story({account: proxied(1), proxiesOut: proxyDelegates(1)}, {tab: 'proxies'})
@@ -434,3 +451,9 @@ export const VotesMany = story({account: voting(numn(250_000)), votes: manyVotes
 export const VotesPage2 = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'votes', page: '2'})
 
 export const VotesLastPage = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'votes', page: lastPage(manyVotes.length)})
+
+// votes cast in one block list the newest referendum first, #10 between #11 and #9
+export const VotesInOneBlock: StoryObj = {
+    ...story({account: voting(numn(3_000)), votes: [11, 10, 9].map((index, i) => vote(i, {block: HEAD - 500, referendum: {index, status: 'Ongoing', endedAt: null}}))}, {tab: 'votes'}),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Referendum')).toEqual(['#11', '#10', '#9']),
+}
