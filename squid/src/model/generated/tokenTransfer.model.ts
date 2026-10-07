@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
 import {Token} from "./token.model"
 import {EvmTransaction} from "./evmTransaction.model"
 import {Block} from "./block.model"
@@ -34,6 +34,9 @@ export class TokenTransfer {
     @Index_("idx_token_transfer_block_de0e3f3a")
     @ManyToOne_(() => Block, {nullable: true})
     block!: Relation_<Block>
+
+    @IntColumn_({nullable: false})
+    logIndex!: number
 
     @Index_("idx_token_transfer_timestamp_0bb3ae39")
     @DateTimeColumn_({nullable: false})

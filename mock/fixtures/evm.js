@@ -137,7 +137,7 @@ export function evmTx(height, index, traits = {}) {
 }
 
 export const evmLog = (tx, logIndex, traits = {}) => ({
-    id: `${tx.id}-${String(logIndex).padStart(4, '0')}`,
+    id: `${tx.id}-${logIndex}`,
     logIndex,
     address: tx.to ?? tx.contractAddress,
     topics: [],
@@ -153,7 +153,7 @@ export function erc20Transfer(tx, logIndex, tok, from, to, amount) {
 
 // one token moving across many transactions, rows() lays them out newest first
 export const tokenTransfer = (tok, height, index, traits = {}) => ({
-    id: `${evmTxHash(height, index)}-${String(index).padStart(4, '0')}`,
+    id: `${evmTxHash(height, index)}-${index}`,
     from: evmAddress(index % 7),
     to: evmAddress((index % 7) + 7),
     amount: units(1 + ((height * 31 + index * 17) % 5000) / 3, tok.decimals ?? 0),
@@ -163,3 +163,7 @@ export const tokenTransfer = (tok, height, index, traits = {}) => ({
     block: {height},
     ...traits,
 })
+
+// one tx's transfers at the given log numbers, each amount equal to its log number so the order shows on screen
+export const tokenTransfersInOneTx = (tok, height, logIndexes) =>
+    logIndexes.map((logIndex, i) => tokenTransfer(tok, height, 0, {id: `${evmTxHash(height, 0)}-${logIndex}`, to: evmAddress(100 + i), amount: units(logIndex, tok.decimals ?? 0)}))

@@ -36,6 +36,7 @@ import {
     timelineVerdicts,
     tokenTransferCases,
     tokenTransferRows,
+    tokenTransfersInOneTx,
     TRACKS,
     TREASURY,
     validatorRow,
@@ -186,6 +187,15 @@ export const TokensEmpty = story({account: mapped(), transfers: accountTransfers
 export const TokensOne = story({account: mapped(), deploys: 1, tokens: 1, tokenTransfers: tokenTransferRows(1)}, {tab: 'tokens'})
 
 export const TokensMany = story({account: mapped(), deploys: 2, tokenTransfers: [...tokenTransferRows(18), ...tokenTransferCases(HEAD - 200)], counts: {tokenTransfers: 64}}, {tab: 'tokens'})
+
+// one tx moving the account's tokens five times, newest log first like the whole list, 10,000 between 10,001 and 9,999
+export const TokensInOneTx: StoryObj = {
+    ...story({account: mapped(), tokenTransfers: tokenTransfersInOneTx(HEAD - 9, [10_002, 10_001, 10_000, 9_999, 9_998])}, {tab: 'tokens'}),
+    play: async ({canvas}) => {
+        const table = canvas.getByRole('columnheader', {name: 'Amount'}).closest('table')!
+        await expect(columnTexts(table, 'Amount')).toEqual(['10,002', '10,001', '10,000', '9,999', '9,998'])
+    },
+}
 
 export const HoldingsOne = story({account: mapped(), holdings: [HOLDING]}, {tab: 'holdings'})
 

@@ -1,8 +1,8 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import type {TokenRow} from '@/lib/gql'
-import {rows} from '../../../../../mock/fixtures.js'
-import {evmAddress, holder, holders, token, tokenTransfer, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
+import {HEAD, rows} from '../../../../../mock/fixtures.js'
+import {evmAddress, holder, holders, token, tokenTransfer, tokenTransfersInOneTx, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
 import {cardsFit, expectAddressForm, expectFits, PHONE} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import TokenPage from './page'
@@ -79,6 +79,13 @@ export const TransfersLastPage = tokenPage(
 export const TransfersOne = tokenPage(solo, {transfers: [tokenTransfer(solo, 999_990, 0, {from: ZERO_ADDRESS, to: evmAddress(0), amount: solo.totalSupply})]}, TRANSFERS_TAB)
 
 export const TransfersEmpty = tokenPage(fresh, {}, TRANSFERS_TAB)
+
+// one tx moving the token five times, newest log first like the whole list, 10,000 between 10,001 and 9,999
+export const TransfersInOneTx: StoryObj = {
+    ...tokenPage(WTMR, {transfers: tokenTransfersInOneTx(WTMR, HEAD - 5, [10_002, 10_001, 10_000, 9_999, 9_998])}, TRANSFERS_TAB),
+    play: async ({canvas}) =>
+        expect(canvas.getAllByText(/^[\d,]+ wWTMR$/).map(amount => amount.textContent)).toEqual(['10,002 wWTMR', '10,001 wWTMR', '10,000 wWTMR', '9,999 wWTMR', '9,998 wWTMR']),
+}
 
 export const TransfersEveryKind = tokenPage(
     WTMR,

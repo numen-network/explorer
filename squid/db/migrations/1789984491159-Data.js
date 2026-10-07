@@ -62,7 +62,7 @@ module.exports = class Data1789984491159 {
         await db.query(`CREATE INDEX "idx_evm_log_address_log_index_bd062870" ON "evm_log" ("address", "log_index") `)
         await db.query(`CREATE TABLE "token" ("id" character varying NOT NULL, "name" text, "symbol" text, "decimals" integer, "total_supply" numeric, "holder_count" integer NOT NULL, "transfer_count" integer NOT NULL, "deploy_block" integer, "first_block" integer NOT NULL, CONSTRAINT "PK_82fae97f905930df5d62a702fc9" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_token_symbol_0d3c74d6" ON "token" ("symbol") `)
-        await db.query(`CREATE TABLE "token_transfer" ("id" character varying NOT NULL, "from" text NOT NULL, "to" text NOT NULL, "amount" numeric NOT NULL, "timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "token_id" character varying, "transaction_id" character varying, "block_id" character varying, CONSTRAINT "PK_77384b7f5874553f012eba9da41" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "token_transfer" ("id" character varying NOT NULL, "from" text NOT NULL, "to" text NOT NULL, "amount" numeric NOT NULL, "log_index" integer NOT NULL, "timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "token_id" character varying, "transaction_id" character varying, "block_id" character varying, CONSTRAINT "PK_77384b7f5874553f012eba9da41" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_token_transfer_token_e0bf4a8e" ON "token_transfer" ("token_id") `)
         await db.query(`CREATE INDEX "idx_token_transfer_from_13617e2f" ON "token_transfer" ("from") `)
         await db.query(`CREATE INDEX "idx_token_transfer_to_3543af45" ON "token_transfer" ("to") `)

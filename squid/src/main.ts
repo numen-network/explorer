@@ -248,7 +248,7 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
         batch.evmTxs.push(evmTx)
         for (const logEv of logsByExt.get(ext.index) ?? []) {
             const log = decodeLog(logEv.args)
-            const logId = `${decoded.hash}-${String(blockLogIndex).padStart(4, '0')}`
+            const logId = `${decoded.hash}-${blockLogIndex}`
             batch.evmLogs.push(
                 new EvmLog({
                     id: logId,
@@ -262,7 +262,7 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
                 })
             )
             const t = asErc20Transfer(log, nativeFacade)
-            if (t != null) batch.erc20Queue.push({...t, id: logId, tx: evmTx, block, timestamp: at})
+            if (t != null) batch.erc20Queue.push({...t, id: logId, logIndex: blockLogIndex, tx: evmTx, block, timestamp: at})
             blockLogIndex++
         }
     }
@@ -315,6 +315,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
                 amount: q.amount,
                 transaction: q.tx,
                 block: q.block,
+                logIndex: q.logIndex,
                 timestamp: q.timestamp,
             })
         )

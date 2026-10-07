@@ -361,20 +361,28 @@ export const NOT_HELD = [{balance: '0', token: TOKENS[1]}, {balance: null, token
 
 const tokenTransfer = (h, i, traits = {}) => {
     const token = TOKENS[i % 2]
+    const tx = hashOf('evm', h, i)
     return {
-        id: `token-transfer-${h}-${i}`,
+        id: `${tx}-${i}`,
         from: i % 2 === 0 ? SUBJECT_EVM : contract(10 + (i % 5)),
         to: i % 2 === 0 ? contract(20 + (i % 4)) : SUBJECT_EVM,
         amount: token.decimals === 6 ? String(1_000_000 + ((h * 13 + i) % 9_000_000)) : numn(10 + ((h * 13 + i) % 900) / 7),
         timestamp: at(h),
         token: {id: token.id, symbol: token.symbol, decimals: token.decimals},
-        transaction: {id: hashOf('evm', h, i)},
+        transaction: {id: tx},
         block: {height: h},
         ...traits,
     }
 }
 
 export const tokenTransferRows = count => rows(count, tokenTransfer)
+
+// one tx's transfers to and from the account at the given log numbers, each amount equal to its log number so the order shows on screen
+export const tokenTransfersInOneTx = (h, logIndexes) => {
+    const tx = hashOf('evm', h, 0)
+    const {id, symbol, decimals} = TOKENS[1]
+    return logIndexes.map((logIndex, i) => tokenTransfer(h, i, {id: `${tx}-${logIndex}`, transaction: {id: tx}, token: {id, symbol, decimals}, amount: String(BigInt(logIndex) * 10n ** BigInt(decimals))}))
+}
 
 // a token that answers no symbol or decimals, and an amount at the u128 ceiling
 export const tokenTransferCases = (height = HEAD - 3) => [

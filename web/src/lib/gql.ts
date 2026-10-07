@@ -880,8 +880,9 @@ export interface TokenTransferRow {
 }
 
 const TOKEN_TRANSFER_FIELDS = `id from to amount timestamp token { id symbol decimals } transaction { id } block { height }`
-// the id leads with the tx hash, so the tx index keeps a block's txs in chain order
-const TOKEN_TRANSFER_ORDER = '[timestamp_DESC, transaction_txIndex_DESC, id_DESC]'
+// logIndex counts across the whole block, so it orders a block's txs too
+const TOKEN_TRANSFER_ORDER = '[timestamp_DESC, logIndex_DESC, id_DESC]'
+const LOG_ORDER = '[logIndex_ASC, id_ASC]'
 
 export function tokenDetail(address: string, page: Slice) {
     return gql<{
@@ -925,7 +926,6 @@ export interface EvmTxDetailRow extends EvmTxRow {
 
 const EVM_TX_FIELDS = `id txIndex from to contractAddress value input inputSelector nonce gasLimit gasUsed gasPrice txType status exitReason timestamp block { height } extrinsic { id }`
 
-// a token transfer is keyed by the log that raised it, so id order is log order
 export function evmTxDetail(hash: string, page: Slice) {
     const tx = '{transaction: {id_eq: $id}}'
     return gql<{
@@ -937,9 +937,9 @@ export function evmTxDetail(hash: string, page: Slice) {
     }>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
             evmTransactionById(id: $id) { ${EVM_TX_FIELDS} extrinsic { transfers(orderBy: id_ASC) { ${TRANSFER_FIELDS} } } }
-            evmLogs(where: ${tx}, orderBy: logIndex_ASC, limit: $limit, offset: $offset) { id logIndex address topics data }
+            evmLogs(where: ${tx}, orderBy: ${LOG_ORDER}, limit: $limit, offset: $offset) { id logIndex address topics data }
             logCount: evmLogsConnection(where: ${tx}, orderBy: id_ASC) { totalCount }
-            tokenTransfers(where: ${tx}, orderBy: id_ASC, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
+            tokenTransfers(where: ${tx}, orderBy: ${LOG_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
             tokenTransferCount: tokenTransfersConnection(where: ${tx}, orderBy: id_ASC) { totalCount }
         }`,
         {id: hash, limit: page.limit, offset: page.offset}

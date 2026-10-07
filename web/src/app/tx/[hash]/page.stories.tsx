@@ -160,6 +160,23 @@ export const AirdropLogsPage2 = airdropPage('logs', '2')
 
 export const AirdropLogsLastPage = airdropPage('logs', lastPage(drops.length))
 
+// a tx late in a block of over ten thousand logs, each amount equal to its log number so the order shows on screen
+const crowded = evmTx(HEAD - 90, 1, {from: alice, to: disperse, input: calldata('0xc73a2d60', WTMR.id, 0x60, 0x60), gasLimit: '400000', gasUsed: '187654', ...exit(EXIT.returned)})
+const crowdedDrops = [9_997, 9_998, 9_999, 10_000, 10_001, 10_002].map((logIndex, i) => erc20Transfer(crowded, logIndex, WTMR, disperse, evmAddress(200 + i), units(logIndex, WTMR.decimals)))
+const crowdedPage = (tab: string) => txPage(crowded, {logs: crowdedDrops.map(d => d.log), transfers: crowdedDrops.map(d => d.transfer)}, {tab})
+
+// in log order, 10,000 right after 9,999
+export const CrowdedBlockTokenTransfers: StoryObj = {
+    ...crowdedPage('transfers'),
+    play: async ({canvas}) =>
+        expect(canvas.getAllByText(/^[\d,]+ wWTMR$/).map(amount => amount.textContent)).toEqual(['9,997 wWTMR', '9,998 wWTMR', '9,999 wWTMR', '10,000 wWTMR', '10,001 wWTMR', '10,002 wWTMR']),
+}
+
+export const CrowdedBlockLogs: StoryObj = {
+    ...crowdedPage('logs'),
+    play: async ({canvas}) => expect(canvas.getAllByText(/^#\d+$/).map(n => n.textContent)).toEqual(['#9997', '#9998', '#9999', '#10000', '#10001', '#10002']),
+}
+
 export const ExtremeNumbers = txPage(
     evmTx(HEAD - 70, 0, {value: UINT256_MAX, gasLimit: '30000000', gasUsed: '29999999', gasPrice: (10n ** 18n).toString(), nonce: 2_147_483_647, txType: 'Legacy'})
 )

@@ -218,6 +218,7 @@ type TokenTransfer @entity {
   amount: BigInt!
   transaction: EvmTransaction!
   block: Block!
+  logIndex: Int!
   timestamp: DateTime! @index
 }
 

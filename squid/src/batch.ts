@@ -82,7 +82,7 @@ export class BatchData {
     objects: MinedObject[] = []
     evmTxs: EvmTransaction[] = []
     evmLogs: EvmLog[] = []
-    erc20Queue: Array<DecodedErc20Transfer & {id: string; tx: EvmTransaction; block: Block; timestamp: Date}> = []
+    erc20Queue: Array<DecodedErc20Transfer & {id: string; logIndex: number; tx: EvmTransaction; block: Block; timestamp: Date}> = []
     tokens: Token[] = []
     holders: TokenHolder[] = []
     tokenTransfers: TokenTransfer[] = []
