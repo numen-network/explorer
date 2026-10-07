@@ -24,7 +24,7 @@ import {
     voteData,
 } from '../../../../../mock/fixtures/governance.js'
 import type {RawStep} from '@/components/timeline'
-import {DESKTOP, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, expectWholeWords, lastTooltipLines, PHONE} from '../../../../.storybook/fit'
+import {expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, expectWholeWords, LAPTOP, lastTooltipLines, PHONE} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 
@@ -402,10 +402,20 @@ const refused = {__kind: 'Err', value: {__kind: 'Module', value: {index: 23, err
 const enactment = overCap.timeline.find(s => s.name === 'Scheduler.Dispatched')!.event
 const overCapEvents = stepEvents(overCap).map((e: {id: string; args: object}) => (e.id === enactment ? {...e, args: {...e.args, result: refused}} : e))
 
-export const TimelineEnactmentFailed = {
-    ...withPlay(story(overCap, 'timeline', {...castFromSnapshots(overCap), events: eventsById(overCapEvents)}), approvedRail('#588,640', '#597,280', 'Treasury.InsufficientPermission')),
-    globals: DESKTOP,
-}
+export const TimelineEnactmentFailed = withPlay(
+    story(overCap, 'timeline', {...castFromSnapshots(overCap), events: eventsById(overCapEvents)}),
+    approvedRail('#588,640', '#597,280', 'Treasury.InsufficientPermission')
+)
+
+// a laptop shares its width with the side cards, so every step's rows drop below
+// the title with each value whole and inside the card
+export const TimelineEnactmentFailedOnLaptop = withPlay({...TimelineEnactmentFailed, globals: LAPTOP}, async context => {
+    await approvedRail('#588,640', '#597,280', 'Treasury.InsufficientPermission')!(context)
+    const values = [...context.canvasElement.querySelectorAll('dl dd')]
+    await expect(values.length).toBeGreaterThan(0)
+    expectWholeWords(...values)
+    expectFits(...context.canvasElement.querySelectorAll('[data-slot=card]'))
+})
 
 // more snapshots than one read returns, packed early so the second read carries most of the run and a swing in nays
 const longRun = {
