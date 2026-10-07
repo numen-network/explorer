@@ -26,6 +26,7 @@ import {
     NOT_HELD,
     PRIME_KEY,
     proxyDelegates,
+    proxyDelays,
     proxyFor,
     reservedOf,
     SIGNATORIES,
@@ -416,6 +417,16 @@ const proxied = (n: number) => subject({...funds(numn(1250.5), numn(1.75 * n)), 
 export const ProxiesOut = story({account: proxied(1), proxiesOut: proxyDelegates(1)}, {tab: 'proxies'})
 
 export const ProxiesIn = story({proxiesIn: proxyFor(2)}, {tab: 'proxies'})
+
+// the same account as an Any proxy twice, told apart by the delay alone
+export const ProxiesSameDelegateTwoDelays: StoryObj = {
+    ...story({account: proxied(2), proxiesOut: proxyDelays(person(1), 'Any', [0, 14_400])}, {tab: 'proxies'}),
+    play: async ({canvasElement}) => {
+        await expect(columnTexts(canvasElement, 'Delegates to')).toEqual(['Orbit Labs', 'Orbit Labs'])
+        await expect(columnTexts(canvasElement, 'Type')).toEqual(['Any', 'Any'])
+        await expect(columnTexts(canvasElement, 'Delay')).toEqual(['—', '14,400'])
+    },
+}
 
 export const ProxiesBoth = story({account: proxied(9), proxiesOut: proxyDelegates(9), proxiesIn: proxyFor(3)}, {tab: 'proxies'})
 

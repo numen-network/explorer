@@ -522,8 +522,8 @@ export function delegationsOutFor(idHex: string) {
 export function proxiesFor(idHex: string, limit: number, offset: number) {
     return gql<{out: ProxyRow[]; in: ProxyRow[]; inCount: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            out: proxyRelations(where: {delegator: {id_eq: $id}}, orderBy: id_ASC, limit: 100) { id proxyType delay delegatee { ${ACCOUNT_REF} } }
-            in: proxyRelations(where: {delegatee: {id_eq: $id}}, orderBy: id_ASC, limit: $limit, offset: $offset) { id proxyType delay delegator { ${ACCOUNT_REF} } }
+            out: proxyRelations(where: {delegator: {id_eq: $id}}, orderBy: [delegatee_id_ASC, proxyType_ASC, delay_ASC], limit: 100) { id proxyType delay delegatee { ${ACCOUNT_REF} } }
+            in: proxyRelations(where: {delegatee: {id_eq: $id}}, orderBy: [delegator_id_ASC, proxyType_ASC, delay_ASC], limit: $limit, offset: $offset) { id proxyType delay delegator { ${ACCOUNT_REF} } }
             inCount: proxyRelationsConnection(where: {delegatee: {id_eq: $id}}, orderBy: id_ASC) { totalCount }
         }`,
         {id: idHex, limit, offset}

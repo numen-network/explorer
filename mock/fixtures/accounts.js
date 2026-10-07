@@ -178,6 +178,9 @@ const proxy = (i, traits = {}) => ({id: `proxy-${i}`, proxyType: PROXY_TYPES[i %
 export const proxyDelegates = count => Array.from({length: count}, (_, i) => proxy(i, {delegatee: person(i)}))
 export const proxyFor = count => Array.from({length: count}, (_, i) => proxy(i + 50, {delegator: person(i + 3)}))
 
+// one delegate of one type held several times over, apart only in the delay, shortest first
+export const proxyDelays = (delegatee, proxyType, delays) => delays.map((delay, i) => proxy(i, {delegatee, proxyType, delay}))
+
 export const multisigOp = (i, traits = {}) => ({
     id: `multisig-${i}`,
     callHash: hashOf('call', i),

@@ -360,7 +360,7 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
         const keep = new Set<string>()
         delegators.forEach((d, i) => {
             for (const def of current[i]?.[0] ?? []) {
-                const id = `${d}-${def.delegate}-${def.proxyType.__kind}`
+                const id = `${d}-${def.delegate}-${def.proxyType.__kind}-${def.delay}`
                 keep.add(id)
                 batch.proxyRelations.push(
                     new ProxyRelation({id, delegator: entity(d), delegatee: new Account({id: def.delegate}), proxyType: def.proxyType.__kind, delay: def.delay})
