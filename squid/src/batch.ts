@@ -46,6 +46,7 @@ export interface GovEvent {
     header: any
     signer?: string
     callArgs?: any
+    extrinsic?: string
 }
 
 export interface DayDelta {
@@ -99,6 +100,9 @@ export class BatchData {
     // the dispatch event that names their referendum
     enactments = new Map<string, number>()
     spendsAtHeight = new Map<number, string[]>()
+    // the referendum the latest kill named, per block and extrinsic, since the
+    // slashes that follow it name only the depositor
+    kills = new Map<string, number>()
     validators = new Map<string, Validator>()
     validatorEvents: {name: string; args: any; height: number; header: any}[] = []
     registrarsDirty = false

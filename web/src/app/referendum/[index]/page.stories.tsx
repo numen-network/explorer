@@ -303,7 +303,39 @@ export const TimelineTimedOut = curatedCase(11, 'timeline')
 
 export const TimelineCancelled = curatedCase(2, 'timeline')
 
-export const TimelineKilled = curatedCase(4, 'timeline')
+// a kill slashes each deposit the referendum still held, newest first, every
+// slash naming who lost what inside the kill's own extrinsic
+const killRail = (amounts: string[]): Play => async ({canvas}) => {
+    const extrinsicOf = (step: HTMLElement) => step.querySelector('a[href^="/extrinsic/"]')?.textContent
+    const kill = extrinsicOf((await canvas.findAllByText('Killed')).map(el => el.closest<HTMLElement>('li')).find(li => li != null)!)
+    await expect(kill).toBeTruthy()
+    const slashes = (await canvas.findAllByText('Deposit slashed')).map(el => el.closest<HTMLElement>('li')!)
+    await expect(slashes.map(step => within(step).getByText(/NUMN$/).textContent)).toEqual(amounts)
+    for (const step of slashes) {
+        await expect(within(step).getByText('Who')).toBeInTheDocument()
+        await expect(extrinsicOf(step)).toBe(kill)
+    }
+}
+
+export const TimelineKilled = withPlay(curatedCase(4, 'timeline'), killRail(['1,000 NUMN', '5 NUMN']))
+
+// killed before anyone placed the decision deposit, so the submission deposit is all it slashes
+const killedEarly = {
+    ...curated(4),
+    id: '26',
+    index: 26,
+    title: 'Killed before its decision deposit, slashing the submission deposit alone',
+    decidingSince: null,
+    endedAt: 761_000,
+    nays: '0',
+    timeline: [step('Referenda.Submitted', 760_000, 5), step('Referenda.Killed', 761_000, 4), step('Referenda.DepositSlashed', 761_000, 8)],
+    snapshots: snapshots([
+        [760_200, 200_000, 0, 150_000],
+        [761_000, 200_000, 0, 150_000],
+    ]),
+}
+
+export const TimelineKilledBeforeDecisionDeposit = withPlay(story(killedEarly, 'timeline', castFromSnapshots(killedEarly)), killRail(['5 NUMN']))
 
 // approved on its second confirmation, the first one aborted when nays came in
 const secondAttempt = {

@@ -187,7 +187,7 @@ export const snapshots = history =>
         inactiveIssuance: issuance.issuanceInactive,
     }))
 
-const SIGNED_STEP = new Set(['Submitted', 'DecisionDepositPlaced', 'SubmissionDepositRefunded', 'DecisionDepositRefunded'])
+const SIGNED_STEP = new Set(['Submitted', 'DecisionDepositPlaced', 'SubmissionDepositRefunded', 'DecisionDepositRefunded', 'Killed'])
 const TALLIED = new Set(['Confirmed', 'Rejected', 'TimedOut', 'Cancelled', 'Killed'])
 
 const tallyAt = (r, block) => {
@@ -220,13 +220,15 @@ function stepArgs(r, method, s, slash) {
 }
 
 // the events a referendum timeline names, with what each carried. a decision
-// that starts inside place_decision_deposit shares that extrinsic
+// that starts inside place_decision_deposit shares that extrinsic, and so do
+// the slashes of the kill a prime signs
 export function stepEvents(r) {
     const placed = new Map(r.timeline.filter(s => s.name === 'Referenda.DecisionDepositPlaced').map(s => [s.block, s]))
+    const killed = new Map(r.timeline.filter(s => s.name === 'Referenda.Killed').map(s => [s.block, s]))
     let slashes = 0
     return r.timeline.map(s => {
         const method = s.name.split('.')[1]
-        const host = method === 'DecisionStarted' ? placed.get(s.block) : SIGNED_STEP.has(method) ? s : undefined
+        const host = method === 'DecisionStarted' ? placed.get(s.block) : method === 'DepositSlashed' ? killed.get(s.block) : SIGNED_STEP.has(method) ? s : undefined
         return {
             id: s.event,
             indexInBlock: indexOf(s.event),

@@ -457,7 +457,7 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
         extrinsic.fee = BigInt(ev.args.actualFee) - extrinsic.tip
     }
     const name = ev.name ?? ''
-    collectGovEvent(batch, ev.id, ev.index, name, ev.args, block.height, ev.block, signerOf(ev.extrinsic), ev.call?.args)
+    collectGovEvent(batch, ev.id, ev.index, name, ev.args, block.height, ev.block, signerOf(ev.extrinsic), ev.call?.args, ev.extrinsic?.id)
     collectValidatorEvent(batch, name, ev.args, block.height, ev.block)
     collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, at, ev)
     collectMultisigEvent(batch, name, ev.args, block.height, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined)

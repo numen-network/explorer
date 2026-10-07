@@ -26,8 +26,8 @@ const MAX_PROPOSAL_DEPTH = 4
 
 const stampOf = (ev: GovEvent) => new Date(ev.header.timestamp)
 
-export function collectGovEvent(batch: BatchData, id: string, indexInBlock: number, name: string, args: any, height: number, header: any, signer?: string, callArgs?: any): void {
-    if (GOV_PALLETS.has(name.split('.')[0])) batch.govEvents.push({id, indexInBlock, name, args, height, header, signer, callArgs})
+export function collectGovEvent(batch: BatchData, id: string, indexInBlock: number, name: string, args: any, height: number, header: any, signer?: string, callArgs?: any, extrinsic?: string): void {
+    if (GOV_PALLETS.has(name.split('.')[0])) batch.govEvents.push({id, indexInBlock, name, args, height, header, signer, callArgs, extrinsic})
 }
 
 export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, lastHeader: any, rpc: RpcClient): Promise<void> {
@@ -456,7 +456,9 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
         batch.referenda.set(r.index, r)
         return
     }
-    const r = batch.referenda.get(args.index)
+    const kill = `${ev.height}-${ev.extrinsic ?? ''}`
+    if (method === 'Killed') batch.kills.set(kill, args.index)
+    const r = batch.referenda.get(method === 'DepositSlashed' ? batch.kills.get(kill) : args.index)
     if (r == null) return
     // the text log keeps the metadata events, the rail is for the lifecycle
     if (!method.startsWith('Metadata')) pushTimeline(r, ev)
