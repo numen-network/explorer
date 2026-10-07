@@ -8,6 +8,7 @@ import {In} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
 import {Delegation, DelegationAction, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VoteAction} from './model'
 import {storage} from './types'
+import type {Deposit, ReferendumInfo} from './types/v100'
 
 const GOV_PALLETS = new Set(['Referenda', 'ConvictionVoting', 'Treasury', 'Scheduler'])
 
@@ -460,10 +461,6 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
     // the text log keeps the metadata events, the rail is for the lifecycle
     if (!method.startsWith('Metadata')) pushTimeline(r, ev)
     switch (method) {
-        case 'DecisionDepositPlaced':
-            r.decisionDepositor = args.who
-            r.decisionDeposit = BigInt(args.amount)
-            break
         case 'DecisionStarted':
             r.decidingSince = ev.height
             setTally(r, args.tally)
@@ -482,25 +479,8 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
         case 'Rejected':
         case 'TimedOut':
         case 'Cancelled':
-            setTally(r, args.tally)
-            break
         case 'Killed':
             setTally(r, args.tally)
-            // a kill slashes both deposits
-            r.submissionDepositor = null
-            r.submissionDeposit = null
-            r.decisionDepositor = null
-            r.decisionDeposit = null
-            break
-        // a deposit outlives the referendum, storage only stops naming it once
-        // the depositor claims it back
-        case 'SubmissionDepositRefunded':
-            r.submissionDepositor = null
-            r.submissionDeposit = null
-            break
-        case 'DecisionDepositRefunded':
-            r.decisionDepositor = null
-            r.decisionDeposit = null
             break
     }
 }
@@ -696,14 +676,28 @@ async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: a
         if (info == null) throw new Error(`referendum ${idx} has no info at block ${lastHeader.height}`)
         if (info.__kind === 'Ongoing') {
             setTally(r, info.value.tally)
-            r.submissionDepositor = info.value.submissionDeposit.who
-            r.submissionDeposit = info.value.submissionDeposit.amount
-            r.decisionDepositor = info.value.decisionDeposit?.who ?? null
-            r.decisionDeposit = info.value.decisionDeposit?.amount ?? null
         } else {
             r.status = ReferendumStatus[info.__kind]
             r.endedAt = info.__kind === 'Killed' ? info.value : info.value[0]
         }
+        const [submission, decision] = heldDeposits(info)
+        r.submissionDepositor = submission?.who ?? null
+        r.submissionDeposit = submission?.amount ?? null
+        r.decisionDepositor = decision?.who ?? null
+        r.decisionDeposit = decision?.amount ?? null
         batch.referenda.set(idx, r)
     })
+}
+
+// a deposit outlives the referendum until the depositor claims it back, a kill
+// slashes both
+function heldDeposits(info: ReferendumInfo): [Deposit | undefined, Deposit | undefined] {
+    switch (info.__kind) {
+        case 'Ongoing':
+            return [info.value.submissionDeposit, info.value.decisionDeposit]
+        case 'Killed':
+            return [undefined, undefined]
+        default:
+            return [info.value[1], info.value[2]]
+    }
 }
