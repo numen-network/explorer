@@ -67,7 +67,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
         await seedGenesisVesting(batch, ctx.blocks[0].header)
         await seedGenesisValidators(batch, ctx.blocks[0].header)
     }
-    await fetchObjects(ctx, batch, lastHeader)
+    await fetchObjects(ctx, batch)
     await finalizeTokens(ctx, batch, lastHeader)
     await finalizeGovernance(ctx, batch, lastHeader, rpc)
     await finalizeMultisig(batch, lastHeader, ctx.store)
@@ -464,31 +464,37 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
     collectBountyEvent(batch, ev.id, name, ev.args, block.height, at, signerOf(ev.extrinsic))
 }
 
-let topologyCache: MeshTopology | undefined
-
-async function fetchObjects(ctx: Ctx, batch: BatchData, header: RuntimeCtx): Promise<void> {
+// a runtime upgrade can bump the scan protocol, so each block reads the one
+// its own runtime publishes, carried as raw bytes
+function protocolOf(header: RuntimeCtx & {height: number}): string {
     const published = constants.poscan.protocol.v100
-    if (!published.is(header)) throw new Error('unhandled Poscan.Protocol shape')
-    // the runtime carries the domain separation prefix as raw bytes
-    const PROTOCOL = Buffer.from(published.get(header).slice(2), 'hex').toString('utf8')
+    if (!published.is(header)) throw new Error(`unhandled Poscan.Protocol shape at block ${header.height}`)
+    return Buffer.from(published.get(header).slice(2), 'hex').toString('utf8')
+}
+
+async function fetchObjects(ctx: Ctx, batch: BatchData): Promise<void> {
+    const headers = new Map(ctx.blocks.map(b => [b.header.id, b.header]))
     const targets = batch.blocks.filter(b => b.height > 0)
     const limit = pLimit(OBJECT_FETCH_CONCURRENCY)
     const meshes = await Promise.all(targets.map(b => limit(async () => parseMesh(await fetchObj(rpc, b.hash)))))
-    topologyCache ??= await ctx.store.get(MeshTopology, PROTOCOL)
+    const topologies = new Map<string, MeshTopology>()
     for (let i = 0; i < targets.length; i++) {
         const m = meshes[i]
-        if (topologyCache == null) {
-            topologyCache = new MeshTopology({id: PROTOCOL, faces: m.facesGz, faceCount: m.faceCount})
-            await ctx.store.upsert(topologyCache)
+        const protocol = protocolOf(headers.get(targets[i].id)!)
+        let topology = topologies.get(protocol) ?? (await ctx.store.get(MeshTopology, protocol))
+        if (topology == null) {
+            topology = new MeshTopology({id: protocol, faces: m.facesGz, faceCount: m.faceCount})
+            await ctx.store.upsert(topology)
         }
-        if (m.faceCount !== topologyCache.faceCount) {
-            throw new Error(`mesh topology drifted at block ${targets[i].height}, expected ${topologyCache.faceCount} faces got ${m.faceCount}`)
+        topologies.set(protocol, topology)
+        if (m.faceCount !== topology.faceCount) {
+            throw new Error(`mesh topology drifted at block ${targets[i].height}, expected ${topology.faceCount} faces got ${m.faceCount}`)
         }
         batch.objects.push(
             new MinedObject({
                 id: targets[i].id,
                 block: targets[i],
-                protocol: PROTOCOL,
+                protocol,
                 vertices: m.verticesGz,
                 vertexCount: m.vertexCount,
             })

@@ -36,7 +36,7 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         await loadEnactments(ctx, batch)
         await loadTouchedSpends(ctx, batch)
         for (const ev of batch.govEvents) applyGovEvent(batch, ev)
-        await applyProposals(batch, rpc, lastHeader._runtime)
+        await applyProposals(batch, rpc)
         await applyMetadata(batch, rpc)
         await stampDelegatedWeights(batch)
         await logDelegationActions(ctx, batch)
@@ -300,11 +300,13 @@ interface ProposalNode {
  * treasury pays out is the sum of the spends anywhere inside it, so the walk
  * goes down rather than reading the outermost call alone.
  */
-async function applyProposals(batch: BatchData, rpc: RpcClient, runtime: Runtime): Promise<void> {
+async function applyProposals(batch: BatchData, rpc: RpcClient): Promise<void> {
     for (const ev of batch.govEvents) {
         if (ev.name !== 'Referenda.Submitted') continue
         const r = batch.referenda.get(ev.args.index)
         if (r == null) continue
+        // the call was encoded against the runtime of the block that took it
+        const runtime: Runtime = ev.header._runtime
         const call = await proposalCall(rpc, ev.args.proposal, ev.height, runtime)
         if (call == null) continue
 
