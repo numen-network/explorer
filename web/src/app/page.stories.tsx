@@ -14,14 +14,15 @@ type Day = (typeof DAILY)[number]
 type Window = [total: number, day: number, month: number]
 type Windows = Record<'accounts' | 'miners' | 'extrinsics' | 'transfers' | 'evm', Window>
 
+// a window bound is null while genesis, which carries no timestamp, is the newest block
 interface Where {
     height_eq?: number
-    timestamp_gt?: string
-    timestamp_lte?: string
-    firstSeenTimestamp_gt?: string
-    lastMinedTimestamp_gt?: string
+    timestamp_gt?: string | null
+    timestamp_lte?: string | null
+    firstSeenTimestamp_gt?: string | null
+    lastMinedTimestamp_gt?: string | null
     lastMinedTimestamp_isNull?: boolean
-    block?: {timestamp_gt?: string; timestamp_lte?: string}
+    block?: {timestamp_gt?: string | null; timestamp_lte?: string | null}
 }
 
 interface Scene {
@@ -80,11 +81,12 @@ function home({head, best = head, finalized = Math.max(0, best - 5), days, objec
         chainInfos: [{...chainInfo, head: best, finalizedHead: finalized, sessionLength}],
         blocks: ({where = {}}: {where?: Where}) => {
             if (where.height_eq === 0) return [block(0)]
-            if (where.timestamp_lte) {
-                const day = baseline(where.timestamp_lte)
+            // a null bound matches no block
+            if ('timestamp_lte' in where) {
+                const day = where.timestamp_lte != null && baseline(where.timestamp_lte)
                 return day ? [close(day)] : []
             }
-            return [block(head, {timestamp: new Date().toISOString(), difficulty: days.at(-1)?.difficultyClose ?? '3600000000'})]
+            return [block(head, {timestamp: head > 0 ? new Date().toISOString() : null, difficulty: days.at(-1)?.difficultyClose ?? '3600000000'})]
         },
         hourlyStats: ({where = {}}: {where?: Where}) => {
             const day = where.block?.timestamp_lte ? baseline(where.block.timestamp_lte) : undefined
@@ -113,10 +115,12 @@ const minedUpTo = (head: number, count: number, finalized = head - 5, traits: (h
 
 const TREASURY = {id: chainInfo.treasuryAccount, identityDisplay: null}
 
+// only genesis is indexed, with no timestamp and no validator row
 export const HomeEmpty: StoryObj = {
     ...pageStory(home({head: 0, days: [], validators: 0})),
     play: async ({canvas}) => {
         for (const text of ['No mined blocks yet.', 'No transfers yet.', 'No referenda yet.']) await expect(canvas.getByText(text)).toBeInTheDocument()
+        await expect(canvas.getByText('Session').nextElementSibling).toHaveTextContent(/^—$/)
     },
 }
 

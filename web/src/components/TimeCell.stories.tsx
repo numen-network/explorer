@@ -63,6 +63,25 @@ export const StandaloneUtc: Story = {...inTimezone(false), render: () => <Standa
 
 export const StandaloneLocal: Story = {...inTimezone(true), render: () => <Standalone />}
 
+// genesis carries no timestamp, so its cell and its standalone row show the
+// empty mark and no timezone switch
+export const NoTimestamp: Story = {
+    render: () => (
+        <div className="space-y-2 text-xs text-muted-foreground">
+            <div>
+                <TimeCell iso={null} />
+            </div>
+            <div>
+                <TimeCell iso={null} cycle />
+            </div>
+        </div>
+    ),
+    play: async ({canvas, canvasElement}) => {
+        await expect([...canvasElement.querySelectorAll('.space-y-2 > div')].map(row => row.textContent)).toEqual(['—', '—'])
+        await expect(canvas.queryByRole('button', {name: 'Switch timezone'})).toBeNull()
+    },
+}
+
 // a box too narrow for the whole stamp breaks it after the age first, and
 // splits the timezone off the date only once the date fills a line itself
 export const WrapsInNarrowBoxes: Story = {

@@ -336,6 +336,14 @@ export function expectOneLine(...boxes: Element[]) {
 // what every token link under root reads, in page order
 export const tokenLabels = (root: Element) => [...root.querySelectorAll('a[href^="/token/"]')].map(link => link.textContent)
 
+// what each body row of the table under root shows in the column under header
+export function columnTexts(root: HTMLElement, header: string | RegExp) {
+    const [head, ...rows] = within(root).getAllByRole('row')
+    const at = [...head.children].findIndex(cell => (typeof header === 'string' ? cell.textContent === header : header.test(cell.textContent!)))
+    expect(at).toBeGreaterThanOrEqual(0)
+    return rows.map(row => row.children[at].textContent)
+}
+
 // every navigation landmark under root carries a name of its own
 export function expectNamedNavs(root: HTMLElement) {
     const navs = within(root).getAllByRole('navigation')

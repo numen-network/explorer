@@ -45,7 +45,11 @@ function detail(b: Mined, {tab = '', page = 1, protocols = ['poscan-v1']} = {}) 
     return pageStory(data, {params: {id: String(b.block.height)}, searchParams: {...(tab && {tab}), ...(page > 1 && {page: String(page)})}})
 }
 
-const genesis = (tab = '') => pageStory({blocks: [GENESIS]}, {params: {id: '0'}, searchParams: tab ? {tab} : {}})
+// genesis carries no timestamp inherent, so its timestamp row shows the empty mark
+const genesis = (tab = ''): StoryObj => ({
+    ...pageStory({blocks: [GENESIS]}, {params: {id: '0'}, searchParams: tab ? {tab} : {}}),
+    play: async ({canvas}) => expect(canvas.getByText('Timestamp').nextElementSibling!.textContent).toBe('—'),
+})
 
 export const Extrinsics = detail(BUSY)
 

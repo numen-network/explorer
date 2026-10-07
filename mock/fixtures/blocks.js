@@ -34,11 +34,11 @@ export function sealed(height, traits = {}) {
     return {logs: [...author, DIGEST.frontier(hashOf('evm', height)), DIGEST.seal(b.nonce, b.workHash)], ...b}
 }
 
-// genesis has no seal, no author and no timestamp inherent, so its row sits at the epoch
+// genesis has no seal, no author and no timestamp inherent
 export const GENESIS = {
     ...block(0),
     parentHash: '0x' + '0'.repeat(64),
-    timestamp: new Date(0).toISOString(),
+    timestamp: null,
     author: null,
     reward: '0',
     minerFees: '0',

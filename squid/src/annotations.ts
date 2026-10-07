@@ -17,11 +17,18 @@ function registrarStat(batch: BatchData, index: number, at: Date) {
     return s
 }
 
+// a seat can pass to a new holder more than once in a batch, so each move is
+// read back at its own block
+function noteSeatMove(batch: BatchData, header: any, index: number): void {
+    batch.seatMoves.push({header, index})
+    batch.registrarsDirty = true
+}
+
 export function collectAnnotationEvent(batch: BatchData, id: string, name: string, args: any, height: number, at: Date, ev: ChainEvent): void {
     switch (name) {
         case 'Identity.RegistrarAdded':
             batch.registrarAdded.set(args.registrarIndex, height)
-            batch.registrarsDirty = true
+            noteSeatMove(batch, ev.block, args.registrarIndex)
             break
         // older runtimes retire seats through the prime pallet
         case 'Identity.RegistrarRemoved':
@@ -125,7 +132,7 @@ export function collectAnnotationEvent(batch: BatchData, id: string, name: strin
 
 // set_subs rewrites the whole sub list without emitting events, rename_sub
 // and remove_proxies are silent too, so all are picked up at the call level
-export function collectAnnotationCall(batch: BatchData, name: string, args: any, origin: string, height: number): void {
+export function collectAnnotationCall(batch: BatchData, name: string, args: any, origin: string, height: number, header: any): void {
     switch (name) {
         case 'Proxy.remove_proxies':
             batch.proxyRefresh.add(origin)
@@ -137,8 +144,10 @@ export function collectAnnotationCall(batch: BatchData, name: string, args: any,
                 batch.superRefresh.add(sub)
             }
             break
-        case 'Identity.set_fee':
         case 'Identity.set_account_id':
+            noteSeatMove(batch, header, args.index)
+            break
+        case 'Identity.set_fee':
         case 'Identity.set_fields':
             batch.registrarsDirty = true
             break
@@ -171,10 +180,15 @@ export async function finalizeRegistrars(batch: BatchData, lastHeader: any, stor
 
     if (batch.registrarsDirty) {
         const s = storage.identity.registrars.v100
+        for (const {header, index} of batch.seatMoves) {
+            if (!s.is(header)) throw new Error(`unhandled spec version for registrars at block ${header.height}`)
+            const info = ((await s.get(header)) ?? [])[index]
+            if (info) await seatHolder(batch, store, info.account, header.height)
+        }
         if (!s.is(lastHeader)) throw new Error('unhandled spec version for registrars')
         const list = (await s.get(lastHeader)) ?? []
         const stored = new Map((await store.find(Registrar, {})).map(r => [r.index, r]))
-        list.forEach((info, index) => {
+        for (const [index, info] of list.entries()) {
             const r =
                 stored.get(index) ??
                 known.get(index) ??
@@ -185,11 +199,11 @@ export async function finalizeRegistrars(batch: BatchData, lastHeader: any, stor
                     requestCount: 0,
                     givenCount: 0,
                 })
-            r.account = info ? batch.touch(info.account, lastHeader.height) : null
+            r.account = info ? await seatHolder(batch, store, info.account, batch.blocks[0].height) : null
             r.fee = info?.fee ?? null
             r.fields = info?.fields ?? null
             known.set(index, r)
-        })
+        }
     }
     for (const [index, {height, at}] of batch.registrarRetired) {
         const r = known.get(index)
@@ -357,34 +371,24 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
             if (!keep.has(r.id)) batch.proxyRemovals.push(r.id)
         }
     }
-    await refreshPrime(batch, lastHeader, store)
 }
 
-async function refreshPrime(batch: BatchData, lastHeader: any, store: Store): Promise<void> {
+// holding a seat is no activity, so a holder the index knows is only referred
+// to. one it has never met joins the batch before the account merge, first seen
+// where the seat came to it, or at the batch's first block when it held the
+// seat before the batch began
+async function seatHolder(batch: BatchData, store: Store, who: string, since: number): Promise<Account> {
+    return batch.accounts.get(who) ?? (await store.get(Account, who)) ?? batch.touch(who, since)
+}
+
+export async function refreshPrime(batch: BatchData, lastHeader: any, store: Store): Promise<void> {
     const prev = await store.get(PrimeState, 'prime')
     if (prev != null && batch.primeChanged == null) return
     const s = storage.prime.key.v100
     if (!s.is(lastHeader)) throw new Error('unhandled spec version for prime key')
     const key = await s.get(lastHeader)
     if (key == null) return
-    let acc = batch.accounts.get(key) ?? (await store.get(Account, key))
-    if (acc == null) {
-        // the genesis prime may never have signed anything, seed it from chain state
-        const sys = storage.system.account.v100
-        const info = sys.is(lastHeader) ? await sys.get(lastHeader, key) : undefined
-        acc = new Account({
-            id: key,
-            free: info?.data.free ?? 0n,
-            reserved: info?.data.reserved ?? 0n,
-            frozen: info?.data.frozen ?? 0n,
-            nonce: info?.nonce ?? 0,
-            firstSeenBlock: 0,
-            firstSeenTimestamp: new Date(0),
-            lastActiveBlock: 0,
-        })
-        acc.balance = acc.free + acc.reserved
-        batch.accounts.set(key, acc)
-    }
+    const acc = await seatHolder(batch, store, key, batch.primeChanged ?? batch.blocks[0].height)
     batch.prime = new PrimeState({id: 'prime', account: acc, since: batch.primeChanged ?? prev?.since ?? 0})
 }
 

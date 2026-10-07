@@ -2,6 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {HEAD} from '../../../../mock/fixtures.js'
 import {GENESIS, sealed} from '../../../../mock/fixtures/blocks.js'
+import {columnTexts} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import BlocksPage from './page'
 
@@ -18,9 +19,12 @@ export const Many: StoryObj = {
 
 export const MiddlePage = list(chain(10, HEAD - 49_990), {page: '5000', size: '10'})
 
-export const LastPage = list([GENESIS], {page: '50001'})
+// genesis carries no timestamp, so its row shows the empty mark where the age and date go
+const genesisUndated: StoryObj['play'] = async ({canvasElement}) => expect(columnTexts(canvasElement, /^Age \| Date/)).toEqual(['—'])
 
-export const OnlyGenesis = pageStory({blocks: [GENESIS], blocksConnection: {totalCount: 1}})
+export const LastPage: StoryObj = {...list([GENESIS], {page: '50001'}), play: genesisUndated}
+
+export const OnlyGenesis: StoryObj = {...pageStory({blocks: [GENESIS], blocksConnection: {totalCount: 1}}), play: genesisUndated}
 
 export const EmptyPastLastPage = pageStory(
     {blocks: ({offset}: {offset?: number}) => (offset == null ? [sealed(HEAD)] : []), blocksConnection: {totalCount: TOTAL}},

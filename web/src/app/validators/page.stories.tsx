@@ -1,6 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {account, acct, chainInfo, HEAD, identity, numn, paged, person} from '../../../../mock/fixtures.js'
-import {DESKTOP, expectAddressForm, expectFits, PHONE} from '../../../.storybook/fit'
+import {columnTexts, DESKTOP, expectAddressForm, expectFits, PHONE} from '../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import ValidatorsPage from './page'
 
@@ -41,15 +42,19 @@ export const ValidatorsEmpty = validators([])
 
 export const ValidatorsOne = validators([validator(1)])
 
-export const ValidatorsEveryStatus = validators([
-    validator(1),
-    validator(2, exempt),
-    validator(5, {...kicked('Offline', 1), offlineSessions: 1}),
-    validator(6, {...kicked('Equivocation', 3), equivocations: 1}),
-    validator(3, inactive(40)),
-    validator(4, {...inactive(9_000), lockedAmount: '0', lockExpiry: null}),
-    validator(7, {active: false, lastActiveSession: 0, firstSeenBlock: HEAD - 30}),
-])
+// the last one locked thirty blocks ago and has yet to sit in an active set
+export const ValidatorsEveryStatus: StoryObj = {
+    ...validators([
+        validator(1),
+        validator(2, exempt),
+        validator(5, {...kicked('Offline', 1), offlineSessions: 1}),
+        validator(6, {...kicked('Equivocation', 3), equivocations: 1}),
+        validator(3, inactive(40)),
+        validator(4, {...inactive(9_000), lockedAmount: '0', lockExpiry: null}),
+        validator(7, {active: false, lastActiveSession: null, firstSeenBlock: HEAD - 30}),
+    ]),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Last session').at(-1)).toBe('—'),
+}
 
 export const ValidatorsEveryStatusOnPhone: StoryObj = {...ValidatorsEveryStatus, globals: PHONE, play: async ({canvasElement}) => expectAddressForm(canvasElement, 'short')}
 
@@ -63,18 +68,22 @@ export const ValidatorsEveryStatusOnDesktop: StoryObj = {
     },
 }
 
-export const ValidatorsExtremeNumbers = validators([
-    validator(1, {
-        account: acct(1, identity('W'.repeat(32), {judgements: ['KnownGood']})),
-        lockedAmount: U128_MAX,
-        lockExpiry: INT_MAX,
-        offlineSessions: INT_MAX,
-        equivocations: INT_MAX,
-        firstSeenBlock: INT_MAX,
-        lastActiveSession: INT_MAX,
-    }),
-    validator(10, {...exempt, active: false, lastActiveSession: 0}),
-])
+// the second sat in the genesis set, so session 0 is a session it was active in
+export const ValidatorsExtremeNumbers: StoryObj = {
+    ...validators([
+        validator(1, {
+            account: acct(1, identity('W'.repeat(32), {judgements: ['KnownGood']})),
+            lockedAmount: U128_MAX,
+            lockExpiry: INT_MAX,
+            offlineSessions: INT_MAX,
+            equivocations: INT_MAX,
+            firstSeenBlock: INT_MAX,
+            lastActiveSession: INT_MAX,
+        }),
+        validator(10, {...exempt, active: false, lastActiveSession: 0}),
+    ]),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Last session')).toEqual(['#2,147,483,647', '#0']),
+}
 
 const many = Array.from({length: 46}, (_, i) => {
     const n = i + 1

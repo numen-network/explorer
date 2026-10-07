@@ -43,7 +43,7 @@ import {
     vote,
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
-import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
+import {chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
 import {DESKTOP, expectFits, expectNamedNavs, expectWholeWords, filterChips, PHONE, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
@@ -118,7 +118,7 @@ export const BalanceExtremes = story({
         ...funds(MAX_U128, numn(0.000001), MAX_U128),
         nonce: 2_147_483_647,
         firstSeenBlock: 0,
-        firstSeenTimestamp: at(0),
+        firstSeenTimestamp: null,
         lastActiveBlock: HEAD,
         locksJson: [lock('democrac', MAX_U128)],
     }),
@@ -147,14 +147,18 @@ export const EveryRoleOnDesktop: StoryObj = {
     play: async ({canvas}) => expectWholeWords(await canvas.findByText('mapped account of this H160')),
 }
 
-export const Treasury = story({
-    account: subject({id: TREASURY.id, ...funds(issuance.treasuryPot), nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: at(0)}),
-    transfers: rows(8, (h: number, i: number) => (i % 2 === 0 ? transfer(h, i, {from: TREASURY, extrinsic: null, call: null, amount: numn(5_000 * (i + 1))}) : transfer(h, i, {to: TREASURY}))),
-    counts: {transfers: 312},
-})
+// born at genesis, which carries no timestamp, so its active age has no figure
+export const Treasury: StoryObj = {
+    ...story({
+        account: subject({id: TREASURY.id, ...funds(issuance.treasuryPot), nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: null}),
+        transfers: rows(8, (h: number, i: number) => (i % 2 === 0 ? transfer(h, i, {from: TREASURY, extrinsic: null, call: null, amount: numn(5_000 * (i + 1))}) : transfer(h, i, {to: TREASURY}))),
+        counts: {transfers: 312},
+    }),
+    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'First seen')).toBe('#0active age —'),
+}
 
 export const TransfersEmpty: StoryObj = {
-    ...story({account: subject({nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: at(0), lastActiveBlock: 0})}),
+    ...story({account: subject({nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: null, lastActiveBlock: 0})}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No transfers yet.')).toBeInTheDocument()
         expect(filterChips(canvasElement, 'Direction')).toEqual(['[All]', 'Out', 'In'])

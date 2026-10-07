@@ -36,7 +36,7 @@ export function ValidatorsTable({rows, chain}: {rows: ValidatorRow[]; chain: Cha
                 col.display({id: 'offline', header: 'Offline sessions', meta: num, cell: ({row}) => fmtInt(row.original.offlineSessions)}),
                 col.display({id: 'equivocations', header: 'Equivocations', meta: num, cell: ({row}) => fmtInt(row.original.equivocations)}),
                 col.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.firstSeenBlock} />}),
-                col.display({id: 'session', header: 'Last session', meta: num, cell: ({row}) => `#${fmtInt(row.original.lastActiveSession)}`}),
+                col.display({id: 'session', header: 'Last session', meta: num, cell: ({row}) => (row.original.lastActiveSession != null ? `#${fmtInt(row.original.lastActiveSession)}` : '—')}),
             ]),
         [chain]
     )

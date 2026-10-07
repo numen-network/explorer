@@ -16,7 +16,7 @@ export default function Validator({v, chain}: {v: ValidatorRow; chain: ChainProp
             <DetailRow label="Lock expiry">{v.lockExpiry ? fmtInt(v.lockExpiry) : '—'}</DetailRow>
             <DetailRow label="Offline sessions">{fmtInt(v.offlineSessions)}</DetailRow>
             <DetailRow label="Equivocations">{fmtInt(v.equivocations)}</DetailRow>
-            <DetailRow label="Last active session">#{fmtInt(v.lastActiveSession)}</DetailRow>
+            <DetailRow label="Last active session">{v.lastActiveSession != null ? `#${fmtInt(v.lastActiveSession)}` : '—'}</DetailRow>
         </DetailCard>
     )
 }

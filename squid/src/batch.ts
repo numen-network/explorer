@@ -99,10 +99,10 @@ export class BatchData {
     enactments = new Map<string, number>()
     spendsAtHeight = new Map<number, string[]>()
     validators = new Map<string, Validator>()
-    validatorEvents: {name: string; args: any; height: number}[] = []
-    sessionBoundaries: {index: number; height: number}[] = []
+    validatorEvents: {name: string; args: any; height: number; header: any}[] = []
     registrarsDirty = false
     registrarAdded = new Map<number, number>()
+    seatMoves: {header: any; index: number}[] = []
     registrarRetired = new Map<number, {height: number; at: Date}>()
     judgementsGiven: {id: string; registrar: number; target: string; block: number; at: Date; header: any}[] = []
     judgements: Judgement[] = []
@@ -140,13 +140,16 @@ export class BatchData {
     minerDayDeltas = new Map<string, {day: string; account: string; blocks: number; rewards: bigint}>()
     minerDays: MinerDayStat[] = []
 
+    // block mapping touches in chain order but the finalize steps touch at their
+    // own event heights afterwards, so the earliest and the latest height win
     touch(id: string, height: number): Account {
         let a = this.accounts.get(id)
         if (a == null) {
             a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: height})
             this.accounts.set(id, a)
         }
-        a.lastActiveBlock = height
+        a.firstSeenBlock = Math.min(a.firstSeenBlock, height)
+        a.lastActiveBlock = Math.max(a.lastActiveBlock, height)
         return a
     }
 }

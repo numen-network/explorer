@@ -32,7 +32,7 @@ export interface BlockRow {
     height: number
     hash: string
     parentHash: string
-    timestamp: string
+    timestamp: string | null
     finalized: boolean
     extrinsicCount: number
     eventCount: number
@@ -144,7 +144,7 @@ export interface HomeData {
     dailyStats: DailyRow[]
     accounts: {totalCount: number}
     validators: {totalCount: number}
-    sessionHead: {lastActiveSession: number}[]
+    sessionHead: {lastActiveSession: number | null}[]
     evmTotal: {totalCount: number}
     referendums: ReferendumRow[]
     fresh24: {totalCount: number}
@@ -164,9 +164,9 @@ export interface HomeData {
     evm30: {totalCount: number}
 }
 
-export async function homeData(since24: string, since30: string) {
+export async function homeData(since24: string | null, since30: string | null) {
     const data = await gql<HomeData>(
-        `query ($since24: DateTime!, $since30: DateTime!) {
+        `query ($since24: DateTime, $since30: DateTime) {
             blocks(orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
             genesis: blocks(where: {height_eq: 0}, limit: 1) { hash }
             minedObjects(orderBy: id_DESC, limit: 5) { block { height hash timestamp finalized extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
@@ -174,13 +174,13 @@ export async function homeData(since24: string, since30: string) {
             dailyStats(orderBy: date_DESC, limit: 90) { ${DAILY_FIELDS} }
             accounts: accountsConnection(orderBy: id_ASC) { totalCount }
             validators: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
-            sessionHead: validators(orderBy: lastActiveSession_DESC, limit: 1) { lastActiveSession }
+            sessionHead: validators(orderBy: lastActiveSession_DESC_NULLS_LAST, limit: 1) { lastActiveSession }
             evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
             fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since24}) { totalCount }
             fresh30: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since30}) { totalCount }
-            base24: blocks(orderBy: timestamp_DESC, limit: 1, where: {timestamp_lte: $since24, height_gt: 0}) { ${BASELINE_FIELDS} }
-            base30: blocks(orderBy: timestamp_DESC, limit: 1, where: {timestamp_lte: $since30, height_gt: 0}) { ${BASELINE_FIELDS} }
+            base24: blocks(orderBy: timestamp_DESC, limit: 1, where: {timestamp_lte: $since24}) { ${BASELINE_FIELDS} }
+            base30: blocks(orderBy: timestamp_DESC, limit: 1, where: {timestamp_lte: $since30}) { ${BASELINE_FIELDS} }
             tra24: hourlyStats(orderBy: hour_DESC, limit: 1, where: {block: {timestamp_lte: $since24}}) { issuanceTransferable issuanceInactive }
             tra30: hourlyStats(orderBy: hour_DESC, limit: 1, where: {block: {timestamp_lte: $since30}}) { issuanceTransferable issuanceInactive }
             miners24: accountsConnection(orderBy: id_ASC, where: {lastMinedTimestamp_gt: $since24}) { totalCount }
@@ -351,7 +351,7 @@ export interface AccountRow extends AccountRef {
     frozen: string
     nonce: number
     firstSeenBlock: number
-    firstSeenTimestamp: string
+    firstSeenTimestamp: string | null
     lastActiveBlock: number
     identityJson: unknown
     identitySuper?: AccountRef | null
@@ -1386,7 +1386,7 @@ export interface ValidatorRow {
     equivocations: number
     kicked: unknown
     firstSeenBlock: number
-    lastActiveSession: number
+    lastActiveSession: number | null
     account: AccountRef
 }
 
@@ -1395,7 +1395,7 @@ const VALIDATOR_FIELDS = `id active lockedAmount lockExpiry offlineSessions equi
 export function validatorsPage(limit: number, offset: number) {
     return gql<{validators: ValidatorRow[]; all: {totalCount: number}; active: {totalCount: number}}>(
         `query ($limit: Int!, $offset: Int!) {
-            validators(orderBy: [lastActiveSession_DESC, id_ASC], limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} }
+            validators(orderBy: [lastActiveSession_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} }
             all: validatorsConnection(orderBy: id_ASC) { totalCount }
             active: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
         }`,
@@ -1483,7 +1483,7 @@ export function searchNames(q: string, page: Slice) {
 }
 
 export interface IndexerStatus {
-    blocks: {height: number; timestamp: string}[]
+    blocks: {height: number; timestamp: string | null}[]
     chainInfos: {head: number; blockTime: number}[]
 }
 

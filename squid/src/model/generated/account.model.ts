@@ -27,9 +27,12 @@ export class Account {
     @IntColumn_({nullable: false})
     firstSeenBlock!: number
 
+    /**
+     * timestamp of the first seen block, null for an account born at genesis
+     */
     @Index_("idx_account_first_seen_timestamp_00087e2f")
-    @DateTimeColumn_({nullable: false})
-    firstSeenTimestamp!: Date
+    @DateTimeColumn_({nullable: true})
+    firstSeenTimestamp!: Date | undefined | null
 
     @Index_("idx_account_last_active_block_82d33d5a")
     @IntColumn_({nullable: false})

@@ -25,7 +25,7 @@ interface InfoRow extends Omit<ChainProps, 'chain'> {
 
 export interface DbHead {
     height: number
-    timestamp: string
+    timestamp: string | null
 }
 
 const chainInfo = cache(async (): Promise<{info: InfoRow; dbHead: DbHead}> => {

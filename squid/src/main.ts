@@ -24,7 +24,7 @@ import {fetchObj, parseMesh} from './objects'
 import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply} from './evm'
 import {collectGovEvent, finalizeGovernance} from './governance'
 import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from './validators'
-import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, seedGenesisVesting} from './annotations'
+import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig} from './multisig'
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
 import {accumulateDay, finalizeStats, treasuryAccount} from './stats'
@@ -79,13 +79,13 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     await finalizeGovernance(ctx, batch, lastHeader, rpc)
     await finalizeMultisig(batch, lastHeader, ctx.store)
     await finalizeBounties(batch, lastHeader, ctx.store)
-    await finalizeValidators(ctx, batch, lastHeader)
+    await finalizeValidators(ctx, batch)
     await finalizeRegistrars(batch, lastHeader, ctx.store)
+    await refreshPrime(batch, lastHeader, ctx.store)
     await finalizeAccounts(ctx, batch, lastHeader)
     await finalizeStats(ctx, batch)
     await finalizeAnnotations(batch, lastHeader, ctx.store)
     await persist(ctx, batch)
-    await dateGenesisAccounts(ctx, batch)
     await markFinalized(ctx, finalizedHeight)
     await refreshChainInfo(ctx, lastHeader, finalizedHeight)
 })
@@ -99,16 +99,19 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     if (h.height > 0 && !seal) throw new Error(`block ${h.height} has no pow seal`)
     const evmHash = parseEvmBlockHash(logs)
     if (h.height > 0 && !evmHash) throw new Error(`block ${h.height} has no frontier post log`)
+    // the processor reports a block with no Timestamp.set inherent as 0
+    const timestamp = h.timestamp ? new Date(h.timestamp) : null
+    if (h.height > 0 && !timestamp) throw new Error(`block ${h.height} has no timestamp inherent`)
     const [difficulty, balances] = await Promise.all([currentDifficulty(h), balanceSnapshot(h)])
     const miner = author ? batch.touch(author, h.height) : undefined
-    if (miner != null) miner.lastMinedTimestamp = new Date(h.timestamp ?? 0)
+    if (miner != null) miner.lastMinedTimestamp = timestamp
     const block = new Block({
         id: h.id,
         height: h.height,
         hash: h.hash,
         evmHash,
         parentHash: h.parentHash,
-        timestamp: new Date(h.timestamp ?? 0),
+        timestamp,
         specVersion: h.specVersion,
         author: miner,
         difficulty,
@@ -126,6 +129,8 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         logs,
     })
     batch.blocks.push(block)
+    // only genesis goes undated, and it has no extrinsics, events or day to book
+    if (timestamp == null) return
     const transfersBefore = batch.transfers.length
     const evmBefore = batch.evmTxs.length
     for (const ext of b.extrinsics) mapExtrinsic(batch, block, ext)
@@ -134,13 +139,13 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         if (!call.success) continue
         const origin = originOf(call)
         if (origin == null) continue
-        if (call.name.startsWith('Identity.') || call.name.startsWith('Proxy.')) collectAnnotationCall(batch, call.name, call.args, origin, h.height)
+        if (call.name.startsWith('Identity.') || call.name.startsWith('Proxy.')) collectAnnotationCall(batch, call.name, call.args, origin, h.height, h)
         else if (call.name.startsWith('Multisig.') && call.extrinsic != null) collectMultisigCall(batch, call.name, call.args, origin, call.extrinsic.id)
         else if (call.name.startsWith('ChildBounties.')) collectBountyCall(batch, call.name, call.args, h.height)
     }
     const treasury = treasuryAccount(h)
-    for (const ev of b.events) mapEvent(batch, block, ev, author, treasury)
-    await mapEvm(batch, b, block)
+    for (const ev of b.events) mapEvent(batch, block, timestamp, ev, author, treasury)
+    await mapEvm(batch, b, block, timestamp)
     let transferVolume = 0n
     for (let i = transfersBefore; i < batch.transfers.length; i++) transferVolume += batch.transfers[i].amount
     const deposits = depositsByExtrinsic(b.events)
@@ -159,7 +164,7 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         fees += x.minerFee + x.treasuryFee + tip
         if (ext.signature != null) signed += 1
     }
-    accumulateDay(batch, block, h, {
+    accumulateDay(batch, block, timestamp, h, {
         extrinsicsSigned: signed,
         transfers: batch.transfers.length - transfersBefore,
         transferVolume,
@@ -180,7 +185,7 @@ function depositsByExtrinsic(evs: EventData<Fields>[]): Map<number, Deposit[]> {
     return out
 }
 
-async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Promise<void> {
+async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: Date): Promise<void> {
     const transacts = b.extrinsics.filter(x => x.call?.name === 'Ethereum.transact')
     if (transacts.length === 0) return
     const h = b.header
@@ -245,7 +250,7 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Pro
             txType: decoded.txType,
             status: decoded.status,
             exitReason: toJSON(decoded.exitReason),
-            timestamp: block.timestamp,
+            timestamp: at,
         })
         batch.evmTxs.push(evmTx)
         for (const logEv of logsByExt.get(ext.index) ?? []) {
@@ -264,7 +269,7 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block): Pro
                 })
             )
             const t = asErc20Transfer(log, nativeFacade)
-            if (t != null) batch.erc20Queue.push({...t, id: logId, tx: evmTx, block, timestamp: block.timestamp})
+            if (t != null) batch.erc20Queue.push({...t, id: logId, tx: evmTx, block, timestamp: at})
             blockLogIndex++
         }
     }
@@ -413,7 +418,7 @@ function mapCalls(batch: BatchData, block: Block, calls: CallData<Fields>[]): vo
     }
 }
 
-function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author: string | undefined, treasury: string): void {
+function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields>, author: string | undefined, treasury: string): void {
     const [pallet, method] = splitName(ev.name)
     const extrinsic = ev.extrinsic != null ? batch.extrinsicById.get(ev.extrinsic.id) : undefined
     const call = ev.call != null ? batch.callById.get(ev.call.id) : undefined
@@ -441,7 +446,7 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
                 from: batch.touch(t.from, block.height),
                 to: batch.touch(t.to, block.height),
                 amount: t.amount,
-                timestamp: block.timestamp,
+                timestamp: at,
             })
         )
     }
@@ -459,10 +464,10 @@ function mapEvent(batch: BatchData, block: Block, ev: EventData<Fields>, author:
     }
     const name = ev.name ?? ''
     collectGovEvent(batch, ev.id, name, ev.args, block.height, ev.block, signerOf(ev.extrinsic), ev.call?.args)
-    collectValidatorEvent(batch, name, ev.args, block.height)
-    collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, block.timestamp, ev)
+    collectValidatorEvent(batch, name, ev.args, block.height, ev.block)
+    collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, at, ev)
     collectMultisigEvent(batch, name, ev.args, block.height, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined)
-    collectBountyEvent(batch, ev.id, name, ev.args, block.height, block.timestamp, signerOf(ev.extrinsic))
+    collectBountyEvent(batch, ev.id, name, ev.args, block.height, at, signerOf(ev.extrinsic))
 }
 
 let topologyCache: MeshTopology | undefined
@@ -505,16 +510,6 @@ async function seedGenesisBalances(batch: BatchData, h: BlockHeader<Fields>): Pr
     for (const [who] of await s.getPairs(h)) batch.touch(who, 0)
 }
 
-// genesis carries no timestamp inherent, so block 1 is what dates the accounts
-// born there
-async function dateGenesisAccounts(ctx: Ctx, batch: BatchData): Promise<void> {
-    const one = batch.blocks.find(b => b.height === 1)
-    if (one == null) return
-    const born = await ctx.store.findBy(Account, {firstSeenBlock: 0})
-    for (const a of born) a.firstSeenTimestamp = one.timestamp
-    await ctx.store.upsert(born)
-}
-
 async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fields>): Promise<void> {
     const ids = [...batch.accounts.keys()]
     if (ids.length === 0) return
@@ -525,10 +520,8 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
         if (known.has(id)) continue
         batch.newAccounts.add(id)
         const a = batch.accounts.get(id)!
-        // genesis carries no timestamp inherent, so its block row sits at the epoch
-        const at = stampOf.get(a.firstSeenBlock) ?? (a.firstSeenBlock === 0 ? new Date(0) : undefined)
-        if (at == null) throw new Error(`account ${id} first seen at block ${a.firstSeenBlock}, which this batch does not hold`)
-        a.firstSeenTimestamp = at
+        if (!stampOf.has(a.firstSeenBlock)) throw new Error(`account ${id} first seen at block ${a.firstSeenBlock}, which this batch does not hold`)
+        a.firstSeenTimestamp = stampOf.get(a.firstSeenBlock)
     }
     for (const e of existing) {
         const draft = batch.accounts.get(e.id)!

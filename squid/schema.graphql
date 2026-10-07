@@ -5,7 +5,8 @@ type Block @entity {
   "hash the EVM side knows this block by, null at genesis"
   evmHash: String @index
   parentHash: String!
-  timestamp: DateTime! @index
+  "set by the timestamp inherent, null at genesis"
+  timestamp: DateTime @index
   specVersion: Int!
   author: Account @index
   difficulty: BigInt!
@@ -80,7 +81,8 @@ type Account @entity {
   frozen: BigInt!
   nonce: Int!
   firstSeenBlock: Int!
-  firstSeenTimestamp: DateTime! @index
+  "timestamp of the first seen block, null for an account born at genesis"
+  firstSeenTimestamp: DateTime @index
   lastActiveBlock: Int! @index
   "when this account last sealed a block"
   lastMinedTimestamp: DateTime @index
@@ -543,7 +545,8 @@ type Validator @entity {
   "the reason ValidatorKicked carried, whole"
   kicked: JSON
   firstSeenBlock: Int!
-  lastActiveSession: Int!
+  "the last session it was active in, null if it never was"
+  lastActiveSession: Int
 }
 
 type DailyStat @entity {

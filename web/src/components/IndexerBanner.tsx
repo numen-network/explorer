@@ -23,6 +23,7 @@ function warning(status: Awaited<ReturnType<typeof indexerStatus>>, now: number)
     if (!block || !info) return null
     const behind = info.head - block.height
     if (behind > BEHIND_BLOCKS) return `Indexer is ${fmtCount(behind, 'block')} behind the chain head at #${fmtInt(info.head)}.`
+    if (block.timestamp == null) return null
     const age = (now - Date.parse(block.timestamp)) / 1000
     const stall = Math.max(STALL_FLOOR, info.blockTime * STALL_FACTOR)
     return age > stall ? `No new block indexed for ${since(age)}. The chain or the indexer has stopped.` : null

@@ -49,10 +49,11 @@ export function TimeModeButton() {
 
 // table cells sit under a TimeModeButton header that already names the
 // timezone, standalone rows carry the suffix themselves
-export function TimeCell({iso, cycle = false}: {iso: string; cycle?: boolean}) {
+export function TimeCell({iso, cycle = false}: {iso: string | null; cycle?: boolean}) {
     const m = useTimeMode(s => s.mode)
     const setMode = useTimeMode(s => s.setLocal)
     useEffect(loadPref, [])
+    if (iso == null) return '—'
     return (
         <span>
             <TimeAgo iso={iso} />{' '}

@@ -35,10 +35,8 @@ export function treasuryAccount(block: RuntimeCtx): string {
     return ('0x' + TYPE_ID + palletId.get(block).slice(2)).padEnd(66, '0')
 }
 
-export function accumulateDay(batch: BatchData, block: Block, header: RuntimeCtx, delta: Omit<DayDelta, 'tsFirst' | 'tsLast' | 'difficultyClose' | 'blocks' | 'rewards' | 'header'>): void {
-    // genesis carries no timestamp, so there is no day to book it on
-    if (block.height === 0) return
-    const day = block.timestamp.toISOString().slice(0, 10)
+export function accumulateDay(batch: BatchData, block: Block, at: Date, header: RuntimeCtx, delta: Omit<DayDelta, 'tsFirst' | 'tsLast' | 'difficultyClose' | 'blocks' | 'rewards' | 'header'>): void {
+    const day = at.toISOString().slice(0, 10)
     let d = batch.dayDeltas.get(day)
     if (d == null) {
         d = {
@@ -50,8 +48,8 @@ export function accumulateDay(batch: BatchData, block: Block, header: RuntimeCtx
             fees: 0n,
             referendaNew: 0,
             rewards: 0n,
-            tsFirst: block.timestamp,
-            tsLast: block.timestamp,
+            tsFirst: at,
+            tsLast: at,
             difficultyClose: block.difficulty,
             header,
         }
@@ -65,10 +63,10 @@ export function accumulateDay(batch: BatchData, block: Block, header: RuntimeCtx
     d.fees += delta.fees
     d.referendaNew += delta.referendaNew
     d.rewards += block.reward
-    d.tsLast = block.timestamp
+    d.tsLast = at
     d.difficultyClose = block.difficulty
     d.header = header
-    batch.hourDeltas.set(block.timestamp.toISOString().slice(0, 13), {header, block})
+    batch.hourDeltas.set(at.toISOString().slice(0, 13), {header, block})
 
     if (block.author != null) {
         const minerId = `${day}-${block.author.id}`
@@ -103,7 +101,10 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promis
 
     // an account is born on the day of the block that first touched it, and
     // one genesis touched lands on the first dated day this batch holds
-    const dayOfHeight = new Map(batch.blocks.filter(b => b.height > 0).map(b => [b.height, b.timestamp.toISOString().slice(0, 10)]))
+    const dayOfHeight = new Map<number, string>()
+    for (const b of batch.blocks) {
+        if (b.timestamp != null) dayOfHeight.set(b.height, b.timestamp.toISOString().slice(0, 10))
+    }
     const bornOn = new Map<string, number>()
     for (const id of batch.newAccounts) {
         const day = dayOfHeight.get(batch.accounts.get(id)!.firstSeenBlock) ?? dayIds[0]

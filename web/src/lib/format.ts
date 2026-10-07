@@ -191,7 +191,8 @@ export function extrinsicPath(squidId: string): string {
     return Number.isInteger(height) && Number.isInteger(index) ? `${height}-${index}` : squidId
 }
 
-export function fmtAge(iso: string): string {
+export function fmtAge(iso: string | null): string {
+    if (iso === null) return '—'
     const mins = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 60000))
     const hrs = Math.floor(mins / 60)
     const days = Math.floor(hrs / 24)

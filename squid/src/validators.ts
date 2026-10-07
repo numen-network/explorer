@@ -4,12 +4,8 @@ import {BatchData} from './batch'
 import {Validator} from './model'
 import {storage} from './types'
 
-export function collectValidatorEvent(batch: BatchData, name: string, args: any, height: number): void {
-    if (name === 'Session.NewSession') {
-        batch.sessionBoundaries.push({index: Number(args.sessionIndex), height})
-        return
-    }
-    if (name.startsWith('Validator.')) batch.validatorEvents.push({name, args, height})
+export function collectValidatorEvent(batch: BatchData, name: string, args: any, height: number, header: any): void {
+    if (name === 'Session.NewSession' || name.startsWith('Validator.')) batch.validatorEvents.push({name, args, height, header})
 }
 
 async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, height: number): Promise<Validator> {
@@ -25,7 +21,7 @@ async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, h
             offlineSessions: 0,
             equivocations: 0,
             firstSeenBlock: height,
-            lastActiveSession: 0,
+            lastActiveSession: null,
         })
     }
     batch.validators.set(who, v)
@@ -54,11 +50,17 @@ export async function seedGenesisValidators(batch: BatchData, genesisHeader: any
     }
 }
 
-export async function finalizeValidators(ctx: {store: any}, batch: BatchData, lastHeader: any): Promise<void> {
+// session boundaries apply in chain order among the lifecycle events, each with
+// the set its own block holds, so a batch spanning several sessions ends up
+// where as many one-session batches would
+export async function finalizeValidators(ctx: {store: any}, batch: BatchData): Promise<void> {
     for (const ev of batch.validatorEvents) {
         const method = ev.name.split('.')[1]
         const args = ev.args
         switch (method) {
+            case 'NewSession':
+                await syncActiveSet(ctx, batch, Number(args.sessionIndex), ev.height, ev.header)
+                break
             case 'ValidatorLocked': {
                 const v = await loadValidator(ctx, batch, args.who, ev.height)
                 v.lockedAmount = BigInt(args.amount)
@@ -84,40 +86,40 @@ export async function finalizeValidators(ctx: {store: any}, batch: BatchData, la
             }
         }
     }
-    if (batch.sessionBoundaries.length > 0) {
-        await syncActiveSet(ctx, batch, lastHeader, batch.sessionBoundaries[batch.sessionBoundaries.length - 1])
-    }
 }
 
-async function syncActiveSet(ctx: {store: any}, batch: BatchData, lastHeader: any, boundary: {index: number; height: number}): Promise<void> {
+async function syncActiveSet(ctx: {store: any}, batch: BatchData, index: number, height: number, header: any): Promise<void> {
     const s = storage.session.validators.v100
-    if (!s.is(lastHeader)) throw new Error('unhandled spec version for session validators')
-    const current: string[] = (await s.get(lastHeader)) ?? []
+    if (!s.is(header)) throw new Error(`unhandled spec version for session validators at block ${height}`)
+    const current: string[] = (await s.get(header)) ?? []
     const set = new Set(current)
 
-    const previouslyActive: Validator[] = await ctx.store.find(Validator, {
-        where: {active: true},
-        relations: {account: true},
-    })
-    for (const v of previouslyActive) {
+    // the store holds the set earlier batches left, the batch whatever it has
+    // changed since
+    const stored: Validator[] = await ctx.store.find(Validator, {where: {active: true}, relations: {account: true}})
+    const active = new Map(stored.map(v => [v.id, v]))
+    for (const v of batch.validators.values()) {
+        if (v.active) active.set(v.id, v)
+        else active.delete(v.id)
+    }
+    for (const v of active.values()) {
         if (!set.has(v.id)) {
             v.active = false
             batch.validators.set(v.id, v)
         }
     }
     for (const who of current) {
-        const v = await loadValidator(ctx, batch, who, boundary.height)
+        const v = await loadValidator(ctx, batch, who, height)
         v.active = true
         v.kicked = null
-        v.lastActiveSession = boundary.index
+        v.lastActiveSession = index
     }
 
     const counts = storage.validator.offlineSessionCount.v100
-    if (counts.is(lastHeader) && current.length > 0) {
-        const offline = await counts.getMany(lastHeader, current)
+    if (counts.is(header) && current.length > 0) {
+        const offline = await counts.getMany(header, current)
         current.forEach((who, i) => {
-            const v = batch.validators.get(who)
-            if (v != null) v.offlineSessions = offline[i] ?? 0
+            batch.validators.get(who)!.offlineSessions = offline[i] ?? 0
         })
     }
 }

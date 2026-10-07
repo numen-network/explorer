@@ -40,6 +40,9 @@ export class Validator {
     @IntColumn_({nullable: false})
     firstSeenBlock!: number
 
-    @IntColumn_({nullable: false})
-    lastActiveSession!: number
+    /**
+     * the last session it was active in, null if it never was
+     */
+    @IntColumn_({nullable: true})
+    lastActiveSession!: number | undefined | null
 }

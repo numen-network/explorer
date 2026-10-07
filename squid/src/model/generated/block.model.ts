@@ -28,9 +28,12 @@ export class Block {
     @StringColumn_({nullable: false})
     parentHash!: string
 
+    /**
+     * set by the timestamp inherent, null at genesis
+     */
     @Index_("idx_block_timestamp_82806c7c")
-    @DateTimeColumn_({nullable: false})
-    timestamp!: Date
+    @DateTimeColumn_({nullable: true})
+    timestamp!: Date | undefined | null
 
     @IntColumn_({nullable: false})
     specVersion!: number

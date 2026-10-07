@@ -54,15 +54,16 @@ function Bar({ratio}: {ratio: number}) {
 
 export default async function Home() {
     const [props, heads, head] = await Promise.all([chainProps(), chainHeads(), chainDbHead()])
-    // windows run back from the last indexed block, so a lagging indexer still spans a real day
-    const ago = (days: number) => new Date(Date.parse(head.timestamp) - days * 86400000).toISOString()
+    // windows run back from the last indexed block, so a lagging indexer still spans a real day.
+    // genesis has no timestamp to run back from, and a window with a null start matches no row
+    const ago = (days: number) => (head.timestamp == null ? null : new Date(Date.parse(head.timestamp) - days * 86400000).toISOString())
     const data = await homeData(ago(1), ago(30))
     const days = data.dailyStats
     const today: DailyRow | undefined = days[0]
 
     const blockTime = today && today.blocks > 1 ? (Date.parse(today.tsLast) - Date.parse(today.tsFirst)) / ((today.blocks - 1) * 1000) : null
 
-    const sessionIdx = data.sessionHead[0]?.lastActiveSession ?? 0
+    const sessionIdx = data.sessionHead[0]?.lastActiveSession
     const period = props.sessionLength
     const inSession = period > 0 ? ((heads.best - props.sessionOffset) % period) + 1 : 0
 
@@ -168,7 +169,7 @@ export default async function Home() {
                         <StatusRow label="Finalized">{fmtInt(heads.finalized)}</StatusRow>
                         <StatusRow label="Avg block time">{blockTime ? `${truncFixed(blockTime, 1)}s` : '—'}</StatusRow>
                         <StatusRow label="Validators">{fmtInt(data.validators.totalCount)}</StatusRow>
-                        <StatusRow label="Session">#{fmtInt(sessionIdx)}</StatusRow>
+                        <StatusRow label="Session">{sessionIdx != null ? `#${fmtInt(sessionIdx)}` : '—'}</StatusRow>
                     </dl>
                     {period > 0 && (
                         <div>
