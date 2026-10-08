@@ -14,7 +14,7 @@ import {RpcClient} from '@subsquid/rpc-client'
 import {toJSON} from '@subsquid/util-internal-json'
 import pLimit from 'p-limit'
 import {In, LessThanOrEqual} from 'typeorm'
-import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EvmLog, EvmTransaction, Extrinsic, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer} from './model'
+import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EvmAddress, EvmLog, EvmTransaction, Extrinsic, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer} from './model'
 import {constants, events, storage} from './types'
 import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
@@ -69,6 +69,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     }
     await fetchObjects(ctx, batch)
     await finalizeTokens(ctx, batch, lastHeader)
+    await finalizeEvmAddresses(ctx, batch)
     await finalizeGovernance(ctx, batch, lastHeader, rpc)
     await finalizeMultisig(batch, lastHeader, ctx.store)
     await finalizeBounties(batch, lastHeader, ctx.store)
@@ -225,6 +226,8 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
         // canonical home of the tx payload is EvmTransaction, keep the call row lean
         batch.callById.get(ext.call!.id)!.args = null
         batch.touch(evmMappedAccount(decoded.from), h.height).evmAddress = decoded.from
+        // a transaction counts once for each address that sent, received or created it
+        for (const addr of new Set([decoded.from, decoded.to ?? decoded.contractAddress!])) batch.touchEvm(addr, h.height, 1)
         const evmTx = new EvmTransaction({
             id: decoded.hash,
             extrinsic,
@@ -262,7 +265,10 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
                 })
             )
             const t = asErc20Transfer(log, nativeFacade)
-            if (t != null) batch.erc20Queue.push({...t, id: logId, logIndex: blockLogIndex, tx: evmTx, block, timestamp: at})
+            if (t != null) {
+                batch.erc20Queue.push({...t, id: logId, logIndex: blockLogIndex, tx: evmTx, block, timestamp: at})
+                for (const addr of [t.from, t.to]) if (addr !== ZERO_ADDRESS) batch.touchEvm(addr, h.height, 0)
+            }
             blockLogIndex++
         }
     }
@@ -347,6 +353,17 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
     )
     batch.tokens = [...tokens.values()]
     batch.holders = [...holders.values()]
+}
+
+// a batch counts its own blocks only, so its counts add onto the stored ones
+async function finalizeEvmAddresses(ctx: Ctx, batch: BatchData): Promise<void> {
+    if (batch.evmAddresses.size === 0) return
+    for (const stored of await ctx.store.findBy(EvmAddress, {id: In([...batch.evmAddresses.keys()])})) {
+        const draft = batch.evmAddresses.get(stored.id)!
+        stored.txCount += draft.txCount
+        stored.lastActiveBlock = draft.lastActiveBlock
+        batch.evmAddresses.set(stored.id, stored)
+    }
 }
 
 // a create tx names the contract it made, but a token only surfaces at its
@@ -646,6 +663,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.insert(batch.evmLogs)
     await ctx.store.insert(batch.tokenTransfers)
     await ctx.store.upsert(batch.holders)
+    await ctx.store.upsert([...batch.evmAddresses.values()])
     await ctx.store.upsert([...batch.referenda.values()])
     await ctx.store.upsert([...batch.votes.values()])
     await ctx.store.insert(batch.votingActions)

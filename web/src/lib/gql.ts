@@ -864,6 +864,22 @@ export function tokenDetail(address: string, page: Slice) {
     )
 }
 
+export interface EvmActivity {
+    id: string
+    txCount: number
+    firstSeenBlock: number
+    lastActiveBlock: number
+}
+
+export function evmActivity(addresses: string[]) {
+    return gql<{evmAddresses: EvmActivity[]}>(
+        `query ($ids: [String!]) {
+            evmAddresses(where: {id_in: $ids}, limit: ${Math.max(1, addresses.length)}) { id txCount firstSeenBlock lastActiveBlock }
+        }`,
+        {ids: addresses}
+    )
+}
+
 export interface EvmTxRow {
     id: string
     txIndex: number

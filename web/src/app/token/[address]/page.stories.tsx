@@ -1,17 +1,23 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import type {TokenRow} from '@/lib/gql'
+import {fmtInt} from '@/lib/format'
+import type {EvmActivity, TokenRow} from '@/lib/gql'
 import {HEAD, rows} from '../../../../../mock/fixtures.js'
-import {evmAddress, holder, holders, token, tokenTransfer, tokenTransfersInOneTx, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
-import {cardsFit, expectAddressForm, expectFits} from '../../../../.storybook/fit'
+import {activity, evmAddress, holder, holders, token, tokenTransfer, tokenTransfersInOneTx, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
+import {cardsFit, columnTexts, expectAddressForm, expectFits} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import TokenPage from './page'
 
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
 export default {title: 'Pages/Token', ...pageMeta(TokenPage)}
 
-const tokenPage = (tok: TokenRow, {holders = [], transfers = []}: {holders?: object[]; transfers?: object[]} = {}, searchParams = {}) =>
-    pageStory({tokenById: tok, tokenHolders: holders, tokenTransfers: transfers}, {params: {address: tok.id}, searchParams})
+// the index answers the activity lookup in an order of its own, so the tallies
+// go in reversed and the page has to match them up by address
+const tokenPage = (
+    tok: TokenRow,
+    {holders = [], transfers = [], tallies = holders.map((h, i) => activity(h.address, i))}: {holders?: {address: string}[]; transfers?: object[]; tallies?: EvmActivity[]} = {},
+    searchParams = {}
+) => pageStory({tokenById: tok, tokenHolders: holders, evmAddresses: [...tallies].reverse(), tokenTransfers: transfers}, {params: {address: tok.id}, searchParams})
 
 const TRANSFERS_TAB = {tab: 'transfers'}
 
@@ -31,7 +37,13 @@ const huge = token(3, {
 
 export const HoldersMany: StoryObj = {
     ...tokenPage(WTMR, {holders: holders(WTMR, 20)}),
-    play: async ({canvasElement}) => expectAddressForm(canvasElement.querySelector('[data-slot=table-container]')!),
+    play: async ({canvasElement}) => {
+        expectAddressForm(canvasElement.querySelector('[data-slot=table-container]')!)
+        const tallies = holders(WTMR, 20).map((h, i) => activity(h.address, i))
+        expect(columnTexts(canvasElement, 'Transactions')).toEqual(tallies.map(a => fmtInt(a.txCount)))
+        expect(columnTexts(canvasElement, 'First seen')).toEqual(tallies.map(a => `#${fmtInt(a.firstSeenBlock)}`))
+        expect(columnTexts(canvasElement, 'Last active')).toEqual(tallies.map(a => `#${fmtInt(a.lastActiveBlock)}`))
+    },
 }
 
 export const HoldersPageThree = tokenPage(WTMR, {holders: holders(WTMR, 20, 40)}, {page: '3'})
@@ -41,7 +53,7 @@ export const HoldersOne = tokenPage(solo, {holders: [holder(solo, evmAddress(0),
 export const HoldersEmpty = tokenPage(burnt)
 
 // what each holder reads in the Share column, in table order
-const shares = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].map(row => row.lastElementChild!.textContent)
+const shares = (root: HTMLElement) => columnTexts(root, 'Share')
 
 // a share of a supply nobody read has no figure
 export const SupplyUnknown: StoryObj = {
@@ -55,12 +67,17 @@ export const NoMetadata = {...tokenPage(bare, {holders: holders(bare, 5)}), play
 
 export const NoMetadataTransfers = tokenPage(bare, {transfers: rows(5, (h: number, i: number) => tokenTransfer(token(1), h, i, {token: bare}))}, TRANSFERS_TAB)
 
-// a holder just short of half the largest supply and one holding its smallest unit
+// a holder just short of half the largest supply with as many transactions as
+// the index can count, and one holding its smallest unit
 export const ExtremeNumbers: StoryObj = {
-    ...tokenPage(huge, {holders: [holder(huge, evmAddress(0), (BigInt(UINT256_MAX) / 2n).toString()), holder(huge, evmAddress(1), '1')]}),
+    ...tokenPage(huge, {
+        holders: [holder(huge, evmAddress(0), (BigInt(UINT256_MAX) / 2n).toString()), holder(huge, evmAddress(1), '1')],
+        tallies: [{id: evmAddress(0), txCount: 2_147_483_647, firstSeenBlock: 0, lastActiveBlock: HEAD}, activity(evmAddress(1), 1)],
+    }),
     play: async ({canvasElement}) => {
         expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
         await expect(shares(canvasElement)).toEqual(['49.99%', '<0.01%'])
+        await expect(columnTexts(canvasElement, 'Transactions')).toEqual(['2,147,483,647', '37'])
     },
 }
 

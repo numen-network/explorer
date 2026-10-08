@@ -1,4 +1,4 @@
-import {at, hashOf, squidId} from '../fixtures.js'
+import {HEAD, at, hashOf, squidId} from '../fixtures.js'
 
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 export const UINT256_MAX = (2n ** 256n - 1n).toString()
@@ -78,6 +78,9 @@ export const holder = (tok, address, balance) => ({id: `${tok.id}-${address}`, a
 // largest first and falling off by rank, the order the holder list asks for
 export const holders = (tok, count, offset = 0) =>
     Array.from({length: count}, (_, i) => holder(tok, evmAddress(offset + i), ((BigInt(tok.totalSupply) * 12n) / 100n / BigInt(offset + i + 1)).toString()))
+
+// what the index tallied for an address, n spreads the numbers apart
+export const activity = (address, n = 0) => ({id: address, txCount: (n * 37) % 900, firstSeenBlock: 36_861 + n * 7_919, lastActiveBlock: HEAD - n * 1_303})
 
 export const holding = (tok, balance) => ({balance, token: tok})
 

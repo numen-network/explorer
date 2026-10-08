@@ -234,6 +234,17 @@ type TokenHolder @entity @index(fields: ["token", "balance"]) {
   balance: BigInt
 }
 
+"an address that sent, received or created an EVM transaction, or sent or received a token"
+type EvmAddress @entity {
+  id: ID!
+  "EVM transactions it sent, received or created"
+  txCount: Int!
+  "earliest block holding one of its transactions or token transfers"
+  firstSeenBlock: Int!
+  "latest block holding one of its transactions or token transfers"
+  lastActiveBlock: Int!
+}
+
 """every pallet and method the chain has actually seen, so a call picker offers real options instead of a hardcoded list"""
 type CallKind @entity {
   "pallet.method"

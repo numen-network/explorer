@@ -2,14 +2,16 @@
 
 import {useMemo} from 'react'
 import {columnsFor, DataTable} from '@/components/DataTable'
-import {EvmAddrLink} from '@/components/links'
+import {BlockLink, EvmAddrLink} from '@/components/links'
 import ShareBar from '@/components/ShareBar'
-import {fmtApprox} from '@/lib/format'
+import {fmtApprox, fmtInt} from '@/lib/format'
+import type {EvmActivity} from '@/lib/gql'
 
 export interface Holder {
     id: string
     address: string
     balance: string
+    activity: EvmActivity
 }
 
 const hcol = columnsFor<Holder>()
@@ -22,6 +24,9 @@ export function HoldersTable({rows, offset, supply, decimals, symbol}: {rows: Ho
                 hcol.display({id: 'address', header: 'Address', meta: {className: 'w-full'}, cell: ({row}) => <EvmAddrLink addr={row.original.address} full />}),
                 hcol.display({id: 'balance', header: 'Balance', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtApprox(row.original.balance, decimals, symbol)}),
                 hcol.display({id: 'share', header: 'Share', meta: {align: 'right'}, cell: ({row}) => <ShareBar part={row.original.balance} whole={supply} />}),
+                hcol.display({id: 'txs', header: 'Transactions', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.activity.txCount)}),
+                hcol.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.activity.firstSeenBlock} />}),
+                hcol.display({id: 'last', header: 'Last active', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.activity.lastActiveBlock} />}),
             ]),
         [offset, supply, decimals, symbol]
     )

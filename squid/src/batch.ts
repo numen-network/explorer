@@ -8,6 +8,7 @@ import {
     DailyStat,
     Delegation,
     Event,
+    EvmAddress,
     EvmLog,
     EvmTransaction,
     Extrinsic,
@@ -87,6 +88,7 @@ export class BatchData {
     tokens: Token[] = []
     holders: TokenHolder[] = []
     tokenTransfers: TokenTransfer[] = []
+    evmAddresses = new Map<string, EvmAddress>()
     govEvents: GovEvent[] = []
     referenda = new Map<number, Referendum>()
     votes = new Map<string, Vote>()
@@ -154,5 +156,13 @@ export class BatchData {
         a.firstSeenBlock = Math.min(a.firstSeenBlock, height)
         a.lastActiveBlock = Math.max(a.lastActiveBlock, height)
         return a
+    }
+
+    // only EVM mapping touches these, and it walks the blocks in chain order
+    touchEvm(addr: string, height: number, txs: number): void {
+        const a = this.evmAddresses.get(addr) ?? new EvmAddress({id: addr, txCount: 0, firstSeenBlock: height})
+        a.txCount += txs
+        a.lastActiveBlock = height
+        this.evmAddresses.set(addr, a)
     }
 }

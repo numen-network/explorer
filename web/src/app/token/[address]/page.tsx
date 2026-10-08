@@ -12,7 +12,7 @@ import {Card} from '@/components/ui/card'
 import {isH160} from '@/lib/evm'
 import AddressText, {shortAddr} from '@/components/AddressText'
 import {fmtApprox, fmtBalance, fmtInt} from '@/lib/format'
-import {tokenDetail} from '@/lib/gql'
+import {evmActivity, tokenDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {HoldersTable} from './tables'
 
@@ -35,11 +35,14 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
     if (!token) notFound()
     const dec = token.decimals ?? 0
     const symbol = token.symbol ?? undefined
+    // every holder took part in a transfer, so the index tallied each one's activity
+    const {evmAddresses} = await evmActivity(data.tokenHolders.map(h => h.address))
+    const activity = new Map(evmAddresses.map(a => [a.id, a]))
 
     const holders = (
         <>
             <Card size="flush">
-                <HoldersTable rows={data.tokenHolders} offset={pg.offset} supply={token.totalSupply} decimals={dec} symbol={symbol} />
+                <HoldersTable rows={data.tokenHolders.map(h => ({...h, activity: activity.get(h.address)!}))} offset={pg.offset} supply={token.totalSupply} decimals={dec} symbol={symbol} />
             </Card>
             <Pager paging={pg} total={token.holderCount} href={`/token/${address}?tab=holders`} />
         </>
