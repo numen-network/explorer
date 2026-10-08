@@ -31,16 +31,18 @@ function Registration({json, chain, retired}: {json: unknown; chain: ChainProps;
                 {judgements.length === 0 ? (
                     NONE
                 ) : (
-                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                    <ul className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-1.5 gap-y-2">
                         {judgements.map(j => (
-                            <span key={j.registrar} className="flex items-center gap-1.5">
+                            <li key={j.registrar} className="col-span-2 grid grid-cols-subgrid items-baseline">
                                 <Badge variant={JUDGEMENT_TONE[j.kind] ?? 'idle'}>{j.kind}</Badge>
-                                <span className="text-xs text-dim">registrar #{j.registrar}</span>
-                                {retired.some(r => r.index === j.registrar) && <RetiredBadge />}
-                                {j.fee && <span className="text-xs text-dim">fee {fmtBalance(j.fee, chain.decimals, chain.symbol)}</span>}
-                            </span>
+                                <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-1 text-xs text-dim">
+                                    <span>registrar #{j.registrar}</span>
+                                    {retired.some(r => r.index === j.registrar) && <RetiredBadge />}
+                                    {j.fee && <span>fee {fmtBalance(j.fee, chain.decimals, chain.symbol)}</span>}
+                                </span>
+                            </li>
                         ))}
-                    </span>
+                    </ul>
                 )}
             </DetailRow>
         </>

@@ -1,5 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
+import {expectOneLine} from '../../../.storybook/fit'
 import type {AccountRow} from '@/lib/gql'
 import {CHAIN, FULL_FIELDS, RETIRED, subject, subUnder, VERDICTS} from '../../../../mock/fixtures/accounts.js'
 import {hashOf, identity, PEOPLE} from '../../../../mock/fixtures.js'
@@ -25,8 +26,19 @@ export const DisplayOnly: Story = {render: () => card(identity('Aurora Labs'))}
 
 export const Unjudged: Story = {render: () => card(identity('Aurora Labs', {judgements: []}))}
 
-// registrar 3 is retired and the fee paid to it stays reserved
-export const EveryVerdict: Story = {render: () => card(identity('Aurora Labs', {judgements: VERDICTS}))}
+// registrar 3 is retired and the fee paid to it stays reserved. each judgement
+// takes a line, the verdicts share one column and the registrars the next
+export const EveryVerdict: Story = {
+    render: () => card(identity('Aurora Labs', {judgements: VERDICTS})),
+    play: async ({canvasElement}) => {
+        const list = within(within(canvasElement).getByText('Judgements', {selector: 'div'}).nextElementSibling as HTMLElement)
+        const verdicts = VERDICTS.map(kind => list.getByText(kind))
+        const registrars = VERDICTS.map((_, i) => list.getByText(`registrar #${i}`))
+        const lefts = (els: HTMLElement[]) => new Set(els.map(el => Math.round(el.getBoundingClientRect().left))).size
+        expect({verdicts: lefts(verdicts), registrars: lefts(registrars)}).toEqual({verdicts: 1, registrars: 1})
+        expectOneLine(...registrars)
+    },
+}
 
 export const SubOnly: Story = {render: () => card(polarisSub)}
 
