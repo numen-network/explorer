@@ -243,11 +243,11 @@ export default async function Home() {
                             View all <Jump />
                         </Link>
                     </div>
-                    <Card size="flush" className={`divide-y ${LIST_H}`}>
+                    <Card size="flush" className={`divide-y ${LIST_H} sm:grid sm:grid-cols-[max-content_minmax(0,1fr)_max-content] sm:content-start`}>
                         {data.transfers.length === 0 && <EmptyList what="transfers" />}
                         {data.transfers.map(t => (
-                            <div key={t.id} className={`flex flex-col justify-center gap-1.5 px-5 py-3 ${ROW_H} sm:flex-row sm:items-center sm:gap-3 sm:py-0`}>
-                                <div className="sm:w-[230px] sm:shrink-0">
+                            <div key={t.id} className={`flex flex-col justify-center gap-1.5 px-5 py-3 ${ROW_H} sm:col-span-3 sm:grid sm:grid-cols-subgrid sm:items-center sm:gap-3 sm:py-0`}>
+                                <div>
                                     {t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} /> : <span className="font-mono text-muted-foreground">—</span>}
                                     <div className="mt-0.5 text-[11px] text-muted-foreground sm:whitespace-nowrap">
                                         <TimeCell iso={t.timestamp} cycle />

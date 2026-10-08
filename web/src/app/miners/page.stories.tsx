@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {account, acct, HEAD_TIME, identity, numn, person} from '../../../../mock/fixtures.js'
-import {expectAddressForm, PHONE} from '../../../.storybook/fit'
+import {expectAddressForm} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import MinersPage from './page'
 
@@ -29,9 +29,7 @@ export const MinersOne = minersIn('24h', [minerDay(miner(0), 0, 4_210)])
 
 export const MinersMany = minersIn('24h', Array.from({length: 40}, (_, i) => minerDay(miner(i), 0, 340 - i * 8)))
 
-export const MinersWeek = minersIn('7d', dailyRows(7, 12))
-
-export const MinersWeekOnPhone: StoryObj = {...MinersWeek, globals: PHONE, play: async ({canvasElement}) => expectAddressForm(canvasElement, 'short')}
+export const MinersWeek: StoryObj = {...minersIn('7d', dailyRows(7, 12)), play: async ({canvasElement}) => expectAddressForm(canvasElement)}
 
 export const MinersMonth = minersIn('30d', dailyRows(30, 12))
 

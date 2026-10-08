@@ -1,7 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
-import {PHONE} from '../../.storybook/fit'
+import {all} from '../../.storybook/fit'
 import {TabBar, TabPanels, type Panel, type TabItem} from './Tabs'
 
 const meta = {title: 'Components/Tabs'} satisfies Meta
@@ -13,12 +13,6 @@ const items = (labels: string[], active: number, counts?: number[]): TabItem[] =
     labels.map((label, i) => ({label, href: `?tab=${label.toLowerCase()}`, active: i === active, count: counts?.[i]}))
 
 const ACCOUNT_TABS = ['Extrinsics', 'Transfers', 'Tokens', 'Identity', 'Judgements', 'Subs', 'Votes', 'Delegations', 'Proxies', 'Multisig', 'Locks', 'Vesting', 'Mining', 'Validator']
-
-const all =
-    (...plays: Play[]): Play =>
-    async context => {
-        for (const play of plays) await play(context)
-    }
 
 // a named nav of links that marks only the open page current, with no tab
 // roles and no aria-controls naming an element that isn't there
@@ -81,14 +75,13 @@ export const LineWithoutCounts: Story = {
     play: linkStrip('Governance', 'Referenda'),
 }
 
+// a strip as narrow as a phone's
 export const LineOverflowing: Story = {
-    render: () => <TabBar aria-label="Account" items={items(ACCOUNT_TABS, 9, ACCOUNT_TABS.map((_, i) => i * 37))} />,
-    play: linkStrip('Account', 'Multisig'),
-}
-
-export const LineOverflowingOnPhone: Story = {
-    globals: PHONE,
-    render: () => <TabBar aria-label="Account" items={items(ACCOUNT_TABS, 12, ACCOUNT_TABS.map((_, i) => i * 37))} />,
+    render: () => (
+        <div className="max-w-80">
+            <TabBar aria-label="Account" items={items(ACCOUNT_TABS, 12, ACCOUNT_TABS.map((_, i) => i * 37))} />
+        </div>
+    ),
     play: all(linkStrip('Account', 'Mining'), currentInView),
 }
 

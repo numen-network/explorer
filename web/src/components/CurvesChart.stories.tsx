@@ -4,7 +4,7 @@ import type {Curve} from '@/lib/curves'
 import type {Share} from '@/lib/format'
 import {HEAD} from '../../../mock/fixtures.js'
 import {linear, reciprocal} from '../../../mock/fixtures/governance.js'
-import {axesLegible, lastTooltipLines, PHONE, tooltipsInView} from '../../.storybook/fit'
+import {axesLegible, lastTooltipLines, tooltipsInView} from '../../.storybook/fit'
 import {CurvesChart, type TallyStep} from './charts'
 import {Card} from './ui/card'
 
@@ -143,7 +143,7 @@ export const RejectedAtEndOfPeriod = chart({
 })
 
 // the tally runs to the end of the period, so readings list all four lines
-export const RejectedAtEndOfPeriodTooltipOnPhone: Story = {...RejectedAtEndOfPeriod, globals: PHONE, play: tooltipsInView}
+export const RejectedAtEndOfPeriodTooltip: Story = {...RejectedAtEndOfPeriod, play: tooltipsInView}
 
 const AYES = 52_000_000n * 10n ** 18n
 
@@ -161,7 +161,7 @@ export const SliverOfNay: Story = {
         open: true,
     }),
     play: async context => {
-        await axesLegible!(context)
+        await axesLegible(context)
         expect(lastTooltipLines(context.canvasElement, 'Current approval')[0]).toContain('Current approval99.99%')
     },
 }

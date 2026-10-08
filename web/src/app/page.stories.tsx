@@ -4,7 +4,7 @@ import {referenda} from '../../../mock/data.js'
 import {minedObject, topology} from '../../../mock/fixtures/blocks.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
-import {axesLegible, drawnCanvases, drawnFaces, expectFits, expectInContentBox, expectLegibleAxes, expectNoHangingDots, expectOneLine, expectTimesFit, LAPTOP, lastTooltipLines, lonePointsPainted, PHONE, tooltipsInView} from '../../.storybook/fit'
+import {all, axesLegible, type Play, drawnCanvases, drawnFaces, expectFits, expectInContentBox, expectLegibleAxes, expectNoHangingDots, expectOneLine, expectTimesFit, lastTooltipLines, lonePointsPainted, tooltipsInView} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
@@ -157,13 +157,30 @@ const manyTransfers = [
 // DAILY rolls with the clock, so the chip the story checks reads a fixed window
 const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: minedUpTo(HEAD, 5, MANY_FINALIZED), transfers: manyTransfers, referendums: referenda.slice(4, 9), windows: {extrinsics: [89_181, 1_139, 33_800] satisfies Window}}
 
+const homeFits: Play = async ({canvasElement}) => {
+    expectBlockCardsFit(canvasElement)
+    expectListsFit(canvasElement)
+    expectTimesFit(canvasElement)
+}
+
+// each block card keeps its object clear of the padding and its protocol on one line
+const railObjectsFit: Play = async ({canvasElement}) => {
+    const rail = within(canvasElement).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
+    for (const object of await drawnCanvases(rail, 5)) expectInContentBox(object.closest('[data-slot=card]')!, object)
+    expectOneLine(...within(rail).getAllByText(PROTOCOL))
+}
+
 // a chip under ten thousand groups its digits like the tile value above it
 export const HomeMany: StoryObj = {
     ...pageStory(home(many)),
-    play: async context => {
-        await axesLegible!(context)
-        await expect(context.canvas.getByText('+1,139')).toBeVisible()
-    },
+    play: all(
+        async context => {
+            await axesLegible(context)
+            await expect(context.canvas.getByText('+1,139')).toBeVisible()
+        },
+        homeFits,
+        railObjectsFit
+    ),
 }
 
 // a crowded transfer row keeps its amount whole and cuts its call short, a
@@ -186,27 +203,6 @@ function expectBlockCardsFit(root: HTMLElement) {
     expectNoHangingDots(rail)
 }
 
-const fitsPhone = async ({canvasElement}: {canvasElement: HTMLElement}) => {
-    expectBlockCardsFit(canvasElement)
-    expectListsFit(canvasElement)
-    expectTimesFit(canvasElement)
-}
-
-export const HomeManyOnPhone: StoryObj = {...HomeMany, globals: PHONE, play: fitsPhone}
-
-// lg fits five block cards in a row, each keeps its object clear of the
-// padding and its protocol on one line
-export const HomeManyOnLaptop: StoryObj = {
-    ...HomeMany,
-    globals: LAPTOP,
-    play: async ({canvasElement}) => {
-        const rail = within(canvasElement).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
-        for (const object of await drawnCanvases(rail, 5)) expectInContentBox(object.closest('[data-slot=card]')!, object)
-        expectOneLine(...within(rail).getAllByText(PROTOCOL))
-        expectBlockCardsFit(canvasElement)
-    },
-}
-
 // an upgrade moved mining onto poscan-v2 two blocks ago, so the rail mixes
 // objects of both protocols and each draws on its own protocol's topology
 const [V1, V2] = [topology(PROTOCOL), topology('poscan-v2')]
@@ -221,7 +217,7 @@ export const HomeMixedProtocols: StoryObj = {
     },
 }
 
-export const HomeChartTooltipOnPhone: StoryObj = {...HomeMany, globals: PHONE, play: tooltipsInView}
+export const HomeChartTooltip: StoryObj = {...HomeMany, play: tooltipsInView}
 
 export const HomeReferendumTitleHovered: StoryObj = {
     ...HomeMany,
@@ -281,7 +277,7 @@ export const HomeTruncationEdges: StoryObj = {
             windows: {transfers: [0, 1_150_000, 4_350_000], extrinsics: [0, 8_200_000, 5_100_000], miners: [2_010_000, 7, 290_000]},
         })
     ),
-    play: async ({canvasElement}) => {
+    play: all(homeFits, async ({canvasElement}) => {
         const tile = (chart: string) => canvasElement.querySelector(`a[href="/charts/${chart}"]`)!.closest('[data-slot=card]')!
         const chips = (chart: string) => [...tile(chart).querySelectorAll('[data-slot=card-content] > span')].map(chip => chip.textContent)
         await expect(chips('transfers-total')).toEqual(['+1.15M · 24h', '+4.35M · 30d'])
@@ -295,10 +291,8 @@ export const HomeTruncationEdges: StoryObj = {
         await expect(chips('difficulty')).toEqual(['−<0.01% · 24h', '+8.75% · 30d'])
         await expect(within(canvasElement).getByText('Avg block time').nextElementSibling).toHaveTextContent('9.9s')
         await expect(within(canvasElement).getByText('9,999,999,999 NUMN')).toBeInTheDocument()
-    },
+    }),
 }
-
-export const HomeTruncationEdgesOnPhone: StoryObj = {...HomeTruncationEdges, globals: PHONE, play: fitsPhone}
 
 // difficulty a whisker under a quintillion, one up on the day before and a
 // ninth up on the month before, where a float no longer tells neighbouring
@@ -371,12 +365,9 @@ export const HomeExtremes: StoryObj = {
             },
         })
     ),
-    play: async ({canvas, canvasElement}) => {
+    play: all(homeFits, async ({canvas}) => {
         for (const count of ['Extrinsics 1,234', 'Events 98,765']) await expect(canvas.getAllByText(count)).toHaveLength(5)
-        expectBlockCardsFit(canvasElement)
         await expect(canvas.getByText('Block 1,522 / 14,400')).toBeVisible()
         await expect(canvas.getByText('Session length').nextElementSibling).toHaveTextContent('14,400 blocks')
-    },
+    }),
 }
-
-export const HomeExtremesOnPhone: StoryObj = {...HomeExtremes, globals: PHONE, play: fitsPhone}

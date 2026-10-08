@@ -86,7 +86,7 @@ export const WrapsInNarrowColumn: Story = {
 // fact's first line
 export const LongFactWrapsUnderItsDot: Story = {
     render: () => (
-        <div className="w-56">
+        <div className="max-w-56">
             <DotRow className="text-xs">
                 {who}
                 {track}
@@ -99,6 +99,6 @@ export const LongFactWrapsUnderItsDot: Story = {
         await expect(age.nextElementSibling!.getBoundingClientRect().top).toBeGreaterThanOrEqual(age.getBoundingClientRect().bottom)
         expectNoHangingDots(canvasElement)
         expectTimesFit(canvasElement)
-        expectFits(canvasElement.querySelector('.w-56')!)
+        expectFits(canvasElement.querySelector('.max-w-56')!)
     },
 }

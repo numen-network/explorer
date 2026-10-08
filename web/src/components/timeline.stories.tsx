@@ -1,5 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expectFits, expectTimesFit, expectWholeWords, PHONE} from '../../.storybook/fit'
+import {expectFits, expectTimesFit, expectWholeWords} from '../../.storybook/fit'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows} from './timeline'
 
 const meta = {title: 'Components/Timeline'} satisfies Meta
@@ -39,10 +39,8 @@ export const StepLinksWithAndWithoutExtrinsic: Story = {
             <TimelineItem tone="primary" icon={RING} title="Raised by the runtime" iso={ISO} links={<StepLinks block={521_440} event={{indexInBlock: 0, extrinsic: null}} />} />
         </TimelineList>
     ),
+    play: async ({canvasElement}) => expectTimesFit(canvasElement),
 }
-
-// a phone breaks each step's time after its age, inside the card
-export const TimeOnPhone: Story = {...StepLinksWithAndWithoutExtrinsic, globals: PHONE, play: async ({canvasElement}) => expectTimesFit(canvasElement)}
 
 export const WithDetail: Story = {
     render: () => (
@@ -69,10 +67,9 @@ export const WithDetail: Story = {
 const AMOUNT = '1,000,000.12345678 NUMN'
 const PROSE = "minted reward plus the miner's cut of any fees and tips paid here"
 
-// a phone leaves the value column narrower than each of these, words wrap
-// whole and the hash breaks where the line runs out
-export const DetailWrapsOnPhone: Story = {
-    globals: PHONE,
+// a value column narrower than a value wraps its words whole and breaks the
+// hash where the line runs out
+export const DetailWraps: Story = {
     render: () => (
         <TimelineList>
             <TimelineItem

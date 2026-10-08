@@ -4,7 +4,7 @@ import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {MAX_U128, PLANCK, PRIME_KEY, TREASURY} from '../../../../mock/fixtures/accounts.js'
 import {acct, chainInfo, HEAD, identity, issuance, numn, PEOPLE} from '../../../../mock/fixtures.js'
-import {expectAddressForm, expectFits, PHONE} from '../../../.storybook/fit'
+import {expectAddressForm, expectFits} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import AccountsPage from './page'
 
@@ -54,10 +54,20 @@ const TIERS: [object, string][] = [
     [acct(18), '0'],
 ]
 
-export const Many = list(
-    TIERS.map(([who, balance], i) => row(who, balance, i)),
-    {total: 1_284, since: 0}
-)
+// the treasury and prime cards wrap their full addresses, the table keeps
+// 7…4 on a phone
+export const Many: StoryObj = {
+    ...list(
+        TIERS.map(([who, balance], i) => row(who, balance, i)),
+        {total: 1_284, since: 0}
+    ),
+    play: async ({canvasElement}) => {
+        const [cards, table] = canvasElement.querySelectorAll('[data-slot=card]')
+        expectFits(cards, table)
+        expectAddressForm(cards)
+        expectAddressForm(table)
+    },
+}
 
 // what the share tip of the named account reads once its balance is hovered
 const shareTip =
@@ -73,18 +83,6 @@ export const SmallShareHovered: StoryObj = {...Many, play: shareTip('Spamlord', 
 
 // a balance too thin for the sixth decimal still reads as a share of issuance
 export const DustShareHovered: StoryObj = {...Many, play: shareTip('Dust Collector', '<0.000001%')}
-
-// the treasury and prime cards wrap their full addresses, the table keeps 7…4
-export const ManyOnPhone: StoryObj = {
-    ...Many,
-    globals: PHONE,
-    play: async ({canvasElement}) => {
-        const [cards, table] = canvasElement.querySelectorAll('[data-slot=card]')
-        expectFits(cards, table)
-        expectAddressForm(cards, 'full')
-        expectAddressForm(table, 'short')
-    },
-}
 
 export const ExtremeNumbers: StoryObj = {
     ...list([

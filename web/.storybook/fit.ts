@@ -2,10 +2,14 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import * as echarts from 'echarts'
 import {expect, spyOn, waitFor, within} from 'storybook/test'
 
-export const PHONE = {viewport: {value: 'mobile1', isRotated: false}}
-export const TABLET = {viewport: {value: 'tablet', isRotated: false}}
-export const LAPTOP = {viewport: {value: 'laptop', isRotated: false}}
-export const DESKTOP = {viewport: {value: 'desktop', isRotated: false}}
+export type Play = NonNullable<StoryObj['play']>
+
+// plays that run one after another against the same render
+export const all =
+    <Context,>(...plays: ((context: Context) => unknown)[]) =>
+    async (context: Context) => {
+        for (const play of plays) await play(context)
+    }
 
 // content that runs past a box widens its scroll width, even when the box clips it
 export function expectFits(...boxes: Element[]) {
@@ -28,7 +32,7 @@ export function expectPagersFit(root: Element) {
     }
 }
 
-export const cardsFit: StoryObj['play'] = async ({canvasElement}) => expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+export const cardsFit: Play = async ({canvasElement}) => expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
 
 type Shape = ReturnType<echarts.graphic.Group['children']>[number]
 
@@ -70,7 +74,7 @@ export function expectLegibleAxes(root: Element) {
 }
 
 // a chart draws from an effect, which can run after the story has mounted
-export const axesLegible: StoryObj['play'] = async ({canvasElement}) => waitFor(() => expectLegibleAxes(canvasElement))
+export const axesLegible: Play = async ({canvasElement}) => waitFor(() => expectLegibleAxes(canvasElement))
 
 type Series = {type: string; data: number[]; itemStyle: {color: string}}
 
@@ -134,7 +138,7 @@ export function lastTooltipLines(root: Element, name?: string) {
 
 // waitFor reruns its callback on every DOM change and showing a tooltip makes
 // one, so a failing check would spin forever inside it
-export const tooltipsInView: StoryObj['play'] = async ({canvasElement}) => {
+export const tooltipsInView: Play = async ({canvasElement}) => {
     await waitFor(() => expect(chartsIn(canvasElement).length).toBeGreaterThan(0))
     expectTooltipsInView(canvasElement)
 }
@@ -282,13 +286,15 @@ export function expectTimesFit(root: Element) {
     }
 }
 
-// every address a link shows reads in one whole form, the full address or its
-// 7…4 split, and no box inside the link cuts it off
-export function expectAddressForm(root: Element, form: 'full' | 'short') {
+// every address a link shows reads in one whole form, its 7…4 split in a table
+// cell narrower than sm and the full address anywhere else, and no box inside
+// the link cuts it off
+export function expectAddressForm(root: Element) {
     const links = [...root.querySelectorAll<HTMLElement>('a[href^="/account/"], a[href^="/address/"]')].filter(a => /^(nu|0x)[\w…]+$/.test(a.innerText.trim()))
     expect(links.length).toBeGreaterThan(0)
+    const narrow = matchMedia('(width < 40rem)').matches
     for (const link of links) {
-        expect(link.innerText.trim()).toMatch(form === 'full' ? /^\w{42,}$/ : /^\w{7}…\w{4}$/)
+        expect(link.innerText.trim()).toMatch(narrow && link.closest('td') ? /^\w{7}…\w{4}$/ : /^\w{42,}$/)
         expectFits(link, ...link.querySelectorAll('span'))
     }
 }
@@ -307,19 +313,43 @@ export function expectHalves(full: Element) {
     expect(top[0]).toBeLessThan(bottom[0])
 }
 
-// a word broken across two lines leaves a rect on each of them
+const blockOf = (node: Node) => {
+    let el = node.parentElement!
+    while (getComputedStyle(el).display.startsWith('inline')) el = el.parentElement!
+    return el
+}
+
+// every run of non-space text under el, one run reaching across the inline
+// elements it spans and stopping where its block does
+function wordRanges(el: Element) {
+    const chars: [Node | null, number][] = []
+    const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    for (let node = walk.nextNode(), block: Element | null = null; node; node = walk.nextNode()) {
+        if (block !== blockOf(node)) chars.push([null, 0])
+        block = blockOf(node)
+        for (let i = 0; i < node.textContent!.length; i++) chars.push([node, i])
+    }
+    const text = chars.map(([node, i]) => (node ? node.textContent![i] : ' ')).join('')
+    return [...text.matchAll(/\S+/g)].map(({0: word, index}) => {
+        const range = document.createRange()
+        range.setStart(...(chars[index] as [Node, number]))
+        const [end, at] = chars[index + word.length - 1] as [Node, number]
+        range.setEnd(end, at + 1)
+        return range
+    })
+}
+
+// a word that fits its block keeps to one line, a word broken across two
+// lines leaves a rect on each of them
 export function expectWholeWords(...boxes: Element[]) {
     expect(boxes.length).toBeGreaterThan(0)
     for (const box of boxes) {
-        const walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT)
-        for (let node = walk.nextNode(); node; node = walk.nextNode()) {
-            for (const {0: word, index} of node.textContent!.matchAll(/\S+/g)) {
-                const range = document.createRange()
-                range.setStart(node, index)
-                range.setEnd(node, index + word.length)
-                const lines = new Set([...range.getClientRects()].map(r => Math.round(r.top))).size
-                expect({word, lines}).toEqual({word, lines: 1})
-            }
+        for (const range of wordRanges(box)) {
+            const rects = [...range.getClientRects()].filter(r => r.width > 0)
+            const {left, right} = contentEdges(blockOf(range.startContainer))
+            if (rects.reduce((width, r) => width + r.width, 0) > right - left + 0.5) continue
+            const word = range.toString()
+            expect({word, lines: new Set(rects.map(r => Math.round(r.top))).size}).toEqual({word, lines: 1})
         }
     }
 }

@@ -4,7 +4,7 @@ import {shortAddr} from '@/components/AddressText'
 import {evmMappedAccount} from '@/lib/evm'
 import {HEAD, paged, transfer} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, erc20Transfer, evmAddress, evmLog, evmTx, exit, EXIT, SELECTOR, token, TOPIC, topicOf, UINT256_MAX, units, word, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
-import {expectAddressForm, expectFits, expectTimesFit, PHONE, tokenLabels} from '../../../../.storybook/fit'
+import {expectAddressForm, expectFits, expectTimesFit, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import EvmTxPage from './page'
 
@@ -129,15 +129,12 @@ export const SwapTokenTransfers: StoryObj = {
     play: async ({canvasElement}) => expect(tokenLabels(canvasElement)).toEqual([shortAddr(wrapped.id), shortAddr(ore.id)]),
 }
 
-export const SwapLogs = txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, LOGS_TAB)
-
-// from, to and every log address keep their full form on a phone and wrap
-// inside their rows, the timestamp breaks after its age inside its own
-export const SwapLogsOnPhone: StoryObj = {
-    ...SwapLogs,
-    globals: PHONE,
+// from, to and every log address keep their full form and wrap inside their
+// rows, the timestamp breaks after its age inside its own
+export const SwapLogs: StoryObj = {
+    ...txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, LOGS_TAB),
     play: async ({canvasElement}) => {
-        expectAddressForm(canvasElement, 'full')
+        expectAddressForm(canvasElement)
         expectFits(...[...canvasElement.querySelectorAll('a[href^="/address/"]')].map(link => link.closest('[data-slot=card] > *')!))
         expectTimesFit(canvasElement)
     },

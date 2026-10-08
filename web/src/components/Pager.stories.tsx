@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, waitFor, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import {fmtInt} from '@/lib/format'
-import {expectPagersFit, PHONE, TABLET} from '../../.storybook/fit'
+import {expectPagersFit} from '../../.storybook/fit'
 import Pager from './Pager'
 
 const at = (page: number, size = 20) => ({page, size, offset: (page - 1) * size})
@@ -105,18 +105,16 @@ export const GoToPageTyped: Story = {
     },
 }
 
-export const OneDigitOnPhone: Story = {...lengths(9), globals: PHONE}
+export const OneDigit: Story = lengths(9)
 
-export const TwoDigitsOnPhone: Story = {...lengths(99), globals: PHONE}
+export const TwoDigits: Story = lengths(99)
 
-export const ThreeDigitsOnPhone: Story = {...lengths(999), globals: PHONE}
+export const ThreeDigits: Story = lengths(999)
 
-export const FourDigitsOnPhone: Story = {...lengths(9_999), globals: PHONE}
+export const FourDigits: Story = lengths(9_999)
 
-export const FiveDigitsOnPhone: Story = {...lengths(99_999), globals: PHONE}
+export const FiveDigits: Story = lengths(99_999)
 
-export const SixDigitsOnPhone: Story = {...lengths(999_999), globals: PHONE}
+export const SixDigits: Story = lengths(999_999)
 
-export const SevenDigitsOnPhone: Story = {...lengths(9_999_999), globals: PHONE}
-
-export const SevenDigitsOnTablet: Story = {...lengths(9_999_999), globals: TABLET}
+export const SevenDigits: Story = lengths(9_999_999)

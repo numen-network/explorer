@@ -2,7 +2,6 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {useState} from 'react'
 import {expect, waitFor, within} from 'storybook/test'
 import {Button} from '@/components/ui/button'
-import {PHONE} from '../../.storybook/fit'
 import TabScroller from './TabScroller'
 
 const meta = {title: 'Components/TabScroller'} satisfies Meta
@@ -62,11 +61,11 @@ export const OverflowAtEnd: Story = {
     },
 }
 
-// two strips on one page, like account groups over their sub tabs
-export const SelectedOffscreenOnPhone: Story = {
-    globals: PHONE,
+// two strips as narrow as a phone's on one page, like account groups over
+// their sub tabs
+export const SelectedOffscreen: Story = {
     render: () => (
-        <div className="flex flex-col gap-4">
+        <div className="flex max-w-80 flex-col gap-4">
             <Strip count={LABELS.length} selected={MINING} />
             <Strip count={LABELS.length} selected={BOUNTIES} />
         </div>
@@ -79,9 +78,12 @@ export const SelectedOffscreenOnPhone: Story = {
     },
 }
 
-export const SelectedInViewOnPhone: Story = {
-    globals: PHONE,
-    render: () => <Strip count={LABELS.length} selected={TRANSFERS} />,
+export const SelectedInView: Story = {
+    render: () => (
+        <div className="max-w-80">
+            <Strip count={LABELS.length} selected={TRANSFERS} />
+        </div>
+    ),
     play: async ({canvas, canvasElement}) => {
         await canvas.findByRole('button', {name: 'Scroll right'})
         expect(selectedInView(canvas.getByRole('tablist'))).toBe(true)
@@ -108,7 +110,7 @@ export const SelectedUnderArrow: Story = {
 function Moving() {
     const [selected, setSelected] = useState(0)
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex max-w-80 flex-col gap-4">
             <Strip count={LABELS.length} selected={selected} />
             <div className="flex gap-2">
                 {[0, MINING].map(i => (
@@ -121,8 +123,7 @@ function Moving() {
     )
 }
 
-export const SelectionMovesOnPhone: Story = {
-    globals: PHONE,
+export const SelectionMoves: Story = {
     render: () => <Moving />,
     play: async ({canvas, canvasElement, userEvent}) => {
         const list = canvas.getByRole('tablist')

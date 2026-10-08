@@ -3,7 +3,7 @@ import {expect} from 'storybook/test'
 import type {TokenRow} from '@/lib/gql'
 import {HEAD, rows} from '../../../../../mock/fixtures.js'
 import {evmAddress, holder, holders, token, tokenTransfer, tokenTransfersInOneTx, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
-import {cardsFit, expectAddressForm, expectFits, PHONE} from '../../../../.storybook/fit'
+import {cardsFit, expectAddressForm, expectFits} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import TokenPage from './page'
 
@@ -29,12 +29,9 @@ const huge = token(3, {
     transferCount: 2_147_483_647,
 })
 
-export const HoldersMany = tokenPage(WTMR, {holders: holders(WTMR, 20)})
-
-export const HoldersManyOnPhone: StoryObj = {
-    ...HoldersMany,
-    globals: PHONE,
-    play: async ({canvasElement}) => expectAddressForm(canvasElement.querySelector('[data-slot=table-container]')!, 'short'),
+export const HoldersMany: StoryObj = {
+    ...tokenPage(WTMR, {holders: holders(WTMR, 20)}),
+    play: async ({canvasElement}) => expectAddressForm(canvasElement.querySelector('[data-slot=table-container]')!),
 }
 
 export const HoldersPageThree = tokenPage(WTMR, {holders: holders(WTMR, 20, 40)}, {page: '3'})

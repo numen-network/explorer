@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {account, acct, chainInfo, HEAD, identity, numn, paged, person} from '../../../../mock/fixtures.js'
-import {columnTexts, DESKTOP, expectAddressForm, expectFits, PHONE} from '../../../.storybook/fit'
+import {columnTexts, expectAddressForm, expectFits} from '../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import ValidatorsPage from './page'
 
@@ -42,7 +42,9 @@ export const ValidatorsEmpty = validators([])
 
 export const ValidatorsOne = validators([validator(1)])
 
-// the last one locked thirty blocks ago and has yet to sit in an active set
+// the last one locked thirty blocks ago and has yet to sit in an active set.
+// from xl up a full address breaks onto a second line so every column stays in
+// view, narrower screens scroll the table
 export const ValidatorsEveryStatus: StoryObj = {
     ...validators([
         validator(1),
@@ -53,18 +55,10 @@ export const ValidatorsEveryStatus: StoryObj = {
         validator(4, {...inactive(9_000), lockedAmount: '0', lockExpiry: null}),
         validator(7, {active: false, lastActiveSession: null, firstSeenBlock: HEAD - 30}),
     ]),
-    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Last session').at(-1)).toBe('—'),
-}
-
-export const ValidatorsEveryStatusOnPhone: StoryObj = {...ValidatorsEveryStatus, globals: PHONE, play: async ({canvasElement}) => expectAddressForm(canvasElement, 'short')}
-
-// a full address breaks onto a second line so every column stays in view
-export const ValidatorsEveryStatusOnDesktop: StoryObj = {
-    ...ValidatorsEveryStatus,
-    globals: DESKTOP,
     play: async ({canvasElement}) => {
-        expectFits(canvasElement.querySelector('[data-slot=table-container]')!)
-        expectAddressForm(canvasElement, 'full')
+        await expect(columnTexts(canvasElement, 'Last session').at(-1)).toBe('—')
+        if (matchMedia('(width >= 80rem)').matches) expectFits(canvasElement.querySelector('[data-slot=table-container]')!)
+        expectAddressForm(canvasElement)
     },
 }
 

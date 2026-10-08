@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "storybook": "storybook dev -p 6006 --no-open",
-    "test-storybook": "vitest run --project=storybook"
+    "test-storybook": "vitest run --project 'storybook-*'"
   },
   "dependencies": {
     "@bprogress/core": "^1.3.4",

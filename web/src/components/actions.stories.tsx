@@ -4,7 +4,7 @@ import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {CHAIN} from '../../../mock/fixtures/accounts.js'
 import {at, HEAD, numn, person} from '../../../mock/fixtures.js'
-import {cardsFit, PHONE} from '../../.storybook/fit'
+import {all, cardsFit} from '../../.storybook/fit'
 import {urlUpdates} from '../../.storybook/url'
 import ActionList, {type ActionActor, type ActionRow} from './actions'
 
@@ -69,7 +69,7 @@ const impacts = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].ma
 
 export const EveryKind: Story = {
     render: () => list(EVERY_KIND),
-    play: async ({canvasElement}) => {
+    play: all(cardsFit, async ({canvasElement}) => {
         await expect(impacts(canvasElement)).toEqual([
             'Approval +1.25%Support +0.40%',
             'Approval −2.10%Support +0.05%',
@@ -79,13 +79,7 @@ export const EveryKind: Story = {
             'Approval +0.50%Support 0.00%',
             'Approval −0.50%Support −0.02%',
         ])
-    },
-}
-
-export const EveryKindOnPhone: Story = {
-    ...EveryKind,
-    globals: PHONE,
-    play: cardsFit,
+    }),
 }
 
 // the first page of forty, the pager under the card

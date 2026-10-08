@@ -47,7 +47,7 @@ import {
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
 import {chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {columnTexts, DESKTOP, expectFits, expectNamedNavs, expectWholeWords, filterChips, PHONE, tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
@@ -128,25 +128,23 @@ export const BalanceExtremes = story({
     transfers: accountTransferCases(HEAD - 3),
 })
 
-export const EveryRole = story({
-    account: named({evmAddress: SUBJECT_EVM, ...funds(numn(100_250_000), IDENTITY_DEPOSIT, numn(100_000_000)), locksJson: [lock('validatr', numn(100_000_000))]}),
-    prime: true,
-    validator: validatorRow(),
-    minerDays: minedDays(30),
-    registrar: 2,
-    deploys: 5,
-    tokens: 3,
-    curated: 1,
-    delegationsIn: delegatedFrom(3),
-    multisigOps: [multisigOp(0, {multisig: ME, depositor: PEOPLE[1], signatories: SIGNATORIES, threshold: 3})],
-    proxiesIn: proxyFor(2),
-    transfers: accountTransfers(4),
-})
-
-// beside the identity card the H160 leaves its note little room on the line
-export const EveryRoleOnDesktop: StoryObj = {
-    ...EveryRole,
-    globals: DESKTOP,
+// the H160 leaves its note little room on the line, which wraps it between
+// whole words
+export const EveryRole: StoryObj = {
+    ...story({
+        account: named({evmAddress: SUBJECT_EVM, ...funds(numn(100_250_000), IDENTITY_DEPOSIT, numn(100_000_000)), locksJson: [lock('validatr', numn(100_000_000))]}),
+        prime: true,
+        validator: validatorRow(),
+        minerDays: minedDays(30),
+        registrar: 2,
+        deploys: 5,
+        tokens: 3,
+        curated: 1,
+        delegationsIn: delegatedFrom(3),
+        multisigOps: [multisigOp(0, {multisig: ME, depositor: PEOPLE[1], signatories: SIGNATORIES, threshold: 3})],
+        proxiesIn: proxyFor(2),
+        transfers: accountTransfers(4),
+    }),
     play: async ({canvas}) => expectWholeWords(await canvas.findByText('mapped account of this H160')),
 }
 
@@ -348,18 +346,19 @@ export const VestingSchedules = story(
 
 export const TimelineOne = story({account: named(), timeline: [identitySet(HEAD - 10_000)]}, {tab: 'timeline'})
 
-export const TimelineMany = story(
-    {
-        account: named(),
-        timeline: [...identityTimeline(), identitySet(HEAD - 12_000), identitySet(HEAD - 14_000), identitySet(HEAD - 16_000)],
-        verdicts: timelineVerdicts(),
-        counts: {timeline: 41},
-    },
-    {tab: 'timeline'}
-)
-
-// a phone breaks the longest event name inside its card
-export const TimelineManyOnPhone: StoryObj = {...TimelineMany, globals: PHONE, play: async ({canvas}) => expectFits(canvas.getByText('DanglingUsernameRemoved'))}
+// the longest event name breaks inside its card
+export const TimelineMany: StoryObj = {
+    ...story(
+        {
+            account: named(),
+            timeline: [...identityTimeline(), identitySet(HEAD - 12_000), identitySet(HEAD - 14_000), identitySet(HEAD - 16_000)],
+            verdicts: timelineVerdicts(),
+            counts: {timeline: 41},
+        },
+        {tab: 'timeline'}
+    ),
+    play: async ({canvas}) => expectFits(canvas.getByText('DanglingUsernameRemoved')),
+}
 
 const withSubs = (n: number) => named({...funds(numn(48_210.75), reservedOf(IDENTITY_DEPOSIT, numn(2.01 * n))), depositsJson: [{id: 'subs', amount: numn(2.01 * n)}]})
 

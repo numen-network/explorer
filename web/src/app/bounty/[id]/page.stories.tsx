@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {paged} from '../../../../../mock/fixtures.js'
 import {bounty, bountyEvents, CHILD_STATUSES, childBounty, eventsById} from '../../../../../mock/fixtures/governance.js'
-import {expectFits, expectTimesFit, expectWholeWords, LAPTOP} from '../../../../.storybook/fit'
+import {expectFits, expectTimesFit, expectWholeWords} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import BountyPage from './page'
 
@@ -26,12 +26,9 @@ export const Funded = detail(bounty(6, 'Funded'))
 
 export const CuratorProposed = detail(bounty(5, 'CuratorProposed'))
 
-export const Active = detail(bounty(4, 'Active'))
-
-// a laptop keeps every step's title and time whole and inside the card
-export const ActiveOnLaptop: StoryObj = {
-    ...Active,
-    globals: LAPTOP,
+// every step's title and time stay whole and inside the card
+export const Active: StoryObj = {
+    ...detail(bounty(4, 'Active')),
     play: async ({canvasElement}) => {
         const titles = [...canvasElement.querySelectorAll('ol li .font-medium')]
         await expect(titles.length).toBeGreaterThan(0)

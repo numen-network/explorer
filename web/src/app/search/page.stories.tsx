@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {PEOPLE, acct, chainInfo, identity, paged, subOf} from '../../../../mock/fixtures.js'
-import {expectFits, expectPagersFit, PHONE} from '../../../.storybook/fit'
+import {all, expectFits, expectPagersFit, type Play} from '../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import SearchPage from './page'
 
@@ -43,7 +43,7 @@ const SCAN_TOKENS = Array.from({length: 65}, (_, i) => tokenAt(0x1000 + i, `Scan
 const opens = (tab: RegExp): StoryObj['play'] => async ({canvas}) => expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(tab)
 
 // every link on the pager keeps the query and the tab it pages
-const pagesTab = (tab: string, pages: number): StoryObj['play'] => async ({canvas, canvasElement}) => {
+const pagesTab = (tab: string, pages: number): Play => async ({canvas, canvasElement}) => {
     const links = [...canvasElement.querySelectorAll<HTMLAnchorElement>('[data-slot=pagination] a[href]')]
     expect(links.length).toBeGreaterThan(0)
     for (const link of links) expect(Object.fromEntries(new URL(link.href).searchParams)).toMatchObject({q: 'scan', tab})
@@ -69,15 +69,12 @@ export const TokensEmpty: StoryObj = {...results('guild', GUILDS, [], {tab: 'tok
 
 export const AccountsMany = results('scan', SCANNERS, SCAN_TOKENS)
 
-export const AccountsPageTwo: StoryObj = {...results('scan', SCANNERS, SCAN_TOKENS, {page: '2'}), play: pagesTab('accounts', 3)}
-
-export const AccountsPageTwoOnPhone: StoryObj = {
-    ...AccountsPageTwo,
-    globals: PHONE,
-    play: async ({canvasElement}) => {
+export const AccountsPageTwo: StoryObj = {
+    ...results('scan', SCANNERS, SCAN_TOKENS, {page: '2'}),
+    play: all(pagesTab('accounts', 3), async ({canvasElement}) => {
         expectPagersFit(canvasElement)
         expectFits(...accountRows(canvasElement))
-    },
+    }),
 }
 
 export const AccountsLastPage: StoryObj = {
@@ -142,8 +139,6 @@ const long = (searchParams = {}) =>
         searchParams
     )
 
-export const LongNames = long()
+export const LongNames: StoryObj = {...long(), play: async ({canvasElement}) => expectFits(...accountRows(canvasElement))}
 
-export const LongNamesOnPhone: StoryObj = {...long(), globals: PHONE, play: async ({canvasElement}) => expectFits(...accountRows(canvasElement))}
-
-export const LongTokenNameOnPhone: StoryObj = {...long({tab: 'tokens'}), globals: PHONE, play: async ({canvasElement}) => expectFits(...tokenRows(canvasElement))}
+export const LongTokenName: StoryObj = {...long({tab: 'tokens'}), play: async ({canvasElement}) => expectFits(...tokenRows(canvasElement))}

@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, userEvent, within} from 'storybook/test'
 import {chainInfo, extrinsic, HEAD, hashOf, paged, person} from '../../../../../mock/fixtures.js'
 import {batchAll, batchInterrupted, batchOfProxies, evmTransact, evmTxHash, failedVoteRemoval, heartbeat, mined, pick, proxied, referendumSubmission, signedCall, timestampSet, tipped, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
-import {expectAddressForm, expectFits, expectInContentBox, expectTimesFit, PHONE} from '../../../../.storybook/fit'
+import {expectAddressForm, expectFits, expectInContentBox, expectTimesFit} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ExtrinsicPage from './page'
 
@@ -93,16 +93,13 @@ const ambiguous = (hits: object[], page = '1') => pageStory({extrinsics: paged(h
 
 const replays = Array.from({length: 45}, (_, i) => hit(300_000 + i * 15_000, 1 + (i % 3)))
 
-export const Transfer = detail(of(transfer))
-
-// the signer keeps its full address on a phone and wraps it inside its row,
-// the timestamp breaks after its age inside its own, and the call keeps its
-// events inside its row
-export const TransferOnPhone: StoryObj = {
-    ...Transfer,
-    globals: PHONE,
+// the signer keeps its full address and wraps it inside its row, the
+// timestamp breaks after its age inside its own, and the call keeps its events
+// inside its row
+export const Transfer: StoryObj = {
+    ...detail(of(transfer)),
     play: async ({canvasElement}) => {
-        expectAddressForm(canvasElement, 'full')
+        expectAddressForm(canvasElement)
         expectFits(canvasElement.querySelector('a[href^="/account/"]')!.closest('[data-slot=card] > *')!)
         expectTimesFit(canvasElement)
         expectCallRowsFit(canvasElement)
@@ -113,10 +110,8 @@ export const TransferEvents = detail(of(transfer), {tab: 'events'})
 
 export const TransferWithTip = feesAddUp(tipped)
 
-export const Failed = detail(of(failedVoteRemoval))
-
 // a failed call that can't fit its badge beside its name moves the badge under it
-export const FailedOnPhone: StoryObj = {...Failed, globals: PHONE, play: async ({canvasElement}) => expectCallRowsFit(canvasElement)}
+export const Failed: StoryObj = {...detail(of(failedVoteRemoval)), play: async ({canvasElement}) => expectCallRowsFit(canvasElement)}
 
 export const FailedEvents = detail(of(failedVoteRemoval), {tab: 'events'})
 
@@ -138,12 +133,9 @@ export const SignedByMiner = feesAddUp((height: number) => batchInterrupted(heig
 
 export const ProxyNested = detail(of(proxied))
 
-export const ProxyNestedExpanded: StoryObj = {...detail(of(proxied)), play: expandAll}
-
 // a nested call that can't fit its event count beside its name moves the count under it
-export const ProxyNestedExpandedOnPhone: StoryObj = {
-    ...ProxyNestedExpanded,
-    globals: PHONE,
+export const ProxyNestedExpanded: StoryObj = {
+    ...detail(of(proxied)),
     play: async context => {
         await expandAll!(context)
         expectCallRowsFit(context.canvasElement)

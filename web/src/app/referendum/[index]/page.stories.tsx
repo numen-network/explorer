@@ -27,7 +27,7 @@ import {
 } from '../../../../../mock/fixtures/governance.js'
 import type {RawStep} from '@/components/timeline'
 import {ss58Encode} from '@/lib/ss58'
-import {expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, expectWholeWords, LAPTOP, lastTooltipLines, PHONE} from '../../../../.storybook/fit'
+import {expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, expectWholeWords, lastTooltipLines} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 
@@ -209,10 +209,8 @@ const depositorsInline: Play = async ({canvas}) => {
     }
 }
 
-export const MetadataEveryField = withPlay(curatedCase(6, 'metadata'), depositorsInline)
-
-export const MetadataEveryFieldOnPhone = withPlay({...curatedCase(6, 'metadata'), globals: PHONE}, async context => {
-    await depositorsInline(context)
+export const MetadataEveryField = withPlay(curatedCase(6, 'metadata'), async context => {
+    await depositorsInline!(context)
     expectNoHangingDots(context.canvasElement)
 })
 
@@ -258,11 +256,8 @@ const PREIMAGE = '0x4f2c9d07a1b3e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c
 const refundTitle = `Refund the deposit locked under preimage ${PREIMAGE}`
 const refundPitch = `Preimage ${PREIMAGE} was noted twice, so this pays back the second deposit.`
 
-export const TextHistoryLongTokensOnPhone = withPlay(
-    {
-        ...story({...curated(6), title: refundTitle, description: refundPitch}, 'text', {}, [metadataAction(990_500, 4, 'MetadataSet', {title: refundTitle, description: refundPitch})]),
-        globals: PHONE,
-    },
+export const TextHistoryLongTokens = withPlay(
+    story({...curated(6), title: refundTitle, description: refundPitch}, 'text', {}, [metadataAction(990_500, 4, 'MetadataSet', {title: refundTitle, description: refundPitch})]),
     async ({canvas, canvasElement}) => {
         expectFits(...canvas.getAllByText(refundTitle), ...canvas.getAllByText(refundPitch))
         expectTimesFit(canvasElement)
@@ -291,13 +286,12 @@ const approvedRail = (confirmed: string, enacted: string, error: string | null =
     }
 }
 
-export const TimelineApprovedEarly = withPlay(curatedCase(10, 'timeline'), approvedRail('#698,640', '#707,280'))
-
-// on a phone the submission time in the header and every step's time break
-// inside their cards, with no line ending on a middle dot
-export const TimelineOnPhone = withPlay({...TimelineApprovedEarly, globals: PHONE}, async ({canvasElement}) => {
-    expectTimesFit(canvasElement)
-    expectNoHangingDots(canvasElement)
+// the submission time in the header and every step's time break inside their
+// cards, with no line ending on a middle dot
+export const TimelineApprovedEarly = withPlay(curatedCase(10, 'timeline'), async context => {
+    await approvedRail('#698,640', '#707,280')!(context)
+    expectTimesFit(context.canvasElement)
+    expectNoHangingDots(context.canvasElement)
 })
 
 export const TimelineRejected = curatedCase(1, 'timeline')
@@ -405,14 +399,9 @@ const refused = {__kind: 'Err', value: {__kind: 'Module', value: {index: 23, err
 const enactment = overCap.timeline.find(s => s.name === 'Scheduler.Dispatched')!.event
 const overCapEvents = stepEvents(overCap).map((e: {id: string; args: object}) => (e.id === enactment ? {...e, args: {...e.args, result: refused}} : e))
 
-export const TimelineEnactmentFailed = withPlay(
-    story(overCap, 'timeline', {...castFromSnapshots(overCap), events: eventsById(overCapEvents)}),
-    approvedRail('#588,640', '#597,280', 'Treasury.InsufficientPermission')
-)
-
-// a laptop shares its width with the side cards, so every step's rows drop below
-// the title with each value whole and inside the card
-export const TimelineEnactmentFailedOnLaptop = withPlay({...TimelineEnactmentFailed, globals: LAPTOP}, async context => {
+// every step keeps each value whole and inside the card, whether its rows sit
+// beside the title or drop below it
+export const TimelineEnactmentFailed = withPlay(story(overCap, 'timeline', {...castFromSnapshots(overCap), events: eventsById(overCapEvents)}), async context => {
     await approvedRail('#588,640', '#597,280', 'Treasury.InsufficientPermission')!(context)
     const values = [...context.canvasElement.querySelectorAll('dl dd')]
     await expect(values.length).toBeGreaterThan(0)

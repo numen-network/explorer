@@ -3,7 +3,7 @@ import {expect, waitFor, within} from 'storybook/test'
 import {chartBySlug} from '@/lib/charts'
 import {numn} from '../../../../../mock/fixtures.js'
 import {DAILY} from '../../../../../mock/fixtures/home.js'
-import {axesLegible, expectLegibleAxes, expectNamedNavs, lastTooltipLines, lonePointsPainted, PHONE, tooltipsInView} from '../../../../.storybook/fit'
+import {axesLegible, expectLegibleAxes, expectNamedNavs, lastTooltipLines, lonePointsPainted, tooltipsInView} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import ChartPage from './page'
 
@@ -214,6 +214,6 @@ export const BlockTimeChangeEdge = checked(chart('block-time', [...DAILY.slice(0
     await expect(canvas.getByText('The latest value of Average Block Time is 10.10. Compared with the day before it is up by 1.00%.')).toBeInTheDocument()
 })
 
-// a nine digit NUMN reading fills most of a phone-wide chart
-export const IssuanceManyDaysTooltipOnPhone: StoryObj = {...IssuanceManyDays, globals: PHONE, play: tooltipsInView}
-export const IssuanceOneDayTooltipOnPhone: StoryObj = {...IssuanceOneDay, globals: PHONE, play: tooltipsInView}
+// a nine digit NUMN reading makes the widest tooltip a chart shows
+export const IssuanceManyDaysTooltip: StoryObj = {...IssuanceManyDays, play: tooltipsInView}
+export const IssuanceOneDayTooltip: StoryObj = {...IssuanceOneDay, play: tooltipsInView}

@@ -42,11 +42,12 @@ export default function TabScroller({children}: {children: ReactNode}) {
     }
     // pb-3 mirrors the links' bottom band so the icon centers on the label line,
     // scroll-px-10.5 is the edge band an arrow hides, its 24px fade and 16px
-    // icon inside a 1px border
+    // icon inside a 1px border. the arrows serve pointers only, a link that
+    // takes keyboard focus scrolls itself clear of them
     return (
         <div className="relative -mb-px w-full">
             {state.left && (
-                <Button variant="ghost" size="icon-xs" aria-label="Scroll left" onClick={() => nudge(-1)} className="absolute inset-y-0 left-0 z-10 h-auto w-auto rounded-none bg-gradient-to-r from-background to-transparent pr-6 pb-3 text-muted-foreground hover:bg-transparent hover:text-foreground">
+                <Button variant="ghost" size="icon-xs" aria-label="Scroll left" tabIndex={-1} onClick={() => nudge(-1)} className="absolute inset-y-0 left-0 z-10 h-auto w-auto rounded-none bg-gradient-to-r from-background to-transparent pr-6 pb-3 text-muted-foreground hover:bg-transparent hover:text-foreground">
                     <ChevronLeft className="size-4" />
                 </Button>
             )}
@@ -58,7 +59,7 @@ export default function TabScroller({children}: {children: ReactNode}) {
                 renders mark it text/plain */}
             <script type={typeof window === 'undefined' ? undefined : 'text/plain'} suppressHydrationWarning dangerouslySetInnerHTML={{__html: REVEAL_SCRIPT}} />
             {state.right && (
-                <Button variant="ghost" size="icon-xs" aria-label="Scroll right" onClick={() => nudge(1)} className="absolute inset-y-0 right-0 z-10 h-auto w-auto rounded-none bg-gradient-to-l from-background to-transparent pb-3 pl-6 text-muted-foreground hover:bg-transparent hover:text-foreground">
+                <Button variant="ghost" size="icon-xs" aria-label="Scroll right" tabIndex={-1} onClick={() => nudge(1)} className="absolute inset-y-0 right-0 z-10 h-auto w-auto rounded-none bg-gradient-to-l from-background to-transparent pb-3 pl-6 text-muted-foreground hover:bg-transparent hover:text-foreground">
                     <ChevronRight className="size-4" />
                 </Button>
             )}

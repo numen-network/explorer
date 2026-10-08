@@ -4,7 +4,7 @@ import {expect, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {SUBJECT, SUBJECT_EVM} from '../../../mock/fixtures/accounts.js'
 import {chainInfo} from '../../../mock/fixtures.js'
-import {DESKTOP, expectFits, expectHalves, PHONE} from '../../.storybook/fit'
+import {expectFits, expectHalves} from '../../.storybook/fit'
 import AddressText, {shortAddr} from './AddressText'
 import {Table, TableBody, TableCell, TableRow} from './ui/table'
 
@@ -49,12 +49,12 @@ export const Full: Story = {
     ),
 }
 
-// a phone line wraps a full address to fit, a table cell keeps 7…4 so the
-// other columns stay in view
-export const FullOnPhone: Story = {
-    globals: PHONE,
+// a line wraps a full address to fit. a table cell narrower than sm keeps 7…4
+// so the other columns stay in view, a wider column too narrow for the full
+// address splits it at the middle
+export const FullInLineAndCell: Story = {
     render: () => (
-        <div className="space-y-3 font-mono text-sm">
+        <div className="max-w-72 space-y-3 font-mono text-sm">
             {[SS58, SUBJECT_EVM].map(addr => (
                 <div key={addr}>
                     <AddressText full addr={addr} />
@@ -74,35 +74,17 @@ export const FullOnPhone: Story = {
         </div>
     ),
     play: async ({canvas}) => {
+        const narrow = matchMedia('(width < 40rem)').matches
         for (const addr of [SS58, SUBJECT_EVM]) {
             const [line, cell] = canvas.getAllByText(addr)
             await expect(line).toBeVisible()
             expectFits(line.parentElement!)
+            if (!narrow) {
+                expectHalves(cell)
+                continue
+            }
             await expect(cell).not.toBeVisible()
             await expect(within(cell.closest('td')!).getByText(shortAddr(addr))).toBeVisible()
         }
-    },
-}
-
-// a table column too narrow for a full address shrinks to half of it
-export const FullSplitsAtTheMiddle: Story = {
-    globals: DESKTOP,
-    render: () => (
-        <div className="w-72 font-mono text-sm">
-            <Table>
-                <TableBody>
-                    {[SS58, SUBJECT_EVM].map(addr => (
-                        <TableRow key={addr}>
-                            <TableCell>
-                                <AddressText full addr={addr} />
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </div>
-    ),
-    play: async ({canvas}) => {
-        for (const addr of [SS58, SUBJECT_EVM]) expectHalves(canvas.getByText(addr))
     },
 }
