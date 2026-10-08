@@ -299,6 +299,19 @@ export function expectAddressForm(root: Element) {
     }
 }
 
+// every scroll arrow of a tab strip centres on the line its labels sit on
+export function expectArrowsOnLabelLine(root: Element) {
+    const arrows = [...root.querySelectorAll('button[aria-label^="Scroll "]')]
+    expect(arrows.length).toBeGreaterThan(0)
+    const centre = (r: DOMRect) => r.top + r.height / 2
+    for (const arrow of arrows) {
+        const label = document.createRange()
+        label.selectNodeContents(arrow.parentElement!.querySelector('.overflow-x-auto a')!)
+        const off = Math.abs(centre(arrow.querySelector('svg')!.getBoundingClientRect()) - centre(label.getBoundingClientRect()))
+        expect({arrow: arrow.getAttribute('aria-label'), onLine: off <= 1}).toEqual({arrow: arrow.getAttribute('aria-label'), onLine: true})
+    }
+}
+
 // a full address in a table column too narrow for it breaks between its two halves and nowhere else
 export function expectHalves(full: Element) {
     const lines = (node: Node) => {

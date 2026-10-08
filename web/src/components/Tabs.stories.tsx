@@ -1,7 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
-import {all} from '../../.storybook/fit'
+import {all, expectArrowsOnLabelLine} from '../../.storybook/fit'
 import {TabBar, TabPanels, type Panel, type TabItem} from './Tabs'
 
 const meta = {title: 'Components/Tabs'} satisfies Meta
@@ -42,13 +42,15 @@ const keyboard: Play = async ({canvas, canvasElement, userEvent}) => {
     await expect(followed).toEqual([links.at(-1)!.getAttribute('href')])
 }
 
-// the open page's link is scrolled into the strip, clear of the arrows
+// the open page's link is scrolled into the strip, clear of the arrows, which
+// sit on the label line
 const currentInView: Play = async ({canvas, canvasElement}) => {
     await canvas.findByRole('button', {name: 'Scroll left'})
     const link = canvas.getByRole('link', {current: 'page'}).getBoundingClientRect()
     const strip = canvasElement.querySelector('.overflow-x-auto')!.getBoundingClientRect()
     const arrows = canvas.getAllByRole('button').map(b => b.getBoundingClientRect())
     await expect(link.left >= strip.left && link.right <= strip.right && arrows.every(a => link.right <= a.left || link.left >= a.right)).toBe(true)
+    expectArrowsOnLabelLine(canvasElement)
 }
 
 // the open tab controls the panel under the strip

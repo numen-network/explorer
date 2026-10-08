@@ -2,6 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {useState} from 'react'
 import {expect, waitFor, within} from 'storybook/test'
 import {Button} from '@/components/ui/button'
+import {expectArrowsOnLabelLine} from '../../.storybook/fit'
 import TabScroller from './TabScroller'
 
 const meta = {title: 'Components/TabScroller'} satisfies Meta
@@ -40,7 +41,13 @@ function selectedInView(list: HTMLElement) {
 
 export const Fits: Story = {render: () => <Strip count={3} />}
 
-export const OverflowAtStart: Story = {render: () => <Strip count={LABELS.length} />}
+export const OverflowAtStart: Story = {
+    render: () => <Strip count={LABELS.length} />,
+    play: async ({canvas, canvasElement}) => {
+        await canvas.findByRole('button', {name: 'Scroll right'})
+        expectArrowsOnLabelLine(canvasElement)
+    },
+}
 
 export const OverflowScrolledRight: Story = {
     render: () => <Strip count={LABELS.length} />,
@@ -48,6 +55,7 @@ export const OverflowScrolledRight: Story = {
         await userEvent.click(canvas.getByRole('button', {name: 'Scroll right'}))
         await waitFor(() => expect(scroller(canvasElement).scrollLeft).toBeGreaterThan(0))
         await canvas.findByRole('button', {name: 'Scroll left'})
+        expectArrowsOnLabelLine(canvasElement)
     },
 }
 
@@ -58,6 +66,38 @@ export const OverflowAtEnd: Story = {
         el.scrollLeft = el.scrollWidth
         await canvas.findByRole('button', {name: 'Scroll left'})
         await waitFor(() => expect(canvas.queryByRole('button', {name: 'Scroll right'})).toBeNull())
+        expectArrowsOnLabelLine(canvasElement)
+    },
+}
+
+// whether the strip took a wheel turn, rather than leaving it to the page
+function wheel(strip: HTMLElement, deltaX: number, deltaY: number) {
+    const event = new WheelEvent('wheel', {deltaX, deltaY, bubbles: true, cancelable: true})
+    strip.dispatchEvent(event)
+    return event.defaultPrevented
+}
+
+// a mouse wheel scrolls a strip as narrow as a phone's sideways and leaves the
+// page alone until the strip runs out of room, a gesture that already runs
+// sideways stays the browser's
+export const WheelScrollsSideways: Story = {
+    render: () => (
+        <div className="max-w-80">
+            <Strip count={LABELS.length} />
+        </div>
+    ),
+    play: async ({canvasElement}) => {
+        const strip = scroller(canvasElement)
+        await expect(wheel(strip, 0, 120)).toBe(true)
+        await expect(strip.scrollLeft).toBe(120)
+        await expect(wheel(strip, 0, -120)).toBe(true)
+        await expect(strip.scrollLeft).toBe(0)
+        await expect(wheel(strip, 0, -120)).toBe(false)
+        strip.scrollLeft = strip.scrollWidth
+        await expect(wheel(strip, 0, 120)).toBe(false)
+        strip.scrollLeft = 0
+        await expect(wheel(strip, 120, 10)).toBe(false)
+        await expect(strip.scrollLeft).toBe(0)
     },
 }
 
@@ -70,11 +110,12 @@ export const SelectedOffscreen: Story = {
             <Strip count={LABELS.length} selected={BOUNTIES} />
         </div>
     ),
-    play: async ({canvas}) => {
+    play: async ({canvas, canvasElement}) => {
         for (const list of canvas.getAllByRole('tablist')) {
             await within(list).findByRole('button', {name: 'Scroll left'})
             expect(selectedInView(list)).toBe(true)
         }
+        expectArrowsOnLabelLine(canvasElement)
     },
 }
 
@@ -88,21 +129,23 @@ export const SelectedInView: Story = {
         await canvas.findByRole('button', {name: 'Scroll right'})
         expect(selectedInView(canvas.getByRole('tablist'))).toBe(true)
         expect(scroller(canvasElement).scrollLeft).toBe(0)
+        expectArrowsOnLabelLine(canvasElement)
     },
 }
 
-// tabs as wide as the selected label put its end 28px short of the strip's
-// edge, under the fade of the right arrow
+// the selected tab ends 28px short of the strip's edge, under the fade of the
+// right arrow
 export const SelectedUnderArrow: Story = {
     render: () => (
-        <div className="w-58 [&_[role=tab]]:w-13">
+        <div className="w-63">
             <Strip count={6} selected={TOKENS} />
         </div>
     ),
-    play: async ({canvas}) => {
+    play: async ({canvas, canvasElement}) => {
         const list = canvas.getByRole('tablist')
         await within(list).findByRole('button', {name: 'Scroll left'})
         expect(selectedInView(list)).toBe(true)
+        expectArrowsOnLabelLine(canvasElement)
     },
 }
 
@@ -130,6 +173,7 @@ export const SelectionMoves: Story = {
         await userEvent.click(canvas.getByRole('button', {name: 'Select Mining'}))
         await within(list).findByRole('button', {name: 'Scroll left'})
         expect(selectedInView(list)).toBe(true)
+        expectArrowsOnLabelLine(canvasElement)
         await userEvent.click(canvas.getByRole('button', {name: 'Select Extrinsics'}))
         await waitFor(() => expect(scroller(canvasElement).scrollLeft).toBe(0))
     },
