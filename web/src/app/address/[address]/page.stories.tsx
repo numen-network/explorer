@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {shortAddr} from '@/components/AddressText'
 import {paged, rows} from '../../../../../mock/fixtures.js'
-import {bytecode, calldata, EVERY_HOLDING, evmAddress, evmTx, exit, EXIT, holding, holdings, NOT_HELD, SELECTOR, token, UINT256_MAX, units, WTMR} from '../../../../../mock/fixtures/evm.js'
+import {bytecode, calldata, EVERY_HOLDING, evmAddress, evmTx, exit, EXIT, holding, holdings, NOT_HELD, NUMN, pair, SELECTOR, token, UINT256_MAX, units, WTMR} from '../../../../../mock/fixtures/evm.js'
 import {tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import EvmAddressPage from './page'
@@ -126,11 +126,22 @@ export const ContractDeployed = addressPage(contract, {
 
 const wtmrDeploy = evmTx(WTMR.deployBlock, 0, {from: alice, to: null, contractAddress: WTMR.id, input: bytecode(3_072), gasLimit: '3000000', gasUsed: '2100000', ...exit(EXIT.returned)})
 
-export const TokenContract = addressPage(WTMR.id, {
-    txs: [...rows(3, (h: number, i: number) => evmTx(h, i, {from: evmAddress(i), to: WTMR.id, input: calldata(SELECTOR.transfer, bob, units(i + 1, 1)), gasLimit: '65000', gasUsed: '51234', ...exit(EXIT.returned)})), wtmrDeploy],
-    created: [wtmrDeploy],
-    asToken: WTMR,
-})
+export const TokenContract: StoryObj = {
+    ...addressPage(WTMR.id, {
+        txs: [...rows(3, (h: number, i: number) => evmTx(h, i, {from: evmAddress(i), to: WTMR.id, input: calldata(SELECTOR.transfer, bob, units(i + 1, 1)), gasLimit: '65000', gasUsed: '51234', ...exit(EXIT.returned)})), wtmrDeploy],
+        created: [wtmrDeploy],
+        asToken: WTMR,
+    }),
+    play: async ({canvas}) => expect(canvas.queryByText(/^LP /)).toBeNull(),
+}
+
+const pool = pair(10, NUMN, {address: WTMR.id, symbol: 'wWTMR'})
+
+// a pair names the two tokens it pools beside its token link
+export const PairContract: StoryObj = {
+    ...addressPage(pool.id, {txs: rows(2, (h: number, i: number) => evmTx(h, i, {from: evmAddress(i), to: pool.id, input: calldata(SELECTOR.transfer, bob, units(1, 18)), gasLimit: '65000', gasUsed: '48000', ...exit(EXIT.returned)})), asToken: pool}),
+    play: async ({canvas}) => expect(canvas.getByText('LP NUMN/wWTMR')).toBeVisible(),
+}
 
 const factoryBuilt = token(3, {name: null, symbol: null, deployBlock: null})
 

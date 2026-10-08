@@ -21,7 +21,7 @@ import {BatchData} from './batch'
 import {parseEvmBlockHash, parsePowDigest} from './digest'
 import {Deposit, feeShares} from './fees'
 import {fetchObj, parseMesh} from './objects'
-import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply} from './evm'
+import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply, fetchPair} from './evm'
 import {collectGovEvent, finalizeGovernance} from './governance'
 import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from './validators'
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
@@ -305,6 +305,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
                 name: meta.name,
                 symbol: meta.symbol,
                 decimals: meta.decimals,
+                ...(await fetchPair(rpc, q.token, at)),
                 holderCount: 0,
                 transferCount: 0,
                 deployBlock: create?.block.height ?? null,

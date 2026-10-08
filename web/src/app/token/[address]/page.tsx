@@ -7,6 +7,7 @@ import StatTile from '@/components/StatTile'
 import {TabPanels} from '@/components/Tabs'
 import {BlockLink, EvmTxLink} from '@/components/links'
 import {TimeCell} from '@/components/TimeCell'
+import PairBadge from '@/components/PairBadge'
 import TokenIcon from '@/components/TokenIcon'
 import {Card} from '@/components/ui/card'
 import {isH160} from '@/lib/evm'
@@ -82,6 +83,7 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                 <h1 className="text-lg font-semibold">
                     <TokenIcon addr={token.id} />
                     {token.name ?? 'Token'} {token.symbol && <span className="text-sm font-normal text-muted-foreground">{token.symbol}</span>}
+                    <PairBadge token={token} className="ml-2" />
                 </h1>
                 <div className="mt-1 font-mono text-[13px] break-all text-muted-foreground">
                     <Link href={`/address/${token.id}`} className="text-primary hover:underline">

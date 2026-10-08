@@ -342,6 +342,10 @@ const tokenRow = (address, traits = {}) => ({
     transferCount: 48_211,
     deployBlock: 300_000,
     firstBlock: 300_010,
+    token0: null,
+    token1: null,
+    token0Symbol: null,
+    token1Symbol: null,
     ...traits,
 })
 

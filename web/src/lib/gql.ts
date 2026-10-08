@@ -798,7 +798,15 @@ export function judgementsGiven(index: number, limit: number, offset: number) {
     )
 }
 
-export interface TokenRow {
+// a Uniswap V2 style pair's two pooled tokens, all four absent for any other token
+export interface TokenPair {
+    token0: string | null
+    token1: string | null
+    token0Symbol: string | null
+    token1Symbol: string | null
+}
+
+export interface TokenRow extends TokenPair {
     id: string
     name: string | null
     symbol: string | null
@@ -815,7 +823,8 @@ export interface HoldingRow {
     token: TokenRow
 }
 
-const TOKEN_FIELDS = `id name symbol decimals totalSupply holderCount transferCount deployBlock firstBlock`
+const PAIR_FIELDS = 'token0 token1 token0Symbol token1Symbol'
+const TOKEN_FIELDS = `id name symbol decimals totalSupply holderCount transferCount deployBlock firstBlock ${PAIR_FIELDS}`
 const TOKEN_ORDER = '[transferCount_DESC, id_ASC]'
 // holders are the addresses whose last balanceOf answer was above zero, as Token.holderCount counts them
 const HELD = 'balance_gt: 0'
@@ -1456,7 +1465,7 @@ export function isTokenAddress(address: string) {
     return gql<{tokens: {id: string}[]}>(`query ($a: String!) { tokens(where: {id_eq: $a}, limit: 1) { id } }`, {a: address}).then(r => r.tokens.length > 0)
 }
 
-export interface TokenHit {
+export interface TokenHit extends TokenPair {
     id: string
     name: string | null
     symbol: string | null
@@ -1473,7 +1482,7 @@ export function searchNames(q: string, page: Slice) {
         `query ($q: String!, $limit: Int!, $offset: Int!) {
             accounts(where: ${account}, orderBy: ${LABEL_ORDER}, limit: $limit, offset: $offset) { ${ACCOUNT_REF} }
             accountCount: accountsConnection(where: ${account}, orderBy: id_ASC) { totalCount }
-            tokens(where: ${token}, orderBy: ${TOKEN_ORDER}, limit: $limit, offset: $offset) { id name symbol }
+            tokens(where: ${token}, orderBy: ${TOKEN_ORDER}, limit: $limit, offset: $offset) { id name symbol ${PAIR_FIELDS} }
             tokenCount: tokensConnection(where: ${token}, orderBy: id_ASC) { totalCount }
         }`,
         {q, limit: page.limit, offset: page.offset}

@@ -10,6 +10,7 @@ import AddressText from '@/components/AddressText'
 import IdentityName from '@/components/IdentityName'
 import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
+import PairBadge from '@/components/PairBadge'
 import TokenIcon from '@/components/TokenIcon'
 import {isTokenAddress, searchLookups, searchNames, type AccountRef} from '@/lib/gql'
 import {identityLabel} from '@/lib/identity'
@@ -109,6 +110,7 @@ export default async function SearchPage(props: PageProps<'/search'>) {
                     {t.name ?? 'Unknown'}
                 </span>
                 {t.symbol && <span className="text-xs text-muted-foreground">{t.symbol}</span>}
+                <PairBadge token={t} />
                 <span className="ml-auto font-mono text-xs text-muted-foreground">
                     <AddressText addr={t.id} />
                 </span>

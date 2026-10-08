@@ -1,6 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import {token, UINT256_MAX, units, WTMR} from '../../../../mock/fixtures/evm.js'
+import {shortAddr} from '@/components/AddressText'
+import {NUMN, pair, token, UINT256_MAX, units, WTMR} from '../../../../mock/fixtures/evm.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import TokensPage from './page'
@@ -17,6 +18,19 @@ export const Empty = list([])
 export const One: StoryObj = {...list([WTMR]), play: counts('1 contract')}
 
 export const Many: StoryObj = {...list([WTMR, ...Array.from({length: 19}, (_, n) => token(n))], 87), play: counts('87 contracts')}
+
+// what each row's pair badge reads, null for a token that pools nothing
+const badges = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].map(row => row.querySelector('[data-slot=badge]')?.textContent ?? null)
+
+const TEST = token(2).id
+const NDEX = token(3).id
+
+// a pair names the two tokens it pools in the order it keeps them, and one that
+// answers no symbol shows by its address
+export const Pairs: StoryObj = {
+    ...list([WTMR, pair(10, NUMN, {address: TEST, symbol: 'TEST'}), pair(11, {address: NDEX, symbol: 'NDEX'}, {address: TEST, symbol: 'TEST'}), pair(12, NUMN, {address: NDEX, symbol: null})]),
+    play: async ({canvasElement}) => expect(badges(canvasElement)).toEqual([null, 'LP NUMN/TEST', 'LP NDEX/TEST', `LP NUMN/${shortAddr(NDEX)}`]),
+}
 
 export const LogoKnownAndFallback = list([WTMR, token(0)])
 

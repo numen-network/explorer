@@ -1,8 +1,10 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {fmtBalance} from '@/lib/format'
 import {ss58Encode} from '@/lib/ss58'
 import {CHAIN, HOLDING, holdingRows, MAX_U128} from '../../../mock/fixtures/accounts.js'
 import {numn, PEOPLE} from '../../../mock/fixtures.js'
+import {NUMN, pair, token} from '../../../mock/fixtures/evm.js'
 import AccountLink from './AccountLink'
 import HoldingsList from './HoldingsList'
 import {SplitRow, SplitRows} from './SplitRows'
@@ -22,6 +24,12 @@ export const One: Story = {
 
 export const Many: Story = {
     render: () => <HoldingsList rows={holdingRows(20)} />,
+}
+
+// a pair's share token names the two tokens it pools, the plain one beside it shows no badge
+export const PairHolding: Story = {
+    render: () => <HoldingsList rows={[HOLDING, {balance: numn(3.5), token: pair(10, NUMN, {address: token(2).id, symbol: 'TEST'})}]} />,
+    play: async ({canvas}) => expect(canvas.getAllByText(/^LP /).map(badge => badge.textContent)).toEqual(['LP NUMN/TEST']),
 }
 
 export const WiderThanCard: Story = {

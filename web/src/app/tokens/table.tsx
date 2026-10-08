@@ -4,6 +4,7 @@ import Link from 'next/link'
 import {useMemo} from 'react'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink, EvmAddrLink} from '@/components/links'
+import PairBadge from '@/components/PairBadge'
 import TokenIcon from '@/components/TokenIcon'
 import {fmtApprox, fmtInt} from '@/lib/format'
 import type {TokenRow} from '@/lib/gql'
@@ -19,11 +20,14 @@ export function TokensTable({rows}: {rows: TokenRow[]}) {
                     id: 'token',
                     header: 'Token', meta: {className: 'w-full'},
                     cell: ({row}) => (
-                        <Link href={`/token/${row.original.id}`} className="text-primary hover:underline">
-                            <TokenIcon addr={row.original.id} />
-                            <span className="font-medium">{row.original.name ?? 'Unknown'}</span>
-                            {row.original.symbol && <span className="ml-1.5 text-xs">{row.original.symbol}</span>}
-                        </Link>
+                        <>
+                            <Link href={`/token/${row.original.id}`} className="text-primary hover:underline">
+                                <TokenIcon addr={row.original.id} />
+                                <span className="font-medium">{row.original.name ?? 'Unknown'}</span>
+                                {row.original.symbol && <span className="ml-1.5 text-xs">{row.original.symbol}</span>}
+                            </Link>
+                            <PairBadge token={row.original} className="ml-2" />
+                        </>
                     ),
                 }),
                 col.display({id: 'contract', header: 'Contract', cell: ({row}) => <EvmAddrLink addr={row.original.id} />}),

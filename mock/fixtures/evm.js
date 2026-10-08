@@ -1,4 +1,4 @@
-import {HEAD, at, hashOf, squidId} from '../fixtures.js'
+import {HEAD, at, chainInfo, hashOf, squidId} from '../fixtures.js'
 
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 export const UINT256_MAX = (2n ** 256n - 1n).toString()
@@ -31,6 +31,9 @@ export const topicOf = address => '0x' + word(address)
 export const calldata = (selector, ...args) => selector + args.map(word).join('')
 export const bytecode = bytes => '0x60806040' + Array.from({length: Math.ceil(bytes / 32)}, (_, i) => hashOf('code', i).slice(2)).join('').slice(0, bytes * 2 - 8)
 
+// what any token that is no pair answers for the two tokens a pair pools
+const NO_PAIR = {token0: null, token1: null, token0Symbol: null, token1Symbol: null}
+
 // the one token the explorer has a logo for, as its mainnet contract describes itself
 export const WTMR = {
     id: '0xa1795b3c6f74866c7def1df390f9e2e403dca2e9',
@@ -42,6 +45,7 @@ export const WTMR = {
     transferCount: 48_311,
     deployBlock: 412_000,
     firstBlock: 412_007,
+    ...NO_PAIR,
 }
 
 const KINDS = [
@@ -69,9 +73,17 @@ export function token(n, traits = {}) {
         transferCount,
         deployBlock: 420_000 + n * 9_000,
         firstBlock: 420_000 + n * 9_000 + 4,
+        ...NO_PAIR,
         ...traits,
     }
 }
+
+// the native coin as a pair pools it, through its ERC20 precompile
+export const NUMN = {address: chainInfo.nativeErc20, symbol: 'NUMN'}
+
+// a Uniswap V2 style pair's share token, each pooled token as its address and symbol() answer
+export const pair = (n, token0, token1, traits = {}) =>
+    token(n, {name: 'NumenDEX LP Token', symbol: 'NDEX-LP', decimals: 18, totalSupply: units(1_585.72, 18), token0: token0.address, token1: token1.address, token0Symbol: token0.symbol, token1Symbol: token1.symbol, ...traits})
 
 export const holder = (tok, address, balance) => ({id: `${tok.id}-${address}`, address, balance})
 

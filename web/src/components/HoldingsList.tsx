@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import AddressText from '@/components/AddressText'
+import PairBadge from '@/components/PairBadge'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
 import TokenIcon from '@/components/TokenIcon'
 import {fmtBalance} from '@/lib/format'
@@ -18,6 +19,7 @@ export default function HoldingsList({rows}: {rows: HoldingRow[]}) {
                                 {h.token.name ?? <AddressText addr={h.token.id} />}
                             </Link>
                             <span className="text-xs text-muted-foreground">{h.token.symbol}</span>
+                            <PairBadge token={h.token} />
                         </>
                     }
                 >

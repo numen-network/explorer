@@ -212,6 +212,14 @@ type Token @entity {
   deployer: String @index
   "block the first transfer landed in, the earliest the token can be known without a create tx"
   firstBlock: Int!
+  "the first of the two tokens a Uniswap V2 style pair pools, as its token0() answered, absent for any other token"
+  token0: String
+  "the second, as its token1() answered"
+  token1: String
+  "what token0 answered to symbol(), absent when it answered nothing"
+  token0Symbol: String
+  "what token1 answered to symbol(), absent when it answered nothing"
+  token1Symbol: String
 }
 
 type TokenTransfer @entity {

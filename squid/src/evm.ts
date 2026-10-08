@@ -106,7 +106,7 @@ function topicToAddress(topic: string): string {
     return '0x' + topic.slice(26)
 }
 
-const SELECTORS = {name: '0x06fdde03', symbol: '0x95d89b41', decimals: '0x313ce567', totalSupply: '0x18160ddd', balanceOf: '0x70a08231'}
+const SELECTORS = {name: '0x06fdde03', symbol: '0x95d89b41', decimals: '0x313ce567', totalSupply: '0x18160ddd', balanceOf: '0x70a08231', token0: '0x0dfe1681', token1: '0xd21220a7'}
 
 export interface Erc20Metadata {
     name: string | null
@@ -122,6 +122,22 @@ export async function fetchErc20Metadata(rpc: RpcClient, token: string, at: stri
         ethCall(rpc, token, SELECTORS.decimals, at).then(abiDecodeUint8),
     ])
     return {name, symbol, decimals}
+}
+
+export interface PairMembers {
+    token0: string | null
+    token1: string | null
+    token0Symbol: string | null
+    token1Symbol: string | null
+}
+
+// a Uniswap V2 style pair answers token0() and token1() with the two tokens it
+// pools, a token that answers anything else to either is no pair
+export async function fetchPair(rpc: RpcClient, token: string, at: string): Promise<PairMembers> {
+    const [token0, token1] = await Promise.all([SELECTORS.token0, SELECTORS.token1].map(s => ethCall(rpc, token, s, at).then(abiDecodeAddress)))
+    if (token0 == null || token1 == null) return {token0: null, token1: null, token0Symbol: null, token1Symbol: null}
+    const [token0Symbol, token1Symbol] = await Promise.all([token0, token1].map(t => ethCall(rpc, t, SELECTORS.symbol, at).then(abiDecodeString)))
+    return {token0, token1, token0Symbol, token1Symbol}
 }
 
 export async function fetchErc20Supply(rpc: RpcClient, token: string, at: string): Promise<bigint | null> {
@@ -157,4 +173,9 @@ function abiDecodeUint(ret: string | null): bigint | null {
 function abiDecodeUint8(ret: string | null): number | null {
     const v = abiDecodeUint(ret)
     return v != null && v <= 255n ? Number(v) : null
+}
+
+function abiDecodeAddress(ret: string | null): string | null {
+    const v = abiDecodeUint(ret)
+    return v != null && v > 0n && v < 1n << 160n ? '0x' + v.toString(16).padStart(40, '0') : null
 }

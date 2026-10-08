@@ -52,4 +52,28 @@ export class Token {
      */
     @IntColumn_({nullable: false})
     firstBlock!: number
+
+    /**
+     * the first of the two tokens a Uniswap V2 style pair pools, as its token0() answered, absent for any other token
+     */
+    @StringColumn_({nullable: true})
+    token0!: string | undefined | null
+
+    /**
+     * the second, as its token1() answered
+     */
+    @StringColumn_({nullable: true})
+    token1!: string | undefined | null
+
+    /**
+     * what token0 answered to symbol(), absent when it answered nothing
+     */
+    @StringColumn_({nullable: true})
+    token0Symbol!: string | undefined | null
+
+    /**
+     * what token1 answered to symbol(), absent when it answered nothing
+     */
+    @StringColumn_({nullable: true})
+    token1Symbol!: string | undefined | null
 }

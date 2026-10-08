@@ -5,6 +5,7 @@ import HoldingsList from '@/components/HoldingsList'
 import Pager from '@/components/Pager'
 import {AddrMark} from '@/components/addrHot'
 import {TabPanels, type Panel} from '@/components/Tabs'
+import PairBadge from '@/components/PairBadge'
 import TokenIcon from '@/components/TokenIcon'
 import {Jump} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
@@ -66,6 +67,7 @@ export default async function EvmAddressPage(props: PageProps<'/address/[address
                             {data.asToken.name ?? 'Token'} {data.asToken.symbol ? `(${data.asToken.symbol})` : ''} <Jump />
                         </Link>
                     )}
+                    {data.asToken && <PairBadge token={data.asToken} />}
                 </div>
                 <div className="mt-1 font-mono text-[13px] break-all text-muted-foreground">
                     <AddrMark addr={address}>{address}</AddrMark>

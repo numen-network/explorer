@@ -27,6 +27,7 @@ const tokenAt = (n: number, name: string | null, symbol: string | null): Token =
 
 const WTMR: Token = {id: '0xa1795b3c6f74866c7def1df390f9e2e403dca2e9', name: 'Wrapped WTMR', symbol: 'wWTMR'}
 const NOVA = tokenAt(0x0a7a, 'Nova Points', 'NOVA')
+const POOL = {...tokenAt(0x5c4b, 'NumenDEX LP Token', 'NDEX-LP'), token0: chainInfo.nativeErc20, token1: WTMR.id, token0Symbol: 'NUMN', token1Symbol: 'wWTMR'}
 
 const named = (n: number, display: string) => acct(100 + n, identity(display))
 
@@ -83,6 +84,12 @@ export const AccountsLastPage: StoryObj = {
 }
 
 export const TokensMany = results('scan', SCANNERS, SCAN_TOKENS, {tab: 'tokens'})
+
+// a share token that only calls itself LP shows no badge, a pair's shows the two tokens it pools
+export const TokenPairs: StoryObj = {
+    ...results('lp', [], [WTMRS[1], POOL]),
+    play: async ({canvasElement}) => expect(tokenRows(canvasElement).map(row => row.querySelector('[data-slot=badge]')?.textContent ?? null)).toEqual([null, 'LP NUMN/wWTMR']),
+}
 
 export const TokensPageTwo: StoryObj = {...results('scan', SCANNERS, SCAN_TOKENS, {tab: 'tokens', page: '2'}), play: pagesTab('tokens', 4)}
 
