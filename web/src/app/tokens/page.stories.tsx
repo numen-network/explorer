@@ -1,6 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {token, UINT256_MAX, units, WTMR} from '../../../../mock/fixtures/evm.js'
+import {columnTexts} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import TokensPage from './page'
 
@@ -40,4 +41,11 @@ export const ExtremeNumbers: StoryObj = {
         1_234_567
     ),
     play: counts('1,234,567 contracts'),
+}
+
+// a supply that ends within two decimals reads as it is, a cut one carries ≈
+// and a few billion of the smallest unit of an 18 decimal token is ≈0
+export const SupplyShortForms: StoryObj = {
+    ...list([token(5), token(0, {totalSupply: units(52_513_000, 6)}), token(9, {name: 'Numen DEX LP', symbol: 'NLP', decimals: 18, totalSupply: '3162277660'})]),
+    play: async ({canvas}) => expect(columnTexts(canvas.getByRole('table'), 'Total supply')).toEqual(['21M ORE', '≈52.51M oUSD', '≈0 NLP']),
 }

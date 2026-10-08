@@ -100,7 +100,7 @@ export const ExtremeNumbers = lists(
 
 export const ExtremeSplitParts = lists(groups('Split', 0, 0, 0, 3), splits(['Aye', 'Nay'], [splitVote(0, 1_000_000_000_000, 999_999_999_999), splitVote(1, 0.000_001, 0), splitVote(2, 0, 0.000_001)]))
 
-// parts ending exactly on the last digit their cell shows
+// parts that end within two decimals read as they are, a cut part carries ≈
 export const TruncationEdges: Story = {
     ...lists(
         groups('Split', 0, 0, 0, 5),
@@ -111,9 +111,9 @@ export const TruncationEdges: Story = {
         await expect(parts).toEqual([
             ['1.15 NUMN', '4.35 NUMN'],
             ['8.2M NUMN', '5.1M NUMN'],
-            ['99.9 NUMN', '9,999 NUMN'],
-            ['0 NUMN', '0.01 NUMN'],
-            ['340,282,366,920B NUMN', '2.01 NUMN'],
+            ['≈99.99 NUMN', '9,999.99 NUMN'],
+            ['≈0 NUMN', '≈0.01 NUMN'],
+            ['≈340,282,366,920.93B NUMN', '2.01 NUMN'],
         ])
     },
 }

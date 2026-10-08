@@ -1,4 +1,4 @@
-import {fmtInt, fmtPct, planckToNum, truncFixed} from './format'
+import {fmtApprox, fmtInt, fmtPct, planckToNum, truncFixed} from './format'
 import type {DailyRow} from './gql'
 
 export interface ChartInput {
@@ -38,7 +38,7 @@ const count = (pick: (d: DailyRow) => number | string): Reading => ({
 const amount = (pick: (d: DailyRow) => bigint | string): Reading => ({
     values: ({days, decimals}) => days.map(d => [BigInt(pick(d)), 10n ** BigInt(decimals)]),
     plot: ([planck], {decimals}) => planckToNum(planck, decimals),
-    format: ([planck, coin], {decimals, symbol}) => `${fmtInt(truncFixed(planck, planck < 1000n * coin ? 2 : 0, decimals))} ${symbol}`,
+    format: ([planck], {decimals, symbol}) => fmtApprox(planck, decimals, symbol),
 })
 
 const blockTime: Reading = {

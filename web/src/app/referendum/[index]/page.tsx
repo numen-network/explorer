@@ -16,7 +16,7 @@ import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
 import {curveAt, type Curve} from '@/lib/curves'
-import {camelLabel, fmtBalance, fmtCompact, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
+import {camelLabel, fmtApprox, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
 import {accountRefs, eventsByIds, referendumDetail, tallySnapshots, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -243,7 +243,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         Aye <span className="text-dim">({fmtInt(data.ayeCount.totalCount)})</span>
                     </span>
                     <span className="font-mono">
-                        {fmtCompact(r.ayes, chain.decimals)} {chain.symbol}
+                        {fmtApprox(r.ayes, chain.decimals, chain.symbol)}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-3 py-2.5">
@@ -252,7 +252,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         Nay <span className="text-dim">({fmtInt(data.nayCount.totalCount)})</span>
                     </span>
                     <span className="font-mono">
-                        {fmtCompact(r.nays, chain.decimals)} {chain.symbol}
+                        {fmtApprox(r.nays, chain.decimals, chain.symbol)}
                     </span>
                 </div>
             </div>
@@ -269,13 +269,13 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <div className="flex items-center justify-between gap-3 py-2.5">
                     <span className="text-muted-foreground">Support</span>
                     <span className="font-mono">
-                        {fmtCompact(r.support, chain.decimals)} {chain.symbol}
+                        {fmtApprox(r.support, chain.decimals, chain.symbol)}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-3 py-2.5">
                     <span className="text-muted-foreground">Active issuance</span>
                     <span className="font-mono">
-                        {fmtCompact(activePlanck, chain.decimals)} {chain.symbol}
+                        {fmtApprox(activePlanck, chain.decimals, chain.symbol)}
                     </span>
                 </div>
             </div>

@@ -92,10 +92,9 @@ const UNITS: [floor: bigint, shift: number, suffix: string][] = [
 
 const unitFor = (whole: bigint): [bigint, number, string] => UNITS.find(([floor]) => whole >= floor) ?? [1n, 0, '']
 
-export function fmtCompact(n: number): string
-export function fmtCompact(planck: string | bigint, decimals: number): string
-export function fmtCompact(x: number | string | bigint, decimals = 0): string {
-    const [planck, scale] = planckOf(x, decimals)
+// counts and difficulty, the figures that are no amount
+export function fmtCompact(n: number | bigint): string {
+    const [planck, scale] = planckOf(n, 0)
     const [, shift, suffix] = unitFor(planckParts(planck, scale).whole)
     return fmtInt(trimNum(planck, scale + shift)) + suffix
 }
@@ -108,20 +107,24 @@ export function fmtTick(v: number): string {
     return trimZeros(truncFixed(planck, scale + shift, scale + shift)) + suffix
 }
 
-export function fmtCompact3(planck: string | bigint, decimals: number, symbol?: string): string {
-    const {neg, v, whole} = planckParts(planck, decimals)
+// at most two decimals in the unit the size calls for, cut and never rounded
+// up, trailing zeros dropped, and ≈ ahead of the sign once the cut drops a
+// digit that isn't zero
+function approx(planck: string | bigint, decimals: number, sign: string, symbol?: string): string {
+    const {v, whole} = planckParts(planck, decimals)
     const [, shift, suffix] = unitFor(whole)
-    return signed(neg, fmtInt(truncFixed(v, 3, decimals + shift)) + suffix, symbol)
+    const exact = (v * 100n) % 10n ** BigInt(decimals + shift) === 0n
+    return `${exact ? '' : '≈'}${sign}${fmtInt(trimZeros(truncFixed(v, 2, decimals + shift)))}${suffix}${symbol ? ` ${symbol}` : ''}`
 }
 
-// one decimal in unit range, whole tokens below it, ≈ marks a lossy trim
+// the one short form of an amount
 export function fmtApprox(planck: string | bigint, decimals: number, symbol?: string): string {
-    const {neg, v, whole} = planckParts(planck, decimals)
-    const [, shift, suffix] = unitFor(whole)
-    const digits = suffix === '' ? 0 : 1
-    const exact = v % 10n ** BigInt(decimals + shift - digits) === 0n
-    const out = fmtInt(truncFixed(v, digits, decimals + shift).replace(/\.0$/, '')) + suffix
-    return `${exact ? '' : '≈'}${signed(neg, out, symbol)}`
+    return approx(planck, decimals, BigInt(planck) < 0n ? MINUS : '', symbol)
+}
+
+// how far an amount rose or fell, the direction right after the ≈
+export function fmtMove(planck: string | bigint, decimals: number): string {
+    return approx(planck, decimals, signOf(BigInt(planck)))
 }
 
 export function shortHash(s: string, pre = 5, post = 4): string {

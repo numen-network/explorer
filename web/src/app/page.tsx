@@ -20,7 +20,7 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps} from '@/lib/chain'
-import {fmtBalance, fmtCompact, fmtCompact3, fmtCount, fmtInt, fmtPct, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
+import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtMove, fmtPct, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -89,18 +89,12 @@ export default async function Home() {
     const txLabels = chrono.map(d => d.id.slice(5))
     const volSeries = chrono.map(d => planckToNum(d.transferVolume, props.decimals))
     const cntSeries = chrono.map(d => d.transfers)
-    // the tooltip reads a volume down to the millionth of a coin the line plots
-    const volTips = chrono.map(d => fmtBalance(truncFixed(d.transferVolume, 6, props.decimals).replace('.', ''), 6))
+    const volTips = chrono.map(d => fmtApprox(d.transferVolume, props.decimals))
 
 
-    const chip = (n: number | bigint, note: string, decimals = 0): StatChip => {
-        const v = BigInt(n)
-        return {
-            text: `${signOf(v)}${fmtCompact(v < 0n ? -v : v, decimals)}`,
-            note,
-            tone: v > 0n ? 'pos' : v < 0n ? 'neg' : 'idle',
-        }
-    }
+    const toneOf = (v: bigint): StatChip['tone'] => (v > 0n ? 'pos' : v < 0n ? 'neg' : 'idle')
+    const chip = (n: number, note: string): StatChip => ({text: `${signOf(n)}${fmtCompact(Math.abs(n))}`, note, tone: toneOf(BigInt(n))})
+    const amountChip = (planck: bigint, note: string): StatChip => ({text: fmtMove(planck, props.decimals), note, tone: toneOf(planck)})
     const pctChip = (cur: bigint, prev: bigint, note: string): StatChip => {
         const move = prev > 0n ? cur - prev : 0n
         return {text: `${signOf(move)}${fmtPct(move < 0n ? -move : move, prev)}`, note, tone: move > 0n ? 'pos' : move < 0n ? 'neg' : 'idle'}
@@ -112,7 +106,7 @@ export default async function Home() {
     const base30 = data.base30[0]
     // no baseline means the window opens before the chain did, and zero stands in for no reading
     const at = (r: BaselineRow | undefined, get: (r: BaselineRow) => bigint) => (r ? get(r) : 0n)
-    const stockChips = (now: bigint, get: (r: BaselineRow) => bigint) => [chip(now - at(base24, get), '24h', props.decimals), chip(now - at(base30, get), '30d', props.decimals)]
+    const stockChips = (now: bigint, get: (r: BaselineRow) => bigint) => [amountChip(now - at(base24, get), '24h'), amountChip(now - at(base30, get), '30d')]
     const traAt = (r: HourlyRow | undefined) => (r ? BigInt(r.issuanceTransferable) - BigInt(r.issuanceInactive) : 0n)
     const diffAt = (r: BaselineRow | undefined) => (r ? BigInt(r.difficulty) : 0n)
     const issNow = BigInt(today?.issuanceTotal ?? 0)
@@ -212,27 +206,27 @@ export default async function Home() {
                 />
                 <StatTile
                     label="Total issuance" href="/charts/issuance"
-                    value={fmtCompact3(today?.issuanceTotal ?? '0', props.decimals, props.symbol)}
+                    value={fmtApprox(today?.issuanceTotal ?? '0', props.decimals, props.symbol)}
                     chips={stockChips(issNow, r => BigInt(r.issuanceTotal))}
                 />
                 <StatTile
                     label="Active issuance" href="/charts/active-issuance"
-                    value={fmtCompact3(today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
+                    value={fmtApprox(today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
                     chips={stockChips(issNow - inactiveNow, r => BigInt(r.issuanceTotal) - BigInt(r.issuanceInactive))}
                 />
                 <StatTile
                     label="Transferable issuance" href="/charts/transferable-issuance"
-                    value={fmtCompact3(today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
-                    chips={[chip(traNow - traAt(data.tra24[0]), '24h', props.decimals), chip(traNow - traAt(data.tra30[0]), '30d', props.decimals)]}
+                    value={fmtApprox(today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
+                    chips={[amountChip(traNow - traAt(data.tra24[0]), '24h'), amountChip(traNow - traAt(data.tra30[0]), '30d')]}
                 />
                 <StatTile
                     label="Treasury pot" href="/charts/treasury"
-                    value={fmtCompact3(today?.treasuryPot ?? '0', props.decimals, props.symbol)}
+                    value={fmtApprox(today?.treasuryPot ?? '0', props.decimals, props.symbol)}
                     chips={stockChips(BigInt(today?.treasuryPot ?? 0), r => BigInt(r.treasuryPot))}
                 />
                 <StatTile
                     label="Difficulty" href="/charts/difficulty"
-                    value={curDifficulty > 0n ? fmtCompact(curDifficulty, 0) : '—'}
+                    value={curDifficulty > 0n ? fmtCompact(curDifficulty) : '—'}
                     chips={[pctChip(curDifficulty, diffAt(base24), '24h'), pctChip(curDifficulty, diffAt(base30), '30d')]}
                 />
             </div>
@@ -270,7 +264,7 @@ export default async function Home() {
                                     </div>
                                 </div>
                                 <div className="flex shrink-0 items-baseline justify-between gap-3 sm:block sm:text-right">
-                                    <div className="font-mono text-sm whitespace-nowrap">{fmtCompact3(t.amount, props.decimals, props.symbol)}</div>
+                                    <div className="font-mono text-sm whitespace-nowrap">{fmtApprox(t.amount, props.decimals, props.symbol)}</div>
                                     <div className="flex min-w-0 justify-end sm:mt-1">
                                         <CallPill call={t.call} />
                                     </div>

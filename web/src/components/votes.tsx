@@ -9,7 +9,7 @@ import {Jump} from '@/components/links'
 import Pager from '@/components/Pager'
 import {FilterChip} from '@/components/pills'
 import {Card} from '@/components/ui/card'
-import {fmtCompact, fmtCount, fmtInt} from '@/lib/format'
+import {fmtApprox, fmtCount, fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
 
@@ -78,11 +78,11 @@ function Detail({v, decimals, symbol}: {v: VoteEntry; decimals: number; symbol: 
                 meta: {align: 'right', className: 'py-2', cellClassName: LEAD},
                 cell: ({row}) => (
                     <>
-                        {fmtCompact(row.original.capital, decimals)} {symbol} <span className="text-dim">{row.original.conviction}</span>
+                        {fmtApprox(row.original.capital, decimals, symbol)} <span className="text-dim">{row.original.conviction}</span>
                     </>
                 ),
             }),
-            dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: AUX}, cell: ({row}) => `${fmtCompact(row.original.votes, decimals)} ${symbol}`}),
+            dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: AUX}, cell: ({row}) => fmtApprox(row.original.votes, decimals, symbol)}),
         ],
         [decimals, symbol]
     )
@@ -92,17 +92,17 @@ function Detail({v, decimals, symbol}: {v: VoteEntry; decimals: number; symbol: 
                 <div>
                     <h3 className="text-[13px] font-semibold">Self votes</h3>
                     <div className="mt-1 text-sm">
-                        <Stat label="Votes" value={`${fmtCompact(v.selfVotes, decimals)} ${symbol}`} />
+                        <Stat label="Votes" value={fmtApprox(v.selfVotes, decimals, symbol)} />
                         <Stat label="Conviction" value={v.conviction} />
-                        <Stat label="Capital" value={`${fmtCompact(v.capital, decimals)} ${symbol}`} />
+                        <Stat label="Capital" value={fmtApprox(v.capital, decimals, symbol)} />
                     </div>
                 </div>
                 <div>
                     <h3 className="text-[13px] font-semibold">Delegated votes</h3>
                     <div className="mt-1 text-sm">
-                        <Stat label="Votes" value={`${fmtCompact(v.delegatedVotes, decimals)} ${symbol}`} />
+                        <Stat label="Votes" value={fmtApprox(v.delegatedVotes, decimals, symbol)} />
                         <Stat label="Delegators" value={fmtInt(v.delegatorCount)} />
-                        <Stat label="Capital" value={`${fmtCompact(v.delegatedCapital, decimals)} ${symbol}`} />
+                        <Stat label="Capital" value={fmtApprox(v.delegatedCapital, decimals, symbol)} />
                     </div>
                 </div>
             </div>
@@ -133,11 +133,11 @@ function StandardTable({rows, decimals, symbol, empty}: {rows: VoteEntry[]; deci
                 meta: {align: 'right', cellClassName: LEAD},
                 cell: ({row}) => (
                     <>
-                        {fmtCompact(row.original.capital, decimals)} {symbol} <span className="text-dim">{row.original.conviction}</span>
+                        {fmtApprox(row.original.capital, decimals, symbol)} <span className="text-dim">{row.original.conviction}</span>
                     </>
                 ),
             }),
-            col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: AUX}, cell: ({row}) => `${fmtCompact(row.original.selfVotes, decimals)} ${symbol}`}),
+            col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: AUX}, cell: ({row}) => fmtApprox(row.original.selfVotes, decimals, symbol)}),
             col.display({
                 id: 'delegated',
                 header: 'Delegated',
@@ -145,7 +145,7 @@ function StandardTable({rows, decimals, symbol, empty}: {rows: VoteEntry[]; deci
                 cell: ({row}) =>
                     row.original.delegatorCount > 0 ? (
                         <>
-                            {fmtCompact(row.original.delegatedVotes, decimals)} {symbol} <span className="text-dim">({fmtInt(row.original.delegatorCount)})</span>
+                            {fmtApprox(row.original.delegatedVotes, decimals, symbol)} <span className="text-dim">({fmtInt(row.original.delegatorCount)})</span>
                         </>
                     ) : (
                         NONE
@@ -169,7 +169,7 @@ function SplitTable({labels, rows, decimals, symbol, empty}: {labels: string[]; 
                     id: label,
                     header: label,
                     meta: {align: 'right', cellClassName: i === 0 ? LEAD : AUX},
-                    cell: ({row}) => `${fmtCompact(row.original.amounts[i], decimals)} ${symbol}`,
+                    cell: ({row}) => fmtApprox(row.original.amounts[i], decimals, symbol),
                 })
             ),
         ],

@@ -189,8 +189,8 @@ const tenBillions = DAILY.map(d => ({...d, issuanceTotal: String(BigInt(d.issuan
 const justUnderTenBillion = [...tenBillions.slice(0, -1), {...tenBillions.at(-1)!, issuanceTotal: '9999999999999999999999999999'}]
 
 export const IssuancePastFloat = checked(chart('issuance', justUnderTenBillion), async ({canvas, canvasElement}) => {
-    await expect(canvas.getByText(/^The latest value of Total Issuance is 9,999,999,999 NUMN\./)).toBeInTheDocument()
-    expect(lastTooltipLines(canvasElement)[0]).toContain('9,999,999,999 NUMN')
+    await expect(canvas.getByText(/^The latest value of Total Issuance is ≈9\.99B NUMN\./)).toBeInTheDocument()
+    expect(lastTooltipLines(canvasElement)[0]).toContain('≈9.99B NUMN')
 })
 
 // the newest day's fees are exactly a tenth over the day before's, down to a
@@ -198,7 +198,15 @@ export const IssuancePastFloat = checked(chart('issuance', justUnderTenBillion),
 const feesUpATenth = [...DAILY.slice(0, -2), {...DAILY.at(-2)!, fees: '3000001000000000000'}, {...DAILY.at(-1)!, fees: '3300001100000000000'}]
 
 export const FeesChangeEdge = checked(chart('fees', feesUpATenth), async ({canvas}) => {
-    await expect(canvas.getByText('The latest value of Transaction Fees is 3.30 NUMN. Compared with the day before it is up by 10.00%.')).toBeInTheDocument()
+    await expect(canvas.getByText('The latest value of Transaction Fees is ≈3.3 NUMN. Compared with the day before it is up by 10.00%.')).toBeInTheDocument()
+})
+
+// the newest day's pot cut short and the day before's whole
+const potUp = [...DAILY.slice(0, -2), {...DAILY.at(-2)!, treasuryPot: numn(21_000_000)}, {...DAILY.at(-1)!, treasuryPot: numn(52_513_000)}]
+
+export const TreasuryShortForm = checked(chart('treasury', potUp), async ({canvas, canvasElement}) => {
+    await expect(canvas.getByText('The latest value of Treasury Pot is ≈52.51M NUMN. Compared with the day before it is up by 150.06%.')).toBeInTheDocument()
+    expect(lastTooltipLines(canvasElement)[0]).toContain('≈52.51M NUMN')
 })
 
 // the newest day's blocks came 10.1s apart and the day before's exactly 10s

@@ -67,6 +67,26 @@ export const ExtremeNumbers: StoryObj = {
     },
 }
 
+// the mainnet DEX LP token, its whole supply a few billion of its smallest unit
+const nlp: TokenRow = {
+    id: '0xacc96782e7336a38d066687f2bb6247fe854adad',
+    name: 'Numen DEX LP',
+    symbol: 'NLP',
+    decimals: 18,
+    totalSupply: '3162277660',
+    holderCount: 2,
+    transferCount: 2,
+    deployBlock: null,
+    firstBlock: 109_457,
+}
+
+export const DustSupply: StoryObj = {
+    ...tokenPage(nlp, {
+        holders: [holder(nlp, '0x0db8300836bd652c361c4158a8e69167cf33571f', '3162276660'), holder(nlp, '0x0000000000000000000000000000000000000001', '1000')],
+    }),
+    play: async ({canvas}) => expect(canvas.getByText('Total supply').closest('[data-slot=card]')!.querySelector('[data-slot=card-title]')).toHaveTextContent('≈0 NLP'),
+}
+
 export const TransfersMany = tokenPage(WTMR, {transfers: rows(20, (h: number, i: number) => tokenTransfer(WTMR, h, i))}, TRANSFERS_TAB)
 
 // the oldest transfers sit on the last page and end with the mint at the token's first block

@@ -26,7 +26,7 @@ export const Linked: Story = {args: {label: 'Signed extrinsics', value: '89,062'
 
 export const RisingChips: Story = {args: {label: 'Transfers', value: '30,411', href: '/charts/transfers-total', chips: chips(['+401', '24h', 'pos'], ['+11.4K', '30d', 'pos'])}}
 
-export const FallingChips: Story = {args: {label: 'Treasury pot', value: '549.926M NUMN', href: '/charts/treasury', chips: chips(['−528', '24h', 'neg'], ['−70K', '30d', 'neg'])}}
+export const FallingChips: Story = {args: {label: 'Treasury pot', value: '≈549.92M NUMN', href: '/charts/treasury', chips: chips(['≈−528.4', '24h', 'neg'], ['−70K', '30d', 'neg'])}}
 
 export const MixedPercentChips: Story = {args: {label: 'Difficulty', value: '5.11B', href: '/charts/difficulty', chips: chips(['−0.21%', '24h', 'neg'], ['+5.83%', '30d', 'pos'])}}
 
@@ -38,7 +38,7 @@ export const ZeroValue: Story = {args: {label: 'EVM txs', value: '0', href: '/ch
 
 export const NoValue: Story = {args: {label: 'Difficulty', value: '—', href: '/charts/difficulty', chips: chips(['—', '24h', 'idle'], ['—', '30d', 'idle'])}}
 
-export const LongValue: Story = {args: {label: 'Transferable issuance', value: '876,543,210,987.654 NUMN', href: '/charts/transferable-issuance', chips: chips(['+19269511.62%', '24h', 'pos'], ['−987,654,321', '30d', 'neg'])}}
+export const LongValue: Story = {args: {label: 'Transferable issuance', value: '≈340,282,366,920.93B NUMN', href: '/charts/transferable-issuance', chips: chips(['+19269511.62%', '24h', 'pos'], ['−987,654,321', '30d', 'neg'])}}
 
 export const LongValueOnPhone: Story = {
     ...LongValue,

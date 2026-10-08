@@ -302,8 +302,8 @@ export const HomeTruncationEdgesOnPhone: StoryObj = {...HomeTruncationEdges, glo
 
 // difficulty a whisker under a quintillion, one up on the day before and a
 // ninth up on the month before, where a float no longer tells neighbouring
-// integers apart, and the day's volume more millionths of a coin than a float
-// holds exactly
+// integers apart, and the day's volume a hair under ten billion coins, which a
+// float takes for ten billion
 const pastFloatDays = [
     ...DAILY.slice(0, -31),
     {...DAILY.at(-31)!, difficultyClose: '900000000000000000'},
@@ -319,7 +319,7 @@ export const HomePastFloat: StoryObj = {
         await expect(tile.querySelector('[data-slot=card-title]')).toHaveTextContent('999,999,999B')
         await expect([...tile.querySelectorAll('[data-slot=card-content] > span')].map(chip => chip.textContent)).toEqual(['+<0.01% · 24h', '+11.11% · 30d'])
         await waitFor(() => expectLegibleAxes(canvasElement))
-        expect(lastTooltipLines(canvasElement)[0].join('')).toContain('Volume (NUMN)9,999,999,999.999999')
+        expect(lastTooltipLines(canvasElement)[0].join('')).toContain('Volume (NUMN)≈9.99B')
     },
 }
 
