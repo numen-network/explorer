@@ -1,10 +1,10 @@
 import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
-import {expect, screen} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {MAX_U128, PLANCK, PRIME_KEY, TREASURY} from '../../../../mock/fixtures/accounts.js'
 import {acct, chainInfo, HEAD, identity, issuance, numn, PEOPLE} from '../../../../mock/fixtures.js'
-import {expectAddressForm, expectFits} from '../../../.storybook/fit'
+import {columnTexts, expectAddressForm, expectFits} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import AccountsPage from './page'
 
@@ -61,28 +61,24 @@ export const Many: StoryObj = {
         TIERS.map(([who, balance], i) => row(who, balance, i)),
         {total: 1_284, since: 0}
     ),
-    play: async ({canvasElement}) => {
+    play: async ({canvas, canvasElement}) => {
         const [cards, table] = canvasElement.querySelectorAll('[data-slot=card]')
         expectFits(cards, table)
         expectAddressForm(cards)
         expectAddressForm(table)
+        const named = (name: string) => canvas.getByText(name).closest('tr')!
+        expect(holding(canvasElement, named('Polaris Guild'))).toEqual(['2.4M NUMN', '0.39%'])
+        expect(holding(canvasElement, named('Nova Fund'))).toEqual(['≈12.34K NUMN', '<0.01%'])
+        expect(holding(canvasElement, named('Dust Collector'))).toEqual(['2.75 NUMN', '<0.01%'])
+        expect(holding(canvasElement, canvas.getAllByRole('row').at(-1)!)).toEqual(['0 NUMN', '0.00%'])
     },
 }
 
-// what the share tip of the named account reads once its balance is hovered
-const shareTip =
-    (name: string, share: string): StoryObj['play'] =>
-    async ({canvas, userEvent}) => {
-        const row = canvas.getByText(name).closest('tr')!
-        await userEvent.hover(row.querySelector('td:nth-child(2) [data-slot=tooltip-trigger]')!)
-        await expect(await screen.findByRole('tooltip')).toHaveTextContent(`${share} of issuance`)
-    }
-
-// a share under a hundredth of a percent reads to six decimals
-export const SmallShareHovered: StoryObj = {...Many, play: shareTip('Spamlord', '0.006804%')}
-
-// a balance too thin for the sixth decimal still reads as a share of issuance
-export const DustShareHovered: StoryObj = {...Many, play: shareTip('Dust Collector', '<0.000001%')}
+// the balance and share a row reads, its tier mark left out
+function holding(root: HTMLElement, row: HTMLElement) {
+    const at = within(root).getAllByRole('row').indexOf(row) - 1
+    return [columnTexts(root, 'Balance')[at]!.replace(/^\p{Extended_Pictographic}/u, ''), columnTexts(root, 'Share')[at]]
+}
 
 export const ExtremeNumbers: StoryObj = {
     ...list([

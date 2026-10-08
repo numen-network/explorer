@@ -2,12 +2,11 @@
 
 import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
-import Balance from '@/components/Balance'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
-import {Tip} from '@/components/Tip'
+import ShareBar from '@/components/ShareBar'
 import type {ChainProps} from '@/lib/chain'
-import {fmtInt, fmtPct, pctToNum} from '@/lib/format'
+import {fmtApprox, fmtInt, pctToNum} from '@/lib/format'
 import type {AccountListRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -22,9 +21,6 @@ const TIERS: [min: number, emoji: string][] = [
 
 const tier = (pct: number) => TIERS.find(([min]) => pct >= min)?.[1] ?? ''
 
-// a share under a hundredth of a percent keeps six decimals, so the smaller tiers still read apart
-const shareDigits = (pct: number) => (pct >= 0.01 ? 2 : 6)
-
 const col = columnsFor<AccountListRow>()
 
 export function AccountsTable({rows, chain, issuance}: {rows: AccountListRow[]; chain: ChainProps; issuance: string}) {
@@ -38,18 +34,16 @@ export function AccountsTable({rows, chain, issuance}: {rows: AccountListRow[]; 
                 meta: {align: 'right', cellClassName: 'font-mono'},
                 cell: ({row}) => {
                     const held = BigInt(row.original.balance)
-                    const pct = pctToNum(held, total)
-                    const mark = held > 0n ? tier(pct) : ''
+                    const mark = held > 0n ? tier(pctToNum(held, total)) : ''
                     return (
-                        <Tip text={held > 0n ? `${fmtPct(held, total, shareDigits(pct))} of issuance` : undefined}>
-                            <span>
-                                {mark && <span className="mr-1.5">{mark}</span>}
-                                <Balance planck={held} chain={chain} />
-                            </span>
-                        </Tip>
+                        <>
+                            {mark && <span className="mr-1.5">{mark}</span>}
+                            {fmtApprox(held, chain.decimals, chain.symbol)}
+                        </>
                     )
                 },
             }),
+            col.display({id: 'share', header: 'Share', meta: {align: 'right'}, cell: ({row}) => <ShareBar part={row.original.balance} whole={issuance} />}),
             col.display({id: 'extrinsics', header: 'Extrinsics', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.nonce)}),
             col.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.firstSeenBlock} />}),
             col.display({id: 'last', header: 'Last active', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.lastActiveBlock} />}),
