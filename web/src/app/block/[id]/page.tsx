@@ -140,7 +140,16 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                         <DetailRow label="Fees to treasury">{fmtBalance(block.treasuryFees, chain.decimals, chain.symbol)}</DetailRow>
                     )}
                     <DetailRow label="Difficulty">{fmtInt(block.difficulty)}</DetailRow>
-                    <DetailRow label="Nonce">{block.nonce ?? '—'}</DetailRow>
+                    <DetailRow label="Nonce">
+                        {block.nonce ? (
+                            <>
+                                {block.nonce}
+                                <CopyBtn text={block.nonce} />
+                            </>
+                        ) : (
+                            '—'
+                        )}
+                    </DetailRow>
                     <DetailRow label="Work hash">
                         {block.workHash ? (
                             <>
