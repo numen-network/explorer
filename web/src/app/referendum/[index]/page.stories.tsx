@@ -4,11 +4,12 @@ import data, {referenda} from '../../../../../mock/data.js'
 import {at, HEAD, numn, paged, PEOPLE} from '../../../../../mock/fixtures.js'
 import {
     accounts,
+    actionLog,
     anon,
     castFromSnapshots,
     castVotes,
+    CHAIN,
     delegation,
-    delegationAction,
     delegationData,
     eventsById,
     metadataAction,
@@ -20,10 +21,12 @@ import {
     standard,
     step,
     stepEvents,
-    voteAction,
     voteData,
+    votingAction,
+    withImpact,
 } from '../../../../../mock/fixtures/governance.js'
 import type {RawStep} from '@/components/timeline'
+import {ss58Encode} from '@/lib/ss58'
 import {expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, expectWholeWords, LAPTOP, lastTooltipLines, PHONE} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
@@ -456,47 +459,132 @@ const carolVote = split(carol, numn(100_000), numn(50_000))
 const daveVote = splitAbstain(dave, numn(20_000), numn(20_000), numn(200_000))
 const erinVote = standard(erin, true, 'None', numn(500_000))
 
+const everySnapshots = snapshots([
+    [952_000, 800_000, 0, 400_000],
+    [954_000, 800_000, 300_000, 400_000],
+    [956_000, 812_000, 307_000, 720_000],
+    [960_000, 1_262_000, 307_000, 870_000],
+    [962_000, 1_312_000, 307_000, 1_370_000],
+    [964_000, 1_262_000, 307_000, 870_000],
+    [966_000, 812_000, 307_000, 720_000],
+    [967_000, 1_112_000, 307_000, 770_000],
+    [968_000, 1_112_000, 307_000, 770_000],
+    [970_000, 1_112_000, 1_207_000, 770_000],
+])
+
+// a delegation row carries the standing vote of the target it moves, the two
+// votes in block 956,000 share that block's move on the later one
+const everyRow = (block: number, index: number, method: string, vote: object, extra: object = {}) => votingAction(12, block, index, method, vote, extra)
+const everyRows = withImpact(
+    [
+        everyRow(970_000, 3, 'Voted', bobNow),
+        everyRow(968_000, 3, 'Voted', aliceVote, {delegatedVotes: numn(300_000)}),
+        everyRow(967_000, 3, 'Delegated', aliceVote, {delegator: grace, delegatedVotes: numn(300_000)}),
+        everyRow(966_000, 3, 'Undelegated', aliceVote, {delegator: frank}),
+        everyRow(964_000, 3, 'VoteRemoved', erinVote),
+        everyRow(962_000, 3, 'Voted', erinVote),
+        everyRow(960_000, 3, 'Delegated', aliceVote, {delegator: frank, delegatedVotes: numn(450_000)}),
+        everyRow(956_000, 4, 'Voted', daveVote),
+        everyRow(956_000, 3, 'Voted', carolVote),
+        everyRow(954_000, 3, 'Voted', bobFirst),
+        everyRow(952_000, 3, 'Voted', aliceVote),
+    ],
+    everySnapshots
+)
+
 const everyAction = {
     referendum: {
         ...deciding(12, 'Every kind of voting action, from split votes to delegations'),
         ayes: numn(1_112_000),
         nays: numn(1_207_000),
         support: numn(770_000),
-        snapshots: snapshots([
-            [952_000, 800_000, 0, 400_000],
-            [954_000, 800_000, 300_000, 400_000],
-            [956_000, 812_000, 307_000, 720_000],
-            [960_000, 1_262_000, 307_000, 870_000],
-            [962_000, 1_312_000, 307_000, 1_370_000],
-            [964_000, 1_262_000, 307_000, 870_000],
-            [966_000, 812_000, 307_000, 720_000],
-            [967_000, 1_112_000, 307_000, 770_000],
-            [968_000, 1_112_000, 307_000, 770_000],
-            [970_000, 1_112_000, 1_207_000, 770_000],
-        ]),
+        snapshots: everySnapshots,
     },
     data: {
         ...voteData(12, [aliceVote, bobNow, carolVote, daveVote]),
-        voteActions: [
-            voteAction(970_000, 3, 'Voted', bobNow),
-            voteAction(968_000, 3, 'Voted', aliceVote, numn(300_000)),
-            voteAction(964_000, 3, 'VoteRemoved', erinVote),
-            voteAction(962_000, 3, 'Voted', erinVote),
-            voteAction(956_000, 4, 'Voted', daveVote),
-            voteAction(956_000, 3, 'Voted', carolVote),
-            voteAction(954_000, 3, 'Voted', bobFirst),
-            voteAction(952_000, 3, 'Voted', aliceVote),
-        ],
-        delegationActions: [
-            delegationAction(967_000, 3, 'Delegated', grace, alice, 'Locked6x', numn(50_000), numn(300_000)),
-            delegationAction(966_000, 3, 'Undelegated', frank, alice, 'Locked3x', numn(150_000), '0'),
-            delegationAction(960_000, 3, 'Delegated', frank, alice, 'Locked3x', numn(150_000), numn(450_000)),
-        ],
+        ...actionLog(everyRows),
         ...delegationData([delegation(grace, alice, 'Locked6x', numn(50_000), '32')]),
     },
 }
 
-export const ActionsEveryKind = story(everyAction.referendum, 'curves', everyAction.data)
+// the action list as the page shows it, its heading, pickers, search text and rows
+const actionList = async (root: HTMLElement) => {
+    const heading = await within(root).findByRole('heading', {name: /^Actions/})
+    const card = heading.closest<HTMLElement>('[data-slot=card]')!
+    return {
+        heading: heading.textContent,
+        rows: [...card.querySelectorAll<HTMLElement>('tbody tr')],
+        pickers: [...card.querySelectorAll('[data-slot=select-trigger]')].map(b => b.textContent),
+        search: card.querySelector('input')!.value,
+    }
+}
+
+const cellsOf = (row: HTMLElement) => [...row.children].map(c => c.textContent)
+
+// a delegation row reads its delegator under the action and the target's own
+// votes beside the delegated weight, a block's move sits on its latest row only
+export const ActionsEveryKind = withPlay(story(everyAction.referendum, 'curves', everyAction.data), async ({canvasElement}) => {
+    const {heading, rows} = await actionList(canvasElement)
+    await expect(heading).toBe('Actions (11)')
+    const [action, amount, impact] = [3, 4, 5].map(i => rows.map(row => cellsOf(row)[i]))
+    await expect(action[2]).toContain('Delegated by')
+    await expect(action[3]).toContain('Undelegated by')
+    await expect(amount[2]).toMatch(/\+ .* delegated$/)
+    await expect(amount[3]).not.toContain('delegated')
+    await expect(impact.map(i => i === '—')).toEqual([false, false, false, false, false, false, false, false, true, false, false])
+})
+
+export const ActionsEmpty = withPlay(curatedCase(7), async ({canvasElement}) => {
+    const {heading, rows} = await actionList(canvasElement)
+    await expect(heading).toBe('Actions (0)')
+    await expect(cellsOf(rows[0])).toEqual(['No actions.'])
+})
+
+export const ActionsOne = withPlay(cast(single, singleVote, 'curves'), async ({canvasElement}) => {
+    const {heading, rows} = await actionList(canvasElement)
+    await expect(heading).toBe('Actions (1)')
+    await expect(cellsOf(rows[0])[5]).not.toBe('—')
+})
+
+type EveryRow = (typeof everyRows)[number]
+
+// the every kind referendum as the server answers a filtered query, the
+// controls read the filters back from the url
+const filtered = (query: Record<string, string>, keep: (row: EveryRow) => boolean, pickers: string[]) => {
+    const rows = everyRows.filter(keep)
+    return withPlay(story(everyAction.referendum, 'curves', {...everyAction.data, ...actionLog(rows)}, [], query), async ({canvasElement}) => {
+        const list = await actionList(canvasElement)
+        await expect(list.heading).toBe(`Actions (${rows.length})`)
+        await expect(list.pickers).toEqual(pickers)
+        await expect(list.search).toBe(query.q ?? '')
+        await expect(list.rows.map(row => cellsOf(row).length === 1 ? cellsOf(row)[0] : 'row')).toEqual(rows.length > 0 ? rows.map(() => 'row') : ['No matching actions.'])
+    })
+}
+
+const moved = (field: 'approvalPart' | 'supportPart', up: boolean) => (row: EveryRow) => row[field] != null && (up ? BigInt(row[field]) > 0n : BigInt(row[field]) < 0n)
+const names = (who: {id: string}) => (row: EveryRow) => row.voter.id === who.id || row.delegator?.id === who.id
+
+export const ActionsVotes = filtered({action: 'vote'}, row => row.method === 'Voted', ['Vote', 'All impact'])
+
+export const ActionsRemovedVotes = filtered({action: 'remove'}, row => row.method === 'VoteRemoved', ['Remove vote', 'All impact'])
+
+export const ActionsDelegations = filtered({action: 'delegate'}, row => row.method === 'Delegated', ['Delegate', 'All impact'])
+
+export const ActionsUndelegations = filtered({action: 'undelegate'}, row => row.method === 'Undelegated', ['Undelegate', 'All impact'])
+
+export const ActionsApprovalUp = filtered({impact: 'approval-up'}, moved('approvalPart', true), ['All actions', 'Approval up'])
+
+export const ActionsApprovalDown = filtered({impact: 'approval-down'}, moved('approvalPart', false), ['All actions', 'Approval down'])
+
+export const ActionsSupportUp = filtered({impact: 'support-up'}, moved('supportPart', true), ['All actions', 'Support up'])
+
+export const ActionsSupportDown = filtered({impact: 'support-down'}, moved('supportPart', false), ['All actions', 'Support down'])
+
+export const ActionsSearchName = filtered({q: 'Polaris'}, names(alice), ['All actions', 'All impact'])
+
+export const ActionsSearchAddress = filtered({q: ss58Encode(grace.id, CHAIN.ss58)}, names(grace), ['All actions', 'All impact'])
+
+export const ActionsNoMatch = filtered({action: 'undelegate', impact: 'support-up'}, () => false, ['Undelegate', 'Support up'])
 
 export const VotesEveryKind = story(everyAction.referendum, 'votes', everyAction.data)
 
@@ -555,7 +643,18 @@ export const VotesAbstainPage2 = manyAt('abstain', '2')
 
 export const VotesAbstainLastPage = manyAt('abstain', lastPage(listSize('SplitAbstain')))
 
-export const ActionsMany = cast(many, manyVotes, 'curves')
+const manyActions = (page: string) =>
+    withPlay(cast(many, manyVotes, 'curves', {}, [], {page}), async ({canvasElement}) => {
+        const {heading, rows} = await actionList(canvasElement)
+        await expect(heading).toBe(`Actions (${manyVotes.length})`)
+        await expect(rows.length).toBe(Math.min(20, manyVotes.length - (Number(page) - 1) * 20))
+    })
+
+export const ActionsMany = manyActions('1')
+
+export const ActionsPage2 = manyActions('2')
+
+export const ActionsLastPage = manyActions(lastPage(manyVotes.length))
 
 const anons = (from: number, count: number) => Array.from({length: count}, (_, i) => anon(from + i))
 

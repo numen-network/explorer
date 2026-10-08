@@ -7,7 +7,6 @@ import {
     ChildBounty,
     DailyStat,
     Delegation,
-    DelegationAction,
     Event,
     EvmLog,
     EvmTransaction,
@@ -30,7 +29,7 @@ import {
     TreasurySpend,
     Validator,
     Vote,
-    VoteAction,
+    VotingAction,
 } from './model'
 import {DecodedErc20Transfer} from './evm'
 import {MsigEvent} from './multisig'
@@ -91,8 +90,7 @@ export class BatchData {
     govEvents: GovEvent[] = []
     referenda = new Map<number, Referendum>()
     votes = new Map<string, Vote>()
-    voteActions: VoteAction[] = []
-    delegationActions: DelegationAction[] = []
+    votingActions: VotingAction[] = []
     metadataActions: MetadataAction[] = []
     tallySnapshots = new Map<string, ReferendumTallySnapshot>()
     spends = new Map<string, TreasurySpend>()

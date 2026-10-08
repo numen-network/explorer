@@ -10,19 +10,18 @@ import AccountLink from '@/components/AccountLink'
 import {BlockLink} from '@/components/links'
 import {Gauge, ProposalTree, ReferendumByline} from '@/components/referenda'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
-import ActionList, {type ActionImpact, type ActionRow} from '@/components/actions'
 import {Badge} from '@/components/ui/badge'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
 import {chainHeads, chainProps} from '@/lib/chain'
-import {decisionOf, votesOf} from '@/lib/conviction'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtCompact, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
-import {accountRefs, delegationActionsFor, eventsByIds, referendumDetail, tallySnapshots, type TallySnapshotRow, type TimelineEventRow} from '@/lib/gql'
+import {accountRefs, eventsByIds, referendumDetail, tallySnapshots, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
+import {actionsPanel} from './actions'
 import {votesPanel} from './votes'
 
 export const dynamic = 'force-dynamic'
@@ -123,12 +122,12 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const payees = nodes.map(node => node.beneficiary)
     const partyIds = [...new Set([...payees, r.proposalBeneficiary, r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
-    const [refs, dacts, evs, textEvs, votes] = await Promise.all([
+    const [refs, evs, textEvs, votes, actions] = await Promise.all([
         accountRefs(partyIds),
-        delegationActionsFor(r.track.id, r.submittedAt, r.endedAt),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.metadataActions.map(a => a.id)),
         tab === 'votes' ? votesPanel({index: r.index, track: r.track.id, counts, at: String(sp.group ?? ''), pg, chain}) : null,
+        tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
     ])
     const stepOf = new Map(trail.map(s => [s.event, s]))
     const rank = (e: TimelineEventRow) => EXTRINSIC_ORDER.indexOf(stepOf.get(e.id)!.name)
@@ -144,70 +143,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const evWhos = evs.events.map(e => (e.args as {who?: unknown} | null)?.who).filter((w): w is string => typeof w === 'string')
     const party = new Map(refs.accounts.map(a => [a.id, a]))
 
-    // a delegation change only moves the tally while its target holds a
-    // standard vote, the inert rest ride inside the target's next vote row
-    const voteLog = new Map<string, typeof data.voteActions>()
-    for (const a of [...data.voteActions].reverse()) voteLog.set(a.voter.id, [...(voteLog.get(a.voter.id) ?? []), a])
-    const standingVoteAt = (target: string, block: number, id: string) => {
-        let last
-        for (const a of voteLog.get(target) ?? []) {
-            if (a.block > block || (a.block === block && a.id >= id)) break
-            last = a
-        }
-        return last?.method === 'Voted' && last.kind === 'Standard' ? last : undefined
-    }
-    const dactRows = dacts.delegationActions.flatMap(a => {
-        const vote = standingVoteAt(a.target.id, a.block, a.id)
-        return vote ? [{a, vote}] : []
-    })
-
     const whoRefsRes = await accountRefs([...new Set(evWhos)])
     const whoRefs = new Map(whoRefsRes.accounts.map(a => [a.id, a]))
-
-    const actions: ActionRow[] = [
-        ...data.voteActions.map(a => ({
-            id: a.id,
-            block: a.block,
-            iso: a.timestamp,
-            actor: {addr: ss58Encode(a.voter.id, chain.ss58), acc: a.voter},
-            amount: String(votesOf(a) + BigInt(a.delegatedVotes)),
-            own: String(votesOf(a)),
-            delegated: a.delegatedVotes,
-            kind: (a.method === 'Voted' ? 'vote' : 'remove') as 'vote' | 'remove',
-            decision: decisionOf(a),
-        })),
-        ...dactRows.map(({a, vote}) => ({
-            id: a.id,
-            block: a.block,
-            iso: a.timestamp,
-            actor: {addr: ss58Encode(a.target.id, chain.ss58), acc: a.target},
-            amount: String(votesOf(vote) + BigInt(a.delegatedVotes)),
-            own: String(votesOf(vote)),
-            delegated: a.delegatedVotes,
-            kind: (a.method === 'Delegated' ? 'delegate' : 'undelegate') as 'delegate' | 'undelegate',
-            by: {addr: ss58Encode(a.who.id, chain.ss58), acc: a.who},
-        })),
-    ].sort((x, y) => y.block - x.block || y.id.localeCompare(x.id))
-
-    // tally snapshots record end of block state, so a block's whole move
-    // lands on its latest action row
-    const impactByBlock = new Map<number, ActionImpact>()
-    let prev: TallySnapshotRow | undefined
-    for (const s of snapshots) {
-        const [a1, n1] = approvalOf(s)
-        const [a0, n0] = prev ? approvalOf(prev) : [0n, 1n]
-        impactByBlock.set(s.block, {
-            approval: [a1 * n0 - a0 * n1, n1 * n0],
-            support: [BigInt(s.support) - BigInt(prev?.support ?? 0), BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance)],
-        })
-        prev = s
-    }
-    const seen = new Set<number>()
-    for (const a of actions) {
-        if (seen.has(a.block)) continue
-        seen.add(a.block)
-        a.impact = impactByBlock.get(a.block)
-    }
 
     const latest = data.dailyStats[0]
     const activePlanck = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
@@ -362,7 +299,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     lead={lead}
                 />
             </Card>
-            <ActionList rows={actions} decimals={chain.decimals} symbol={chain.symbol} />
+            {actions}
         </div>
     )
 

@@ -1,15 +1,19 @@
 'use client'
-import {useMemo, useState} from 'react'
+import {useMemo} from 'react'
+import {debounce, parseAsInteger, useQueryStates} from 'nuqs'
 import {Search} from 'lucide-react'
 import AccountLink from '@/components/AccountLink'
 import {columnsFor, DataTable} from '@/components/DataTable'
+import Pager from '@/components/Pager'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {actionFilters, type ActionKind, type ActionMove} from '@/lib/actionFilters'
 import {fmtApprox, fmtInt, fmtPct, sentenceCase, signOf} from '@/lib/format'
-import {identityLabel, type IdentityRef} from '@/lib/identity'
+import type {IdentityRef} from '@/lib/identity'
+import type {Paging} from '@/lib/paging'
 import {NONE} from '@/components/Detail'
 
 export interface ActionActor {
@@ -30,7 +34,7 @@ const TONE: Record<string, string> = {aye: 'text-good', nay: 'text-destructive'}
 
 // radix reserves the empty item value for its placeholder, the catch-all
 // entries carry their own sentinels instead
-const KINDS = [
+const KINDS: {value: ActionKind | 'all'; label: string}[] = [
     {value: 'all', label: 'All actions'},
     {value: 'vote', label: 'Vote'},
     {value: 'remove', label: 'Remove vote'},
@@ -38,7 +42,7 @@ const KINDS = [
     {value: 'undelegate', label: 'Undelegate'},
 ]
 
-const MOVES = [
+const MOVES: {value: ActionMove | 'any'; label: string}[] = [
     {value: 'any', label: 'All impact'},
     {value: 'approval-up', label: 'Approval up'},
     {value: 'approval-down', label: 'Approval down'},
@@ -77,9 +81,9 @@ function Delta({label, value: [part, whole]}: {label: string; value: [part: bigi
     )
 }
 
-function Picker({value, options, onChange}: {value: string; options: {value: string; label: string}[]; onChange: (v: string) => void}) {
+function Picker<V extends string>({value, options, onChange}: {value: V; options: {value: V; label: string}[]; onChange: (v: V) => void}) {
     return (
-        <Select value={value} onValueChange={onChange}>
+        <Select value={value} onValueChange={v => onChange(v as V)}>
             <SelectTrigger className="w-[150px] grow gap-2 bg-card py-1.5 pr-2.5 pl-3 hover:bg-background data-[size=default]:h-auto sm:grow-0 [&_svg]:size-3.5">
                 <SelectValue>{options.find(o => o.value === value)?.label}</SelectValue>
             </SelectTrigger>
@@ -94,26 +98,29 @@ function Picker({value, options, onChange}: {value: string; options: {value: str
     )
 }
 
-const moveHit = (i: ActionImpact | undefined, move: string) => {
-    if (i == null) return false
-    const [part] = move.startsWith('approval') ? i.approval : i.support
-    return move.endsWith('up') ? part > 0n : part < 0n
-}
+// a search goes out once typing pauses this long, a cleared box at once
+const PAUSE = debounce(300)
 
-const hay = (a: ActionRow) => {
-    const names = (x: ActionActor) => [x.addr, identityLabel(x.acc) ?? '']
-    const parts = a.kind === 'delegate' || a.kind === 'undelegate' ? [...names(a.actor), ...names(a.by)] : names(a.actor)
-    return parts.join(' ').toLowerCase()
-}
+// the pager's keys ride along so that a new filter starts over at the first
+// page of the default size
+const URL_KEYS = {...actionFilters, page: parseAsInteger, size: parseAsInteger}
+const FIRST_PAGE = {page: null, size: null}
 
 const col = columnsFor<ActionRow>()
 
-export default function ActionList({rows, decimals, symbol}: {rows: ActionRow[]; decimals: number; symbol: string}) {
-    const [query, setQuery] = useState('')
-    const [kind, setKind] = useState('all')
-    const [move, setMove] = useState('any')
-    const needle = query.trim().toLowerCase()
-    const shown = rows.filter(a => (kind === 'all' || a.kind === kind) && (move === 'any' || moveHit(a.impact, move)) && (needle === '' || hay(a).includes(needle)))
+interface Props {
+    rows: ActionRow[]
+    total: number
+    filtered: boolean
+    paging: Paging
+    href: string
+    decimals: number
+    symbol: string
+}
+
+// the filters live in the url, each change asks the server for the rows again
+export default function ActionList({rows, total, filtered, paging, href, decimals, symbol}: Props) {
+    const [{q, action, impact}, setFilters] = useQueryStates(URL_KEYS, {shallow: false, history: 'push', scroll: false})
     const columns = useMemo(
         () => [
             col.display({id: 'block', header: 'Block', cell: ({row}) => <BlockLink height={row.original.block} />}),
@@ -153,27 +160,35 @@ export default function ActionList({rows, decimals, symbol}: {rows: ActionRow[];
         [decimals, symbol]
     )
     return (
-        <Card size="flush">
-            <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
-                <h2 className="text-[15px] font-semibold">
-                    Actions <span className="font-normal text-dim">({fmtInt(shown.length)})</span>
-                </h2>
-                <div className="flex w-full flex-wrap items-center gap-2 text-sm sm:w-auto">
-                    <InputGroup className="h-auto w-full bg-card sm:w-90">
-                        <InputGroupAddon className="pr-[3px] pl-3">
-                            <Search className="size-[15px] text-dim" />
-                        </InputGroupAddon>
-                        <InputGroupInput value={query} onChange={e => setQuery(e.target.value)} placeholder="Search address or identity" spellCheck={false} className="h-auto py-1.5 pr-3 text-sm placeholder:text-dim md:text-sm" />
-                    </InputGroup>
-                    <Picker value={kind} options={KINDS} onChange={setKind} />
-                    <Picker value={move} options={MOVES} onChange={setMove} />
+        <div>
+            <Card size="flush">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-4">
+                    <h2 className="text-[15px] font-semibold">
+                        Actions <span className="font-normal text-dim">({fmtInt(total)})</span>
+                    </h2>
+                    <div className="flex w-full flex-wrap items-center gap-2 text-sm sm:w-auto">
+                        <InputGroup className="h-auto w-full bg-card sm:w-90">
+                            <InputGroupAddon className="pr-[3px] pl-3">
+                                <Search className="size-[15px] text-dim" />
+                            </InputGroupAddon>
+                            <InputGroupInput
+                                value={q}
+                                onChange={e => setFilters({q: e.target.value, ...FIRST_PAGE}, {limitUrlUpdates: e.target.value === '' ? undefined : PAUSE})}
+                                placeholder="Search address or identity"
+                                spellCheck={false}
+                                className="h-auto py-1.5 pr-3 text-sm placeholder:text-dim md:text-sm"
+                            />
+                        </InputGroup>
+                        {/* a pick takes what the box holds along at once */}
+                        <Picker value={action ?? 'all'} options={KINDS} onChange={v => setFilters({q, action: v === 'all' ? null : v, ...FIRST_PAGE})} />
+                        <Picker value={impact ?? 'any'} options={MOVES} onChange={v => setFilters({q, impact: v === 'any' ? null : v, ...FIRST_PAGE})} />
+                    </div>
                 </div>
-            </div>
-            {/* the height cap would bury the table's own x scrollbar, so the
-                wrapper keeps both axes */}
-            <div className="mt-1 max-h-120 overflow-auto">
-                <DataTable columns={columns} rows={shown} empty={rows.length === 0 ? 'No actions.' : 'No matching actions.'} getRowId={a => a.id} />
-            </div>
-        </Card>
+                <div className="mt-1">
+                    <DataTable columns={columns} rows={rows} empty={filtered ? 'No matching actions.' : 'No actions.'} getRowId={a => a.id} />
+                </div>
+            </Card>
+            <Pager paging={paging} total={total} href={href} />
+        </div>
     )
 }

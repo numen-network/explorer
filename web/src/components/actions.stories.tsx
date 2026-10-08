@@ -1,9 +1,11 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, waitFor, within} from 'storybook/test'
+import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {CHAIN} from '../../../mock/fixtures/accounts.js'
 import {at, HEAD, numn, person} from '../../../mock/fixtures.js'
 import {cardsFit, PHONE} from '../../.storybook/fit'
+import {urlUpdates} from '../../.storybook/url'
 import ActionList, {type ActionActor, type ActionRow} from './actions'
 
 const meta = {title: 'Components/ActionList'} satisfies Meta
@@ -40,10 +42,23 @@ const EVERY_KIND: ActionRow[] = [
     {...base(6, numn(2_000_000), '0'), kind: 'undelegate', by: actor(8), impact: {approval: points(-0.5), support: points(-0.02)}},
 ]
 
-const list = (rows: ActionRow[]) => <ActionList rows={rows} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />
+// one page of a list the server already filtered, total counts every match
+const list = (rows: ActionRow[], total = rows.length, filtered = false) => (
+    <ActionList rows={rows} total={total} filtered={filtered} paging={paging({})} href="/referendum/12?tab=curves" decimals={CHAIN.decimals} symbol={CHAIN.symbol} />
+)
+
+// the url the list opens on, the third page at fifty a page
+const PAGE_3 = {tab: 'curves', page: '3', size: '50'}
+
+const lastUpdate = () => urlUpdates.mock.lastCall![0]
+
+const emptyText = (root: HTMLElement) => root.querySelector('tbody td')!.textContent
 
 export const Empty: Story = {
     render: () => list([]),
+    play: async ({canvasElement}) => {
+        await expect(emptyText(canvasElement)).toBe('No actions.')
+    },
 }
 
 export const One: Story = {
@@ -73,19 +88,60 @@ export const EveryKindOnPhone: Story = {
     play: cardsFit,
 }
 
+// the first page of forty, the pager under the card
 export const Many: Story = {
     render: () =>
         list(
-            Array.from({length: 40}, (_, i) => {
+            Array.from({length: 20}, (_, i) => {
                 const row = EVERY_KIND[i % EVERY_KIND.length]
                 return {...row, ...base(i, row.own, row.delegated)}
-            })
+            }),
+            40
         ),
 }
 
+// the controls read the filters back from the url
 export const NoMatch: Story = {
+    render: () => list([], 0, true),
+    parameters: {searchParams: {q: 'nobody by this name', action: 'undelegate', impact: 'support-up'}},
+    play: async ({canvas, canvasElement}) => {
+        await expect(emptyText(canvasElement)).toBe('No matching actions.')
+        await expect(canvas.getByPlaceholderText('Search address or identity')).toHaveValue('nobody by this name')
+        await expect(canvas.getAllByRole('combobox').map(b => b.textContent)).toEqual(['Undelegate', 'Support up'])
+    },
+}
+
+// a search goes into the url once typing pauses, as a history entry of its
+// own that asks the server again and starts over at the first page
+export const SearchGoesToUrl: Story = {
     render: () => list(EVERY_KIND),
+    parameters: {searchParams: PAGE_3},
     play: async ({canvas, userEvent}) => {
-        await userEvent.type(canvas.getByPlaceholderText('Search address or identity'), 'nobody by this name')
+        await userEvent.type(canvas.getByPlaceholderText('Search address or identity'), 'Polaris')
+        await waitFor(() => expect(urlUpdates).toHaveBeenCalledTimes(1))
+        await expect(lastUpdate().queryString).toBe('?tab=curves&q=Polaris')
+        await expect(lastUpdate().options).toMatchObject({history: 'push', shallow: false, scroll: false})
+    },
+}
+
+// a pick goes into the url at once, along with what the search box holds
+export const PickGoesToUrl: Story = {
+    render: () => list(EVERY_KIND),
+    parameters: {searchParams: PAGE_3},
+    play: async ({canvas, userEvent}) => {
+        await userEvent.type(canvas.getByPlaceholderText('Search address or identity'), 'Orbit')
+        await userEvent.click(canvas.getAllByRole('combobox')[0])
+        await userEvent.click(await within(document.body).findByRole('option', {name: 'Delegate'}))
+        await waitFor(() => expect(lastUpdate().queryString).toBe('?tab=curves&q=Orbit&action=delegate'))
+    },
+}
+
+// a cleared box goes into the url without waiting for a pause
+export const ClearGoesToUrl: Story = {
+    render: () => list(EVERY_KIND),
+    parameters: {searchParams: {...PAGE_3, q: 'Polaris'}},
+    play: async ({canvas, userEvent}) => {
+        await userEvent.clear(canvas.getByPlaceholderText('Search address or identity'))
+        await waitFor(() => expect(lastUpdate().queryString).toBe('?tab=curves'), {timeout: 200})
     },
 }

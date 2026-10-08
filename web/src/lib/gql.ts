@@ -1,3 +1,4 @@
+import type {ActionKind, ActionMove} from './actionFilters'
 import type {VoteShape} from './conviction'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
 
@@ -1174,25 +1175,18 @@ export interface TallySnapshotRow {
     inactiveIssuance: string
 }
 
-export interface VoteActionRow extends VoteShape {
+export interface VotingActionRow extends VoteShape {
     id: string
     method: string
     delegatedVotes: string
+    approvalPart: string | null
+    approvalWhole: string | null
+    supportPart: string | null
+    supportWhole: string | null
     block: number
     timestamp: string
     voter: AccountRef
-}
-
-export interface DelegationActionRow {
-    id: string
-    method: string
-    balance: string
-    conviction: string
-    delegatedVotes: string
-    block: number
-    timestamp: string
-    who: AccountRef
-    target: AccountRef
+    delegator: AccountRef | null
 }
 
 export interface MetadataActionRow {
@@ -1234,7 +1228,6 @@ export function referendumDetail(index: number, page: Slice) {
     const tally = (list: VoteList) => `votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false, ${VOTE_LISTS[list].where}}, orderBy: id_ASC) { totalCount }`
     return gql<{
         referendums: ReferendumDetailRow[]
-        voteActions: VoteActionRow[]
         metadataActions: MetadataActionRow[]
         metadataCount: {totalCount: number}
         dailyStats: {issuanceTotal: string; issuanceInactive: string}[]
@@ -1246,7 +1239,6 @@ export function referendumDetail(index: number, page: Slice) {
     }>(
         `query ($index: Int!, $limit: Int!, $offset: Int!) {
             referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalArgs }
-            voteActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: 500) { id method kind aye conviction balance ayeAmount nayAmount abstainAmount delegatedVotes block timestamp voter { ${ACCOUNT_REF} } }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }
@@ -1269,6 +1261,45 @@ export function tallySnapshots(index: number) {
             }`,
             {index, ...page}
         ).then(r => r.snapshots)
+    )
+}
+
+// the methods behind each kind of action, and the impact field and side
+// behind each move
+const ACTION_METHOD: Record<ActionKind, string> = {vote: 'Voted', remove: 'VoteRemoved', delegate: 'Delegated', undelegate: 'Undelegated'}
+const MOVE_WHERE: Record<ActionMove, string> = {'approval-up': 'approvalPart_gt', 'approval-down': 'approvalPart_lt', 'support-up': 'supportPart_gt', 'support-down': 'supportPart_lt'}
+
+export interface ActionFilter {
+    kind?: ActionKind
+    move?: ActionMove
+    // an address finds the one account, any other text its names
+    account?: string
+    name?: string
+}
+
+// an account matches by the names the search page matches it by
+const nameMatch = (v: string) => `{OR: [{identityDisplay_containsInsensitive: ${v}}, {identitySubName_containsInsensitive: ${v}}, {username_containsInsensitive: ${v}}]}`
+
+export function referendumActions(index: number, {kind, move, account, name}: ActionFilter, page: Slice) {
+    // an OR next to other fields joins them as one more alternative, so the
+    // match on either party sits under an AND
+    const party = (match: string) => `AND: {OR: [{voter: ${match}}, {delegator: ${match}}]}`
+    const where = [
+        'referendum: {index_eq: $index}',
+        kind && `method_eq: "${ACTION_METHOD[kind]}"`,
+        move && `${MOVE_WHERE[move]}: "0"`,
+        account != null && party('{id_eq: $account}'),
+        name != null && party(nameMatch('$name')),
+    ]
+        .filter(Boolean)
+        .join(', ')
+    const vars = [account != null && '$account: String!', name != null && '$name: String!'].filter(Boolean).join(', ')
+    return gql<{actions: VotingActionRow[]; conn: {totalCount: number}}>(
+        `query ($index: Int!, ${vars ? `${vars}, ` : ''}$limit: Int!, $offset: Int!) {
+            actions: votingActions(where: {${where}}, orderBy: [block_DESC, indexInBlock_DESC], limit: $limit, offset: $offset) { id method kind aye conviction balance ayeAmount nayAmount abstainAmount delegatedVotes approvalPart approvalWhole supportPart supportWhole block timestamp voter { ${ACCOUNT_REF} } delegator { ${ACCOUNT_REF} } }
+            conn: votingActionsConnection(where: {${where}}, orderBy: id_ASC) { totalCount }
+        }`,
+        {index, ...(account != null && {account}), ...(name != null && {name}), ...page}
     )
 }
 
@@ -1325,19 +1356,6 @@ export function delegationsFor(targets: string[], track: string) {
             conn: delegationsConnection(${where}, orderBy: id_ASC) { totalCount }
         }`,
         {targets, track}
-    )
-}
-
-// a delegation action touches every referendum open on its track, the window
-// clips the track log to this referendum's lifetime
-export function delegationActionsFor(track: string, from: number, to: number | null) {
-    const decl = to === null ? '($track: String!, $from: Int!)' : '($track: String!, $from: Int!, $to: Int!)'
-    const where = `{track: {id_eq: $track}, block_gte: $from${to === null ? '' : ', block_lte: $to'}}`
-    return gql<{delegationActions: DelegationActionRow[]}>(
-        `query ${decl} {
-            delegationActions(where: ${where}, orderBy: [block_DESC, id_DESC], limit: 500) { id method balance conviction delegatedVotes block timestamp who { ${ACCOUNT_REF} } target { ${ACCOUNT_REF} } }
-        }`,
-        to === null ? {track, from} : {track, from, to}
     )
 }
 
@@ -1433,7 +1451,7 @@ export interface TokenHit {
 const LABEL_ORDER = '[identityDisplay_ASC_NULLS_LAST, identitySuper_identityDisplay_ASC_NULLS_LAST, identitySubName_ASC_NULLS_LAST, username_ASC_NULLS_LAST, id_ASC]'
 
 export function searchNames(q: string, page: Slice) {
-    const account = '{OR: [{identityDisplay_containsInsensitive: $q}, {identitySubName_containsInsensitive: $q}, {username_containsInsensitive: $q}]}'
+    const account = nameMatch('$q')
     const token = '{OR: [{symbol_containsInsensitive: $q}, {name_containsInsensitive: $q}]}'
     return gql<{accounts: AccountRef[]; accountCount: {totalCount: number}; tokens: TokenHit[]; tokenCount: {totalCount: number}}>(
         `query ($q: String!, $limit: Int!, $offset: Int!) {

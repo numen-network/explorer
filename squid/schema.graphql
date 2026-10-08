@@ -365,14 +365,21 @@ type Vote @entity {
   removed: Boolean!
 }
 
-"append-only voting action log, one row per Voted or VoteRemoved event"
-type VoteAction @entity {
+"""
+one row per vote cast or removed on a referendum, and one per delegation
+change that moved its tally through the standard vote its target held
+"""
+type VotingAction @entity @index(fields: ["referendum", "block", "indexInBlock"]) {
+  "the referendum index and the id of the event, a delegation event moves every referendum its target voted on"
   id: ID!
-  referendum: Referendum! @index
-  voter: Account! @index
-  "Voted or VoteRemoved, a remove row keeps the vote it took off the tally"
+  referendum: Referendum!
+  "whose vote the row moves, the delegation target on a delegation row"
+  voter: Account!
+  "the account delegating or undelegating, null on a vote row"
+  delegator: Account
+  "Voted, VoteRemoved, Delegated or Undelegated"
   method: String!
-  "AccountVote variant, Standard, Split or SplitAbstain"
+  "AccountVote variant, Standard, Split or SplitAbstain, a remove row keeps the vote it took off the tally and a delegation row the standard vote of its target"
   kind: String!
   "Standard only, the aye bit of the vote"
   aye: Boolean
@@ -385,10 +392,17 @@ type VoteAction @entity {
   nayAmount: BigInt
   "SplitAbstain only"
   abstainAmount: BigInt
-  "the delegations on the voter's casting record at this block, as the chain keeps them"
-  delegatedCapital: BigInt!
+  "conviction weighted sum of the delegations on the voter's casting record at the end of the block, as the chain keeps it"
   delegatedVotes: BigInt!
-  block: Int! @index
+  "how far the block moved the approval, approvalPart over approvalWhole, read off the tally snapshots and set on the referendum's last row in the block only"
+  approvalPart: BigInt
+  approvalWhole: BigInt
+  "the support the block added or took away, supportWhole is the active issuance at its end"
+  supportPart: BigInt
+  supportWhole: BigInt
+  block: Int!
+  "position of the event in its block"
+  indexInBlock: Int!
   timestamp: DateTime!
 }
 
@@ -404,23 +418,6 @@ type MetadataAction @entity {
   title: String
   description: String
   block: Int!
-  timestamp: DateTime!
-}
-
-"append-only delegation action log, one row per Delegated or Undelegated event"
-type DelegationAction @entity {
-  id: ID!
-  who: Account! @index
-  target: Account! @index
-  track: Track!
-  "Delegated or Undelegated, an undelegate row keeps the delegation it removed"
-  method: String!
-  balance: BigInt!
-  "the Conviction variant name"
-  conviction: String!
-  "conviction weighted sum delegated to the target after this action, as the chain keeps it"
-  delegatedVotes: BigInt!
-  block: Int! @index
   timestamp: DateTime!
 }
 

@@ -1,11 +1,13 @@
 import type {Decorator, Preview} from '@storybook/nextjs-vite'
 import {mswLoader} from 'msw-storybook-addon/csf3'
 import {Inter} from 'next/font/google'
+import {NuqsTestingAdapter} from 'nuqs/adapters/testing'
 import {MINIMAL_VIEWPORTS} from 'storybook/viewport'
 import {TooltipProvider} from '../src/components/ui/tooltip'
 import {WellKnownProvider} from '../src/components/wellKnown'
 import {ss58Encode} from '../src/lib/ss58'
 import {chainInfo} from '../../mock/fixtures.js'
+import {urlUpdates} from './url'
 import '../src/app/globals.css'
 
 const inter = Inter({subsets: ['latin'], variable: '--font-inter'})
@@ -30,7 +32,17 @@ const preview: Preview = {
         viewport: {options: {...MINIMAL_VIEWPORTS, laptop: {name: 'Laptop', styles: {width: '1024px', height: '768px'}, type: 'desktop'}}},
     },
     loaders: [mswLoader()],
+    beforeEach: () => {
+        urlUpdates.mockClear()
+    },
     decorators: [
+        // the mocked next router never moves the url, so the url state runs on
+        // a url of its own that opens on the story's query and keeps every update
+        (Story, {parameters}) => (
+            <NuqsTestingAdapter searchParams={parameters.searchParams} hasMemory onUrlUpdate={urlUpdates}>
+                <Story />
+            </NuqsTestingAdapter>
+        ),
         siteGutters,
         Story => (
             <WellKnownProvider treasury={ss58Encode(chainInfo.treasuryAccount, chainInfo.ss58)} prime="" evmChainId={chainInfo.evmChainId}>

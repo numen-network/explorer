@@ -1,6 +1,7 @@
 import type {Metadata} from 'next'
 import type {ReactNode} from 'react'
 import {Inter} from 'next/font/google'
+import {NuqsAdapter} from 'nuqs/adapters/next/app'
 import Footer from '@/components/Footer'
 import IndexerBanner from '@/components/IndexerBanner'
 import Nav from '@/components/Nav'
@@ -42,7 +43,7 @@ export default async function RootLayout({children}: {children: ReactNode}) {
                                 <SearchBar />
                             </div>
                             <IndexerBanner />
-                            {children}
+                            <NuqsAdapter>{children}</NuqsAdapter>
                         </div>
                         <Footer />
                     </TooltipProvider>

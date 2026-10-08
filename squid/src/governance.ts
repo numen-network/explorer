@@ -6,7 +6,7 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Delegation, DelegationAction, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VoteAction} from './model'
+import {Delegation, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
 import {storage} from './types'
 import type {Deposit, ReferendumInfo} from './types/v100'
 
@@ -38,9 +38,9 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         for (const ev of batch.govEvents) applyGovEvent(batch, ev)
         await applyProposals(batch, rpc)
         await applyMetadata(batch, rpc)
-        await stampDelegatedWeights(batch)
-        await logDelegationActions(ctx, batch)
+        await logVotingActions(ctx, batch)
         await snapshotTallies(ctx, batch)
+        await attributeImpact(ctx, batch)
     }
     await refreshOngoing(ctx, batch, lastHeader)
 }
@@ -140,80 +140,137 @@ async function snapshotTallies(ctx: {store: any}, batch: BatchData): Promise<voi
     }
 }
 
-// delegations ride a standard vote without any event of their own, the chain
-// keeps their conviction weighted sum on the voter's casting record
-async function stampDelegatedWeights(batch: BatchData): Promise<void> {
-    if (batch.voteActions.length === 0) return
-    const s = storage.convictionVoting.votingFor.v100
-    const events = new Map(batch.govEvents.map(ev => [ev.id, ev]))
-    for (const va of batch.voteActions) {
-        const ev = events.get(va.id)
-        const r = batch.referenda.get(Number(va.referendum.id))
-        if (ev == null || r == null) throw new Error(`no event or referendum behind vote action ${va.id}`)
-        if (!s.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
-        const v = await s.get(ev.header, va.voter.id, Number(r.track.id))
-        if (v?.__kind === 'Casting') {
-            va.delegatedCapital = v.value.delegations.capital
-            va.delegatedVotes = v.value.delegations.votes
+interface StandingVote {
+    track: string
+    vote: AccountVoteFields
+}
+
+// a vote moves the tally on its own, a delegation change only through the
+// standard votes its target holds on open referenda, so the events replay in
+// order over those votes as the batch found them
+async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<void> {
+    const targets = await delegationTargets(ctx, batch)
+    const standing = await standingVotes(ctx, new Set(targets.values()))
+    const weights = new Map<string, bigint>()
+    // the chain keeps the conviction weighted sum of the delegations on the
+    // voter's casting record, read here as the block left it
+    const delegatedVotes = async (ev: GovEvent, voter: string, track: string): Promise<bigint> => {
+        const key = `${ev.height}-${voter}-${track}`
+        let votes = weights.get(key)
+        if (votes == null) {
+            const s = storage.convictionVoting.votingFor.v100
+            if (!s.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
+            const voting = await s.get(ev.header, voter, Number(track))
+            weights.set(key, (votes = voting?.__kind === 'Casting' ? voting.value.delegations.votes : 0n))
+        }
+        return votes
+    }
+    const log = async (ev: GovEvent, index: number, voter: string, delegator: string | null, {track, vote}: StandingVote): Promise<void> => {
+        batch.votingActions.push(
+            new VotingAction({
+                id: `${index}-${ev.id}`,
+                referendum: new Referendum({id: String(index)}),
+                voter: batch.touch(voter, ev.height),
+                delegator: delegator == null ? null : batch.touch(delegator, ev.height),
+                method: ev.name.split('.')[1],
+                ...vote,
+                delegatedVotes: await delegatedVotes(ev, voter, track),
+                approvalPart: null,
+                approvalWhole: null,
+                supportPart: null,
+                supportWhole: null,
+                block: ev.height,
+                indexInBlock: ev.indexInBlock,
+                timestamp: stampOf(ev),
+            })
+        )
+    }
+    for (const ev of batch.govEvents) {
+        const [pallet, method] = ev.name.split('.')
+        if (pallet === 'Referenda' && END_EVENTS.has(method)) {
+            for (const held of standing.values()) held.delete(ev.args.index)
+        } else if (pallet === 'ConvictionVoting' && (method === 'Voted' || method === 'VoteRemoved')) {
+            const {who, vote, pollIndex} = ev.args
+            const decoded = decodeAccountVote(vote)
+            if (decoded == null) continue
+            const r = batch.referenda.get(pollIndex)
+            if (r == null) throw new Error(`no referendum behind the vote at block ${ev.height}`)
+            const cast = {track: r.track.id, vote: decoded}
+            const held = standing.get(who)
+            if (method === 'Voted' && decoded.kind === 'Standard') held?.set(pollIndex, cast)
+            else held?.delete(pollIndex)
+            await log(ev, pollIndex, who, null, cast)
+        } else if (pallet === 'ConvictionVoting' && (method === 'Delegated' || method === 'Undelegated')) {
+            const who: string = ev.args[0]
+            const track = String(method === 'Delegated' ? ev.args[2] : ev.args[1])
+            const target = targets.get(ev.id)!
+            for (const [index, held] of standing.get(target)!) if (held.track === track) await log(ev, index, target, who, held)
         }
     }
 }
 
-// delegate rows read the chain back after the block, undelegate rows keep
-// values the chain already dropped, taken from this batch or the store
-async function logDelegationActions(ctx: {store: any}, batch: BatchData): Promise<void> {
-    const s = storage.convictionVoting.votingFor.v100
-    const votesOn = async (header: any, target: string, track: number): Promise<bigint> => {
-        const t = await s.get(header, target, track)
-        return t?.__kind === 'Casting' ? t.value.delegations.votes : 0n
-    }
+// the runtime appends the track to both delegation event tuples, an
+// undelegate names no target and ends the delegation set up last
+async function delegationTargets(ctx: {store: any}, batch: BatchData): Promise<Map<string, string>> {
+    const latest = new Map<string, string>()
+    const targets = new Map<string, string>()
     for (const ev of batch.govEvents) {
-        const [pallet, method] = ev.name.split('.')
-        if (pallet !== 'ConvictionVoting') continue
-        if (method === 'Delegated') {
-            const [who, , track] = ev.args as [string, string, number]
-            if (!s.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
-            const v = await s.get(ev.header, who, Number(track))
-            if (v?.__kind !== 'Delegating') throw new Error(`no delegation behind Delegated at block ${ev.height}`)
-            batch.delegationActions.push(
-                new DelegationAction({
-                    id: ev.id,
-                    who: batch.touch(who, ev.height),
-                    target: batch.touch(v.value.target, ev.height),
-                    track: new Track({id: String(track)}),
-                    method,
-                    balance: v.value.balance,
-                    conviction: v.value.conviction.__kind,
-                    delegatedVotes: await votesOn(ev.header, v.value.target, Number(track)),
-                    block: ev.height,
-                    timestamp: stampOf(ev),
-                })
-            )
-        } else if (method === 'Undelegated') {
+        if (ev.name === 'ConvictionVoting.Delegated') {
+            const [who, target, track] = ev.args as [string, string, number]
+            latest.set(`${who}-${track}`, target)
+            targets.set(ev.id, target)
+        } else if (ev.name === 'ConvictionVoting.Undelegated') {
             const [who, track] = ev.args as [string, number]
-            if (!s.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
-            const inBatch = [...batch.delegationActions].reverse().find(a => a.method === 'Delegated' && a.who.id === who && a.track.id === String(track))
-            const stored: Delegation | undefined = inBatch
-                ? undefined
-                : await ctx.store.get(Delegation, {where: {id: `${who}-${track}`}, relations: {target: true}})
-            const src = inBatch ?? stored
-            if (src == null) throw new Error(`no delegation behind Undelegated at block ${ev.height}`)
-            batch.delegationActions.push(
-                new DelegationAction({
-                    id: ev.id,
-                    who: batch.touch(who, ev.height),
-                    target: batch.touch(src.target.id, ev.height),
-                    track: new Track({id: String(track)}),
-                    method,
-                    balance: src.balance,
-                    conviction: src.conviction,
-                    delegatedVotes: await votesOn(ev.header, src.target.id, Number(track)),
-                    block: ev.height,
-                    timestamp: stampOf(ev),
-                })
-            )
+            const id = `${who}-${track}`
+            const target: string | undefined = latest.get(id) ?? (await ctx.store.get(Delegation, {where: {id}, relations: {target: true}}))?.target.id
+            if (target == null) throw new Error(`no delegation behind Undelegated at block ${ev.height}`)
+            targets.set(ev.id, target)
         }
     }
+    return targets
+}
+
+// the standard votes each delegation target holds on open referenda as the
+// batch begins
+async function standingVotes(ctx: {store: any}, targets: Set<string>): Promise<Map<string, Map<number, StandingVote>>> {
+    const out = new Map([...targets].map(t => [t, new Map<number, StandingVote>()]))
+    if (targets.size === 0) return out
+    const votes: Vote[] = await ctx.store.find(Vote, {
+        where: {voter: {id: In([...targets])}, removed: false, kind: 'Standard', referendum: {status: ReferendumStatus.Ongoing}},
+        relations: {voter: true, referendum: {track: true}},
+    })
+    for (const v of votes) out.get(v.voter.id)!.set(v.referendum.index, {track: v.referendum.track.id, vote: voteFields(v)})
+    return out
+}
+
+// a snapshot holds the tally as its block left it, so all the block moved
+// lands on the referendum's last action row there, measured from the
+// snapshot before
+async function attributeImpact(ctx: {store: any}, batch: BatchData): Promise<void> {
+    const last = new Map<string, VotingAction>()
+    for (const a of batch.votingActions) last.set(`${a.referendum.id}-${a.block}`, a)
+    const before = new Map<string, ReferendumTallySnapshot>()
+    for (const now of [...batch.tallySnapshots.values()].sort((x, y) => x.block - y.block)) {
+        const ref = now.referendum.id
+        const a = last.get(now.id)
+        if (a != null) {
+            const prev: ReferendumTallySnapshot | undefined =
+                before.get(ref) ?? (await ctx.store.findOne(ReferendumTallySnapshot, {where: {referendum: {id: ref}}, order: {block: 'DESC'}}))
+            const [a1, n1] = approvalOf(now)
+            const [a0, n0] = approvalOf(prev)
+            a.approvalPart = a1 * n0 - a0 * n1
+            a.approvalWhole = n1 * n0
+            a.supportPart = now.support - (prev?.support ?? 0n)
+            a.supportWhole = now.totalIssuance - now.inactiveIssuance
+        }
+        before.set(ref, now)
+    }
+}
+
+// approval as a fraction of the votes cast, none cast reading as none approving
+function approvalOf(s: ReferendumTallySnapshot | undefined): [part: bigint, whole: bigint] {
+    const cast = s == null ? 0n : s.ayes + s.nays
+    return cast > 0n ? [s!.ayes, cast] : [0n, 1n]
 }
 
 // the referendum row keeps only the latest text, every set and clear also
@@ -512,19 +569,6 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
             removed: method === 'VoteRemoved',
         })
     )
-    batch.voteActions.push(
-        new VoteAction({
-            id: ev.id,
-            referendum: new Referendum({id: String(pollIndex)}),
-            voter: batch.touch(who, ev.height),
-            method,
-            ...decoded,
-            delegatedCapital: 0n,
-            delegatedVotes: 0n,
-            block: ev.height,
-            timestamp: stampOf(ev),
-        })
-    )
 }
 
 interface AccountVoteFields {
@@ -536,6 +580,16 @@ interface AccountVoteFields {
     nayAmount: bigint | null
     abstainAmount: bigint | null
 }
+
+const voteFields = (v: Vote): AccountVoteFields => ({
+    kind: v.kind,
+    aye: v.aye ?? null,
+    conviction: v.conviction ?? null,
+    balance: v.balance ?? null,
+    ayeAmount: v.ayeAmount ?? null,
+    nayAmount: v.nayAmount ?? null,
+    abstainAmount: v.abstainAmount ?? null,
+})
 
 // a standard vote packs the aye bit and the conviction index into one byte,
 // the index counts None then Locked1x up to Locked6x. a voter's row is reused
