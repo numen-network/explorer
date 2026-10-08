@@ -39,7 +39,7 @@ export const ZeroValue: Story = {args: {label: 'EVM txs', value: '0', href: '/ch
 export const NoValue: Story = {args: {label: 'Difficulty', value: '—', href: '/charts/difficulty', chips: chips(['—', '24h', 'idle'], ['—', '30d', 'idle'])}}
 
 export const LongValue: Story = {
-    args: {label: 'Transferable issuance', value: '≈340,282,366,920.93B NUMN', href: '/charts/transferable-issuance', chips: chips(['+19269511.62%', '24h', 'pos'], ['−987,654,321', '30d', 'neg'])},
+    args: {label: 'Total supply', value: '≈115,792,089,237,316,195,423,570,985,008,687,907.85Y TEST'},
     play: cardsFit,
 }
 

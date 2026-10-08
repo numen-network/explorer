@@ -310,7 +310,7 @@ export const HomePastFloat: StoryObj = {
     ...pageStory(home({...many, days: pastFloatDays})),
     play: async ({canvasElement}) => {
         const tile = canvasElement.querySelector('a[href="/charts/difficulty"]')!.closest('[data-slot=card]')!
-        await expect(tile.querySelector('[data-slot=card-title]')).toHaveTextContent('999,999,999B')
+        await expect(tile.querySelector('[data-slot=card-title]')).toHaveTextContent('999P')
         await expect([...tile.querySelectorAll('[data-slot=card-content] > span')].map(chip => chip.textContent)).toEqual(['+<0.01% · 24h', '+11.11% · 30d'])
         await waitFor(() => expectLegibleAxes(canvasElement))
         expect(lastTooltipLines(canvasElement)[0].join('')).toContain('Volume (NUMN)≈9.99B')

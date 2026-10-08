@@ -83,11 +83,17 @@ function trimNum(planck: bigint, decimals: number): string {
     return trimZeros(truncFixed(planck, whole >= 100n ? 0 : whole >= 10n ? 1 : 2, decimals))
 }
 
-// four digits still read as a number, so K only starts at ten thousand
+// four digits still read as a number, so K only starts at ten thousand.
+// past T the suffixes are SI prefixes, as in polkadot.js
 const UNITS: [floor: bigint, shift: number, suffix: string][] = [
-    [1_000_000_000n, 9, 'B'],
-    [1_000_000n, 6, 'M'],
-    [10_000n, 3, 'K'],
+    [10n ** 24n, 24, 'Y'],
+    [10n ** 21n, 21, 'Z'],
+    [10n ** 18n, 18, 'E'],
+    [10n ** 15n, 15, 'P'],
+    [10n ** 12n, 12, 'T'],
+    [10n ** 9n, 9, 'B'],
+    [10n ** 6n, 6, 'M'],
+    [10n ** 4n, 3, 'K'],
 ]
 
 const unitFor = (whole: bigint): [bigint, number, string] => UNITS.find(([floor]) => whole >= floor) ?? [1n, 0, '']

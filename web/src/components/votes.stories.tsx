@@ -113,7 +113,7 @@ export const TruncationEdges: Story = {
             ['8.2M NUMN', '5.1M NUMN'],
             ['≈99.99 NUMN', '9,999.99 NUMN'],
             ['≈0 NUMN', '≈0.01 NUMN'],
-            ['≈340,282,366,920.93B NUMN', '2.01 NUMN'],
+            ['≈340.28E NUMN', '2.01 NUMN'],
         ])
     },
 }
