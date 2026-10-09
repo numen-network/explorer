@@ -302,7 +302,7 @@ export const HomeTruncationEdges: StoryObj = {
         await expect(chips('transferable-issuance')).toEqual(['−2.01 · 24h', '+8.2M · 30d'])
         await expect(chips('treasury')).toEqual(['−1.15 · 24h', '+5.1M · 30d'])
         await expect(tile('difficulty').querySelector('[data-slot=card-title]')).toHaveTextContent('4.35B')
-        await expect(chips('difficulty')).toEqual(['−<0.01% · 24h', '+8.75% · 30d'])
+        await expect(chips('difficulty')).toEqual(['<−0.01% · 24h', '+8.75% · 30d'])
         await expect(within(canvasElement).getByText('Avg block time').nextElementSibling).toHaveTextContent('9.9s')
         await expect(within(canvasElement).getByText('9,999,999,999 NUMN')).toBeInTheDocument()
     }),
@@ -325,7 +325,7 @@ export const HomePastFloat: StoryObj = {
     play: async ({canvasElement}) => {
         const tile = canvasElement.querySelector('a[href="/charts/difficulty"]')!.closest('[data-slot=card]')!
         await expect(tile.querySelector('[data-slot=card-title]')).toHaveTextContent('999P')
-        await expect([...tile.querySelectorAll('[data-slot=card-content] > span')].map(chip => chip.textContent)).toEqual(['+<0.01% · 24h', '+11.11% · 30d'])
+        await expect([...tile.querySelectorAll('[data-slot=card-content] > span')].map(chip => chip.textContent)).toEqual(['<+0.01% · 24h', '+11.11% · 30d'])
         await waitFor(() => expectLegibleAxes(canvasElement))
         expect(lastTooltipLines(canvasElement)[0].join('')).toContain('Volume (NUMN)≈9.99B')
     },

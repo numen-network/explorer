@@ -12,7 +12,7 @@ import {Card} from '@/components/ui/card'
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {actionFilters, type ActionKind, type ActionMove} from '@/lib/actionFilters'
-import {fmtApprox, fmtInt, fmtPct, sentenceCase, signOf} from '@/lib/format'
+import {fmtApprox, fmtInt, fmtPctMove, sentenceCase} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
 import {NONE} from '@/components/Detail'
@@ -77,7 +77,7 @@ function Delta({label, value: [part, whole]}: {label: string; value: [part: bigi
     return (
         <div>
             <span className="text-muted-foreground">{label} </span>
-            <span className={tone}>{`${signOf(part)}${fmtPct(part < 0n ? -part : part, whole)}`}</span>
+            <span className={tone}>{fmtPctMove(part, whole)}</span>
         </div>
     )
 }

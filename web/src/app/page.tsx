@@ -20,7 +20,7 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
-import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtMove, fmtPct, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
+import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtMove, fmtPctMove, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -94,7 +94,7 @@ export default async function Home() {
     const amountChip = (planck: bigint, note: string): StatChip => ({text: fmtMove(planck, props.decimals), note, tone: toneOf(planck)})
     const pctChip = (cur: bigint, prev: bigint, note: string): StatChip => {
         const move = prev > 0n ? cur - prev : 0n
-        return {text: `${signOf(move)}${fmtPct(move < 0n ? -move : move, prev)}`, note, tone: move > 0n ? 'pos' : move < 0n ? 'neg' : 'idle'}
+        return {text: fmtPctMove(move, prev), note, tone: move > 0n ? 'pos' : move < 0n ? 'neg' : 'idle'}
     }
     const countChip = (n: number, note: string): StatChip => ({text: fmtCompact(n), note, tone: 'idle'})
     const curDifficulty = data.blocks[0] ? BigInt(data.blocks[0].difficulty) : today ? BigInt(today.difficultyClose) : 0n

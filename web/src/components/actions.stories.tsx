@@ -73,7 +73,7 @@ export const EveryKind: Story = {
         await expect(impacts(canvasElement)).toEqual([
             'Approval +1.25%Support +0.40%',
             'Approval −2.10%Support +0.05%',
-            'Approval +<0.01%Support −<0.01%',
+            'Approval <+0.01%Support <−0.01%',
             '—',
             'Approval −0.80%Support −0.30%',
             'Approval +0.50%Support 0.00%',

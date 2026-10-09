@@ -143,17 +143,27 @@ const decimalOf = (x: number | string | bigint) => planckOf(typeof x === 'number
 
 // part of a whole as a percent cut to two decimals, or to finer ones a caller
 // asks for, and never rounded up. zeros past the second decimal drop off, a
-// sliver too thin for the last decimal still reads as more than none, and a
-// part of nothing or of an unknown whole has no figure
-export function fmtPct(part: number | string | bigint, whole: number | string | bigint | null, digits = 2): string {
+// sliver too thin for the last decimal still reads as more than none with its
+// sign after the < the way a move keeps it after the ≈, and a part of nothing
+// or of an unknown whole has no figure
+function pct(part: number | string | bigint, whole: number | string | bigint | null, digits: number, plus: string): string {
     if (whole === null) return '—'
     const [p, ps] = decimalOf(part)
     const [w, ws] = decimalOf(whole)
     if (w === 0n) return '—'
     const cut = (p * 10n ** BigInt(ws + digits + 2)) / (w * 10n ** BigInt(ps))
-    const sign = p !== 0n && p < 0n !== w < 0n ? MINUS : ''
-    const figure = cut === 0n && p !== 0n ? `<0.${'1'.padStart(digits, '0')}` : truncFixed(cut < 0n ? -cut : cut, digits, digits).replace(/(\.\d{2}\d*?)0+$/, '$1')
-    return `${sign}${figure}%`
+    const sign = p === 0n ? '' : p < 0n !== w < 0n ? MINUS : plus
+    if (cut === 0n && p !== 0n) return `<${sign}0.${'1'.padStart(digits, '0')}%`
+    return `${sign}${truncFixed(cut < 0n ? -cut : cut, digits, digits).replace(/(\.\d{2}\d*?)0+$/, '$1')}%`
+}
+
+export function fmtPct(part: number | string | bigint, whole: number | string | bigint | null, digits = 2): string {
+    return pct(part, whole, digits, '')
+}
+
+// how far a share rose or fell, signed either way
+export function fmtPctMove(part: number | string | bigint, whole: number | string | bigint | null): string {
+    return pct(part, whole, 2, '+')
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
