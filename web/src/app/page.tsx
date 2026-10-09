@@ -175,57 +175,61 @@ export default async function Home() {
                 </Card>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-5">
-                <StatTile
-                    label="Signed extrinsics" href="/charts/extrinsics-total"
-                    value={fmtInt(today?.cumExtrinsicsSigned ?? '0')}
-                    chips={[chip(data.ext24.totalCount, '24h'), chip(data.ext30.totalCount, '30d')]}
-                />
-                <StatTile
-                    label="Transfers" href="/charts/transfers-total"
-                    value={fmtInt(today?.cumTransfers ?? '0')}
-                    chips={[chip(data.transfers24.totalCount, '24h'), chip(data.transfers30.totalCount, '30d')]}
-                />
-                <StatTile
-                    label="EVM txs" href="/charts/evm-transactions"
-                    value={fmtInt(data.evmTotal.totalCount)}
-                    chips={[chip(data.evm24.totalCount, '24h'), chip(data.evm30.totalCount, '30d')]}
-                />
-                <StatTile
-                    label="Accounts" href="/charts/accounts"
-                    value={fmtInt(data.accounts.totalCount)}
-                    chips={[chip(data.fresh24.totalCount, '24h'), chip(data.fresh30.totalCount, '30d')]}
-                />
-                <StatTile
-                    label="Miners" href="/charts/miners"
-                    value={fmtInt(data.miners24.totalCount)}
-                    chips={[countChip(data.miners30.totalCount, '30d'), countChip(data.minersTotal.totalCount, 'total')]}
-                />
-                <StatTile
-                    label="Total issuance" href="/charts/issuance"
-                    value={fmtApprox(today?.issuanceTotal ?? '0', props.decimals, props.symbol)}
-                    chips={stockChips(issNow, r => BigInt(r.issuanceTotal))}
-                />
-                <StatTile
-                    label="Active issuance" href="/charts/active-issuance"
-                    value={fmtApprox(today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
-                    chips={stockChips(issNow - inactiveNow, r => BigInt(r.issuanceTotal) - BigInt(r.issuanceInactive))}
-                />
-                <StatTile
-                    label="Transferable issuance" href="/charts/transferable-issuance"
-                    value={fmtApprox(today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
-                    chips={[amountChip(traNow - traAt(data.tra24[0]), '24h'), amountChip(traNow - traAt(data.tra30[0]), '30d')]}
-                />
-                <StatTile
-                    label="Treasury pot" href="/charts/treasury"
-                    value={fmtApprox(today?.treasuryPot ?? '0', props.decimals, props.symbol)}
-                    chips={stockChips(BigInt(today?.treasuryPot ?? 0), r => BigInt(r.treasuryPot))}
-                />
-                <StatTile
-                    label="Difficulty" href="/charts/difficulty"
-                    value={curDifficulty > 0n ? fmtCompact(curDifficulty) : '—'}
-                    chips={[pctChip(curDifficulty, diffAt(base24), '24h'), pctChip(curDifficulty, diffAt(base30), '30d')]}
-                />
+            {/* a tile needs 240px to keep its figure and its chips on one line each, a
+                row takes one more each time the box fits another tile and gap, five at most */}
+            <div className="mt-4 @container">
+                <div className="grid grid-cols-1 gap-4 @min-[496px]:grid-cols-2 @min-[752px]:grid-cols-3 @min-[1008px]:grid-cols-4 @min-[1264px]:grid-cols-5">
+                    <StatTile
+                        label="Signed extrinsics" href="/charts/extrinsics-total"
+                        value={fmtInt(today?.cumExtrinsicsSigned ?? '0')}
+                        chips={[chip(data.ext24.totalCount, '24h'), chip(data.ext30.totalCount, '30d')]}
+                    />
+                    <StatTile
+                        label="Transfers" href="/charts/transfers-total"
+                        value={fmtInt(today?.cumTransfers ?? '0')}
+                        chips={[chip(data.transfers24.totalCount, '24h'), chip(data.transfers30.totalCount, '30d')]}
+                    />
+                    <StatTile
+                        label="EVM txs" href="/charts/evm-transactions"
+                        value={fmtInt(data.evmTotal.totalCount)}
+                        chips={[chip(data.evm24.totalCount, '24h'), chip(data.evm30.totalCount, '30d')]}
+                    />
+                    <StatTile
+                        label="Accounts" href="/charts/accounts"
+                        value={fmtInt(data.accounts.totalCount)}
+                        chips={[chip(data.fresh24.totalCount, '24h'), chip(data.fresh30.totalCount, '30d')]}
+                    />
+                    <StatTile
+                        label="Miners" href="/charts/miners"
+                        value={fmtInt(data.miners24.totalCount)}
+                        chips={[countChip(data.miners30.totalCount, '30d'), countChip(data.minersTotal.totalCount, 'total')]}
+                    />
+                    <StatTile
+                        label="Total issuance" href="/charts/issuance"
+                        value={fmtApprox(today?.issuanceTotal ?? '0', props.decimals, props.symbol)}
+                        chips={stockChips(issNow, r => BigInt(r.issuanceTotal))}
+                    />
+                    <StatTile
+                        label="Active issuance" href="/charts/active-issuance"
+                        value={fmtApprox(today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
+                        chips={stockChips(issNow - inactiveNow, r => BigInt(r.issuanceTotal) - BigInt(r.issuanceInactive))}
+                    />
+                    <StatTile
+                        label="Transferable issuance" href="/charts/transferable-issuance"
+                        value={fmtApprox(today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
+                        chips={[amountChip(traNow - traAt(data.tra24[0]), '24h'), amountChip(traNow - traAt(data.tra30[0]), '30d')]}
+                    />
+                    <StatTile
+                        label="Treasury pot" href="/charts/treasury"
+                        value={fmtApprox(today?.treasuryPot ?? '0', props.decimals, props.symbol)}
+                        chips={stockChips(BigInt(today?.treasuryPot ?? 0), r => BigInt(r.treasuryPot))}
+                    />
+                    <StatTile
+                        label="Difficulty" href="/charts/difficulty"
+                        value={curDifficulty > 0n ? fmtCompact(curDifficulty) : '—'}
+                        chips={[pctChip(curDifficulty, diffAt(base24), '24h'), pctChip(curDifficulty, diffAt(base30), '30d')]}
+                    />
+                </div>
             </div>
 
             <Section title="Latest blocks" more="/blocks">

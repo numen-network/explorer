@@ -163,6 +163,15 @@ const homeFits: Play = async ({canvasElement}) => {
     expectTimesFit(canvasElement)
 }
 
+// a tile needs 240px to keep its figure and its chips on one line each, a row
+// holds as many of those as fit and a single tile once two no longer do
+const tilesFit: Play = async ({canvasElement}) => {
+    const grid = within(canvasElement).getByText('Signed extrinsics').closest('[data-slot=card]')!.parentElement!
+    const tiles = [...grid.children]
+    expectOneLine(...tiles.flatMap(tile => [...tile.querySelectorAll('[data-slot=card-title], [data-slot=card-content]')]))
+    if (grid.clientWidth < 2 * 240 + 16) await expect(new Set(tiles.map(tile => tile.getBoundingClientRect().left)).size).toBe(1)
+}
+
 // each block card keeps its object clear of the padding and its protocol on one line
 const railObjectsFit: Play = async ({canvasElement}) => {
     const rail = within(canvasElement).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
@@ -179,7 +188,8 @@ export const HomeMany: StoryObj = {
             await expect(context.canvas.getByText('+1,139')).toBeVisible()
         },
         homeFits,
-        railObjectsFit
+        railObjectsFit,
+        tilesFit
     ),
 }
 
