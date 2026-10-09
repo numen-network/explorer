@@ -503,3 +503,100 @@ export function LinesChart({labels, series, height = 210, dualAxis = false}: {la
     })
     return <div ref={ref} style={{height}} />
 }
+
+export interface StackSeries {
+    name: string
+    color: string
+    values: number[]
+    // what the tooltip prints for each value
+    tips: string[]
+}
+
+// a tooltip row, a square of the bar's colour, its name and the value to the right
+const tipRow = (color: string, name: string, value: string) =>
+    `<div><span style="display:inline-block;width:9px;height:9px;margin-right:6px;border-radius:2px;background:${color}"></span>${name}<span style="float:right;margin-left:20px;font-weight:600">${value}</span></div>`
+
+// stacked bars with each stack's total written on top. axis brings in a
+// value axis from zero to one round step past the tallest stack
+export function StackChart({
+    labels,
+    series,
+    totals,
+    axis = false,
+    height = 172,
+}: {
+    labels: string[]
+    series: StackSeries[]
+    totals: string[]
+    axis?: boolean
+    height?: number
+}) {
+    const barWidth = 14
+    const room = catRoom(labels)
+    // every bar keeps its label, two neighbours too wide to sit side by side
+    // under their bars break after the dash
+    const widths = labels.map(l => echarts.format.getTextRect(l, LABEL_FONT).width)
+    const crowded = labels.length * Math.max(0, ...widths.slice(1).map((w, i) => (w + widths[i]) / 2 + 4)) + (axis ? 24 : 0)
+    const x = catAxis(labels) as {axisLabel: object}
+    const ref = useChart({
+        tooltip: {
+            ...TOOLTIP,
+            axisPointer: {type: 'shadow', shadowStyle: {color: SUB_FILL}},
+            formatter: (params: unknown) => {
+                const [p] = params as {dataIndex: number; axisValueLabel: string}[]
+                return `<div style="margin-bottom:4px">${p.axisValueLabel}</div>${series.map(s => tipRow(s.color, s.name, s.tips[p.dataIndex])).join('')}`
+            },
+        },
+        grid: plotGrid({left: room, right: room, top: 22}),
+        xAxis: {...x, axisLabel: {...x.axisLabel, interval: 0}},
+        media: [{query: {maxWidth: crowded}, option: {xAxis: {axisLabel: {formatter: (label: string) => label.replace('-', '-\n')}}}}],
+        yAxis: axis
+            ? {type: 'value', minInterval: 1, splitNumber: 1, axisLine: {show: true, lineStyle: {color: EDGE}}, splitLine: {show: false}, axisLabel: {color: SUB, fontSize: 11, textMargin: [0, 8]}}
+            : {type: 'value', show: false},
+        series: [
+            ...series.map(s => ({type: 'bar' as const, name: s.name, stack: 'all', barWidth, itemStyle: {color: s.color}, data: s.values})),
+            // an empty bar on top of each stack carries its total
+            {
+                type: 'bar' as const,
+                name: 'total',
+                stack: 'all',
+                barWidth,
+                tooltip: {show: false},
+                label: {show: true, position: 'top' as const, color: '#1a1c22', fontSize: 12, fontWeight: 500, formatter: ({dataIndex}: {dataIndex: number}) => totals[dataIndex]},
+                data: labels.map(() => 0),
+            },
+        ],
+    })
+    return <div ref={ref} style={{height}} />
+}
+
+export interface RingSlice {
+    label: string
+    value: number
+    color: string
+    tip: string
+}
+
+// a ring of shares with the whole written in its hole
+export function RingChart({slices, total, unit}: {slices: RingSlice[]; total: string; unit: string}) {
+    const ref = useChart({
+        tooltip: {
+            ...TOOLTIP,
+            trigger: 'item',
+            formatter: (params: unknown) => {
+                const s = slices[(params as {dataIndex: number}).dataIndex]
+                return tipRow(s.color, s.label, s.tip)
+            },
+        },
+        series: [{type: 'pie', radius: ['78%', '100%'], label: {show: false}, emphasis: {scale: false}, data: slices.map(s => ({name: s.label, value: s.value, itemStyle: {color: s.color}}))}],
+    })
+    return (
+        <div className="relative size-42 shrink-0">
+            <div ref={ref} className="size-full" />
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-[17px] font-semibold">{total}</span>
+                <span className="text-xs text-muted-foreground">{unit}</span>
+            </div>
+        </div>
+    )
+}

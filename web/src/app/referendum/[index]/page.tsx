@@ -22,6 +22,7 @@ import {accountRefs, eventsByIds, referendumDetail, tallySnapshots, type Timelin
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {actionsPanel} from './actions'
+import {statsPanel} from './stats'
 import {votesPanel} from './votes'
 
 export const dynamic = 'force-dynamic'
@@ -122,12 +123,13 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const payees = nodes.map(node => node.beneficiary)
     const partyIds = [...new Set([...payees, r.proposalBeneficiary, r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
-    const [refs, evs, textEvs, votes, actions] = await Promise.all([
+    const [refs, evs, textEvs, votes, actions, stats] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.metadataActions.map(a => a.id)),
         tab === 'votes' ? votesPanel({index: r.index, track: r.track.id, counts, at: String(sp.group ?? ''), pg, chain}) : null,
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
+        tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
     ])
     const stepOf = new Map(trail.map(s => [s.event, s]))
     const rank = (e: TimelineEventRow) => EXTRINSIC_ORDER.indexOf(stepOf.get(e.id)!.name)
@@ -494,6 +496,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
                         {slug: 'votes', label: 'Votes', count: data.voteCount.totalCount, body: () => votes},
                         {slug: 'curves', label: 'Curves', body: () => curves},
+                        {slug: 'statistics', label: 'Statistics', body: () => stats},
                     ]}
                 />
             </div>

@@ -292,8 +292,10 @@ const byLead = kind => (a, b) => {
 // order, with the counts the tally card and the vote chips read
 export function voteData(index, cast) {
     const votes = cast.map(v => ({id: `${index}-${v.voter.id}`, referendum: {index}, block: HEAD - 100, removed: false, ...v}))
+    // the statistics read every list at once, in no order of their own
+    const listOf = where => (where.kind_eq == null ? votes : votes.filter(inList(where)).sort(byLead(where.kind_eq)))
     return {
-        votes: ({where, ...page}) => paged(votes.filter(inList(where)).sort(byLead(where.kind_eq)))(page),
+        votes: ({where, ...page}) => paged(listOf(where))(page),
         votesConnection: ({where}) => ({totalCount: votes.filter(inList(where)).length}),
     }
 }
@@ -396,8 +398,17 @@ export function castVotes(r, cast, delegated = []) {
             for (const v of cast) if (v.block === block) t = count(t, v, delegated)
             return {block, ayes: String(t.ayes), nays: String(t.nays), support: String(t.support), totalIssuance: issuance.issuanceTotal, inactiveIssuance: issuance.issuanceInactive}
         })
-    return {referendum: {...r, ayes: String(t.ayes), nays: String(t.nays), support: String(t.support), snapshots: history}, ...voteLog(r.index, cast, history)}
+    return {referendum: {...r, ayes: String(t.ayes), nays: String(t.nays), support: String(t.support), snapshots: history}, ...voteLog(r.index, cast, history), ...delegatedVoteData(r.index, cast, delegated)}
 }
+
+// the delegations a referendum counts, the ones whose target holds a standard vote on it
+export const delegatedVoteData = (index, cast, delegated) => ({
+    delegatedVotes: paged(
+        delegated
+            .filter(d => cast.some(v => v.kind === 'Standard' && v.voter.id === d.target.id))
+            .map(d => ({id: `${index}-${d.who.id}`, referendum: {index}, voter: d.target, delegator: d.who, conviction: d.conviction, balance: d.balance, removed: false, block: d.block}))
+    ),
+})
 
 export const delegation = (who, target, conviction, balance, track) => ({id: `${who.id}-${track}`, conviction, balance, block: HEAD - 50_000, who, target})
 

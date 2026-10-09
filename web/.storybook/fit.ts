@@ -57,9 +57,10 @@ const chartsIn = (root: Element) => [...root.querySelectorAll<HTMLElement>('[_ec
 // the tick labels each chart under root shows, one list per axis
 export const axisTexts = (root: Element) => chartsIn(root).map(chart => axisLabels(chart).map(labels => labels.map(l => l.text)))
 
-// every axis of every chart under root labels each tick once and shows every label whole
+// every axis of every chart under root labels each tick once and shows every
+// label whole, a ring has no axis to read
 export function expectLegibleAxes(root: Element) {
-    const charts = chartsIn(root)
+    const charts = chartsIn(root).filter(chart => (chart.getOption().xAxis as unknown[] | undefined)?.length)
     expect(charts.length).toBeGreaterThan(0)
     for (const chart of charts) {
         const axes = axisLabels(chart)
@@ -75,6 +76,49 @@ export function expectLegibleAxes(root: Element) {
 
 // a chart draws from an effect, which can run after the story has mounted
 export const axesLegible: Play = async ({canvasElement}) => waitFor(() => expectLegibleAxes(canvasElement))
+
+interface Stack {
+    labels: string[]
+    series: Record<string, number[]>
+    totals: string[]
+}
+
+// the labels a chart's bars carry, left to right
+function barLabels(chart: echarts.ECharts) {
+    return chart
+        .getZr()
+        .storage.getDisplayList(true)
+        .flatMap(el => {
+            const label = el.getTextContent()
+            if (label == null || label.ignore) return []
+            const box = el.getBoundingRect().clone()
+            box.applyTransform(el.getComputedTransform())
+            return [{x: box.x + box.width / 2, text: String(label.style.text)}]
+        })
+        .sort((a, b) => a.x - b.x)
+        .map(l => l.text)
+}
+
+// what each stacked bar chart under root draws, its category labels, every
+// series by name and the total written on top of each stack
+export function stacksIn(root: Element): Stack[] {
+    return chartsIn(root)
+        .filter(chart => (chart.getOption().series as {name?: string}[]).some(s => s.name === 'total'))
+        .map(chart => {
+            const option = chart.getOption() as {xAxis: {data: string[]}[]; series: {name: string; data: number[]}[]}
+            return {
+                labels: option.xAxis[0].data,
+                series: Object.fromEntries(option.series.filter(s => s.name !== 'total').map(s => [s.name, s.data])),
+                totals: barLabels(chart),
+            }
+        })
+}
+
+// the widths the bars of every chart under root are drawn at, to a hundredth
+// of a pixel, each width once
+export const barWidthsIn = (root: Element) => [
+    ...new Set(chartsIn(root).flatMap(chart => chart.getZr().storage.getDisplayList(true).flatMap(el => (el instanceof echarts.graphic.Rect ? [Math.round(el.shape.width * 100) / 100] : [])))),
+]
 
 type Series = {type: string; data: number[]; itemStyle: {color: string}}
 

@@ -1277,6 +1277,36 @@ export function referendumDetail(index: number, page: Slice) {
     )
 }
 
+export interface BallotVote extends VoteShape {
+    voter: {id: string}
+}
+
+export interface BallotDelegation {
+    conviction: string
+    balance: string
+    voter: {id: string}
+}
+
+// every standing vote on a referendum and every delegation it counts, each
+// page in one request so a batch landing in between cannot take a vote away
+// from under the delegations it carries
+export async function referendumBallots(index: number): Promise<{votes: BallotVote[]; delegations: BallotDelegation[]}> {
+    const votes: BallotVote[] = []
+    const delegations: BallotDelegation[] = []
+    for (let offset = 0; ; offset += SWEEP) {
+        const page = await gql<{votes: BallotVote[]; delegatedVotes: BallotDelegation[]}>(
+            `query ($index: Int!, $limit: Int!, $offset: Int!) {
+                votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { kind aye conviction balance ayeAmount nayAmount abstainAmount voter { id } }
+                delegatedVotes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { conviction balance voter { id } }
+            }`,
+            {index, limit: SWEEP, offset}
+        )
+        votes.push(...page.votes)
+        delegations.push(...page.delegatedVotes)
+        if (page.votes.length < SWEEP && page.delegatedVotes.length < SWEEP) return {votes, delegations}
+    }
+}
+
 // the curves plot every snapshot
 export function tallySnapshots(index: number) {
     return sweep(page =>
