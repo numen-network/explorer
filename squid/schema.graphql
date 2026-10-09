@@ -385,6 +385,25 @@ type Vote @entity {
 }
 
 """
+a delegation a referendum counts through the standard vote its target holds
+there, left as it stood when the referendum ended
+"""
+type DelegatedVote @entity {
+  "the referendum index and the delegator"
+  id: ID!
+  referendum: Referendum! @index
+  "the delegation target, whose standard vote carries the delegation"
+  voter: Account!
+  delegator: Account!
+  "the Conviction variant name"
+  conviction: String!
+  balance: BigInt!
+  "set while the delegation does not count, its target's vote taken off or split or the delegation undone"
+  removed: Boolean!
+  block: Int!
+}
+
+"""
 one row per vote cast or removed on a referendum, and one per delegation
 change that moved its tally through the standard vote its target held
 """

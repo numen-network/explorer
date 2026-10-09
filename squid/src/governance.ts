@@ -6,7 +6,7 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Delegation, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
+import {Account, DelegatedVote, Delegation, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
 import {storage} from './types'
 import type {Deposit, ReferendumInfo} from './types/v100'
 
@@ -145,12 +145,22 @@ interface StandingVote {
     vote: AccountVoteFields
 }
 
+interface Delegated {
+    conviction: string
+    balance: bigint
+}
+
+const VOTE_EVENTS = new Set(['ConvictionVoting.Voted', 'ConvictionVoting.VoteRemoved'])
+
 // a vote moves the tally on its own, a delegation change only through the
 // standard votes its target holds on open referenda, so the events replay in
-// order over those votes as the batch found them
+// order over those votes as the batch found them. the same replay keeps the
+// delegations each open referendum counts
 async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<void> {
     const targets = await delegationTargets(ctx, batch)
-    const standing = await standingVotes(ctx, new Set(targets.values()))
+    const voters = new Set([...targets.values(), ...batch.govEvents.filter(ev => VOTE_EVENTS.has(ev.name)).map(ev => ev.args.who as string)])
+    const standing = await standingVotes(ctx, voters)
+    const delegations = await delegationsTo(ctx, voters)
     const weights = new Map<string, bigint>()
     // the chain keeps the conviction weighted sum of the delegations on the
     // voter's casting record, read here as the block left it
@@ -189,24 +199,81 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<vo
         const [pallet, method] = ev.name.split('.')
         if (pallet === 'Referenda' && END_EVENTS.has(method)) {
             for (const held of standing.values()) held.delete(ev.args.index)
-        } else if (pallet === 'ConvictionVoting' && (method === 'Voted' || method === 'VoteRemoved')) {
+        } else if (VOTE_EVENTS.has(ev.name)) {
             const {who, vote, pollIndex} = ev.args
             const decoded = decodeAccountVote(vote)
             if (decoded == null) continue
             const r = batch.referenda.get(pollIndex)
             if (r == null) throw new Error(`no referendum behind the vote at block ${ev.height}`)
             const cast = {track: r.track.id, vote: decoded}
-            const held = standing.get(who)
-            if (method === 'Voted' && decoded.kind === 'Standard') held?.set(pollIndex, cast)
-            else held?.delete(pollIndex)
+            const held = standing.get(who)!
+            const standard = method === 'Voted' && decoded.kind === 'Standard'
+            // a standard vote carries every delegation its voter holds on the
+            // track, taking the vote off or splitting it drops them
+            if (standard || held.has(pollIndex)) for (const [d, delegated] of delegationsOn(delegations, who, cast.track)) countDelegation(batch, ev, pollIndex, who, d, delegated, !standard)
+            if (standard) held.set(pollIndex, cast)
+            else held.delete(pollIndex)
             await log(ev, pollIndex, who, null, cast)
         } else if (pallet === 'ConvictionVoting' && (method === 'Delegated' || method === 'Undelegated')) {
             const who: string = ev.args[0]
             const track = String(method === 'Delegated' ? ev.args[2] : ev.args[1])
             const target = targets.get(ev.id)!
-            for (const [index, held] of standing.get(target)!) if (held.track === track) await log(ev, index, target, who, held)
+            const onTarget = delegationsOn(delegations, target, track)
+            const delegated = method === 'Delegated' ? await delegationAt(ev, who, target, track) : onTarget.get(who)
+            if (method === 'Undelegated') onTarget.delete(who)
+            else if (delegated != null) onTarget.set(who, delegated)
+            for (const [index, held] of standing.get(target)!) {
+                if (held.track !== track) continue
+                await log(ev, index, target, who, held)
+                if (delegated != null) countDelegation(batch, ev, index, target, who, delegated, method === 'Undelegated')
+            }
         }
     }
+}
+
+// a referendum counts a delegation while its target holds a standard vote
+// there, so the row follows both the vote and the delegation
+function countDelegation(batch: BatchData, ev: GovEvent, index: number, voter: string, delegator: string, {conviction, balance}: Delegated, removed: boolean): void {
+    const id = `${index}-${delegator}`
+    batch.delegatedVotes.set(
+        id,
+        new DelegatedVote({
+            id,
+            referendum: new Referendum({id: String(index)}),
+            voter: new Account({id: voter}),
+            delegator: new Account({id: delegator}),
+            conviction,
+            balance,
+            removed,
+            block: ev.height,
+        })
+    )
+}
+
+// the delegations an account has received on a track, by delegator
+function delegationsOn(all: Map<string, Map<string, Delegated>>, target: string, track: string): Map<string, Delegated> {
+    const key = `${target}-${track}`
+    let on = all.get(key)
+    if (on == null) all.set(key, (on = new Map()))
+    return on
+}
+
+// the delegations each account has received, as the batch begins
+async function delegationsTo(ctx: {store: any}, accounts: Set<string>): Promise<Map<string, Map<string, Delegated>>> {
+    const out = new Map<string, Map<string, Delegated>>()
+    if (accounts.size === 0) return out
+    const rows: Delegation[] = await ctx.store.find(Delegation, {where: {target: {id: In([...accounts])}}, relations: {who: true, target: true, track: true}})
+    for (const d of rows) delegationsOn(out, d.target.id, d.track.id).set(d.who.id, {conviction: d.conviction, balance: d.balance})
+    return out
+}
+
+// the delegation as its block left it, nothing when the same block undid it
+async function delegationAt(ev: GovEvent, who: string, target: string, track: string): Promise<Delegated | undefined> {
+    const s = storage.convictionVoting.votingFor.v100
+    if (!s.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
+    const voting = await s.get(ev.header, who, Number(track))
+    if (voting?.__kind !== 'Delegating' || voting.value.target !== target) return undefined
+    return {conviction: voting.value.conviction.__kind, balance: voting.value.balance}
 }
 
 // the runtime appends the track to both delegation event tuples, an
@@ -230,13 +297,12 @@ async function delegationTargets(ctx: {store: any}, batch: BatchData): Promise<M
     return targets
 }
 
-// the standard votes each delegation target holds on open referenda as the
-// batch begins
-async function standingVotes(ctx: {store: any}, targets: Set<string>): Promise<Map<string, Map<number, StandingVote>>> {
-    const out = new Map([...targets].map(t => [t, new Map<number, StandingVote>()]))
-    if (targets.size === 0) return out
+// the standard votes each account holds on open referenda as the batch begins
+async function standingVotes(ctx: {store: any}, accounts: Set<string>): Promise<Map<string, Map<number, StandingVote>>> {
+    const out = new Map([...accounts].map(a => [a, new Map<number, StandingVote>()]))
+    if (accounts.size === 0) return out
     const votes: Vote[] = await ctx.store.find(Vote, {
-        where: {voter: {id: In([...targets])}, removed: false, kind: 'Standard', referendum: {status: ReferendumStatus.Ongoing}},
+        where: {voter: {id: In([...accounts])}, removed: false, kind: 'Standard', referendum: {status: ReferendumStatus.Ongoing}},
         relations: {voter: true, referendum: {track: true}},
     })
     for (const v of votes) out.get(v.voter.id)!.set(v.referendum.index, {track: v.referendum.track.id, vote: voteFields(v)})

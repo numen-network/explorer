@@ -6,6 +6,7 @@ import {
     Bounty,
     ChildBounty,
     DailyStat,
+    DelegatedVote,
     Delegation,
     Event,
     EvmAddress,
@@ -92,6 +93,7 @@ export class BatchData {
     govEvents: GovEvent[] = []
     referenda = new Map<number, Referendum>()
     votes = new Map<string, Vote>()
+    delegatedVotes = new Map<string, DelegatedVote>()
     votingActions: VotingAction[] = []
     metadataActions: MetadataAction[] = []
     tallySnapshots = new Map<string, ReferendumTallySnapshot>()
