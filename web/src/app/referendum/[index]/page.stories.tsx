@@ -495,7 +495,6 @@ const everyAction = {
     data: {
         ...voteData(12, everyVotes),
         ...actionLog(everyRows),
-        ...delegationData([graceDelegation]),
         ...delegatedVoteData(12, everyVotes, [graceDelegation]),
     },
 }
@@ -657,7 +656,7 @@ const delegated = [PEOPLE[5], PEOPLE[3], PEOPLE[0]]
 const delegatedVotes = delegated.map((voter, i) => ({...standard(voter, true, 'Locked2x', numn(900_000 - i * 150_000)), block: 962_000 + i * 1_000}))
 const delegatedRef = {...curated(6), id: '22', index: 22}
 
-const withDelegators = (list: object[], total?: number) => cast(delegatedRef, delegatedVotes, 'votes', delegationData(list, total), list)
+const withDelegators = (list: object[]) => cast(delegatedRef, delegatedVotes, 'votes', {}, list)
 
 const fewAndMany = [...delegators(PEOPLE[3], anons(60, 3)), ...delegators(PEOPLE[0], [anon(70), anon(71), PEOPLE[7], ...anons(73, 10)])]
 
@@ -667,7 +666,13 @@ export const DelegatorsFew = withPlay(withDelegators(fewAndMany), expandRow('Red
 
 export const DelegatorsOverInlineLimit = withPlay(withDelegators(fewAndMany), expandRow('Polaris Guild'))
 
-export const DelegationsPartial = withPlay(withDelegators(delegators(PEOPLE[0], anons(1000, 5000), 1_000), 5200), expandRow('Polaris Guild'))
+// five thousand delegations behind one vote, every one counted and ten listed
+export const DelegatorsThousands = withPlay(withDelegators(delegators(PEOPLE[0], anons(1000, 5000), 1_000)), async context => {
+    await expandRow('Polaris Guild')!(context)
+    await expect(await context.canvas.findByRole('link', {name: '4,990 more delegators on the account page'})).toBeVisible()
+    const stat = within(context.canvas.getByRole('heading', {name: 'Delegated votes'}).parentElement!)
+    await expect(stat.getByText('Delegators').nextElementSibling).toHaveTextContent('5,000')
+})
 
 // two delegations of 0.3 and 0.15 behind one standing vote
 export const DelegatorsAddUp = withPlay(withDelegators([delegation(anon(80), PEOPLE[3], 'Locked1x', numn(0.3), '31'), delegation(anon(81), PEOPLE[3], 'Locked1x', numn(0.15), '31')]), async ({canvas}) => {
@@ -887,3 +892,20 @@ export const StatisticsExtremeAmounts = withPlay(extremeAmounts('statistics'), a
     expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
     expectLegibleAxes(canvasElement)
 })
+
+// the delegation made once the referendum had ended is not one it counted, so
+// the vote list leaves it out though the target holds it today
+const endedRef = {...curated(0), id: '26', index: 26, title: 'A delegation made after the end stays off the vote list'}
+const countedDelegation = delegation(anon(90), PEOPLE[0], 'Locked1x', numn(5_000), '31')
+const laterDelegation = delegation(anon(91), PEOPLE[0], 'Locked3x', numn(70_000), '31')
+export const VotesDelegatedAfterEnd = withPlay(
+    cast(endedRef, [{...standard(PEOPLE[0], true, 'Locked2x', numn(400_000)), block: 962_000}], 'votes', delegationData([countedDelegation, laterDelegation]), [countedDelegation]),
+    async context => {
+        await expandRow('Polaris Guild')!(context)
+        const listed = (who: {id: string}) => context.canvas.queryAllByRole('link').some(link => link.getAttribute('href') === `/account/${ss58Encode(who.id, CHAIN.ss58)}`)
+        await waitFor(() => expect(listed(countedDelegation.who)).toBe(true))
+        await expect(listed(laterDelegation.who)).toBe(false)
+        const stat = within(context.canvas.getByRole('heading', {name: 'Delegated votes'}).parentElement!)
+        await expect(stat.getByText('Delegators').nextElementSibling).toHaveTextContent('1')
+    }
+)

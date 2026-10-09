@@ -47,7 +47,7 @@ const groups = (at: string, ...totals: number[]): VoteGroup[] =>
 
 const lists = (chips: VoteGroup[], list: VoteRows, paging = FIRST): Story => ({render: () => <VoteLists groups={chips} list={list} paging={paging} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />})
 
-const standard = (rows: VoteEntry[], partial = false): VoteRows => ({kind: 'standard', rows, partial})
+const standard = (rows: VoteEntry[]): VoteRows => ({kind: 'standard', rows})
 const splits = (labels: string[], rows: SplitEntry[]): VoteRows => ({kind: 'split', labels, rows})
 
 const expand = (label: string): Story['play'] => async ({canvas, userEvent}) => {
@@ -76,8 +76,6 @@ export const AbstainGroupSelected = lists(groups('Abstain', 3, 2, 1, 1), splits(
 export const EmptyGroupSelected = lists(groups('Abstain', 1, 0, 0), splits(['Abstain', 'Aye', 'Nay'], []))
 
 export const MoreThanOnePage = lists(groups('Aye', 250, 0, 0), standard(Array.from({length: 20}, (_, i) => vote(i, `${i % 7}x`, 500_000 - i * 20_000))))
-
-export const PartialDelegations = lists(every, standard(ayes, true))
 
 export const ExpandedWithoutDelegators = {...lists(every, standard(ayes)), play: expand('Redshift')}
 

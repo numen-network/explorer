@@ -51,7 +51,7 @@ export interface VoteGroup {
 
 // conviction and delegations only reach the tally through a standard vote, a
 // split shows the parts it was split into
-export type VoteRows = {kind: 'standard'; rows: VoteEntry[]; partial: boolean} | {kind: 'split'; labels: string[]; rows: SplitEntry[]}
+export type VoteRows = {kind: 'standard'; rows: VoteEntry[]} | {kind: 'split'; labels: string[]; rows: SplitEntry[]}
 
 const LEAD = 'font-mono'
 const AUX = 'font-mono text-muted-foreground'
@@ -196,7 +196,6 @@ export default function VoteLists({groups, list, paging, decimals, symbol}: {gro
                 )}
             </Card>
             <Pager paging={paging} total={group.total} href={group.href} />
-            {list.kind === 'standard' && list.partial && <p className="mt-2 text-xs text-warn">this track has more delegations than one page can hold, delegated figures are partial</p>}
         </div>
     )
 }

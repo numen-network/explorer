@@ -1398,19 +1398,23 @@ export async function delegationsInPage(id: string, tracks: string[], track: str
     }
 }
 
-// delegated power follows the track, not the referendum, so one lookup covers
-// every voter on this page, identities come later for the few rows on screen
-export function delegationsFor(targets: string[], track: string) {
-    const where = `where: {target: {id_in: $targets}, track: {id_eq: $track}}`
-    return gql<{
-        delegations: {id: string; conviction: string; balance: string; who: {id: string}; target: {id: string}}[]
-        conn: {totalCount: number}
-    }>(
-        `query ($targets: [String!], $track: String!) {
-            delegations(${where}, orderBy: ${DELEGATION_ORDER}, limit: 5000) { id conviction balance who { id } target { id } }
-            conn: delegationsConnection(${where}, orderBy: id_ASC) { totalCount }
-        }`,
-        {targets, track}
+export interface CountedDelegationRow {
+    conviction: string
+    balance: string
+    voter: {id: string}
+    delegator: {id: string}
+}
+
+// every delegation the referendum counts through the votes on one page,
+// biggest first, identities come later for the few rows on screen
+export function countedDelegations(index: number, voters: string[]) {
+    return sweep(page =>
+        gql<{delegatedVotes: CountedDelegationRow[]}>(
+            `query ($index: Int!, $voters: [String!], $limit: Int!, $offset: Int!) {
+                delegatedVotes(where: {referendum: {index_eq: $index}, voter: {id_in: $voters}, removed_eq: false}, orderBy: [balance_DESC, delegator_id_ASC, id_ASC], limit: $limit, offset: $offset) { conviction balance voter { id } delegator { id } }
+            }`,
+            {index, voters, ...page}
+        ).then(r => r.delegatedVotes)
     )
 }
 
