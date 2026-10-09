@@ -1,7 +1,8 @@
 'use client'
-import {useMemo} from 'react'
-import {debounce, parseAsInteger, useQueryStates} from 'nuqs'
+import {useEffect, useMemo, useState} from 'react'
+import {parseAsInteger, useQueryStates} from 'nuqs'
 import {Search} from 'lucide-react'
+import {useDebouncedCallback} from 'use-debounce'
 import AccountLink from '@/components/AccountLink'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import Pager from '@/components/Pager'
@@ -99,7 +100,7 @@ function Picker<V extends string>({value, options, onChange}: {value: V; options
 }
 
 // a search goes out once typing pauses this long, a cleared box at once
-const PAUSE = debounce(300)
+const PAUSE_MS = 300
 
 // the pager's keys ride along so that a new filter starts over at the first
 // page of the default size
@@ -121,6 +122,26 @@ interface Props {
 // the filters live in the url, each change asks the server for the rows again
 export default function ActionList({rows, total, filtered, paging, href, decimals, symbol}: Props) {
     const [{q, action, impact}, setFilters] = useQueryStates(URL_KEYS, {shallow: false, history: 'push', scroll: false})
+    // the box holds what is typed and the url takes it in one write once typing
+    // pauses. nuqs debounces each key on its own timer, which can write q apart
+    // from the paging it resets
+    const [text, setText] = useState(q)
+    const search = useDebouncedCallback((text: string) => setFilters({q: text, ...FIRST_PAGE}), PAUSE_MS)
+    // back and forward bring the box along and drop a search still waiting
+    useEffect(() => {
+        search.cancel()
+        setText(q)
+    }, [q, search])
+    const type = (value: string) => {
+        setText(value)
+        search(value)
+        if (!value) search.flush()
+    }
+    // a pick takes what the box holds along at once
+    const pick = (filter: {action: ActionKind | null} | {impact: ActionMove | null}) => {
+        search.cancel()
+        setFilters({q: text, ...filter, ...FIRST_PAGE})
+    }
     const columns = useMemo(
         () => [
             col.display({id: 'block', header: 'Block', cell: ({row}) => <BlockLink height={row.original.block} />}),
@@ -172,16 +193,15 @@ export default function ActionList({rows, total, filtered, paging, href, decimal
                                 <Search className="size-[15px] text-dim" />
                             </InputGroupAddon>
                             <InputGroupInput
-                                value={q}
-                                onChange={e => setFilters({q: e.target.value, ...FIRST_PAGE}, {limitUrlUpdates: e.target.value === '' ? undefined : PAUSE})}
+                                value={text}
+                                onChange={e => type(e.target.value)}
                                 placeholder="Search address or identity"
                                 spellCheck={false}
                                 className="h-auto py-1.5 pr-3 text-sm placeholder:text-dim md:text-sm"
                             />
                         </InputGroup>
-                        {/* a pick takes what the box holds along at once */}
-                        <Picker value={action ?? 'all'} options={KINDS} onChange={v => setFilters({q, action: v === 'all' ? null : v, ...FIRST_PAGE})} />
-                        <Picker value={impact ?? 'any'} options={MOVES} onChange={v => setFilters({q, impact: v === 'any' ? null : v, ...FIRST_PAGE})} />
+                        <Picker value={action ?? 'all'} options={KINDS} onChange={v => pick({action: v === 'all' ? null : v})} />
+                        <Picker value={impact ?? 'any'} options={MOVES} onChange={v => pick({impact: v === 'any' ? null : v})} />
                     </div>
                 </div>
                 <div className="mt-1">
