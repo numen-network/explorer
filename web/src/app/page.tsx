@@ -19,7 +19,7 @@ import {Progress} from '@/components/ui/progress'
 import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
-import {chainDbHead, chainHeads, chainProps} from '@/lib/chain'
+import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
 import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtMove, fmtPct, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
@@ -54,10 +54,7 @@ function Bar({ratio}: {ratio: number}) {
 
 export default async function Home() {
     const [props, heads, head] = await Promise.all([chainProps(), chainHeads(), chainDbHead()])
-    // windows run back from the last indexed block, so a lagging indexer still spans a real day.
-    // genesis has no timestamp to run back from, and a window with a null start matches no row
-    const ago = (days: number) => (head.timestamp == null ? null : new Date(Date.parse(head.timestamp) - days * 86400000).toISOString())
-    const data = await homeData(ago(1), ago(30))
+    const data = await homeData(windowStart(head, 1), windowStart(head, 30))
     const days = data.dailyStats
     const today: DailyRow | undefined = days[0]
 

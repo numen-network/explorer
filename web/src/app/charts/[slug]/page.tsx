@@ -6,7 +6,7 @@ import {SeriesChart} from '@/components/charts'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Empty, EmptyDescription} from '@/components/ui/empty'
-import {chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps, windowStart} from '@/lib/chain'
 import {CHARTS, chartBySlug, highlight, type ChartInput} from '@/lib/charts'
 import {isDay} from '@/lib/day'
 import {chartSeries} from '@/lib/gql'
@@ -41,9 +41,8 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
     const custom = Boolean(after || before)
     const range = custom ? '' : (RANGES.find(([k]) => k === str(sp.r))?.[0] ?? '365')
     const days = RANGES.find(([k]) => k === range)?.[2] ?? 0
-    const since = custom ? after : days ? new Date(Date.now() - days * 86400000).toISOString().slice(0, 10) : ''
-
-    const chain = await chainProps()
+    const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
+    const since = custom ? after : days ? (windowStart(head, days)?.slice(0, 10) ?? '') : ''
     const data = await chartSeries(since, before)
 
     const input: ChartInput = {

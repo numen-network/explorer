@@ -53,3 +53,8 @@ export async function chainHeads(): Promise<{best: number; finalized: number}> {
 export async function chainDbHead(): Promise<DbHead> {
     return (await chainInfo()).dbHead
 }
+
+// where a window of this many days opens, run back from the newest indexed
+// block so a lagging indexer still spans real days. genesis has no timestamp
+// to run back from, and a window with a null start matches no row
+export const windowStart = (head: DbHead, days: number) => (head.timestamp == null ? null : new Date(Date.parse(head.timestamp) - days * 86400000).toISOString())

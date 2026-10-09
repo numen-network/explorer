@@ -1,9 +1,9 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, waitFor, within} from 'storybook/test'
 import {chartBySlug} from '@/lib/charts'
-import {numn} from '../../../../../mock/fixtures.js'
+import {HEAD, numn} from '../../../../../mock/fixtures.js'
 import {DAILY} from '../../../../../mock/fixtures/home.js'
-import {axesLegible, expectLegibleAxes, expectNamedNavs, lastTooltipLines, lonePointsPainted, tooltipsInView} from '../../../../.storybook/fit'
+import {axesLegible, categoriesIn, expectLegibleAxes, expectNamedNavs, lastTooltipLines, lonePointsPainted, tooltipsInView} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import ChartPage from './page'
 
@@ -153,6 +153,27 @@ const custom =
 export const RangeLast30Days = checked(chart('transfers', since(30), {r: '30'}), preset('30D'))
 export const RangeLast90Days = checked(chart('transfers', since(90), {r: '90'}), preset('90D'))
 export const RangeAll = checked(chart('transfers', DAILY, {r: 'all'}), preset('ALL'))
+
+// the index stopped at the last block of a day sixty days back, so the 30 days
+// run back from that block
+const STALE = DAILY.at(-61)!
+export const RangeLast30DaysIndexBehind = checked(
+    {
+        ...pageStory(
+            {
+                blocks: () => [{height: HEAD - 60 * 8_640, timestamp: `${STALE.id}T23:59:50.000Z`}],
+                dailyStats: ({where}: {where?: {date_gte?: string}}) => DAILY.filter(d => d.id <= STALE.id && d.date >= (where?.date_gte ?? '')),
+            },
+            {params: {slug: 'transfers'}, searchParams: {r: '30'}}
+        ),
+        play: axesLegible,
+    },
+    async ({canvasElement}) => {
+        const [days] = categoriesIn(canvasElement)
+        await expect(days).toHaveLength(31)
+        await expect(days.at(-1)).toBe(STALE.id)
+    }
+)
 
 const FROM = DAILY[40].id
 const TO = DAILY[60].id

@@ -54,6 +54,9 @@ function axisLabels(chart: echarts.ECharts) {
 
 const chartsIn = (root: Element) => [...root.querySelectorAll<HTMLElement>('[_echarts_instance_]')].map(el => echarts.getInstanceByDom(el)!)
 
+// the categories along the x axis of each chart under root
+export const categoriesIn = (root: Element) => chartsIn(root).map(chart => (chart.getOption().xAxis as {data: string[]}[])[0].data)
+
 // the tick labels each chart under root shows, one list per axis
 export const axisTexts = (root: Element) => chartsIn(root).map(chart => axisLabels(chart).map(labels => labels.map(l => l.text)))
 

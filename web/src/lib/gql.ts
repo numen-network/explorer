@@ -1464,10 +1464,10 @@ async function sweep<T>(read: (page: Slice) => Promise<T[]>): Promise<T[]> {
 }
 
 // a long window over many miners runs past any single page
-export function minerDays(sinceDay: string): Promise<MinerDayRow[]> {
+export function minerDays(sinceDay: string | null): Promise<MinerDayRow[]> {
     return sweep(page =>
         gql<{minerDayStats: MinerDayRow[]}>(
-            `query ($since: String!, $limit: Int!, $offset: Int!) {
+            `query ($since: String, $limit: Int!, $offset: Int!) {
                 minerDayStats(where: {day_gte: $since}, orderBy: id_ASC, limit: $limit, offset: $offset) { day blocks rewards account { ${ACCOUNT_REF} } }
             }`,
             {since: sinceDay, ...page}

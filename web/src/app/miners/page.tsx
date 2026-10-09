@@ -1,6 +1,6 @@
 import {TabBar} from '@/components/Tabs'
 import {Card} from '@/components/ui/card'
-import {chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps, windowStart} from '@/lib/chain'
 import {minerDays} from '@/lib/gql'
 import {MinersTable, type MinerStat} from './table'
 
@@ -13,8 +13,8 @@ type WindowKey = keyof typeof WINDOWS
 export default async function MinersPage(props: PageProps<'/miners'>) {
     const sp = await props.searchParams
     const w: WindowKey = sp.w === '7d' || sp.w === '30d' ? sp.w : '24h'
-    const since = new Date(Date.now() - WINDOWS[w] * 86400000).toISOString().slice(0, 10)
-    const [chain, minerDayStats] = await Promise.all([chainProps(), minerDays(since)])
+    const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
+    const minerDayStats = await minerDays(windowStart(head, WINDOWS[w])?.slice(0, 10) ?? null)
 
     const byMiner = new Map<string, MinerStat & {rewards: string}>()
     const rewards = new Map<string, bigint>()
