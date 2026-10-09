@@ -3,7 +3,7 @@ import Asteroid from './Asteroid'
 import DownloadObj from './DownloadObj'
 import EmptyList from './EmptyList'
 import DotRow from './DotRow'
-import {TimeCell} from './TimeCell'
+import TimeAgo from './TimeAgo'
 import AccountLink from './AccountLink'
 import {StatusDot} from './pills'
 import {Badge} from '@/components/ui/badge'
@@ -46,12 +46,10 @@ export default function BlocksRail({cards}: {cards: BlockCard[]}) {
                             {shortHash(c.hash, 5, 4)}
                         </Badge>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
-                        <TimeCell iso={c.timestamp} cycle />
-                        <span className="flex items-center gap-1.5">
-                            <StatusDot tone={c.finalized ? 'pos' : 'warn'} />
-                            {c.finalized ? 'Finalized' : 'Confirming'}
-                        </span>
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <TimeAgo iso={c.timestamp} />
+                        <StatusDot tone={c.finalized ? 'pos' : 'warn'} />
+                        <span>{c.finalized ? 'Finalized' : 'Confirming'}</span>
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-xs">
                         <span className="text-muted-foreground">Miner</span>

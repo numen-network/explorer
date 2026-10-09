@@ -201,15 +201,17 @@ function expectListsFit(root: HTMLElement) {
     expectOneLine(...rows('Transfers').map(row => within(row).getByText(/ NUMN$/)))
 }
 
-// every block card keeps its rows inside the card, its miner on one line and
-// each count whole, with no line ending on a middle dot. a miner's name
-// truncates on its own, its link reaching past the row for a wider hover
+// every block card keeps its rows inside the card, its age with its status and
+// its miner each on one line and each count whole, with no line ending on a
+// middle dot. a miner's name truncates on its own, its link reaching past the
+// row for a wider hover
 function expectBlockCardsFit(root: HTMLElement) {
     const rail = within(root).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
     const cards = [...rail.querySelectorAll<HTMLElement>('[data-slot=card]')]
     const miners: Element[] = cards.map(card => within(card).getByText('Miner').parentElement!)
+    const ages = within(rail).getAllByText(/^\d+[smhd] ago$/).map(age => age.parentElement!)
     expectFits(...cards.flatMap(card => [...card.children]).filter(row => !miners.includes(row)))
-    expectOneLine(...miners, ...within(rail).getAllByText(/^(Extrinsics|Events) /))
+    expectOneLine(...ages, ...miners, ...within(rail).getAllByText(/^(Extrinsics|Events) /))
     expectNoHangingDots(rail)
 }
 
