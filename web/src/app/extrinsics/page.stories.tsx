@@ -3,7 +3,7 @@ import {expect, userEvent, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {chainInfo, HEAD, hex, numn, person} from '../../../../mock/fixtures.js'
 import {batchAll, busy, failedTransfer, failedVoteRemoval, heartbeat, mined, signedCall, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
-import {filterChips} from '../../../.storybook/fit'
+import {cardsFit, filterOptions} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import ExtrinsicsPage from './page'
 
@@ -42,7 +42,7 @@ const callKinds = KINDS.map(([id]) => ({id, pallet: id.split('.')[0], method: id
 const matches = (id: string, where?: Where) => (!where?.pallet_eq || id.startsWith(where.pallet_eq + '.')) && (!where?.method_eq || id.endsWith('.' + where.method_eq))
 const outcome = ([, ok, failed]: Kind, where?: Where) => (where?.success_eq === undefined ? ok + failed : where.success_eq ? ok : failed)
 
-// the page asks for its total and for one total per pallet chip, each under the filters in the url
+// the page asks for its total and for one total per pallet, each under the filters in the url
 const counting =
     (kinds: Kind[]) =>
     ({where}: {where?: Where}) => ({totalCount: kinds.filter(([id]) => matches(id, where)).reduce((n, k) => n + outcome(k, where), 0)})
@@ -83,14 +83,15 @@ export const EmptyChain: StoryObj = {
     ...pageStory({extrinsicsConnection: {totalCount: 0}}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No extrinsics yet.')).toBeInTheDocument()
-        expect(filterChips(canvasElement, 'Pallet')).toEqual(['[All]'])
-        expect(filterChips(canvasElement, 'Result')).toEqual(['[All]', 'Success', 'Failed'])
+        expect(await filterOptions(canvasElement, 'Pallet')).toEqual(['[All]'])
+        expect(await filterOptions(canvasElement, 'Result')).toEqual(['[All]', 'Success', 'Failed'])
     },
 }
 
 export const FilterPallet = list(take(TRANSFERS, isTransfer), {pallet: 'Balances'})
 
-export const FilterPalletAndMethod = list(take(TRANSFERS, isTransfer), {pallet: 'Balances', method: 'transfer_keep_alive'})
+// every filter row keeps inside its card, the method select among them
+export const FilterPalletAndMethod: StoryObj = {...list(take(TRANSFERS, isTransfer), {pallet: 'Balances', method: 'transfer_keep_alive'}), play: cardsFit}
 
 export const FilterOneMatch = list(
     take([mined(HEAD - 812_003, [timestampSet, (height: number) => signedCall(height, 'Identity.set_fee', {index: 0, fee: numn(2.5)}, {from: person(1)})])], x => x.pallet === 'Identity'),
@@ -99,21 +100,24 @@ export const FilterOneMatch = list(
 
 export const FilterFailed = list(take(FAILURES, x => !x.success), {result: 'failed'})
 
-// the chosen pallet never failed and keeps its chip at 0
+// pallets that never failed list at 0, the chosen one among them
 export const FilterNothingMatches: StoryObj = {
     ...list(take([]), {pallet: 'Referenda', result: 'failed'}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No matching extrinsics.')).toBeInTheDocument()
-        expect(filterChips(canvasElement, 'Pallet')).toEqual(['All', 'Balances 12', 'ConvictionVoting 1', '[Referenda 0]'])
-        expect(filterChips(canvasElement, 'Result')).toEqual(['All', 'Success', '[Failed]'])
+        expect(await filterOptions(canvasElement, 'Pallet')).toEqual(['All', 'Balances 12', 'ConvictionVoting 1', 'Ethereum 0', 'Identity 0', 'ImOnline 0', 'Proxy 0', '[Referenda 0]', 'Timestamp 0', 'Utility 0', 'Vesting 0'])
+        expect(await filterOptions(canvasElement, 'Result')).toEqual(['All', 'Success', '[Failed]'])
     },
 }
 
-export const FilterSigner = list(take(MY_BLOCKS, x => x.signer?.id === ME.id), {signer: ss58Encode(ME.id, chainInfo.ss58)}, [
-    ['Balances.transfer_keep_alive', 6, 0],
-    ['Identity.set_identity', 1, 0],
-    ['Utility.batch_all', 2, 0],
-])
+export const FilterSigner: StoryObj = {
+    ...list(take(MY_BLOCKS, x => x.signer?.id === ME.id), {signer: ss58Encode(ME.id, chainInfo.ss58)}, [
+        ['Balances.transfer_keep_alive', 6, 0],
+        ['Identity.set_identity', 1, 0],
+        ['Utility.batch_all', 2, 0],
+    ]),
+    play: cardsFit,
+}
 
 export const FilterSignerNotAnAddress = list(take(RECENT), {signer: 'nu6LoXD3Vkgm'})
 

@@ -1,7 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
-import {filterChips} from '../../.storybook/fit'
-import {FilterChip, FilterRow, StatusDot} from './pills'
+import {expect, screen, waitFor, within} from 'storybook/test'
+import {expectInContentBox, filterChips, filterOptions} from '../../.storybook/fit'
+import {FilterChip, FilterRow, FilterSelect, StatusDot} from './pills'
 
 const meta = {title: 'Components/Pills'} satisfies Meta
 export default meta
@@ -77,6 +77,81 @@ export const FilterRowWrapping: Story = {
             <FilterRow label="Track" values={TRACKS} counts={Object.fromEntries(TRACKS.map((t, i) => [t, (i + 1) * 3]))} value="Medium Spender" href={href} />
         </div>
     ),
+}
+
+export const FilterSelectPlain: Story = {
+    render: () => <FilterSelect label="Track" values={TRACKS} value="" href={href} />,
+    play: async ({canvasElement}) => expect(await filterOptions(canvasElement, 'Track')).toEqual(['[All]', ...TRACKS]),
+}
+
+export const FilterSelectCounts: Story = {
+    render: () => <FilterSelect label="Kind" values={['Local', 'Spend']} counts={{Local: 13, Spend: 0}} value="" href={href} />,
+    play: async ({canvasElement}) => expect(await filterOptions(canvasElement, 'Kind')).toEqual(['[All]', 'Local 13', 'Spend 0']),
+}
+
+// a value the counts leave out counts 0
+export const FilterSelectActiveAtZero: Story = {
+    render: () => <FilterSelect label="Status" values={['Paid', 'Awarded', 'Payment failed']} counts={{Paid: 7}} value="Payment failed" href={href} />,
+    play: async ({canvasElement}) => expect(await filterOptions(canvasElement, 'Status')).toEqual(['All', 'Paid 7', 'Awarded 0', '[Payment failed 0]']),
+}
+
+export const FilterSelectAllCounted: Story = {
+    render: () => <FilterSelect label="Track" values={TRACKS} counts={perTrack({'Small Spender': 18, 'Medium Spender': 1_234_567})} allCount={1_234_585} value="" href={href} />,
+    play: async ({canvasElement}) =>
+        expect(await filterOptions(canvasElement, 'Track')).toEqual(['[All 1,234,585]', 'Root 0', 'Runtime Upgrade 0', 'Wish For Change 0', 'Identity Admin 0', 'Referendum Canceller 0', 'Referendum Killer 0', 'Small Spender 18', 'Medium Spender 1,234,567', 'Big Spender 0']),
+}
+
+export const FilterSelectOpen: Story = {
+    render: () => <FilterSelect label="Track" values={TRACKS} counts={perTrack({'Small Spender': 18, 'Medium Spender': 15, 'Big Spender': 12})} allCount={45} value="Medium Spender" href={href} />,
+    play: async ({canvas, userEvent}) => {
+        await userEvent.click(canvas.getByRole('combobox', {name: 'Track'}))
+        await waitFor(() => expect(screen.getByRole('option', {name: /^Medium Spender/, selected: true})).toBeVisible())
+    },
+}
+
+const triggerWidths = (root: HTMLElement) => within(root).getAllByRole('combobox').map(trigger => trigger.getBoundingClientRect().width)
+
+// the trigger is as wide as its longest label whichever value is picked
+export const FilterSelectSteadyWidth: Story = {
+    render: () => (
+        <div className="space-y-2">
+            <FilterSelect label="Track" values={TRACKS} value="" href={href} />
+            <FilterSelect label="Track" values={TRACKS} value="Referendum Canceller" href={href} />
+        </div>
+    ),
+    play: async ({canvasElement}) => {
+        const [all, longest] = triggerWidths(canvasElement)
+        await expect(all).toBe(longest)
+    },
+}
+
+const METHODS = ['set', 'place_decision_deposit', 'refund_submission_deposit']
+
+// fit holds labels beyond the values on offer, selects over different values keep one width
+export const FilterSelectFit: Story = {
+    render: () => (
+        <div className="space-y-2">
+            <FilterSelect label="Method" values={METHODS.slice(0, 1)} value="" href={href} fit={METHODS} />
+            <FilterSelect label="Method" values={METHODS.slice(1)} value="refund_submission_deposit" href={href} fit={METHODS} />
+        </div>
+    ),
+    play: async ({canvasElement}) => {
+        const [short, long] = triggerWidths(canvasElement)
+        await expect(short).toBe(long)
+    },
+}
+
+// a box narrower than the longest label squeezes the trigger, the label cut short
+export const FilterSelectNarrow: Story = {
+    render: () => (
+        <div className="max-w-48">
+            <FilterSelect label="Method" values={METHODS} value="refund_submission_deposit" href={href} />
+        </div>
+    ),
+    play: async ({canvas}) => {
+        const trigger = canvas.getByRole('combobox', {name: 'Method'})
+        expectInContentBox(trigger.parentElement!, trigger)
+    },
 }
 
 export const StatusDots: Story = {

@@ -4,7 +4,7 @@ import DateRange from '@/components/DateRange'
 import {emptyText} from '@/components/EmptyList'
 import {ExtrinsicsTable} from '@/components/ExtrinsicsTable'
 import Pager from '@/components/Pager'
-import {FilterRow} from '@/components/pills'
+import {FilterSelect} from '@/components/pills'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Field} from '@/components/ui/field'
@@ -69,44 +69,46 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
                 <span className="text-xs text-muted-foreground">{fmtInt(total)} matching</span>
             </div>
 
-            <Card size="flush" className="mt-3 space-y-3 px-5 py-4">
-                <FilterRow label="Pallet" labelClassName={LABEL} values={pallets} counts={counts} value={pallet} href={p => href({pallet: p, method: '', page: ''})} />
-                {pallet && <FilterRow label="Method" labelClassName={LABEL} values={methods} value={method} href={m => href({method: m, page: ''})} />}
-                <FilterRow label="Result" labelClassName={LABEL} values={Object.keys(RESULT_LABEL)} labelOf={r => RESULT_LABEL[r]} value={result ?? ''} href={r => href({result: r, page: ''})} />
-                <form action="/extrinsics">
-                    <Field orientation="horizontal" className="flex-wrap gap-2 text-xs">
-                        <Label className={LABEL}>Date</Label>
-                        <Carry keep={{pallet, method, signer: rawSigner, result: result ?? ''}} />
-                        <DateRange key={`${after}|${before}`} after={after} before={before} />
-                        <Button type="submit" variant="outline" className={FIELD}>
-                            Apply
-                        </Button>
-                        {(after || before) && (
-                            <Link href={href({after: '', before: '', page: ''})} className="text-primary hover:underline">
-                                clear
-                            </Link>
-                        )}
-                    </Field>
-                </form>
-                <form action="/extrinsics">
-                    <Field orientation="horizontal" className="flex-wrap gap-2 text-xs">
-                        <Label htmlFor="signer" className={LABEL}>
-                            Signer
-                        </Label>
-                        <Carry keep={{pallet, method, result: result ?? '', after, before}} />
-                        <Input id="signer" name="signer" defaultValue={rawSigner} placeholder="ss58 or hex account" spellCheck={false} className="h-auto w-[34ch] rounded-lg bg-card px-2.5 py-1 font-mono text-xs md:text-xs" />
-                        <Button type="submit" variant="outline" className={FIELD}>
-                            Apply
-                        </Button>
-                        {signer && <AccountLink addr={ss58Encode(signer, chain.ss58)} />}
-                        {rawSigner && !signer && <span className="text-destructive">not an address</span>}
-                        {rawSigner && (
-                            <Link href={href({signer: '', page: ''})} className="text-primary hover:underline">
-                                clear
-                            </Link>
-                        )}
-                    </Field>
-                </form>
+            <Card size="flush" className="mt-3 px-5 py-4">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                    <FilterSelect label="Pallet" labelClassName={LABEL} values={pallets} counts={counts} value={pallet} href={p => href({pallet: p, method: '', page: ''})} />
+                    {pallet && <FilterSelect label="Method" labelClassName={LABEL} values={methods} value={method} href={m => href({method: m, page: ''})} fit={kinds.map(k => k.method)} />}
+                    <FilterSelect label="Result" labelClassName={LABEL} values={Object.keys(RESULT_LABEL)} labelOf={r => RESULT_LABEL[r]} value={result ?? ''} href={r => href({result: r, page: ''})} />
+                    <form action="/extrinsics" className="min-w-0">
+                        <Field orientation="horizontal" className="flex-wrap gap-2 text-xs">
+                            <Label className={LABEL}>Date</Label>
+                            <Carry keep={{pallet, method, signer: rawSigner, result: result ?? ''}} />
+                            <DateRange key={`${after}|${before}`} after={after} before={before} />
+                            <Button type="submit" variant="outline" className={FIELD}>
+                                Apply
+                            </Button>
+                            {(after || before) && (
+                                <Link href={href({after: '', before: '', page: ''})} className="text-primary hover:underline">
+                                    clear
+                                </Link>
+                            )}
+                        </Field>
+                    </form>
+                    <form action="/extrinsics" className="min-w-0">
+                        <Field orientation="horizontal" className="flex-wrap gap-2 text-xs">
+                            <Label htmlFor="signer" className={LABEL}>
+                                Signer
+                            </Label>
+                            <Carry keep={{pallet, method, result: result ?? '', after, before}} />
+                            <Input id="signer" name="signer" defaultValue={rawSigner} placeholder="ss58 or hex account" spellCheck={false} className="h-auto w-[34ch] rounded-lg bg-card px-2.5 py-1 font-mono text-xs md:text-xs" />
+                            <Button type="submit" variant="outline" className={FIELD}>
+                                Apply
+                            </Button>
+                            {signer && <AccountLink addr={ss58Encode(signer, chain.ss58)} />}
+                            {rawSigner && !signer && <span className="text-destructive">not an address</span>}
+                            {rawSigner && (
+                                <Link href={href({signer: '', page: ''})} className="text-primary hover:underline">
+                                    clear
+                                </Link>
+                            )}
+                        </Field>
+                    </form>
+                </div>
             </Card>
 
             <Card size="flush" className="mt-4">

@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import * as echarts from 'echarts'
-import {expect, spyOn, waitFor, within} from 'storybook/test'
+import {expect, spyOn, userEvent, waitFor, within} from 'storybook/test'
 
 export type Play = NonNullable<StoryObj['play']>
 
@@ -412,4 +412,23 @@ export function filterChips(root: Element, label: string) {
         const text = [...chip.childNodes].map(node => node.textContent).join(' ')
         return chip.dataset.variant === 'solid' ? `[${text}]` : text
     })
+}
+
+// the options of the filter select named label, each read as its label and
+// count, the picked one in brackets, or null when no such select shows. the
+// list opens to be read and closes again
+export async function filterOptions(root: HTMLElement, label: string) {
+    const trigger = within(root).queryByRole('combobox', {name: label})
+    if (!trigger) return null
+    await userEvent.click(trigger)
+    const list = await within(document.body).findByRole('listbox')
+    const options = within(list)
+        .getAllByRole('option')
+        .map(option => {
+            const text = [...option.lastElementChild!.childNodes].map(node => node.textContent).join(' ')
+            return option.getAttribute('aria-selected') === 'true' ? `[${text}]` : text
+        })
+    await userEvent.keyboard('{Escape}')
+    await waitFor(() => expect(within(document.body).queryByRole('listbox')).toBeNull())
+    return options
 }

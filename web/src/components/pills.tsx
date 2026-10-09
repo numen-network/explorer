@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {cn} from 'cn'
+import LinkSelect from '@/components/LinkSelect'
 import {Badge} from '@/components/ui/badge'
 import {fmtInt} from '@/lib/format'
 
@@ -37,6 +38,19 @@ export function FilterRow({label, values, value, href, labelOf = v => v, counts,
             {shown.map(v => (
                 <FilterChip key={v} label={labelOf(v)} count={counts?.[v]} href={href(v)} active={v === value} />
             ))}
+        </div>
+    )
+}
+
+// the select form of a filter row, for a group holding a filter with many
+// values. every value stays listed, one counting 0 too, and the select also
+// leaves room for the labels in fit
+export function FilterSelect({label, values, value, href, labelOf = v => v, counts, allCount, fit, className, labelClassName}: FilterRowProps & {fit?: string[]}) {
+    const options = [{label: 'All', count: allCount, href: href('')}, ...values.map(v => ({label: labelOf(v), count: counts && (counts[v] ?? 0), href: href(v)}))]
+    return (
+        <div className={cn('flex min-w-0 items-center gap-2', className)}>
+            <span className={cn('mr-1 shrink-0 text-xs text-muted-foreground', labelClassName)}>{label}</span>
+            <LinkSelect label={label} options={options} value={href(value)} fit={fit} />
         </div>
     )
 }

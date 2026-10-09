@@ -6,7 +6,7 @@ import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
 import {TabBar} from '@/components/Tabs'
 import {Tip} from '@/components/Tip'
-import {FilterRow} from '@/components/pills'
+import {FilterSelect} from '@/components/pills'
 import {ThresholdChart} from '@/components/charts'
 import {payouts, ReferendumByline, ThresholdBar} from '@/components/referenda'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
@@ -55,32 +55,32 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
     const activeIssuance = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
     const pageTotal = {referenda: refs?.conn.totalCount ?? 0, treasury: spends?.total ?? 0, bounties: bounties?.total ?? 0, tracks: sum.tracks.totalCount}[tab]
 
-    // a chip keeps the other dimensions and drops paging
+    // a pick keeps the other dimensions and drops paging
     const facetHref = (field: string, value: string) => {
         const next: Record<string, string> = {tab, ...on, ...(field ? {[field]: value} : {})}
         return `/governance?${Object.entries(next).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&')}`
     }
     const FacetRow = ({label, field, values, counts, labelOf}: {label: string; field: keyof typeof on; values: string[]; counts: Record<string, number>; labelOf: (v: string) => string}) => (
-        <FilterRow label={label} labelClassName="w-12" values={values} counts={counts} labelOf={labelOf} value={on[field]} href={v => facetHref(field, v)} />
+        <FilterSelect label={label} labelClassName="w-12" values={values} counts={counts} labelOf={labelOf} value={on[field]} href={v => facetHref(field, v)} />
     )
     const trackName = (id: string) => trackLabel(sum.trackList.find(t => t.id === id)?.name ?? id)
 
     const spendFilter = spends && spends.all > 0 && (
-        <div className="mb-4 space-y-2">
+        <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2">
             <FacetRow label="Kind" field="kind" values={SPEND_KINDS} counts={spends.counts.kind} labelOf={v => SPEND_KIND_LABEL[v]} />
             <FacetRow label="Status" field="status" values={SPEND_STATUSES} counts={spends.counts.status} labelOf={camelLabel} />
             <FacetRow label="Track" field="track" values={trackIds} counts={spends.counts.track} labelOf={trackName} />
         </div>
     )
     const bountyFilter = bounties && bounties.all > 0 && (
-        <div className="mb-4 space-y-2">
+        <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2">
             <FacetRow label="Status" field="status" values={BOUNTY_STATUSES} counts={bounties.counts.status} labelOf={camelLabel} />
             <FacetRow label="Track" field="track" values={trackIds} counts={bounties.counts.track} labelOf={trackName} />
         </div>
     )
 
     const trackFilter = refs && (
-        <FilterRow label="Track" className="mb-4" values={trackIds} labelOf={trackName} value={track} href={v => (v ? `/governance?tab=referenda&track=${v}` : '/governance?tab=referenda')} />
+        <FilterSelect label="Track" className="mb-4" values={trackIds} labelOf={trackName} value={track} href={v => (v ? `/governance?tab=referenda&track=${v}` : '/governance?tab=referenda')} />
     )
 
     const referenda = refs && (

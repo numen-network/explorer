@@ -47,7 +47,7 @@ import {
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
 import {chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, filterOptions, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
@@ -403,22 +403,22 @@ export const DelegationsIn = story({delegationsIn: delegatedFrom(20, SPENDERS), 
 
 export const DelegationsTrackFilter = story({delegationsIn: delegatedFrom(20, SPENDERS.slice(0, 1)), counts: {tracks: {30: 26, 31: 15, 32: 12}}}, {tab: 'delegations', dtrack: '30'})
 
-// a link to a track nobody delegates on any more keeps that track's chip
+// a link to a track nobody delegates on any more picks that track at 0
 export const DelegationsTrackFilterEmpty: StoryObj = {
     ...story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'delegations', dtrack: '0'}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No matching delegations.')).toBeInTheDocument()
-        expect(filterChips(canvasElement, 'Track')).toEqual(['All 45', '[Root 0]', 'Small Spender 18', 'Medium Spender 15', 'Big Spender 12'])
+        expect(await filterOptions(canvasElement, 'Track')).toEqual(['All 45', '[Root 0]', 'Runtime Upgrade 0', 'Wish For Change 0', 'Identity Admin 0', 'Referendum Canceller 0', 'Referendum Killer 0', 'Small Spender 18', 'Medium Spender 15', 'Big Spender 12'])
     },
 }
 
-// Delegating to rows and Track chips go by track id, two-digit ids after the single digits
+// Delegating to rows and Track options go by track id, two-digit ids after the single digits
 export const DelegationsBoth: StoryObj = {
     ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'delegations'}),
     play: async ({canvas, canvasElement}) => {
         const out = canvas.getByRole('columnheader', {name: 'Delegating to'}).closest('table')!
         await expect(columnTexts(out, 'Track')).toEqual(['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender'])
-        await expect(filterChips(canvasElement, 'Track')).toEqual(['[All 5]', 'Root 1', 'Runtime Upgrade 1', 'Wish For Change 1', 'Identity Admin 1', 'Referendum Canceller 1'])
+        await expect(await filterOptions(canvasElement, 'Track')).toEqual(['[All 5]', 'Root 1', 'Runtime Upgrade 1', 'Wish For Change 1', 'Identity Admin 1', 'Referendum Canceller 1', 'Referendum Killer 0', 'Small Spender 0', 'Medium Spender 0', 'Big Spender 0'])
     },
 }
 

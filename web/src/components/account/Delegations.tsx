@@ -1,6 +1,6 @@
 import type {ReactNode} from 'react'
 import Pager from '@/components/Pager'
-import {FilterRow} from '@/components/pills'
+import {FilterSelect} from '@/components/pills'
 import {Card} from '@/components/ui/card'
 import {delegationsInPage, delegationsOutFor, trackList} from '@/lib/gql'
 import {trackLabel} from '@/lib/format'
@@ -19,7 +19,7 @@ export default async function Delegations({hex, addr, chain, sp}: TabCtx) {
     const href = (extra: Record<string, string | number>) => tabHref(addr, 'delegations', {dtrack: track, ...extra})
     const trackName = (id: string) => trackLabel(tracks.find(t => t.id === id)!.name)
     const filter: ReactNode = dIn.all > 0 && (
-        <FilterRow label="Track" className="mb-3" values={trackIds} labelOf={trackName} counts={dIn.perTrack} allCount={dIn.all} value={track} href={t => tabHref(addr, 'delegations', {dtrack: t})} />
+        <FilterSelect label="Track" className="mb-3" values={trackIds} labelOf={trackName} counts={dIn.perTrack} allCount={dIn.all} value={track} href={t => tabHref(addr, 'delegations', {dtrack: t})} />
     )
 
     return (

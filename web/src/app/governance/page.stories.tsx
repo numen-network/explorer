@@ -3,7 +3,7 @@ import {expect, screen, waitFor} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
 import {HEAD, numn, PEOPLE} from '../../../../mock/fixtures.js'
 import {bounty, BOUNTY_STATUSES, counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, spendsInOneBlock, stepped, track} from '../../../../mock/fixtures/governance.js'
-import {all, axesLegible, columnTexts, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, filterChips, type Play} from '../../../.storybook/fit'
+import {all, axesLegible, columnTexts, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, filterOptions, type Play} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
 
@@ -17,7 +17,7 @@ export const ReferendaEmpty: StoryObj = {
     ...referendaTab([]),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No referenda yet.')).toBeInTheDocument()
-        expect(filterChips(canvasElement, 'Track')).toEqual(['[All]', ...TRACKS])
+        expect(await filterOptions(canvasElement, 'Track')).toEqual(['[All]', ...TRACKS])
     },
 }
 
@@ -99,7 +99,7 @@ export const ReferendaTrackFilterEmpty: StoryObj = {
     ...trackFilter('0'),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No matching referenda.')).toBeInTheDocument()
-        expect(filterChips(canvasElement, 'Track')).toEqual(['All', '[Root]', ...TRACKS.slice(1)])
+        expect(await filterOptions(canvasElement, 'Track')).toEqual(['All', '[Root]', ...TRACKS.slice(1)])
     },
 }
 
@@ -112,7 +112,7 @@ export const TreasuryEmpty: StoryObj = {
     ...treasuryTab([]),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No spends yet.')).toBeInTheDocument()
-        for (const row of ['Kind', 'Status', 'Track']) expect(filterChips(canvasElement, row)).toBeNull()
+        for (const row of ['Kind', 'Status', 'Track']) expect(await filterOptions(canvasElement, row)).toBeNull()
     },
 }
 
@@ -141,14 +141,14 @@ export const TreasuryInOneBlock: StoryObj = {
 
 export const TreasuryFiltered = treasuryTab(spends, {kind: 'spend', status: 'Paid'})
 
-// no spend went through Root, so the Kind row is down to All
+// no spend went through Root, so with Root picked every kind and status counts 0
 export const TreasuryFilteredEmpty: StoryObj = {
     ...treasuryTab(spends, {status: 'PaymentFailed', track: '0'}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No matching spends.')).toBeInTheDocument()
-        expect(filterChips(canvasElement, 'Kind')).toEqual(['[All]'])
-        expect(filterChips(canvasElement, 'Status')).toEqual(['All', '[Payment failed 0]'])
-        expect(filterChips(canvasElement, 'Track')).toEqual(['All', '[Root 0]', 'Small Spender 2', 'Medium Spender 3', 'Big Spender 2'])
+        expect(await filterOptions(canvasElement, 'Kind')).toEqual(['[All]', 'Local 0', 'Spend 0'])
+        expect(await filterOptions(canvasElement, 'Status')).toEqual(['All', 'Spend approved 0', 'Awarded 0', 'Asset spend approved 0', 'Paid 0', 'Asset spend voided 0', '[Payment failed 0]', 'Spend processed 0'])
+        expect(await filterOptions(canvasElement, 'Track')).toEqual(['All', '[Root 0]', 'Runtime Upgrade 0', 'Wish For Change 0', 'Identity Admin 0', 'Referendum Canceller 0', 'Referendum Killer 0', 'Small Spender 2', 'Medium Spender 3', 'Big Spender 2'])
     },
 }
 
@@ -161,7 +161,7 @@ export const BountiesEmpty: StoryObj = {
     ...bountiesTab([]),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No bounties yet.')).toBeInTheDocument()
-        for (const row of ['Status', 'Track']) expect(filterChips(canvasElement, row)).toBeNull()
+        for (const row of ['Status', 'Track']) expect(await filterOptions(canvasElement, row)).toBeNull()
     },
 }
 
@@ -170,7 +170,7 @@ export const BountiesOne = bountiesTab([bounty(0, 'Active')])
 export const BountiesEveryStatus: StoryObj = {
     ...bountiesTab(BOUNTY_STATUSES.map((status, i) => bounty(BOUNTY_STATUSES.length - 1 - i, status))),
     play: async ({canvas, canvasElement}) => {
-        await expect(filterChips(canvasElement, 'Status')).toContain('Bounty cancelled 1')
+        await expect(await filterOptions(canvasElement, 'Status')).toContain('Bounty cancelled 1')
         await expect(canvas.getByRole('row', {name: /Bounty cancelled/})).toBeVisible()
     },
 }
@@ -191,8 +191,8 @@ export const BountiesFilteredEmpty: StoryObj = {
     ...bountiesTab(bounties, {status: 'BountyClaimed', track: '0'}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No matching bounties.')).toBeInTheDocument()
-        expect(filterChips(canvasElement, 'Status')).toEqual(['All', '[Bounty claimed 0]'])
-        expect(filterChips(canvasElement, 'Track')).toEqual(['All', '[Root 0]', 'Small Spender 1', 'Medium Spender 2', 'Big Spender 1'])
+        expect(await filterOptions(canvasElement, 'Status')).toEqual(['All', 'Proposed 0', 'Approved 0', 'Approved with curator 0', 'Funded 0', 'Curator proposed 0', 'Active 0', 'Pending payout 0', '[Bounty claimed 0]', 'Bounty rejected 0', 'Bounty cancelled 0'])
+        expect(await filterOptions(canvasElement, 'Track')).toEqual(['All', '[Root 0]', 'Runtime Upgrade 0', 'Wish For Change 0', 'Identity Admin 0', 'Referendum Canceller 0', 'Referendum Killer 0', 'Small Spender 1', 'Medium Spender 2', 'Big Spender 1'])
     },
 }
 
