@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(props: PageProps<'/extrinsic/[id]'>) {
     const {id} = await props.params
-    return {title: `Extrinsic ${decodeURIComponent(id).startsWith('0x') ? shortHash(id, 10, 6) : id}`}
+    return {title: `Extrinsic ${decodeURIComponent(id).startsWith('0x') ? shortHash(id) : id}`}
 }
 
 const CANONICAL = /^(\d+)-(\d+)$/
@@ -31,7 +31,7 @@ const CANONICAL = /^(\d+)-(\d+)$/
 function Ambiguous({hash, hits, total, pg}: {hash: string; hits: ExtrinsicHit[]; total: number; pg: Paging}) {
     return (
         <div>
-            <h1 className="mt-6 text-lg font-semibold">Extrinsic {shortHash(hash, 10, 6)}</h1>
+            <h1 className="mt-6 text-lg font-semibold">Extrinsic {shortHash(hash)}</h1>
             <p className="mt-1.5 text-sm text-muted-foreground">{fmtCount(total, 'extrinsic')} share this hash, pick the block you meant.</p>
             <Card size="flush" className="mt-3 divide-y">
                 {hits.map(h => (

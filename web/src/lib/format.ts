@@ -133,9 +133,10 @@ export function fmtMove(planck: string | bigint, decimals: number): string {
     return approx(planck, decimals, signOf(BigInt(planck)))
 }
 
-export function shortHash(s: string, pre = 5, post = 4): string {
-    if (s.length <= pre + post + 1) return s
-    return `${s.slice(0, pre)}…${s.slice(-post)}`
+// a hash shows either full or as the fixed 0x4…4 split, nothing else
+export function shortHash(hash: string): string {
+    if (hash.length <= 11) return hash
+    return `${hash.slice(0, 6)}…${hash.slice(-4)}`
 }
 
 // a float worked out by multiplying or dividing carries noise past its fifteenth digit

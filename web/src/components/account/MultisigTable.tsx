@@ -18,7 +18,7 @@ export function MultisigTable({rows, hex, chain}: {rows: MultisigOpRow[]; hex: s
     const columns = useMemo(() => {
         const side = (acc: AccountRef) => (acc.id === hex ? SELF : <AccountLink addr={ss58Encode(acc.id, chain.ss58)} acc={acc} />)
         return col.columns([
-            col.display({id: 'hash', header: 'Call hash', meta: {cellClassName: 'font-mono text-[13px]'}, cell: ({row}) => shortHash(row.original.callHash, 6, 4)}),
+            col.display({id: 'hash', header: 'Call hash', meta: {cellClassName: 'font-mono text-[13px]'}, cell: ({row}) => shortHash(row.original.callHash)}),
             col.display({id: 'multisig', header: 'Multisig', meta: {className: 'w-1/2'}, cell: ({row}) => side(row.original.multisig)}),
             col.display({
                 id: 'approvals',

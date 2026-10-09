@@ -27,7 +27,7 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(props: PageProps<'/block/[id]'>) {
     const {id} = await props.params
-    return {title: /^\d+$/.test(id) ? `Block #${fmtInt(id)}` : `Block ${shortHash(id, 10, 6)}`}
+    return {title: /^\d+$/.test(id) ? `Block #${fmtInt(id)}` : `Block ${shortHash(id)}`}
 }
 
 export default async function BlockPage(props: PageProps<'/block/[id]'>) {
@@ -94,7 +94,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                             <Asteroid vertices={object.vertices} faces={object.topology.faces} size={290} interactive />
                             <div className="mt-auto pt-3 text-center font-mono text-[11px] text-muted-foreground">
                                 <div className="flex items-center justify-center gap-1">
-                                    OBJ {shortHash(block.workHash!, 10, 8)}
+                                    OBJ {shortHash(block.workHash!)}
                                     <CopyBtn text={block.workHash!} />
                                     <DownloadObj vertices={object.vertices} faces={object.topology.faces} name={`block-${block.height}.obj`} />
                                 </div>

@@ -43,7 +43,7 @@ export default function BlocksRail({cards}: {cards: BlockCard[]}) {
                             #{fmtInt(c.height)}
                         </Link>
                         <Badge variant="outline" className="bg-background font-mono text-muted-foreground">
-                            {shortHash(c.hash, 5, 4)}
+                            {shortHash(c.hash)}
                         </Badge>
                     </div>
                     <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -66,7 +66,7 @@ export default function BlocksRail({cards}: {cards: BlockCard[]}) {
                         <DownloadObj vertices={c.vertices} faces={c.faces} name={`block-${c.height}.obj`} />
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-2 font-mono text-[11px] text-dim">
-                        <span className="truncate">OBJ {shortHash(c.workHash, 6, 4)}</span>
+                        <span className="truncate">OBJ {shortHash(c.workHash)}</span>
                         <span className="whitespace-nowrap">{c.protocol}</span>
                     </div>
                 </Card>

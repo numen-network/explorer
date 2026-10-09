@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(props: PageProps<'/tx/[hash]'>) {
     const {hash} = await props.params
-    return {title: `EVM Tx ${shortHash(hash, 10, 6)}`}
+    return {title: `EVM Tx ${shortHash(hash)}`}
 }
 
 export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {

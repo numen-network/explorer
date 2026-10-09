@@ -3,7 +3,7 @@ import {expect} from 'storybook/test'
 import {shortAddr} from '@/components/AddressText'
 import {paged, rows} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, EVERY_HOLDING, evmAddress, evmTx, exit, EXIT, holding, holdings, NOT_HELD, NUMN, pair, SELECTOR, token, UINT256_MAX, units, WTMR} from '../../../../../mock/fixtures/evm.js'
-import {tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {expectShortHashes, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import EvmAddressPage from './page'
 
@@ -61,7 +61,10 @@ export const EoaTxsEveryCase = addressPage(alice, {txs: rows(everyTx.length, (h:
 
 const manyTxs = rows(63, (h: number, i: number) => evmTx(h, i % 3, i % 2 ? {from: bob, to: alice, value: units(i * 1.5, 18)} : {from: alice, to: evmAddress(2 + (i % 5)), value: units(i, 18)}))
 
-export const EoaTxsMany = addressPage(alice, {txs: manyTxs})
+export const EoaTxsMany: StoryObj = {
+    ...addressPage(alice, {txs: manyTxs}),
+    play: async ({canvasElement}) => expectShortHashes(...[...canvasElement.querySelectorAll('a[href^="/tx/"]')].map(link => link.textContent!)),
+}
 
 export const EoaTxsPage2 = addressPage(alice, {txs: manyTxs}, {page: '2'})
 

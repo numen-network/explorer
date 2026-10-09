@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {HEAD, hashOf, person} from '../../../../../mock/fixtures.js'
 import {busy, DIGEST, GENESIS, heartbeat, mined, minedObject, sessionStart, timestampSet, topology, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
-import {drawnCanvases, drawnFaces, expectInContentBox, expectNamedNavs} from '../../../../.storybook/fit'
+import {drawnCanvases, drawnFaces, expectInContentBox, expectNamedNavs, expectShortHashes} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import BlockPage from './page'
 
@@ -52,12 +52,13 @@ const genesis = (tab = ''): StoryObj => ({
     play: async ({canvas}) => expect(canvas.getByText('Timestamp').nextElementSibling!.textContent).toBe('—'),
 })
 
-// the object keeps to its card, clear of the padding
+// the object keeps to its card, clear of the padding, under its shortened hash
 export const Extrinsics: StoryObj = {
     ...detail(BUSY),
-    play: async ({canvasElement}) => {
+    play: async ({canvas, canvasElement}) => {
         const [object] = await drawnCanvases(canvasElement, 1)
         expectInContentBox(object.closest('[data-slot=card]')!, object)
+        expectShortHashes(canvas.getByText(/^OBJ /).textContent!)
     },
 }
 

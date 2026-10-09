@@ -52,7 +52,7 @@ export function EvmTxLink({hash, full = false}: {hash: string; full?: boolean}) 
     return (
         <Tip text={full ? undefined : hash}>
             <Link href={`/tx/${hash}`} className="font-mono text-primary hover:underline">
-                {full ? hash : shortHash(hash, 10, 6)}
+                {full ? hash : shortHash(hash)}
             </Link>
         </Tip>
     )

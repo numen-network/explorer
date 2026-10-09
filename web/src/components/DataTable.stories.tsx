@@ -32,7 +32,7 @@ const col = columnsFor<Row>()
 
 const columns: Columns<Row> = [
     col.display({id: 'height', header: 'Height', cell: ({row}) => <span className="font-mono text-primary">#{fmtInt(row.original.height)}</span>}),
-    col.display({id: 'hash', header: 'Hash', meta: {cellClassName: 'font-mono text-xs text-muted-foreground'}, cell: ({row}) => shortHash(row.original.hash, 8, 6)}),
+    col.display({id: 'hash', header: 'Hash', meta: {cellClassName: 'font-mono text-xs text-muted-foreground'}, cell: ({row}) => shortHash(row.original.hash)}),
     col.display({id: 'method', header: 'Call', meta: {className: 'w-full'}, cell: ({row}) => row.original.method}),
     col.display({id: 'events', header: 'Events', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => row.original.events}),
     col.display({id: 'fee', header: 'Fee', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => row.original.fee}),

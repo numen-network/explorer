@@ -26,7 +26,7 @@ export function BlocksTable({rows, chain}: {rows: BlockRow[]; chain: ChainProps}
                     meta: {cellClassName: 'font-mono text-xs text-muted-foreground'},
                     cell: ({row}) => (
                         <Tip text={row.original.hash}>
-                            <span>{shortHash(row.original.hash, 8, 6)}</span>
+                            <span>{shortHash(row.original.hash)}</span>
                         </Tip>
                     ),
                 }),

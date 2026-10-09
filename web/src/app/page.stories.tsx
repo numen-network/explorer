@@ -4,7 +4,7 @@ import {referenda} from '../../../mock/data.js'
 import {minedObject, topology} from '../../../mock/fixtures/blocks.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
-import {all, axesLegible, type Play, drawnCanvases, drawnFaces, expectFits, expectInContentBox, expectLegibleAxes, expectNoHangingDots, expectOneLine, expectTimesFit, lastTooltipLines, lonePointsPainted, tooltipsInView} from '../../.storybook/fit'
+import {all, axesLegible, type Play, drawnCanvases, drawnFaces, expectFits, expectInContentBox, expectLegibleAxes, expectNoHangingDots, expectOneLine, expectShortHashes, expectTimesFit, lastTooltipLines, lonePointsPainted, tooltipsInView} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 
@@ -179,6 +179,12 @@ const railObjectsFit: Play = async ({canvasElement}) => {
     expectOneLine(...within(rail).getAllByText(PROTOCOL))
 }
 
+// each block card shortens its own hash and its object's the same way
+const railHashes: Play = async ({canvasElement}) => {
+    const rail = within(canvasElement).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
+    expectShortHashes(...[...rail.querySelectorAll('[data-slot=badge]'), ...within(rail).getAllByText(/^OBJ /)].map(el => el.textContent!))
+}
+
 // a chip under ten thousand groups its digits like the tile value above it
 export const HomeMany: StoryObj = {
     ...pageStory(home(many)),
@@ -189,6 +195,7 @@ export const HomeMany: StoryObj = {
         },
         homeFits,
         railObjectsFit,
+        railHashes,
         tilesFit
     ),
 }

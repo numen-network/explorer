@@ -336,6 +336,12 @@ export function expectTimesFit(root: Element) {
     }
 }
 
+// each text ends in a hash shortened to 0x, four digits, … and four digits
+export function expectShortHashes(...texts: string[]) {
+    expect(texts.length).toBeGreaterThan(0)
+    for (const text of texts) expect(text).toMatch(/(^|\s)0x[0-9a-fA-F]{4}…[0-9a-fA-F]{4}$/)
+}
+
 // every address a link shows reads in one whole form, its 7…4 split in a table
 // cell narrower than sm and the full address anywhere else, and no box inside
 // the link cuts it off

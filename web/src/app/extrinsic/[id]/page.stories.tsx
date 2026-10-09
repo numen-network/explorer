@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, userEvent, within} from 'storybook/test'
 import {chainInfo, extrinsic, HEAD, hashOf, paged, person} from '../../../../../mock/fixtures.js'
 import {batchAll, batchInterrupted, batchOfProxies, evmTransact, evmTxHash, failedVoteRemoval, heartbeat, mined, pick, proxied, referendumSubmission, signedCall, timestampSet, tipped, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
-import {expectAddressForm, expectFits, expectInContentBox, expectTimesFit} from '../../../../.storybook/fit'
+import {expectAddressForm, expectFits, expectInContentBox, expectShortHashes, expectTimesFit} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ExtrinsicPage from './page'
 
@@ -174,7 +174,10 @@ export const CallsEmpty = detail({...of(transfer), calls: []})
 
 export const EventsEmpty = detail({...of(transfer), events: []}, {tab: 'events'})
 
-export const AmbiguousHash = ambiguous([hit(412_007, 3), hit(698_311, 1), hit(HEAD - 42, 2)])
+export const AmbiguousHash: StoryObj = {
+    ...ambiguous([hit(412_007, 3), hit(698_311, 1), hit(HEAD - 42, 2)]),
+    play: async ({canvas}) => expectShortHashes(canvas.getByRole('heading', {name: /^Extrinsic 0x/}).textContent!),
+}
 
 export const AmbiguousHashMany = ambiguous(replays)
 

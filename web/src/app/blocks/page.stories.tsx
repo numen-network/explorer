@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {HEAD} from '../../../../mock/fixtures.js'
 import {GENESIS, sealed} from '../../../../mock/fixtures/blocks.js'
-import {columnTexts} from '../../../.storybook/fit'
+import {columnTexts, expectShortHashes} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import BlocksPage from './page'
 
@@ -14,7 +14,10 @@ const list = (rows: object[], searchParams: Record<string, string> = {}) => page
 
 export const Many: StoryObj = {
     ...list([...chain(2), sealed(HEAD - 2, {extrinsicCount: 3, eventCount: 3694}), ...chain(17, HEAD - 3)]),
-    play: async ({canvas}) => expect(canvas.getByRole('cell', {name: '3,694'})).toBeVisible(),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByRole('cell', {name: '3,694'})).toBeVisible()
+        expectShortHashes(...columnTexts(canvasElement, 'Hash'))
+    },
 }
 
 export const MiddlePage = list(chain(10, HEAD - 49_990), {page: '5000', size: '10'})
