@@ -67,7 +67,7 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
                     <CardTitle className="text-[17px] leading-normal font-semibold">{def.title}</CardTitle>
                     <div className="flex flex-wrap items-center gap-2">
                         <form className="flex flex-wrap items-center gap-2 text-xs" action={`/charts/${slug}`}>
-                            <DateRange key={`${after}|${before}`} after={after} before={before} active={custom} />
+                            <DateRange key={`${after}|${before}`} after={after} before={before} lastDay={head.timestamp?.slice(0, 10) ?? null} active={custom} />
                             <Button type="submit" variant="outline" className="h-auto rounded-lg bg-card px-2.5 py-1 text-xs font-normal hover:bg-card hover:text-primary">
                                 Apply
                             </Button>

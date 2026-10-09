@@ -46,7 +46,7 @@ import {
     vote,
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
-import {chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
+import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
 import {columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, filterOptions, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
@@ -69,6 +69,10 @@ const build = accountPage as (spec: Spec) => Record<string, unknown>
 const story = (spec: Spec, searchParams: Record<string, string> = {}) => pageStory(build(spec), {params: {id: spec.account?.id ?? SUBJECT}, searchParams})
 
 const rowValue = (root: HTMLElement, label: string) => within(root).getByText(label, {selector: 'div'}).nextElementSibling!.textContent
+
+// the index stopped at head while the chain ran on to best
+const behind = (spec: Spec, head: {height: number; timestamp: string}, best: number, searchParams: Record<string, string> = {}) =>
+    pageStory({...build(spec), chainInfos: [{...chainInfo, head: best, finalizedHead: best - 2}], blocks: () => [head]}, {params: {id: spec.account?.id ?? SUBJECT}, searchParams})
 
 const IDENTITY_DEPOSIT = numn(5.41)
 const FEE_PAID = numn(2.5)
@@ -343,6 +347,17 @@ export const VestingSchedules = story(
     },
     {tab: 'vesting'}
 )
+
+// indexed to the middle of the schedule while the chain has run past its end
+export const VestingIndexBehind: StoryObj = {
+    ...behind(
+        {account: subject({...funds(numn(1_001_250.5), '0', numn(700_000)), vestingJson: [PARTIAL], locksJson: [lock('vesting', numn(700_000))]})},
+        {height: 700_000, timestamp: at(700_000)},
+        1_500_000,
+        {tab: 'vesting'}
+    ),
+    play: async ({canvas}) => expect(canvas.getByText('30.00% released')).toBeInTheDocument(),
+}
 
 export const TimelineOne = story({account: named(), timeline: [identitySet(HEAD - 10_000)]}, {tab: 'timeline'})
 

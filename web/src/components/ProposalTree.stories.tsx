@@ -16,7 +16,7 @@ const party = new Map<string, AccountRef>(PEOPLE.map(p => [p.id, {identityDispla
 const tree = (nodes: ProposalNode[], known = party): Story => ({
     render: () => (
         <DetailCard>
-            <ProposalTree nodes={nodes} chain={CHAIN} best={HEAD} party={known} />
+            <ProposalTree nodes={nodes} chain={CHAIN} head={HEAD} party={known} />
         </DetailCard>
     ),
 })

@@ -54,6 +54,9 @@ function axisLabels(chart: echarts.ECharts) {
 
 const chartsIn = (root: Element) => [...root.querySelectorAll<HTMLElement>('[_echarts_instance_]')].map(el => echarts.getInstanceByDom(el)!)
 
+// how full each progress bar under root is drawn, in percent
+export const progressIn = (root: Element) => [...root.querySelectorAll<HTMLElement>('[data-slot=progress-indicator]')].map(bar => 100 + Number(/translateX\(([-\d.e]+)%\)/.exec(bar.style.transform)![1]))
+
 // the categories along the x axis of each chart under root
 export const categoriesIn = (root: Element) => chartsIn(root).map(chart => (chart.getOption().xAxis as {data: string[]}[])[0].data)
 

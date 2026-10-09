@@ -62,7 +62,7 @@ export default async function Home() {
 
     const sessionIdx = data.sessionHead[0]?.lastActiveSession
     const period = props.sessionLength
-    const inSession = period > 0 ? ((heads.best - props.sessionOffset) % period) + 1 : 0
+    const inSession = period > 0 ? ((head.height - props.sessionOffset) % period) + 1 : 0
 
     const indexing = heads.best - head.height > 50
 
@@ -152,12 +152,12 @@ export default async function Home() {
                         </div>
                     )}
                     <dl className="mt-1 divide-y">
-                        <StatusRow label="Best block">
-                            <Link href={`/block/${heads.best}`} className="text-primary hover:underline">
-                                {fmtInt(heads.best)}
+                        <StatusRow label="Latest block">
+                            <Link href={`/block/${head.height}`} className="text-primary hover:underline">
+                                {fmtInt(head.height)}
                             </Link>
                         </StatusRow>
-                        <StatusRow label="Finalized">{fmtInt(heads.finalized)}</StatusRow>
+                        <StatusRow label="Finalized">{fmtInt(Math.min(heads.finalized, head.height))}</StatusRow>
                         <StatusRow label="Avg block time">{blockTime ? `${truncFixed(blockTime, 1)}s` : '—'}</StatusRow>
                         <StatusRow label="Validators">{fmtInt(data.validators.totalCount)}</StatusRow>
                         <StatusRow label="Session">{sessionIdx != null ? `#${fmtInt(sessionIdx)}` : '—'}</StatusRow>

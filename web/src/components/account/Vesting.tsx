@@ -2,16 +2,16 @@ import type {ReactNode} from 'react'
 import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
-import {chainHeads, type ChainProps} from '@/lib/chain'
+import {chainDbHead, type ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtPct, pctToNum} from '@/lib/format'
 import {vestedAt, type Schedule} from './shared'
 
 export default async function Vesting({vest, chain}: {vest: Schedule[]; chain: ChainProps}) {
-    const {best} = await chainHeads()
+    const {height} = await chainDbHead()
     return (
         <Card size="flush" className="space-y-6 px-6 py-5">
             {vest.map((v, i) => {
-                const done = vestedAt(v, best)
+                const done = vestedAt(v, height)
                 const pct = v.locked > 0n ? pctToNum(done, v.locked) : 100
                 const rows: [string, ReactNode][] = [
                     ['Per block', fmtBalance(v.perBlock, chain.decimals, chain.symbol)],

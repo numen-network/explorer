@@ -20,13 +20,15 @@ const toRange = (after: string, before: string): Range | undefined => {
 }
 
 // the parent keys this on the url, so a submit back to the same route mounts
-// a fresh draft
-export default function DateRange({after, before, active = false}: {after: string; before: string; active?: boolean}) {
+// a fresh draft. lastDay is the utc day of the newest indexed block, the last
+// day a filter can find anything on, null while only genesis is indexed
+export default function DateRange({after, before, lastDay, active = false}: {after: string; before: string; lastDay: string | null; active?: boolean}) {
     const [range, setRange] = useState(() => toRange(after, before))
 
     const from = range?.from ? day(range.from) : ''
     const to = range?.to ? day(range.to) : ''
-    const today = new Date()
+    if (lastDay == null) return null
+    const today = parse(lastDay)!
 
     return (
         <>

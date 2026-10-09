@@ -89,16 +89,16 @@ export function ThresholdBar({label, part, whole, need, variant, foot}: {label: 
 export const payouts = (nodes: ProposalNode[] | null) => (nodes ?? []).filter(node => node.amount != null).length
 
 // a payout the chain still holds back says how long is left on it
-function release(validFrom: number | null | undefined, best: number, blockTime: number): string {
-    if (validFrom == null || validFrom <= best) return 'immediately'
-    return `in ${fmtSpan((validFrom - best) * blockTime)}`
+function release(validFrom: number | null | undefined, head: number, blockTime: number): string {
+    if (validFrom == null || validFrom <= head) return 'immediately'
+    return `in ${fmtSpan((validFrom - head) * blockTime)}`
 }
 
 /**
  * The call a referendum runs, read out as the tree the chain would run.
  * Depth is the indent, and a spend says what it pays and when it opens.
  */
-export function ProposalTree({nodes, chain, best, party}: {nodes: ProposalNode[]; chain: ChainProps; best: number; party: Map<string, AccountRef>}) {
+export function ProposalTree({nodes, chain, head, party}: {nodes: ProposalNode[]; chain: ChainProps; head: number; party: Map<string, AccountRef>}) {
     return (
         <div className="divide-y">
             {nodes.map((node, i) => (
@@ -111,7 +111,7 @@ export function ProposalTree({nodes, chain, best, party}: {nodes: ProposalNode[]
                             <span className="font-semibold">{fmtBalance(node.amount, chain.decimals, chain.symbol)}</span>
                             <span className="text-muted-foreground">to</span>
                             <AccountLink addr={ss58Encode(node.beneficiary, chain.ss58)} acc={party.get(node.beneficiary)} />
-                            <span className="text-dim">{release(node.validFrom, best, chain.blockTime)}</span>
+                            <span className="text-dim">{release(node.validFrom, head, chain.blockTime)}</span>
                         </span>
                     )}
                 </div>

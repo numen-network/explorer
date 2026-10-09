@@ -22,4 +22,4 @@ export function phaseOf(r: RefPhaseFields): Phase {
 export const isLive = (r: RefPhaseFields) => r.status === 'Ongoing' && r.decidingSince != null
 
 // how far a phase has run, past one once its period is over, null before it starts
-export const phaseFraction = (since: number | null, period: number, best: number) => (since !== null && period > 0 ? (best - since) / period : null)
+export const phaseFraction = (since: number | null, period: number, head: number) => (since !== null && period > 0 ? (head - since) / period : null)

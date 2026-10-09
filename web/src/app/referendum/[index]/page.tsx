@@ -14,7 +14,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
-import {chainHeads, chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps} from '@/lib/chain'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtApprox, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
@@ -109,9 +109,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const tab = String(sp.tab ?? '')
     if (!/^\d+$/.test(rawIndex)) notFound()
     const pg = paging(sp)
-    const [chain, heads, data, snapshots] = await Promise.all([
+    const [chain, head, data, snapshots] = await Promise.all([
         chainProps(),
-        chainHeads(),
+        chainDbHead(),
         referendumDetail(Number(rawIndex), {limit: pg.size, offset: pg.offset}),
         tallySnapshots(Number(rawIndex)),
     ])
@@ -154,21 +154,21 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const supportNow: Share = [BigInt(r.support), activePlanck]
 
     const decisionHours = (r.track.decisionPeriod * chain.blockTime) / 3600
-    const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best)
+    const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, head.height)
     const x = isLive(r) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
 
     // hour zero is where the decision clock started, or where it can start
     // soonest, or where a referendum that never got there ended. the lead-in
     // before it keeps its true length
     const clock = {
-        zero: r.decidingSince ?? r.endedAt ?? Math.max(heads.best, r.submittedAt + r.track.preparePeriod),
+        zero: r.decidingSince ?? r.endedAt ?? Math.max(head.height, r.submittedAt + r.track.preparePeriod),
         perHour: 3600 / chain.blockTime,
         blockTime: chain.blockTime,
         started: r.decidingSince !== null,
     }
     const toX = (b: number) => Math.min(decisionHours, (b - clock.zero) / clock.perHour)
     const lead = {from: toX(r.submittedAt), submitted: r.submittedAt}
-    const now = r.status === 'Ongoing' ? {at: toX(heads.best)} : null
+    const now = r.status === 'Ongoing' ? {at: toX(head.height)} : null
 
     // a tally starts empty at submission
     const currentApproval: TallyStep[] = [[lead.from, [0n, 1n]]]
@@ -196,9 +196,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const earlyEnd = end !== undefined && end < decisionHours ? end : null
 
     const ended = r.endedAt !== null
-    const prepareAt = phaseFraction(r.submittedAt, r.track.preparePeriod, heads.best)
-    const confirmAt = phaseFraction(r.confirmingSince, r.track.confirmPeriod, heads.best)
-    const enactAt = r.status === 'Approved' ? phaseFraction(r.endedAt, r.track.minEnactmentPeriod, heads.best) : null
+    const prepareAt = phaseFraction(r.submittedAt, r.track.preparePeriod, head.height)
+    const confirmAt = phaseFraction(r.confirmingSince, r.track.confirmPeriod, head.height)
+    const enactAt = r.status === 'Approved' ? phaseFraction(r.endedAt, r.track.minEnactmentPeriod, head.height) : null
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
     const tallied = BigInt(r.ayes) + BigInt(r.nays)
@@ -314,7 +314,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 </DetailRow>
             ) : (
                 <>
-                    <ProposalTree nodes={nodes} chain={chain} best={heads.best} party={party} />
+                    <ProposalTree nodes={nodes} chain={chain} head={head.height} party={party} />
                     {spends.length > 1 && r.proposalAmount != null && (
                         <DetailRow label="Total">{fmtBalance(r.proposalAmount, chain.decimals, chain.symbol)}</DetailRow>
                     )}

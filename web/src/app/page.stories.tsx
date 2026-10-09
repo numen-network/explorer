@@ -98,7 +98,7 @@ function home({head, best = head, finalized = Math.max(0, best - 5), days, objec
         transfers,
         referendums,
         validatorsConnection: {totalCount: validators},
-        validators: validators ? [{lastActiveSession: Math.floor(best / sessionLength)}] : [],
+        validators: validators ? [{lastActiveSession: Math.floor(head / sessionLength)}] : [],
         accountsConnection: (args: {where?: Where}) => windowed(args.where?.lastMinedTimestamp_gt || args.where?.lastMinedTimestamp_isNull === false ? counts.miners : counts.accounts)(args),
         extrinsicsConnection: windowed(counts.extrinsics),
         transfersConnection: windowed(counts.transfers),
@@ -234,6 +234,20 @@ const undecoded = {...referenda[3], id: '12', index: 12, title: null, proposalPa
 export const HomeReferendaEnded = pageStory(home({...many, referendums: [undecoded, referenda[0], referenda[1], referenda[9], referenda[10]]}))
 
 export const HomeIndexing = pageStory(home({...many, best: HEAD + 4_000, finalized: HEAD + 3_998}))
+
+// mainnet rebuilding from genesis, indexed to #30,979 while the chain stood at
+// #220,176, every figure on the page reads #30,979
+export const HomeIndexBehind: StoryObj = {
+    ...pageStory(home({head: 30_979, best: 220_176, finalized: 220_174, days: chainDays(30_979), objects: minedUpTo(30_979, 5, 220_174)})),
+    play: async ({canvas}) => {
+        const row = (label: string) => canvas.getByText(label, {selector: 'dt'}).nextElementSibling!
+        await expect(row('Latest block')).toHaveTextContent(/^30,979$/)
+        await expect(row('Latest block').querySelector('a')).toHaveAttribute('href', '/block/30979')
+        await expect(row('Finalized')).toHaveTextContent(/^30,979$/)
+        await expect(row('Session')).toHaveTextContent(/^#516$/)
+        await expect(canvas.getByText('Block 20 / 60')).toBeInTheDocument()
+    },
+}
 
 // every move ends exactly on the last digit its chip shows, but the day's
 // difficulty moves by a sliver and the day's blocks came 9.96s apart

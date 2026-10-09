@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, waitFor, within} from 'storybook/test'
+import {expect, userEvent, waitFor, within} from 'storybook/test'
 import {chartBySlug} from '@/lib/charts'
 import {HEAD, numn} from '../../../../../mock/fixtures.js'
 import {DAILY} from '../../../../../mock/fixtures/home.js'
@@ -174,6 +174,18 @@ export const RangeLast30DaysIndexBehind = checked(
         await expect(days.at(-1)).toBe(STALE.id)
     }
 )
+
+// the newest indexed block sits late on 2026-08-10, the calendar ends on that day
+const CALENDAR_HEAD = '2026-08-10T23:59:50.000Z'
+export const RangeCustomIndexBehind: StoryObj = {
+    ...pageStory({dailyStats: DAILY, blocks: () => [{height: HEAD - 60 * 8_640, timestamp: CALENDAR_HEAD}]}, {params: {slug: 'transfers'}}),
+    play: async ({canvas}) => {
+        await userEvent.click(canvas.getByRole('button', {name: 'Any date'}))
+        const day = (d: number) => document.querySelector(`[data-day="${new Date(2026, 7, d).toLocaleDateString()}"]`)
+        await waitFor(() => expect(day(10)).toBeEnabled())
+        await expect(day(11)).toBeDisabled()
+    },
+}
 
 const FROM = DAILY[40].id
 const TO = DAILY[60].id

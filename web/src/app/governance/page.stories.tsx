@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, screen, waitFor} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
-import {HEAD, numn, PEOPLE} from '../../../../mock/fixtures.js'
+import {chainInfo, HEAD, numn, PEOPLE} from '../../../../mock/fixtures.js'
 import {bounty, BOUNTY_STATUSES, counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, spendsInOneBlock, stepped, track} from '../../../../mock/fixtures/governance.js'
 import {all, axesLegible, columnTexts, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, filterOptions, type Play} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
@@ -50,6 +50,21 @@ const referendumCardsFit: Play = async ({canvasElement}) => {
 export const ReferendaEveryCase: StoryObj = {...referendaTab(referenda), play: referendumCardsFit}
 
 export const ReferendaMany = referendaTab(Array.from({length: 40}, (_, i) => ({...referenda[i % referenda.length], id: String(i), index: i})))
+
+const DECIDING = referenda.find(r => r.index === 5)!
+
+// a quarter into its decision period at the newest indexed block while the
+// chain has run past the whole period, the thresholds read a quarter in
+export const ReferendaIndexBehind: StoryObj = {
+    ...pageStory(
+        {...data, chainInfos: [{...chainInfo, head: HEAD + 300_000, finalizedHead: HEAD + 299_998}], referendums: [{...DECIDING, decidingSince: HEAD - 60_480}], referendumsConnection: referendaCount([DECIDING])},
+        {searchParams: {tab: 'referenda'}}
+    ),
+    play: async ({canvasElement}) => {
+        const needs = [...canvasElement.querySelectorAll('span')].filter(el => el.children.length === 0 && el.textContent!.startsWith(' need ')).map(el => el.textContent!.trim())
+        await expect(needs).toEqual(['need 87.50%', 'need 3.19%'])
+    },
+}
 
 const tranche = (amount: number) => ({pallet: 'Treasury', method: 'spend', depth: 1, amount: numn(amount), beneficiary: PEOPLE[0].id, validFrom: null})
 

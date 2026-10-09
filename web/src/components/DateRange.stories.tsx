@@ -8,7 +8,7 @@ const day = (back: number) => new Date(Date.now() - back * 86_400_000).toISOStri
 const meta = {
     title: 'Components/DateRange',
     component: DateRange,
-    args: {after: '', before: ''},
+    args: {after: '', before: '', lastDay: day(0)},
     // the chart and extrinsics pages set it in a small form row on a card
     decorators: [
         Story => (
@@ -58,5 +58,13 @@ export const CalendarOpenEmpty: Story = {
     play: async ({canvas, userEvent}) => {
         await userEvent.click(canvas.getByRole('button'))
         await expect(await screen.findByRole('grid')).toBeInTheDocument()
+    },
+}
+
+// only genesis is indexed, which carries no timestamp, so there is no day to pick
+export const NothingIndexed: Story = {
+    args: {lastDay: null},
+    play: async ({canvas}) => {
+        await expect(canvas.queryByRole('button')).toBeNull()
     },
 }

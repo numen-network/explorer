@@ -10,7 +10,7 @@ import {Card} from '@/components/ui/card'
 import {Field} from '@/components/ui/field'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
-import {chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps} from '@/lib/chain'
 import {isDay} from '@/lib/day'
 import {fmtInt} from '@/lib/format'
 import {callKinds, extrinsicsPage, type ExtrinsicFilter} from '@/lib/gql'
@@ -37,7 +37,7 @@ const FIELD = 'h-auto rounded-lg bg-card px-2.5 py-1 text-xs font-normal hover:b
 
 export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
     const sp = await props.searchParams
-    const chain = await chainProps()
+    const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
     const {callKinds: kinds} = await callKinds()
 
     // anything the url offers has to match the chain before it reaches a query
@@ -78,7 +78,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
                         <Field orientation="horizontal" className="flex-wrap gap-2 text-xs">
                             <Label className={LABEL}>Date</Label>
                             <Carry keep={{pallet, method, signer: rawSigner, result: result ?? ''}} />
-                            <DateRange key={`${after}|${before}`} after={after} before={before} />
+                            <DateRange key={`${after}|${before}`} after={after} before={before} lastDay={head.timestamp?.slice(0, 10) ?? null} />
                             <Button type="submit" variant="outline" className={FIELD}>
                                 Apply
                             </Button>

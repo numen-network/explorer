@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, waitFor, within} from 'storybook/test'
 import data, {referenda} from '../../../../../mock/data.js'
-import {at, HEAD, numn, paged, PEOPLE} from '../../../../../mock/fixtures.js'
+import {at, chainInfo, HEAD, numn, paged, PEOPLE} from '../../../../../mock/fixtures.js'
 import {
     accounts,
     actionLog,
@@ -28,7 +28,7 @@ import {
 } from '../../../../../mock/fixtures/governance.js'
 import type {RawStep} from '@/components/timeline'
 import {ss58Encode} from '@/lib/ss58'
-import {axisTexts, barWidthsIn, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, expectWholeWords, lastTooltipLines, stacksIn} from '../../../../.storybook/fit'
+import {axisTexts, barWidthsIn, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, expectWholeWords, lastTooltipLines, progressIn, stacksIn} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 
@@ -98,6 +98,14 @@ export const Confirming = withPlay(curatedCase(6), async ({canvas}) => {
 })
 
 export const DecidingBelowCurves = curatedCase(5)
+
+// a quarter into its decision period at the newest indexed block while the
+// chain has run past the whole period, the bars read prepare, decision,
+// confirmation and enactment
+export const DecidingIndexBehind: StoryObj = {
+    ...story({...curated(5), decidingSince: HEAD - 60_480}, 'call', {chainInfos: [{...chainInfo, head: HEAD + 300_000, finalizedHead: HEAD + 299_998}]}),
+    play: async ({canvasElement}) => expect(progressIn(canvasElement)).toEqual([100, 25, 0, 0]),
+}
 
 export const KilledWithDepositsSlashed = curatedCase(4)
 

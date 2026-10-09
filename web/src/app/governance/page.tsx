@@ -12,7 +12,7 @@ import {payouts, ReferendumByline, ThresholdBar} from '@/components/referenda'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {curveAt, type Curve} from '@/lib/curves'
-import {chainHeads, chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps} from '@/lib/chain'
 import {camelLabel, fmtApprox, fmtCount, fmtInt, trackLabel, truncFixed} from '@/lib/format'
 import {isLive, phaseFraction} from '@/lib/referendum'
 import {bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
@@ -36,7 +36,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
     const sp = await props.searchParams
     const tab = (TABS as readonly string[]).includes(String(sp.tab)) ? (String(sp.tab) as Tab) : 'referenda'
     const pg = paging(sp)
-    const [chain, heads, sum] = await Promise.all([chainProps(), chainHeads(), governanceSummary()])
+    const [chain, head, sum] = await Promise.all([chainProps(), chainDbHead(), governanceSummary()])
     const trackIds = sum.trackList.map(t => t.id)
     const chosen = (v: unknown, values: string[]) => (values.includes(String(v)) ? String(v) : '')
     const track = chosen(sp.track, trackIds)
@@ -93,7 +93,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
             {refs.referendums.map(r => {
                 const ayes = BigInt(r.ayes)
                 const nays = BigInt(r.nays)
-                const ran = isLive(r) ? phaseFraction(r.decidingSince, r.track.decisionPeriod, heads.best) : null
+                const ran = isLive(r) ? phaseFraction(r.decidingSince, r.track.decisionPeriod, head.height) : null
                 const at = ran !== null ? Math.min(1, Math.max(0, ran)) : null
                 const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
                 return (
