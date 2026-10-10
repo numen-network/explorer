@@ -501,7 +501,7 @@ export async function evmCounts(address: string) {
             transfers: tokenTransfersConnection(orderBy: id_ASC, where: {OR: [{from_eq: $a}, {to_eq: $a}]}) { totalCount }
             holdings: tokenHoldersConnection(orderBy: id_ASC, where: {address_eq: $a, ${HELD}}) { totalCount }
             contracts: evmTransactionsConnection(orderBy: id_ASC, where: {from_eq: $a, contractAddress_isNull: false, status_eq: "Succeed"}) { totalCount }
-            tokens: tokensConnection(orderBy: id_ASC, where: {deployer_eq: $a}) { totalCount }
+            tokens: tokensConnection(orderBy: id_ASC, where: {deployTx: {from_eq: $a}}) { totalCount }
         }`,
         {a: address}
     )
@@ -814,8 +814,10 @@ export interface TokenRow extends TokenPair {
     totalSupply: string | null
     holderCount: number
     transferCount: number
-    deployBlock: number | null
+    deployTx: {id: string; from: string; block: {height: number}} | null
     firstBlock: number
+    proxyType: string | null
+    implementations: string[] | null
 }
 
 export interface HoldingRow {
@@ -824,7 +826,7 @@ export interface HoldingRow {
 }
 
 const PAIR_FIELDS = 'token0 token1 token0Symbol token1Symbol'
-const TOKEN_FIELDS = `id name symbol decimals totalSupply holderCount transferCount deployBlock firstBlock ${PAIR_FIELDS}`
+const TOKEN_FIELDS = `id name symbol decimals totalSupply holderCount transferCount deployTx { id from block { height } } firstBlock proxyType implementations ${PAIR_FIELDS}`
 const TOKEN_ORDER = '[transferCount_DESC, id_ASC]'
 // holders are the addresses whose last balanceOf answer was above zero, as Token.holderCount counts them
 const HELD = 'balance_gt: 0'

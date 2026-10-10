@@ -38,6 +38,9 @@ importers:
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
+      evm-proxy-detection:
+        specifier: 3.0.0
+        version: 3.0.0
       p-limit:
         specifier: ^3.1.0
         version: 3.1.0
@@ -955,6 +958,9 @@ packages:
 
   event-emitter@0.3.5:
     resolution: {integrity: sha512-D9rRn9y7kLPnJ+hMq7S/nhvoKwwvVJahBi2BPmx3bvbsEdK3W9ii8cBSGjP+72/LnM4n6fo3+dkCX5FeTQruXA==}
+
+  evm-proxy-detection@3.0.0:
+    resolution: {integrity: sha512-+Tlpz8cDis0Y+OkWrmZ2yVy1NVWp+iSaefegyLxCf7o3uru6VmvMehhgCbBXM3EetX4fHeIFonUDjE0V6ZYsWw==}
 
   express@4.22.2:
     resolution: {integrity: sha512-IuL+Elrou2ZvCFHs18/CIzy2Nzvo25nZ1/D2eIZlz7c+QUayAcYoiM2BthCjs+EBHVpjYjcuLDAiCWgeIX3X1Q==}
@@ -2797,6 +2803,8 @@ snapshots:
     dependencies:
       d: 1.0.2
       es5-ext: 0.10.64
+
+  evm-proxy-detection@3.0.0: {}
 
   express@4.22.2(supports-color@8.1.1):
     dependencies:

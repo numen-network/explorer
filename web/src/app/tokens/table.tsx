@@ -35,7 +35,7 @@ export function TokensTable({rows}: {rows: TokenRow[]}) {
                 col.display({id: 'supply', header: 'Total supply', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => (row.original.totalSupply != null ? <Approx planck={row.original.totalSupply} decimals={row.original.decimals ?? 0} symbol={row.original.symbol ?? undefined} /> : NONE)}),
                 col.display({id: 'holders', header: 'Holders', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.holderCount)}),
                 col.display({id: 'transfers', header: 'Transfers', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.transferCount)}),
-                col.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.deployBlock ?? row.original.firstBlock} />}),
+                col.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.deployTx?.block.height ?? row.original.firstBlock} />}),
             ]),
         []
     )

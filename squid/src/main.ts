@@ -21,7 +21,7 @@ import {BatchData} from './batch'
 import {parseEvmBlockHash, parsePowDigest} from './digest'
 import {Deposit, feeShares} from './fees'
 import {fetchObj, parseMesh} from './objects'
-import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply, fetchPair} from './evm'
+import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply, fetchPair, fetchProxy} from './evm'
 import {collectGovEvent, finalizeGovernance} from './governance'
 import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from './validators'
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
@@ -274,8 +274,8 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
     }
 }
 
-// supply and balances are what the contracts answer at the batch head, never a
-// running sum of their logs
+// metadata, supply and balances are what the contracts answer at the batch
+// head, never a running sum of their logs
 async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fields>): Promise<void> {
     if (batch.erc20Queue.length === 0) return
     const at = '0x' + header.height.toString(16)
@@ -298,18 +298,12 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
     for (const q of batch.erc20Queue) {
         let token = tokens.get(q.token)
         if (token == null) {
-            const meta = await fetchErc20Metadata(rpc, q.token, at)
-            const create = created.get(q.token)
             token = new Token({
                 id: q.token,
-                name: meta.name,
-                symbol: meta.symbol,
-                decimals: meta.decimals,
                 ...(await fetchPair(rpc, q.token, at)),
                 holderCount: 0,
                 transferCount: 0,
-                deployBlock: create?.block.height ?? null,
-                deployer: create?.from ?? null,
+                deployTx: created.get(q.token) ?? null,
                 firstBlock: q.block.height,
             })
             tokens.set(q.token, token)
@@ -333,7 +327,8 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
     await Promise.all(
         [...tokens.values()].map(token =>
             limit(async () => {
-                token.totalSupply = await fetchErc20Supply(rpc, token.id, at)
+                const [meta, proxy, totalSupply] = await Promise.all([fetchErc20Metadata(rpc, token.id, at), fetchProxy(rpc, token.id, at), fetchErc20Supply(rpc, token.id, at)])
+                Object.assign(token, meta, proxy, {totalSupply})
             })
         )
     )
@@ -659,9 +654,9 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.insert(batch.events)
     await ctx.store.insert(batch.transfers)
     await ctx.store.insert(batch.objects)
-    await ctx.store.upsert(batch.tokens)
     await ctx.store.insert(batch.evmTxs)
     await ctx.store.insert(batch.evmLogs)
+    await ctx.store.upsert(batch.tokens)
     await ctx.store.insert(batch.tokenTransfers)
     await ctx.store.upsert(batch.holders)
     await ctx.store.upsert([...batch.evmAddresses.values()])

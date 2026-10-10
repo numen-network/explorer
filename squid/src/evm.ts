@@ -1,6 +1,7 @@
 import {blake2b} from '@noble/hashes/blake2.js'
 import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
 import {RpcClient, RpcError} from '@subsquid/rpc-client'
+import detectProxy from 'evm-proxy-detection'
 import {decodeUtf8} from './utf8'
 
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
@@ -138,6 +139,31 @@ export async function fetchPair(rpc: RpcClient, token: string, at: string): Prom
     if (token0 == null || token1 == null) return {token0: null, token1: null, token0Symbol: null, token1Symbol: null}
     const [token0Symbol, token1Symbol] = await Promise.all([token0, token1].map(t => ethCall(rpc, t, SELECTORS.symbol, at).then(abiDecodeString)))
     return {token0, token1, token0Symbol, token1Symbol}
+}
+
+export interface ProxyTarget {
+    proxyType: string | null
+    implementations: string[] | null
+}
+
+// detectProxy reads any failed request as "not this kind of proxy", so a node
+// failure is raised again rather than passing for a plain contract
+export async function fetchProxy(rpc: RpcClient, token: string, at: string): Promise<ProxyTarget> {
+    let failure: unknown
+    const request: Parameters<typeof detectProxy>[1] = async ({method, params}) => {
+        try {
+            return await rpc.call(method, params)
+        } catch (e) {
+            if (!(e instanceof RpcError)) failure ??= e
+            throw e
+        }
+    }
+    // the tag reaches the node untouched, and the node takes the hex form the library's type leaves out
+    const found = await detectProxy(token as `0x${string}`, request, at as unknown as number)
+    if (failure != null) throw failure
+    if (found == null) return {proxyType: null, implementations: null}
+    const targets: string[] = Array.isArray(found.target) ? found.target : [found.target]
+    return {proxyType: found.type, implementations: targets.map(t => t.toLowerCase())}
 }
 
 export async function fetchErc20Supply(rpc: RpcClient, token: string, at: string): Promise<bigint | null> {

@@ -130,7 +130,7 @@ export const ContractDeployed = addressPage(contract, {
     created: [deploy],
 })
 
-const wtmrDeploy = evmTx(WTMR.deployBlock, 0, {from: alice, to: null, contractAddress: WTMR.id, input: bytecode(3_072), gasLimit: '3000000', gasUsed: '2100000', ...exit(EXIT.returned)})
+const wtmrDeploy = evmTx(WTMR.deployTx.block.height, 0, {from: alice, to: null, contractAddress: WTMR.id, input: bytecode(3_072), gasLimit: '3000000', gasUsed: '2100000', ...exit(EXIT.returned)})
 
 export const TokenContract: StoryObj = {
     ...addressPage(WTMR.id, {
@@ -149,7 +149,7 @@ export const PairContract: StoryObj = {
     play: async ({canvas}) => expect(canvas.getByText('LP NUMN/wWTMR')).toBeVisible(),
 }
 
-const factoryBuilt = token(3, {name: null, symbol: null, deployBlock: null})
+const factoryBuilt = token(3, {name: null, symbol: null, deployTx: null})
 
 export const TokenContractNoMetadata = addressPage(factoryBuilt.id, {
     txs: rows(2, (h: number, i: number) => evmTx(h, i, {from: evmAddress(i), to: factoryBuilt.id, input: calldata(SELECTOR.transfer, bob, units(5, 12)), gasLimit: '65000', gasUsed: '48000', ...exit(EXIT.returned)})),

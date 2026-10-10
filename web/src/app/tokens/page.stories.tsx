@@ -39,8 +39,8 @@ export const MetadataMissing = list([
     token(2, {symbol: null}),
     token(3, {decimals: null}),
     token(4, {totalSupply: null}),
-    token(5, {deployBlock: null}),
-    token(6, {name: null, symbol: null, decimals: null, totalSupply: null, deployBlock: null}),
+    token(5, {deployTx: null}),
+    token(6, {name: null, symbol: null, decimals: null, totalSupply: null, deployTx: null}),
 ])
 
 export const ExtremeNumbers: StoryObj = {

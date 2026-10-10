@@ -1,4 +1,5 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, StringColumn as StringColumn_, Index as Index_, IntColumn as IntColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, StringColumn as StringColumn_, Index as Index_, IntColumn as IntColumn_, BigIntColumn as BigIntColumn_, ManyToOne as ManyToOne_, Relation as Relation_} from "@subsquid/typeorm-store"
+import {EvmTransaction} from "./evmTransaction.model"
 
 @Entity_()
 export class Token {
@@ -35,17 +36,11 @@ export class Token {
     transferCount!: number
 
     /**
-     * block the create tx landed in, absent for factory built contracts and for deployments older than the index range
+     * the create tx, absent for factory built contracts and for deployments older than the index range
      */
-    @IntColumn_({nullable: true})
-    deployBlock!: number | undefined | null
-
-    /**
-     * sender of the create tx, absent for factory built contracts and for deployments older than the index range
-     */
-    @Index_("idx_token_deployer_388fb311")
-    @StringColumn_({nullable: true})
-    deployer!: string | undefined | null
+    @Index_("idx_token_deploy_tx_90928931")
+    @ManyToOne_(() => EvmTransaction, {nullable: true})
+    deployTx!: Relation_<EvmTransaction> | undefined | null
 
     /**
      * block the first transfer landed in, the earliest the token can be known without a create tx
@@ -76,4 +71,16 @@ export class Token {
      */
     @StringColumn_({nullable: true})
     token1Symbol!: string | undefined | null
+
+    /**
+     * proxy kind evm-proxy-detection recognized at the last block that moved the token, absent when it is no proxy
+     */
+    @StringColumn_({nullable: true})
+    proxyType!: string | undefined | null
+
+    /**
+     * what the proxy delegated to at that block, one per facet for a diamond
+     */
+    @StringColumn_({array: true, nullable: true})
+    implementations!: (string)[] | undefined | null
 }

@@ -206,10 +206,8 @@ type Token @entity {
   "holders whose last balanceOf answer was above zero"
   holderCount: Int!
   transferCount: Int!
-  "block the create tx landed in, absent for factory built contracts and for deployments older than the index range"
-  deployBlock: Int
-  "sender of the create tx, absent for factory built contracts and for deployments older than the index range"
-  deployer: String @index
+  "the create tx, absent for factory built contracts and for deployments older than the index range"
+  deployTx: EvmTransaction
   "block the first transfer landed in, the earliest the token can be known without a create tx"
   firstBlock: Int!
   "the first of the two tokens a Uniswap V2 style pair pools, as its token0() answered, absent for any other token"
@@ -220,6 +218,10 @@ type Token @entity {
   token0Symbol: String
   "what token1 answered to symbol(), absent when it answered nothing"
   token1Symbol: String
+  "proxy kind evm-proxy-detection recognized at the last block that moved the token, absent when it is no proxy"
+  proxyType: String
+  "what the proxy delegated to at that block, one per facet for a diamond"
+  implementations: [String!]
 }
 
 type TokenTransfer @entity {

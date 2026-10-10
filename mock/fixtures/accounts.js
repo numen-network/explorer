@@ -340,12 +340,14 @@ const tokenRow = (address, traits = {}) => ({
     totalSupply: numn(21_000_000),
     holderCount: 1_204,
     transferCount: 48_211,
-    deployBlock: 300_000,
+    deployTx: {id: hashOf('evm-tx', 300_000, 0), from: contract(0), block: {height: 300_000}},
     firstBlock: 300_010,
     token0: null,
     token1: null,
     token0Symbol: null,
     token1Symbol: null,
+    proxyType: null,
+    implementations: null,
     ...traits,
 })
 
@@ -353,7 +355,7 @@ const tokenRow = (address, traits = {}) => ({
 const TOKENS = [
     tokenRow(WTMR),
     tokenRow(contract(1), {name: 'Orbit Credits', symbol: 'ORB', decimals: 6, totalSupply: '1000000000000000'}),
-    tokenRow(contract(2), {name: null, symbol: null, decimals: null, totalSupply: null, deployBlock: null}),
+    tokenRow(contract(2), {name: null, symbol: null, decimals: null, totalSupply: null, deployTx: null}),
     tokenRow(contract(3), {name: 'A token name long enough to crowd its balance off the row', symbol: 'LONGNAME'}),
 ]
 

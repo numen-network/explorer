@@ -34,6 +34,14 @@ export const bytecode = bytes => '0x60806040' + Array.from({length: Math.ceil(by
 // what any token that is no pair answers for the two tokens a pair pools
 const NO_PAIR = {token0: null, token1: null, token0Symbol: null, token1Symbol: null}
 
+const NO_PROXY = {proxyType: null, implementations: null}
+
+// the create tx as a token links it, the first tx of the block it landed in
+export const deployTx = (height, from = evmAddress(0)) => ({id: evmTxHash(height, 0), from, block: {height}})
+
+// a token behind a proxy, as evm-proxy-detection names the kind and what it delegates to
+export const proxy = (proxyType, ...implementations) => ({proxyType, implementations})
+
 // the one token the explorer has a logo for, as its mainnet contract describes itself
 export const WTMR = {
     id: '0xa1795b3c6f74866c7def1df390f9e2e403dca2e9',
@@ -43,9 +51,10 @@ export const WTMR = {
     totalSupply: units(1_250_000, 1),
     holderCount: 1_204,
     transferCount: 48_311,
-    deployBlock: 412_000,
+    deployTx: deployTx(412_000),
     firstBlock: 412_007,
     ...NO_PAIR,
+    ...NO_PROXY,
 }
 
 const KINDS = [
@@ -71,9 +80,10 @@ export function token(n, traits = {}) {
         totalSupply: units(21_000_000, kind.decimals),
         holderCount: Math.ceil(transferCount / 7),
         transferCount,
-        deployBlock: 420_000 + n * 9_000,
+        deployTx: deployTx(420_000 + n * 9_000, evmAddress(n % 7)),
         firstBlock: 420_000 + n * 9_000 + 4,
         ...NO_PAIR,
+        ...NO_PROXY,
         ...traits,
     }
 }

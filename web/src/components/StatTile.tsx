@@ -1,3 +1,4 @@
+import {cn} from 'cn'
 import Link from 'next/link'
 import {ReactNode} from 'react'
 import {Jump} from '@/components/links'
@@ -11,9 +12,9 @@ export interface StatChip {
 
 const CHIP_TONE = {pos: 'text-good', neg: 'text-destructive', idle: 'text-dim'} as const
 
-export default function StatTile({label, value, chips, href}: {label: string; value: ReactNode; chips?: StatChip[]; href?: string}) {
+export default function StatTile({label, value, chips, href, className}: {label: string; value: ReactNode; chips?: StatChip[]; href?: string; className?: string}) {
     return (
-        <Card className="gap-1 py-3.5 sm:py-4 sm:[--card-spacing:--spacing(5)]">
+        <Card className={cn('gap-1 py-3.5 sm:py-4 sm:[--card-spacing:--spacing(5)]', className)}>
             <CardHeader className="gap-1.5">
                 <CardDescription className="text-xs">
                     {href ? (
