@@ -155,7 +155,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const supportNow: Share = [BigInt(r.support), activePlanck]
 
     const decisionHours = (r.track.decisionPeriod * chain.blockTime) / 3600
-    const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, head.height)
+    const clockAt = r.endedAt ?? head.height
+    const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, clockAt)
     const x = isLive(r) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
 
     // hour zero is where the decision clock started, or where it can start
@@ -197,8 +198,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const earlyEnd = end !== undefined && end < decisionHours ? end : null
 
     const ended = r.endedAt !== null
-    const prepareAt = phaseFraction(r.submittedAt, r.track.preparePeriod, head.height)
-    const confirmAt = phaseFraction(r.confirmingSince, r.track.confirmPeriod, head.height)
+    const prepareAt = phaseFraction(r.submittedAt, r.track.preparePeriod, clockAt)
+    const confirmAt = phaseFraction(r.confirmingSince, r.track.confirmPeriod, clockAt)
     const enactAt = r.status === 'Approved' ? phaseFraction(r.endedAt, r.track.minEnactmentPeriod, head.height) : null
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
