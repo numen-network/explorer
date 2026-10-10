@@ -1,11 +1,14 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
+import type {RequestHandler} from 'msw'
 import {expect} from 'storybook/test'
 import {fmtInt} from '@/lib/format'
 import type {EvmActivity, TokenRow} from '@/lib/gql'
 import {HEAD, rows} from '../../../../../mock/fixtures.js'
-import {activity, evmAddress, holder, holders, token, tokenTransfer, tokenTransfersInOneTx, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
+import {activity, bytecode, evmAddress, evmTx, exit, EXIT, holder, holders, token, tokenTransfer, tokenTransfersInOneTx, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
+import {NST} from '../../../../../mock/fixtures/sourcify.js'
 import {cardsFit, columnTexts, expectAddressForm, expectFits} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
+import {sourcify} from '../../../../.storybook/sourcify'
 import TokenPage from './page'
 
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
@@ -15,9 +18,15 @@ export default {title: 'Pages/Token', ...pageMeta(TokenPage)}
 // go in reversed and the page has to match them up by address
 const tokenPage = (
     tok: TokenRow,
-    {holders = [], transfers = [], tallies = holders.map((h, i) => activity(h.address, i))}: {holders?: {address: string}[]; transfers?: object[]; tallies?: EvmActivity[]} = {},
+    {
+        holders = [],
+        transfers = [],
+        tallies = holders.map((h, i) => activity(h.address, i)),
+        created = [],
+        msw = [],
+    }: {holders?: {address: string}[]; transfers?: object[]; tallies?: EvmActivity[]; created?: object[]; msw?: RequestHandler[]} = {},
     searchParams = {}
-) => pageStory({tokenById: tok, tokenHolders: holders, evmAddresses: [...tallies].reverse(), tokenTransfers: transfers}, {params: {address: tok.id}, searchParams})
+) => pageStory({tokenById: tok, tokenHolders: holders, evmAddresses: [...tallies].reverse(), tokenTransfers: transfers, evmTransactions: created}, {params: {address: tok.id}, searchParams, msw})
 
 const TRANSFERS_TAB = {tab: 'transfers'}
 
@@ -146,3 +155,16 @@ export const TransfersEveryKind = tokenPage(
     },
     TRANSFERS_TAB
 )
+
+const wtmrDeploy = evmTx(WTMR.deployBlock, 0, {from: evmAddress(0), to: null, contractAddress: WTMR.id, input: bytecode(3_072), gasLimit: '3000000', gasUsed: '2100000', ...exit(EXIT.returned)})
+
+// the token's own contract, read from Sourcify
+export const Contract: StoryObj = {
+    ...tokenPage(WTMR, {created: [wtmrDeploy], msw: [sourcify({body: NST})]}, {tab: 'contract'}),
+    play: async ({canvas, canvasElement}) => {
+        expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName('Contract')
+        expect(canvas.getByText('Exact match')).toBeVisible()
+        expect(canvas.getByText('Creation code', {selector: 'div'}).nextElementSibling).toHaveTextContent('3,072 bytes')
+        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+    },
+}

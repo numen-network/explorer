@@ -10,6 +10,7 @@
 @theme {
     --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
     --font-mono: var(--font-sans);
+    --font-code: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
 :root {
@@ -102,6 +103,21 @@ html {
    into a shift of its own */
 html body[data-scroll-locked] {
     margin-right: 0 !important;
+}
+
+/* shiki writes one span.line per source line, the gutter counts them */
+.source-code pre {
+    @apply w-max min-w-full px-5 py-3 font-code text-xs leading-5;
+}
+.source-code code {
+    @apply font-code;
+    counter-reset: line;
+}
+.source-code .line::before {
+    @apply mr-4 inline-block text-right text-dim select-none;
+    counter-increment: line;
+    content: counter(line);
+    width: calc(var(--digits) * 1ch);
 }
 
 

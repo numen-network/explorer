@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import Approx from '@/components/Approx'
+import ContractPanel from '@/components/ContractPanel'
 import CopyBtn from '@/components/CopyBtn'
 import Pager from '@/components/Pager'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
@@ -11,6 +12,7 @@ import {TimeCell} from '@/components/TimeCell'
 import PairBadge from '@/components/PairBadge'
 import TokenIcon from '@/components/TokenIcon'
 import {Card} from '@/components/ui/card'
+import {contractData} from '@/lib/contract'
 import {isH160} from '@/lib/evm'
 import AddressText, {shortAddr} from '@/components/AddressText'
 import {fmtBalance, fmtInt} from '@/lib/format'
@@ -38,7 +40,7 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
     const dec = token.decimals ?? 0
     const symbol = token.symbol ?? undefined
     // every holder took part in a transfer, so the index tallied each one's activity
-    const {evmAddresses} = await evmActivity(data.tokenHolders.map(h => h.address))
+    const [{evmAddresses}, contract] = await Promise.all([evmActivity(data.tokenHolders.map(h => h.address)), tab === 'contract' ? contractData(address) : null])
     const activity = new Map(evmAddresses.map(a => [a.id, a]))
 
     const holders = (
@@ -110,6 +112,7 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                 panels={[
                     {slug: 'holders', label: 'Holders', count: token.holderCount, body: () => holders},
                     {slug: 'transfers', label: 'Transfers', count: token.transferCount, body: () => transfers},
+                    {slug: 'contract', label: 'Contract', body: () => contract && <ContractPanel address={address} data={contract} />},
                 ]}
             />
         </div>

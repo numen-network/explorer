@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
+import ContractPanel from '@/components/ContractPanel'
 import CopyBtn from '@/components/CopyBtn'
 import HoldingsList from '@/components/HoldingsList'
 import Pager from '@/components/Pager'
@@ -11,6 +12,7 @@ import {Jump} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
+import {contractData} from '@/lib/contract'
 import {evmMappedAccount, isH160} from '@/lib/evm'
 import {shortAddr} from '@/components/AddressText'
 import {evmAddressData} from '@/lib/gql'
@@ -35,6 +37,7 @@ export default async function EvmAddressPage(props: PageProps<'/address/[address
     const [chain, data] = await Promise.all([chainProps(), evmAddressData(address, {limit: pg.size, offset: pg.offset})])
     const mapped = ss58Encode(evmMappedAccount(address), chain.ss58)
     const isContract = data.created.length > 0 || data.asToken !== null
+    const contract = isContract && tab === 'contract' ? await contractData(address) : null
 
     const txs = (
         <>
@@ -54,6 +57,7 @@ export default async function EvmAddressPage(props: PageProps<'/address/[address
 
     const panels: Panel[] = [{slug: 'txs', label: 'Transactions', count: data.txCount.totalCount, body: () => txs}]
     if (data.holdingCount.totalCount > 0) panels.push({slug: 'holdings', label: 'Tokens', count: data.holdingCount.totalCount, body: () => holdings})
+    if (isContract) panels.push({slug: 'contract', label: 'Contract', body: () => contract && <ContractPanel address={address} data={contract} />})
 
     return (
         <div>

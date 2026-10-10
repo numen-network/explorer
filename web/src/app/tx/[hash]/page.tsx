@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
-import {ChevronRight} from 'lucide-react'
 import AccountLink from '@/components/AccountLink'
 import AddressText from '@/components/AddressText'
+import BytesToggle from '@/components/BytesToggle'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
@@ -13,10 +13,9 @@ import TokenIcon from '@/components/TokenIcon'
 import {BlockLink, EvmAddrLink, ExtrinsicLink} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
-import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import {chainProps} from '@/lib/chain'
 import {evmTxTypeLabel, exitDetail} from '@/lib/evm'
-import {fmtBalance, fmtCount, fmtInt, shortHash} from '@/lib/format'
+import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmTxDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
@@ -154,19 +153,7 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
                     <DetailRow label="Substrate view">
                         <ExtrinsicLink id={tx.extrinsic.id} />
                     </DetailRow>
-                    <DetailRow label="Input">
-                        {tx.input === '0x' ? (
-                            '0x'
-                        ) : (
-                            <Collapsible className="group">
-                                <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5">
-                                    <ChevronRight className="size-3.5 text-dim transition-transform group-data-[state=open]:rotate-90" />
-                                    {tx.inputSelector ?? '0x'} · {fmtCount((tx.input.length - 2) / 2, 'byte')}
-                                </CollapsibleTrigger>
-                                <CollapsibleContent className="mt-2 max-h-48 overflow-y-auto rounded-lg border bg-background px-3 py-2 text-xs break-all text-muted-foreground">{tx.input}</CollapsibleContent>
-                            </Collapsible>
-                        )}
-                    </DetailRow>
+                    <DetailRow label="Input">{tx.input === '0x' ? '0x' : <BytesToggle hex={tx.input} lead={tx.inputSelector ?? '0x'} />}</DetailRow>
                 </DetailCard>
             </div>
 

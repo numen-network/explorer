@@ -958,6 +958,17 @@ export function evmAddressData(address: string, page: Slice) {
     )
 }
 
+// absent for contracts a factory built, the index only sees create txs
+export async function contractCreation(address: string) {
+    const {evmTransactions} = await gql<{evmTransactions: {id: string; input: string}[]}>(
+        `query ($a: String!) {
+            evmTransactions(where: {contractAddress_eq: $a}, limit: 1) { id input }
+        }`,
+        {a: address}
+    )
+    return evmTransactions[0] ?? null
+}
+
 export interface TrackRow {
     id: string
     name: string

@@ -1,10 +1,13 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import type {RequestHandler} from 'msw'
+import {expect, within} from 'storybook/test'
 import {shortAddr} from '@/components/AddressText'
 import {paged, rows} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, EVERY_HOLDING, evmAddress, evmTx, exit, EXIT, holding, holdings, NOT_HELD, NUMN, pair, SELECTOR, token, UINT256_MAX, units, WTMR} from '../../../../../mock/fixtures/evm.js'
-import {expectShortHashes, tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {LONG, NOT_VERIFIED, NST, NST_PARTIAL, PROXIED, UNSUPPORTED_CHAIN, VAULT, VAULT_FILES, VYPER} from '../../../../../mock/fixtures/sourcify.js'
+import {expectFits, expectShortHashes, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
+import {sourcify, sourcifyDown} from '../../../../.storybook/sourcify'
 import EvmAddressPage from './page'
 
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
@@ -22,7 +25,7 @@ type HolderArgs = {where: {balance_gt?: number}; limit: number; offset: number}
 
 // the page asks evmTransactions twice, for the address's own list and for the tx that created it.
 // the index keeps rows for tokens the address doesn't hold, only a query asking for a balance above zero leaves them out
-const addressPage = (address: string, {txs = [], holdings = [], notHeld = [], created = [], asToken = null}: AddressData = {}, searchParams = {}) => {
+const addressPage = (address: string, {txs = [], holdings = [], notHeld = [], created = [], asToken = null}: AddressData = {}, searchParams = {}, msw: RequestHandler[] = []) => {
     const holderRows = ({where}: HolderArgs) => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
     return pageStory(
         {
@@ -32,7 +35,7 @@ const addressPage = (address: string, {txs = [], holdings = [], notHeld = [], cr
             tokenHoldersConnection: (args: HolderArgs) => ({totalCount: holderRows(args).length}),
             tokenById: asToken,
         },
-        {params: {address}, searchParams}
+        {params: {address}, searchParams, msw}
     )
 }
 
@@ -152,3 +155,121 @@ export const TokenContractNoMetadata = addressPage(factoryBuilt.id, {
     txs: rows(2, (h: number, i: number) => evmTx(h, i, {from: evmAddress(i), to: factoryBuilt.id, input: calldata(SELECTOR.transfer, bob, units(5, 12)), gasLimit: '65000', gasUsed: '48000', ...exit(EXIT.returned)})),
     asToken: factoryBuilt,
 })
+
+const CONTRACT_TAB = {tab: 'contract'}
+
+// the deployed contract's Contract tab, with answer standing in for Sourcify
+const contractTab = (answer: RequestHandler, {address = contract, created = [deploy], asToken = null}: {address?: string; created?: object[]; asToken?: object | null} = {}) =>
+    addressPage(address, {txs: created, created, asToken}, CONTRACT_TAB, [answer])
+
+const rowValue = (root: HTMLElement, label: string) => within(root).getByText(label, {selector: 'div'}).nextElementSibling!.textContent
+const codeBoxes = (root: Element) => [...root.querySelectorAll<HTMLElement>('.source-code')]
+const codeTitles = (root: Element) => codeBoxes(root).map(box => box.previousElementSibling!.firstElementChild!.textContent)
+const codeLines = (root: Element) => codeBoxes(root).map(box => box.querySelectorAll('.line').length)
+
+export const ContractVerified: StoryObj = {
+    ...contractTab(sourcify({body: NST})),
+    play: async ({canvasElement}) => {
+        expect(rowValue(canvasElement, 'Status')).toBe('Exact match')
+        expect(rowValue(canvasElement, 'Compiler')).toBe('solc 0.8.24+commit.e11b9ed9')
+        expect(rowValue(canvasElement, 'Optimizer')).toBe('200 runs')
+        expect(rowValue(canvasElement, 'EVM version')).toBe('cancun')
+        expect(rowValue(canvasElement, 'Contract')).toBe('project/contracts/Token.sol:Token')
+        expect(rowValue(canvasElement, 'Creation code')).toBe('2,048 bytes')
+        expect(codeTitles(canvasElement)).toEqual(['project/contracts/Token.sol', 'ABI'])
+        // the file's closing newline gets no line number of its own
+        expect(codeLines(canvasElement)[0]).toBe(56)
+        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+    },
+}
+
+export const ContractPartialMatch: StoryObj = {
+    ...contractTab(sourcify({body: NST_PARTIAL})),
+    play: async ({canvasElement}) => {
+        expect(rowValue(canvasElement, 'Status')).toBe('Match')
+        expect(codeTitles(canvasElement)).toEqual(['project/contracts/Token.sol'])
+    },
+}
+
+export const ContractManyFiles: StoryObj = {
+    ...contractTab(sourcify({body: VAULT})),
+    play: async ({canvasElement}) => {
+        expect(codeTitles(canvasElement)).toEqual(VAULT_FILES)
+        expect(rowValue(canvasElement, 'Optimizer')).toBe('Off')
+        expect(rowValue(canvasElement, 'EVM version')).toBe('—')
+        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+    },
+}
+
+export const ContractProxy: StoryObj = {
+    ...contractTab(sourcify({body: PROXIED})),
+    play: async ({canvas}) => {
+        const row = canvas.getByText('Implementation', {selector: 'div'}).nextElementSibling!
+        expect(row.querySelector('a')).toHaveAttribute('href', '/address/0x5fbdb2315678afecb367f032d93f642f64180aa3')
+        expect(row).toHaveTextContent('EIP1967Proxy')
+    },
+}
+
+export const ContractVyper: StoryObj = {
+    ...contractTab(sourcify({body: VYPER})),
+    play: async ({canvasElement}) => {
+        expect(rowValue(canvasElement, 'Compiler')).toBe('vyper 0.4.0+commit.e9db8d9f')
+        expect(rowValue(canvasElement, 'Optimizer')).toBe('—')
+        expect(codeTitles(canvasElement)).toEqual(['contracts/token.vy', 'ABI'])
+    },
+}
+
+export const ContractLongSource: StoryObj = {
+    ...contractTab(sourcify({body: LONG})),
+    play: async ({canvasElement}) => {
+        const [box] = codeBoxes(canvasElement)
+        expect(codeLines(canvasElement)[0]).toBe(1_344)
+        expect(box.style.getPropertyValue('--digits')).toBe('4')
+        expect(box.scrollHeight).toBeGreaterThan(box.clientHeight)
+        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+    },
+}
+
+export const ContractUnverified: StoryObj = {
+    ...contractTab(sourcify({status: 404, body: NOT_VERIFIED})),
+    play: async ({canvas, canvasElement}) => {
+        expect(canvas.getByText('Not verified')).toBeVisible()
+        expect(canvas.getByRole('link', {name: /How to verify/})).toHaveAttribute('href', 'https://docs.numen-network.org/en/evm/verify-a-contract/')
+        expect(rowValue(canvasElement, 'Creation code')).toBe('2,048 bytes')
+        expect(codeBoxes(canvasElement)).toEqual([])
+    },
+}
+
+// a factory built it, so the index holds no create tx to show
+export const ContractUnverifiedFactoryBuilt: StoryObj = {
+    ...contractTab(sourcify({status: 404, body: NOT_VERIFIED}), {address: factoryBuilt.id, created: [], asToken: factoryBuilt}),
+    play: async ({canvas}) => {
+        expect(canvas.getByText('Not verified')).toBeVisible()
+        expect(canvas.queryByText('Creation tx')).toBeNull()
+    },
+}
+
+export const ContractChainUnsupported: StoryObj = {
+    ...contractTab(sourcify({status: 400, body: UNSUPPORTED_CHAIN})),
+    play: async ({canvas}) => {
+        expect(canvas.getByText('Unavailable')).toBeVisible()
+        expect(canvas.getByText('Chain 32026 not found')).toBeVisible()
+    },
+}
+
+export const ContractSourcifyDown: StoryObj = {
+    ...contractTab(sourcifyDown),
+    play: async ({canvas, canvasElement}) => {
+        expect(canvas.getByText('Unavailable')).toBeVisible()
+        expect(rowValue(canvasElement, 'Creation code')).toBe('2,048 bytes')
+    },
+}
+
+// an account has no contract tab, so a link to one opens the first tab
+export const EoaContractTab: StoryObj = {
+    ...addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])]}, CONTRACT_TAB),
+    play: async ({canvas}) => {
+        expect(canvas.queryByRole('tab', {name: /^Contract/})).toBeNull()
+        expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^Transactions/)
+    },
+}

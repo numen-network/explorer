@@ -1,4 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import type {RequestHandler} from 'msw'
 import {getURLFromRedirectError} from 'next/dist/client/components/redirect'
 import {isRedirectError} from 'next/dist/client/components/redirect-error'
 import {cloneElement, isValidElement, type ReactNode} from 'react'
@@ -45,8 +46,11 @@ export const pageMeta = <P extends PageProps>(page: (props: P) => Promise<ReactN
         render: (_, {loaded}) => loaded.page,
     }) satisfies Meta
 
-export const pageStory = (data: Record<string, unknown>, {params = {}, searchParams = {}, redirect}: {params?: object; searchParams?: object; redirect?: string} = {}): StoryObj => ({
-    parameters: {params, searchParams, redirect, msw: [graphqlData({...base, ...data})]},
+export const pageStory = (
+    data: Record<string, unknown>,
+    {params = {}, searchParams = {}, redirect, msw = []}: {params?: object; searchParams?: object; redirect?: string; msw?: RequestHandler[]} = {}
+): StoryObj => ({
+    parameters: {params, searchParams, redirect, msw: [graphqlData({...base, ...data}), ...msw]},
 })
 
 // the page a list ends on at the default page size
