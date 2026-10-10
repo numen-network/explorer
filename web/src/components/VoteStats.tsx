@@ -1,4 +1,5 @@
 import type {ReactNode} from 'react'
+import Approx from '@/components/Approx'
 import EmptyList from '@/components/EmptyList'
 import {RingChart, StackChart} from '@/components/charts'
 import {Card} from '@/components/ui/card'
@@ -62,7 +63,7 @@ function Swatch({color}: {color: string}) {
     return <span className="inline-block size-2.5 shrink-0 rounded-[2px]" style={{background: color}} />
 }
 
-function Total({label, value, children}: {label: string; value: string; children: ReactNode}) {
+function Total({label, value, children}: {label: string; value: ReactNode; children: ReactNode}) {
     return (
         <div className="min-w-0">
             <div className="text-xs text-muted-foreground">{label}</div>
@@ -125,10 +126,10 @@ export default function VoteStats({votes, delegations, decimals, symbol}: Props)
                     <Total label="Accounts" value={fmtInt(ballots.length)}>
                         <Bars ballots={ballots} lists={lists} groups={WAYS} measure={ACCOUNTS} />
                     </Total>
-                    <Total label="Capital" value={fmtApprox(sum(b => b.capital), decimals, symbol)}>
+                    <Total label="Capital" value={<Approx planck={sum(b => b.capital)} decimals={decimals} symbol={symbol} />}>
                         <Bars ballots={ballots} lists={lists} groups={WAYS} measure={amount(b => b.capital, decimals, symbol)} />
                     </Total>
-                    <Total label="Votes" value={fmtApprox(sum(b => b.votes), decimals, symbol)}>
+                    <Total label="Votes" value={<Approx planck={sum(b => b.votes)} decimals={decimals} symbol={symbol} />}>
                         <Bars ballots={ballots} lists={lists} groups={WAYS} measure={amount(b => b.votes, decimals, symbol)} />
                     </Total>
                 </section>

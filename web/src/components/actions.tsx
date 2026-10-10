@@ -4,6 +4,7 @@ import {parseAsInteger, useQueryStates} from 'nuqs'
 import {Search} from 'lucide-react'
 import {useDebouncedCallback} from 'use-debounce'
 import AccountLink from '@/components/AccountLink'
+import Approx from '@/components/Approx'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import Pager from '@/components/Pager'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
@@ -12,7 +13,7 @@ import {Card} from '@/components/ui/card'
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {actionFilters, type ActionKind, type ActionMove} from '@/lib/actionFilters'
-import {fmtApprox, fmtInt, fmtPctMove, sentenceCase} from '@/lib/format'
+import {fmtInt, fmtPctMove, sentenceCase} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
 import {NONE} from '@/components/Detail'
@@ -154,10 +155,10 @@ export default function ActionList({rows, total, filtered, paging, href, decimal
                 meta: {align: 'right', cellClassName: 'font-mono'},
                 cell: ({row}) => (
                     <>
-                        {fmtApprox(row.original.amount, decimals, symbol)}
+                        <Approx planck={row.original.amount} decimals={decimals} symbol={symbol} />
                         {row.original.delegated !== '0' && (
                             <div className="text-xs text-dim">
-                                {fmtApprox(row.original.own, decimals)} + {fmtApprox(row.original.delegated, decimals)} delegated
+                                <Approx planck={row.original.own} decimals={decimals} /> + <Approx planck={row.original.delegated} decimals={decimals} /> delegated
                             </div>
                         )}
                     </>

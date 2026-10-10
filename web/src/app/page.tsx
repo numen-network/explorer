@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import AddressText from '@/components/AddressText'
+import Approx from '@/components/Approx'
 import BlocksRail, {type BlockCard} from '@/components/BlocksRail'
 import CopyBtn from '@/components/CopyBtn'
 import DotRow from '@/components/DotRow'
@@ -20,7 +21,7 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
-import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtMove, fmtPctMove, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
+import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -91,7 +92,7 @@ export default async function Home() {
 
     const toneOf = (v: bigint): StatChip['tone'] => (v > 0n ? 'pos' : v < 0n ? 'neg' : 'idle')
     const chip = (n: number, note: string): StatChip => ({text: `${signOf(n)}${fmtCompact(Math.abs(n))}`, note, tone: toneOf(BigInt(n))})
-    const amountChip = (planck: bigint, note: string): StatChip => ({text: fmtMove(planck, props.decimals), note, tone: toneOf(planck)})
+    const amountChip = (planck: bigint, note: string): StatChip => ({text: <Approx planck={planck} decimals={props.decimals} move />, note, tone: toneOf(planck)})
     const pctChip = (cur: bigint, prev: bigint, note: string): StatChip => {
         const move = prev > 0n ? cur - prev : 0n
         return {text: fmtPctMove(move, prev), note, tone: move > 0n ? 'pos' : move < 0n ? 'neg' : 'idle'}
@@ -206,22 +207,22 @@ export default async function Home() {
                     />
                     <StatTile
                         label="Total issuance" href="/charts/issuance"
-                        value={fmtApprox(today?.issuanceTotal ?? '0', props.decimals, props.symbol)}
+                        value={<Approx planck={today?.issuanceTotal ?? '0'} decimals={props.decimals} symbol={props.symbol} breakable />}
                         chips={stockChips(issNow, r => BigInt(r.issuanceTotal))}
                     />
                     <StatTile
                         label="Active issuance" href="/charts/active-issuance"
-                        value={fmtApprox(today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
+                        value={<Approx planck={today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n} decimals={props.decimals} symbol={props.symbol} breakable />}
                         chips={stockChips(issNow - inactiveNow, r => BigInt(r.issuanceTotal) - BigInt(r.issuanceInactive))}
                     />
                     <StatTile
                         label="Transferable issuance" href="/charts/transferable-issuance"
-                        value={fmtApprox(today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n, props.decimals, props.symbol)}
+                        value={<Approx planck={today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n} decimals={props.decimals} symbol={props.symbol} breakable />}
                         chips={[amountChip(traNow - traAt(data.tra24[0]), '24h'), amountChip(traNow - traAt(data.tra30[0]), '30d')]}
                     />
                     <StatTile
                         label="Treasury pot" href="/charts/treasury"
-                        value={fmtApprox(today?.treasuryPot ?? '0', props.decimals, props.symbol)}
+                        value={<Approx planck={today?.treasuryPot ?? '0'} decimals={props.decimals} symbol={props.symbol} breakable />}
                         chips={stockChips(BigInt(today?.treasuryPot ?? 0), r => BigInt(r.treasuryPot))}
                     />
                     <StatTile
@@ -265,7 +266,7 @@ export default async function Home() {
                                     </div>
                                 </div>
                                 <div className="flex shrink-0 items-baseline justify-between gap-3 sm:block sm:text-right">
-                                    <div className="font-mono text-sm whitespace-nowrap">{fmtApprox(t.amount, props.decimals, props.symbol)}</div>
+                                    <div className="font-mono text-sm whitespace-nowrap"><Approx planck={t.amount} decimals={props.decimals} symbol={props.symbol} /></div>
                                     <div className="flex min-w-0 justify-end sm:mt-1">
                                         <CallPill call={t.call} />
                                     </div>

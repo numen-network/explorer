@@ -1,5 +1,9 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {cardsFit} from '../../.storybook/fit'
+import {expect} from 'storybook/test'
+import {all, cardsFit, type Play} from '../../.storybook/fit'
+import {CHAIN} from '../../../mock/fixtures/accounts.js'
+import {numn} from '../../../mock/fixtures.js'
+import Approx from './Approx'
 import StatTile, {type StatChip} from './StatTile'
 
 const meta = {
@@ -18,7 +22,7 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-const chips = (...list: [text: string, note: string, tone: StatChip['tone']][]): StatChip[] => list.map(([text, note, tone]) => ({text, note, tone}))
+const chips = (...list: [text: StatChip['text'], note: string, tone: StatChip['tone']][]): StatChip[] => list.map(([text, note, tone]) => ({text, note, tone}))
 
 export const Plain: Story = {}
 
@@ -26,7 +30,14 @@ export const Linked: Story = {args: {label: 'Signed extrinsics', value: '89,062'
 
 export const RisingChips: Story = {args: {label: 'Transfers', value: '30,411', href: '/charts/transfers-total', chips: chips(['+401', '24h', 'pos'], ['+11.4K', '30d', 'pos'])}}
 
-export const FallingChips: Story = {args: {label: 'Treasury pot', value: '≈549.92M NUMN', href: '/charts/treasury', chips: chips(['≈−528.4', '24h', 'neg'], ['−70K', '30d', 'neg'])}}
+export const FallingChips: Story = {
+    args: {
+        label: 'Treasury pot',
+        value: <Approx planck={numn(549_923_456)} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />,
+        href: '/charts/treasury',
+        chips: chips([<Approx planck={`-${numn(528.4012)}`} decimals={CHAIN.decimals} move />, '24h', 'neg'], [<Approx planck={`-${numn(70_000)}`} decimals={CHAIN.decimals} move />, '30d', 'neg']),
+    },
+}
 
 export const MixedPercentChips: Story = {args: {label: 'Difficulty', value: '5.11B', href: '/charts/difficulty', chips: chips(['−0.21%', '24h', 'neg'], ['+5.83%', '30d', 'pos'])}}
 
@@ -38,9 +49,20 @@ export const ZeroValue: Story = {args: {label: 'EVM txs', value: '0', href: '/ch
 
 export const NoValue: Story = {args: {label: 'Difficulty', value: '—', href: '/charts/difficulty', chips: chips(['—', '24h', 'idle'], ['—', '30d', 'idle'])}}
 
+// a figure too long for the tile wraps between its digit groups, never inside one
+const groupsWhole: Play = async ({canvasElement}) => {
+    const groups = [...canvasElement.querySelector('[data-slot=card-title]')!.childNodes].filter(node => node.nodeType === Node.TEXT_NODE && /^\d+$/.test(node.textContent!))
+    expect(groups.length).toBeGreaterThan(1)
+    for (const group of groups) {
+        const range = document.createRange()
+        range.selectNodeContents(group)
+        expect({group: group.textContent, lines: new Set([...range.getClientRects()].map(r => Math.round(r.top))).size}).toEqual({group: group.textContent, lines: 1})
+    }
+}
+
 export const LongValue: Story = {
-    args: {label: 'Total supply', value: '≈115,792,089,237,316,195,423,570,985,008,687,907.85Y TEST'},
-    play: cardsFit,
+    args: {label: 'Total supply', value: <Approx planck={((1n << 256n) - 1n).toString()} decimals={18} symbol="TEST" breakable />},
+    play: all(cardsFit, groupsWhole),
 }
 
 export const HomeRow: Story = {

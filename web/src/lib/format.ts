@@ -114,23 +114,24 @@ export function fmtTick(v: number): string {
 }
 
 // at most two decimals in the unit the size calls for, cut and never rounded
-// up, trailing zeros dropped, and ≈ ahead of the sign once the cut drops a
-// digit that isn't zero
-function approx(planck: string | bigint, decimals: number, sign: string, symbol?: string): string {
+// up, trailing zeros dropped. the figure stays exact until the cut drops a
+// digit that isn't zero. an amount signs a fall, a move signs a rise too
+export function approxParts(planck: string | bigint, decimals: number, symbol?: string, move = false): {exact: boolean; figure: string} {
     const {v, whole} = planckParts(planck, decimals)
     const [, shift, suffix] = unitFor(whole)
-    const exact = (v * 100n) % 10n ** BigInt(decimals + shift) === 0n
-    return `${exact ? '' : '≈'}${sign}${fmtInt(trimZeros(truncFixed(v, 2, decimals + shift)))}${suffix}${symbol ? ` ${symbol}` : ''}`
+    const n = BigInt(planck)
+    const sign = move ? signOf(n) : n < 0n ? MINUS : ''
+    return {
+        exact: (v * 100n) % 10n ** BigInt(decimals + shift) === 0n,
+        figure: `${sign}${fmtInt(trimZeros(truncFixed(v, 2, decimals + shift)))}${suffix}${symbol ? ` ${symbol}` : ''}`,
+    }
 }
 
-// the one short form of an amount
+// a short amount where only text goes, a chart or a sentence, with ≈ ahead
+// of a figure that isn't exact
 export function fmtApprox(planck: string | bigint, decimals: number, symbol?: string): string {
-    return approx(planck, decimals, BigInt(planck) < 0n ? MINUS : '', symbol)
-}
-
-// how far an amount rose or fell, the direction right after the ≈
-export function fmtMove(planck: string | bigint, decimals: number): string {
-    return approx(planck, decimals, signOf(BigInt(planck)))
+    const {exact, figure} = approxParts(planck, decimals, symbol)
+    return `${exact ? '' : '≈'}${figure}`
 }
 
 // a hash shows either full or as the fixed 0x4…4 split, nothing else

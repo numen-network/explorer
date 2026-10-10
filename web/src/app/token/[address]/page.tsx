@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
+import Approx from '@/components/Approx'
 import CopyBtn from '@/components/CopyBtn'
 import Pager from '@/components/Pager'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
@@ -12,7 +13,7 @@ import TokenIcon from '@/components/TokenIcon'
 import {Card} from '@/components/ui/card'
 import {isH160} from '@/lib/evm'
 import AddressText, {shortAddr} from '@/components/AddressText'
-import {fmtApprox, fmtBalance, fmtInt} from '@/lib/format'
+import {fmtBalance, fmtInt} from '@/lib/format'
 import {evmActivity, tokenDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {HoldersTable} from './tables'
@@ -94,7 +95,7 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
             </div>
 
             <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <StatTile label="Total supply" value={token.totalSupply != null ? fmtApprox(token.totalSupply, dec, symbol) : '—'} />
+                <StatTile label="Total supply" value={token.totalSupply != null ? <Approx planck={token.totalSupply} decimals={dec} symbol={symbol} breakable /> : '—'} />
                 <StatTile label="Holders" value={fmtInt(token.holderCount)} />
                 <StatTile label="Transfers" value={fmtInt(token.transferCount)} />
                 <StatTile

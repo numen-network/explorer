@@ -1,15 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import {useMemo} from 'react'
+import {useMemo, type ReactNode} from 'react'
 import AccountLink from '@/components/AccountLink'
+import Approx from '@/components/Approx'
 import {columnsFor, DataTable, expander} from '@/components/DataTable'
 import {NONE} from '@/components/Detail'
 import {Jump} from '@/components/links'
 import Pager from '@/components/Pager'
 import {FilterChip} from '@/components/pills'
 import {Card} from '@/components/ui/card'
-import {fmtApprox, fmtCount, fmtInt} from '@/lib/format'
+import {fmtCount, fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
 
@@ -56,7 +57,7 @@ export type VoteRows = {kind: 'standard'; rows: VoteEntry[]} | {kind: 'split'; l
 const LEAD = 'font-mono'
 const AUX = 'font-mono text-muted-foreground'
 
-function Stat({label, value}: {label: string; value: string}) {
+function Stat({label, value}: {label: string; value: ReactNode}) {
     return (
         <div className="flex items-baseline justify-between gap-4 border-t py-2 first:border-t-0">
             <span className="text-muted-foreground">{label}</span>
@@ -78,11 +79,11 @@ function Detail({v, decimals, symbol}: {v: VoteEntry; decimals: number; symbol: 
                 meta: {align: 'right', className: 'py-2', cellClassName: LEAD},
                 cell: ({row}) => (
                     <>
-                        {fmtApprox(row.original.capital, decimals, symbol)} <span className="text-dim">{row.original.conviction}</span>
+                        <Approx planck={row.original.capital} decimals={decimals} symbol={symbol} /> <span className="text-dim">{row.original.conviction}</span>
                     </>
                 ),
             }),
-            dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: AUX}, cell: ({row}) => fmtApprox(row.original.votes, decimals, symbol)}),
+            dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: AUX}, cell: ({row}) => <Approx planck={row.original.votes} decimals={decimals} symbol={symbol} />}),
         ],
         [decimals, symbol]
     )
@@ -92,17 +93,17 @@ function Detail({v, decimals, symbol}: {v: VoteEntry; decimals: number; symbol: 
                 <div>
                     <h3 className="text-[13px] font-semibold">Self votes</h3>
                     <div className="mt-1 text-sm">
-                        <Stat label="Votes" value={fmtApprox(v.selfVotes, decimals, symbol)} />
+                        <Stat label="Votes" value={<Approx planck={v.selfVotes} decimals={decimals} symbol={symbol} />} />
                         <Stat label="Conviction" value={v.conviction} />
-                        <Stat label="Capital" value={fmtApprox(v.capital, decimals, symbol)} />
+                        <Stat label="Capital" value={<Approx planck={v.capital} decimals={decimals} symbol={symbol} />} />
                     </div>
                 </div>
                 <div>
                     <h3 className="text-[13px] font-semibold">Delegated votes</h3>
                     <div className="mt-1 text-sm">
-                        <Stat label="Votes" value={fmtApprox(v.delegatedVotes, decimals, symbol)} />
+                        <Stat label="Votes" value={<Approx planck={v.delegatedVotes} decimals={decimals} symbol={symbol} />} />
                         <Stat label="Delegators" value={fmtInt(v.delegatorCount)} />
-                        <Stat label="Capital" value={fmtApprox(v.delegatedCapital, decimals, symbol)} />
+                        <Stat label="Capital" value={<Approx planck={v.delegatedCapital} decimals={decimals} symbol={symbol} />} />
                     </div>
                 </div>
             </div>
@@ -133,11 +134,11 @@ function StandardTable({rows, decimals, symbol, empty}: {rows: VoteEntry[]; deci
                 meta: {align: 'right', cellClassName: LEAD},
                 cell: ({row}) => (
                     <>
-                        {fmtApprox(row.original.capital, decimals, symbol)} <span className="text-dim">{row.original.conviction}</span>
+                        <Approx planck={row.original.capital} decimals={decimals} symbol={symbol} /> <span className="text-dim">{row.original.conviction}</span>
                     </>
                 ),
             }),
-            col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: AUX}, cell: ({row}) => fmtApprox(row.original.selfVotes, decimals, symbol)}),
+            col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: AUX}, cell: ({row}) => <Approx planck={row.original.selfVotes} decimals={decimals} symbol={symbol} />}),
             col.display({
                 id: 'delegated',
                 header: 'Delegated',
@@ -145,7 +146,7 @@ function StandardTable({rows, decimals, symbol, empty}: {rows: VoteEntry[]; deci
                 cell: ({row}) =>
                     row.original.delegatorCount > 0 ? (
                         <>
-                            {fmtApprox(row.original.delegatedVotes, decimals, symbol)} <span className="text-dim">({fmtInt(row.original.delegatorCount)})</span>
+                            <Approx planck={row.original.delegatedVotes} decimals={decimals} symbol={symbol} /> <span className="text-dim">({fmtInt(row.original.delegatorCount)})</span>
                         </>
                     ) : (
                         NONE
@@ -169,7 +170,7 @@ function SplitTable({labels, rows, decimals, symbol, empty}: {labels: string[]; 
                     id: label,
                     header: label,
                     meta: {align: 'right', cellClassName: i === 0 ? LEAD : AUX},
-                    cell: ({row}) => fmtApprox(row.original.amounts[i], decimals, symbol),
+                    cell: ({row}) => <Approx planck={row.original.amounts[i]} decimals={decimals} symbol={symbol} />,
                 })
             ),
         ],

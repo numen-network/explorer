@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {FileText} from 'lucide-react'
+import Approx from '@/components/Approx'
 import {BountyTable} from '@/components/BountyTable'
 import EmptyList from '@/components/EmptyList'
 import Pager from '@/components/Pager'
@@ -13,7 +14,7 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {curveAt, type Curve} from '@/lib/curves'
 import {chainDbHead, chainProps} from '@/lib/chain'
-import {camelLabel, fmtApprox, fmtCount, fmtInt, trackLabel, truncFixed} from '@/lib/format'
+import {camelLabel, fmtCount, fmtInt, trackLabel, truncFixed} from '@/lib/format'
 import {isLive, phaseFraction} from '@/lib/referendum'
 import {bountiesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -139,8 +140,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     need={curveAt(r.track.minApproval as Curve, at) * 100}
                                     foot={
                                         <>
-                                            <span>aye {fmtApprox(r.ayes, chain.decimals)}</span>
-                                            <span>nay {fmtApprox(r.nays, chain.decimals)}</span>
+                                            <span>aye <Approx planck={r.ayes} decimals={chain.decimals} /></span>
+                                            <span>nay <Approx planck={r.nays} decimals={chain.decimals} /></span>
                                         </>
                                     }
                                 />
@@ -152,8 +153,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     need={curveAt(r.track.minSupport as Curve, at) * 100}
                                     foot={
                                         <>
-                                            <span>voted {fmtApprox(r.support, chain.decimals)}</span>
-                                            <span>of {fmtApprox(activeIssuance, chain.decimals)}</span>
+                                            <span>voted <Approx planck={r.support} decimals={chain.decimals} /></span>
+                                            <span>of <Approx planck={activeIssuance} decimals={chain.decimals} /></span>
                                         </>
                                     }
                                 />
@@ -193,8 +194,8 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
             <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatTile label="Referenda" value={fmtInt(sum.refs.totalCount)} />
                 <StatTile label="Ongoing" value={fmtInt(sum.ongoing.totalCount)} />
-                <StatTile label="Treasury pot" value={latest ? fmtApprox(latest.treasuryPot, chain.decimals, chain.symbol) : '—'} />
-                <StatTile label="Active issuance" value={fmtApprox(activeIssuance, chain.decimals, chain.symbol)} />
+                <StatTile label="Treasury pot" value={latest ? <Approx planck={latest.treasuryPot} decimals={chain.decimals} symbol={chain.symbol} breakable /> : '—'} />
+                <StatTile label="Active issuance" value={<Approx planck={activeIssuance} decimals={chain.decimals} symbol={chain.symbol} breakable />} />
             </div>
 
             <div className="mt-7">

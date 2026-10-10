@@ -1,10 +1,11 @@
 'use client'
 
 import {useMemo} from 'react'
+import Approx from '@/components/Approx'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink, EvmAddrLink} from '@/components/links'
 import ShareBar from '@/components/ShareBar'
-import {fmtApprox, fmtInt} from '@/lib/format'
+import {fmtInt} from '@/lib/format'
 import type {EvmActivity} from '@/lib/gql'
 
 export interface Holder {
@@ -22,7 +23,7 @@ export function HoldersTable({rows, offset, supply, decimals, symbol}: {rows: Ho
             hcol.columns([
                 hcol.display({id: 'rank', header: '#', meta: {cellClassName: 'font-mono text-muted-foreground'}, cell: ({row}) => offset + row.index + 1}),
                 hcol.display({id: 'address', header: 'Address', meta: {className: 'w-full'}, cell: ({row}) => <EvmAddrLink addr={row.original.address} full />}),
-                hcol.display({id: 'balance', header: 'Balance', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtApprox(row.original.balance, decimals, symbol)}),
+                hcol.display({id: 'balance', header: 'Balance', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => <Approx planck={row.original.balance} decimals={decimals} symbol={symbol} />}),
                 hcol.display({id: 'share', header: 'Share', meta: {align: 'right'}, cell: ({row}) => <ShareBar part={row.original.balance} whole={supply} />}),
                 hcol.display({id: 'txs', header: 'Transactions', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.activity.txCount)}),
                 hcol.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.activity.firstSeenBlock} />}),

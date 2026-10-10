@@ -2,11 +2,12 @@
 
 import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
+import Approx from '@/components/Approx'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import ShareBar from '@/components/ShareBar'
 import type {ChainProps} from '@/lib/chain'
-import {fmtApprox, fmtInt, pctToNum} from '@/lib/format'
+import {fmtInt, pctToNum} from '@/lib/format'
 import type {AccountListRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -38,7 +39,7 @@ export function AccountsTable({rows, chain, issuance}: {rows: AccountListRow[]; 
                     return (
                         <>
                             {mark && <span className="mr-1.5">{mark}</span>}
-                            {fmtApprox(held, chain.decimals, chain.symbol)}
+                            <Approx planck={held} decimals={chain.decimals} symbol={chain.symbol} />
                         </>
                     )
                 },
