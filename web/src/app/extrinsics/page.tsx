@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import AccountLink from '@/components/AccountLink'
+import ApplyButton from '@/components/ApplyButton'
 import DateRange from '@/components/DateRange'
 import {emptyText} from '@/components/EmptyList'
 import {ExtrinsicsTable} from '@/components/ExtrinsicsTable'
 import Pager from '@/components/Pager'
 import {FilterSelect} from '@/components/pills'
-import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Field} from '@/components/ui/field'
 import {Input} from '@/components/ui/input'
@@ -33,7 +33,6 @@ const Carry = ({keep}: {keep: Record<string, string>}) => (
 
 const LABEL = 'mr-1 w-14 text-xs font-normal text-muted-foreground'
 const RESULT_LABEL: Record<string, string> = {success: 'Success', failed: 'Failed'}
-const FIELD = 'h-auto rounded-lg bg-card px-2.5 py-1 text-xs font-normal hover:bg-card hover:text-primary'
 
 export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
     const sp = await props.searchParams
@@ -79,9 +78,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
                             <Label className={LABEL}>Date</Label>
                             <Carry keep={{pallet, method, signer: rawSigner, result: result ?? ''}} />
                             <DateRange key={`${after}|${before}`} after={after} before={before} lastDay={head.timestamp?.slice(0, 10) ?? null} />
-                            <Button type="submit" variant="outline" className={FIELD}>
-                                Apply
-                            </Button>
+                            <ApplyButton />
                             {(after || before) && (
                                 <Link href={href({after: '', before: '', page: ''})} className="text-primary hover:underline">
                                     clear
@@ -95,10 +92,8 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
                                 Signer
                             </Label>
                             <Carry keep={{pallet, method, result: result ?? '', after, before}} />
-                            <Input id="signer" name="signer" defaultValue={rawSigner} placeholder="ss58 or hex account" spellCheck={false} className="h-auto w-[34ch] rounded-lg bg-card px-2.5 py-1 font-mono text-xs md:text-xs" />
-                            <Button type="submit" variant="outline" className={FIELD}>
-                                Apply
-                            </Button>
+                            <Input id="signer" name="signer" defaultValue={rawSigner} placeholder="ss58 or hex account" spellCheck={false} className="w-[34ch] rounded-lg bg-card px-3 font-mono text-sm" />
+                            <ApplyButton />
                             {signer && <AccountLink addr={ss58Encode(signer, chain.ss58)} />}
                             {rawSigner && !signer && <span className="text-destructive">not an address</span>}
                             {rawSigner && (

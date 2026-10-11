@@ -172,7 +172,7 @@ export default function ActionList({rows, total, filtered, paging, href, decimal
                         Actions <span className="font-normal text-dim">({fmtInt(total)})</span>
                     </h2>
                     <div className="flex w-full flex-wrap items-center gap-2 text-sm sm:w-auto">
-                        <InputGroup className="h-auto w-full bg-card sm:w-90">
+                        <InputGroup className="w-full bg-card sm:w-90">
                             <InputGroupAddon className="pr-[3px] pl-3">
                                 <Search className="size-[15px] text-dim" />
                             </InputGroupAddon>
@@ -181,7 +181,7 @@ export default function ActionList({rows, total, filtered, paging, href, decimal
                                 onChange={e => type(e.target.value)}
                                 placeholder="Search address or identity"
                                 spellCheck={false}
-                                className="h-auto py-1.5 pr-3 text-sm placeholder:text-dim md:text-sm"
+                                className="pr-3 text-sm placeholder:text-dim"
                             />
                         </InputGroup>
                         <Dropdown className="w-[150px] grow sm:grow-0" value={action ?? 'all'} options={KINDS} onChange={v => pick({action: v === 'all' ? null : v})} />

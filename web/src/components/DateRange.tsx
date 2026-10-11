@@ -39,7 +39,7 @@ export default function DateRange({after, before, lastDay, active = false}: {aft
                     <Button
                         variant="outline"
                         data-active={active}
-                        className="h-auto w-56 justify-between gap-2 rounded-lg bg-card px-2.5 py-1 text-[length:inherit] leading-[inherit] font-normal hover:bg-card hover:text-primary aria-expanded:bg-card aria-expanded:text-foreground data-active:bg-background data-active:font-medium data-active:hover:bg-background data-active:aria-expanded:bg-background"
+                        className="w-56 justify-between gap-2 rounded-lg bg-card px-3 font-normal hover:bg-card hover:text-primary aria-expanded:bg-card aria-expanded:text-foreground data-active:bg-background data-active:font-medium data-active:hover:bg-background data-active:aria-expanded:bg-background"
                     >
                         {from || to ? (
                             <span>
@@ -48,7 +48,7 @@ export default function DateRange({after, before, lastDay, active = false}: {aft
                         ) : (
                             <span className="text-muted-foreground">Any date</span>
                         )}
-                        <CalendarIcon className="size-[13px] text-muted-foreground" />
+                        <CalendarIcon className="size-3.5 text-muted-foreground" />
                     </Button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto border p-0 leading-normal shadow-lg ring-0">

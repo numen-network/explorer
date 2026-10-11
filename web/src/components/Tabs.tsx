@@ -20,12 +20,12 @@ const STYLE: Record<TabVariant, {strip: string; link: string}> = {
         link: 'flex-none px-1 pb-3 text-sm text-muted-foreground after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-primary after:opacity-0 after:transition-opacity hover:text-foreground data-active:text-foreground data-active:after:opacity-100',
     },
     pill: {
-        strip: 'flex w-fit items-center justify-center gap-1 rounded-lg border bg-card p-0.5',
-        link: 'flex-1 rounded-lg px-2.5 py-1 text-xs text-muted-foreground hover:text-primary data-active:bg-background data-active:font-medium data-active:text-foreground data-active:hover:text-foreground',
+        strip: 'flex h-8 w-fit items-center justify-center gap-1 rounded-lg border bg-card p-0.5',
+        link: 'h-full flex-1 rounded-lg px-2.5 text-sm text-muted-foreground hover:text-primary data-active:bg-background data-active:font-medium data-active:text-foreground data-active:hover:text-foreground',
     },
     segment: {
-        strip: 'flex w-fit items-center justify-center overflow-hidden rounded-lg border bg-card',
-        link: 'flex-1 px-3.5 py-1.5 text-sm text-foreground hover:text-primary data-active:bg-primary data-active:font-medium data-active:text-primary-foreground data-active:hover:text-primary-foreground',
+        strip: 'flex h-8 w-fit items-center justify-center overflow-hidden rounded-lg border bg-card',
+        link: 'h-full flex-1 px-3.5 text-sm text-foreground hover:text-primary data-active:bg-primary data-active:font-medium data-active:text-primary-foreground data-active:hover:text-primary-foreground',
     },
 }
 

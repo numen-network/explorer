@@ -89,12 +89,18 @@ export const LineOverflowing: Story = {
 
 export const LineNoneActive: Story = {render: () => <TabBar aria-label="Token" items={items(['Holders', 'Transfers', 'Contract'], -1)} />, play: linkStrip('Token')}
 
-export const Pill: Story = {render: () => <TabBar aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], 2)} />, play: all(linkStrip('Range', '365D'), keyboard)}
+// pill and segment strips stand one control tall, like the dropdowns and buttons beside them
+const controlHeight =
+    (name: string): Play =>
+    async ({canvas}) =>
+        expect(canvas.getByRole('navigation', {name}).getBoundingClientRect().height).toBe(32)
+
+export const Pill: Story = {render: () => <TabBar aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], 2)} />, play: all(linkStrip('Range', '365D'), keyboard, controlHeight('Range'))}
 
 // the presets of a chart set to a custom date range
 export const PillNoneActive: Story = {render: () => <TabBar aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], -1)} />, play: linkStrip('Range')}
 
-export const Segment: Story = {render: () => <TabBar aria-label="Window" variant="segment" items={items(['24h', '7d', '30d'], 0)} />, play: all(linkStrip('Window', '24h'), keyboard)}
+export const Segment: Story = {render: () => <TabBar aria-label="Window" variant="segment" items={items(['24h', '7d', '30d'], 0)} />, play: all(linkStrip('Window', '24h'), keyboard, controlHeight('Window'))}
 
 export const SegmentLastActive: Story = {render: () => <TabBar aria-label="Window" variant="segment" items={items(['24h', '7d', '30d'], 2)} />, play: linkStrip('Window', '30d')}
 

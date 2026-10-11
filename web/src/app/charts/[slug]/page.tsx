@@ -1,9 +1,9 @@
 import {notFound} from 'next/navigation'
+import ApplyButton from '@/components/ApplyButton'
 import ChartList from '@/components/ChartList'
 import DateRange from '@/components/DateRange'
 import {TabBar} from '@/components/Tabs'
 import {SeriesChart} from '@/components/charts'
-import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Empty, EmptyDescription} from '@/components/ui/empty'
 import {chainDbHead, chainProps, windowStart} from '@/lib/chain'
@@ -68,9 +68,7 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
                     <div className="flex flex-wrap items-center gap-2">
                         <form className="flex flex-wrap items-center gap-2 text-xs" action={`/charts/${slug}`}>
                             <DateRange key={`${after}|${before}`} after={after} before={before} lastDay={head.timestamp?.slice(0, 10) ?? null} active={custom} />
-                            <Button type="submit" variant="outline" className="h-auto rounded-lg bg-card px-2.5 py-1 text-xs font-normal hover:bg-card hover:text-primary">
-                                Apply
-                            </Button>
+                            <ApplyButton />
                         </form>
                         <TabBar aria-label="Range" variant="pill" items={RANGES.map(([k, label]) => ({label, href: `/charts/${slug}${k === '365' ? '' : `?r=${k}`}`, active: k === range}))} />
                     </div>
