@@ -101,7 +101,7 @@ export const NoMatch: Story = {
     play: async ({canvas, canvasElement}) => {
         await expect(emptyText(canvasElement)).toBe('No matching actions.')
         await expect(canvas.getByPlaceholderText('Search address or identity')).toHaveValue('nobody by this name')
-        await expect(canvas.getAllByRole('combobox').map(b => b.textContent)).toEqual(['Undelegate', 'Support up'])
+        await expect(canvas.getAllByRole('combobox', {name: ''}).map(b => b.textContent)).toEqual(['Undelegate', 'Support up'])
     },
 }
 

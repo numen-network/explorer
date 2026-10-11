@@ -62,9 +62,22 @@ export const MiddlePage: Story = {args: {paging: at(25)}}
 
 export const LastPage: Story = {args: {paging: at(50)}}
 
-export const SinglePage: Story = {args: {total: 15}}
+// a list of one page still shows the whole pager, page 1 current and both arrows off
+async function onePage({canvasElement}: {canvasElement: HTMLElement}) {
+    const nav = within(canvasElement).getByRole('navigation')
+    const pages = within(nav).getAllByRole('link', {name: /page \d+$/})
+    await expect(pages.map(p => p.textContent)).toEqual(['1'])
+    await expect(pages[0]).toHaveAttribute('aria-current', 'page')
+    for (const name of [/previous/i, /next/i]) await expect(within(nav).getByRole('link', {name})).toHaveAttribute('aria-disabled', 'true')
+    await expect(within(nav).getByRole('combobox', {name: 'Rows per page'})).toBeVisible()
+    await expect(within(nav).getByLabelText('Go to page')).toBeVisible()
+}
 
-export const FitsSmallestPage: Story = {args: {total: 10}}
+export const SinglePage: Story = {args: {total: 15}, play: onePage}
+
+export const FitsSmallestPage: Story = {args: {total: 10}, play: onePage}
+
+export const Empty: Story = {args: {total: 0}, play: onePage}
 
 export const TwoPages: Story = {args: {paging: at(2, 10), total: 11}}
 

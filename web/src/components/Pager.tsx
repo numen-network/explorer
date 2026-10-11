@@ -43,12 +43,10 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
         q.set('size', String(s))
         return `${path}?${q}`
     }
-    const props = {count: total, pageSize: size, page, type: 'link', getPageUrl: d => url(d.page, d.pageSize)} satisfies Partial<pagination.Props>
+    const props = {count: Math.max(total, 1), pageSize: size, page, type: 'link', getPageUrl: d => url(d.page, d.pageSize)} satisfies Partial<pagination.Props>
     const api = pagination.connect(useMachine(pagination.machine, {...props, id: useId(), siblingCount: 2}), normalizeProps)
     const narrow = pagination.connect(useMachine(pagination.machine, {...props, id: useId(), siblingCount: 0}), normalizeProps)
     const narrowest = pagination.connect(useMachine(pagination.machine, {...props, id: useId(), siblingCount: 0, boundaryCount: 0}), normalizeProps)
-    if (total <= PAGE_SIZES[0]) return null
-    const paged = api.totalPages > 1
     const jump = () => {
         const n = Math.min(api.totalPages, Math.max(1, Math.floor(Number(goto))))
         if (!n) return
@@ -89,29 +87,25 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
     }
     return (
         <Pagination className={cn('@container flex-wrap items-center justify-end gap-x-4 gap-y-2', className)} {...api.getRootProps()} data-fit={fit}>
-            {paged && (
-                <PaginationContent className="-mr-1.5">
-                    <style href={fit} precedence="pager">
-                        {swap(widths[0], '(width >= 48rem)', 9, 5) + swap(widths[1], '(width >= 40rem)', 5, 3) + swap(widths[2], '(width < 40rem)', 5, 3)}
-                    </style>
-                    <PaginationItem>
-                        <PaginationPrevious {...api.getPrevTriggerProps()} href={url(api.previousPage ?? 1, size)} scroll={false} aria-disabled={api.previousPage === null} className={cn(api.previousPage === null && off)} />
-                    </PaginationItem>
-                    {slots(narrowest, 3, 'hidden')}
-                    {slots(narrow, 5, 'md:hidden')}
-                    {slots(api, 9, 'max-md:hidden')}
-                    <PaginationItem>
-                        <PaginationNext {...api.getNextTriggerProps()} href={url(api.nextPage ?? page, size)} scroll={false} aria-disabled={api.nextPage === null} className={cn(api.nextPage === null && off)} />
-                    </PaginationItem>
-                </PaginationContent>
-            )}
+            <PaginationContent className="-mr-1.5">
+                <style href={fit} precedence="pager">
+                    {swap(widths[0], '(width >= 48rem)', 9, 5) + swap(widths[1], '(width >= 40rem)', 5, 3) + swap(widths[2], '(width < 40rem)', 5, 3)}
+                </style>
+                <PaginationItem>
+                    <PaginationPrevious {...api.getPrevTriggerProps()} href={url(api.previousPage ?? 1, size)} scroll={false} aria-disabled={api.previousPage === null} className={cn(api.previousPage === null && off)} />
+                </PaginationItem>
+                {slots(narrowest, 3, 'hidden')}
+                {slots(narrow, 5, 'md:hidden')}
+                {slots(api, 9, 'max-md:hidden')}
+                <PaginationItem>
+                    <PaginationNext {...api.getNextTriggerProps()} href={url(api.nextPage ?? page, size)} scroll={false} aria-disabled={api.nextPage === null} className={cn(api.nextPage === null && off)} />
+                </PaginationItem>
+            </PaginationContent>
             <Dropdown label="Rows per page" value={String(size)} options={PAGE_SIZES.map(n => ({value: String(n), label: `${n} / page`}))} onChange={v => router.push(url(1, Number(v)), {scroll: false})} />
-            {paged && (
-                <Label className="font-normal">
-                    Go to page
-                    <Input value={goto} onChange={e => setGoto(e.target.value)} inputMode="numeric" pattern="[0-9]*" className="min-w-16 bg-card text-center" style={{width: `calc(${String(api.totalPages).length + 1}ch + 1.25rem + 2px)`}} onKeyDown={e => e.key === 'Enter' && jump()} />
-                </Label>
-            )}
+            <Label className="font-normal">
+                Go to page
+                <Input value={goto} onChange={e => setGoto(e.target.value)} inputMode="numeric" pattern="[0-9]*" className="min-w-16 bg-card text-center" style={{width: `calc(${String(api.totalPages).length + 1}ch + 1.25rem + 2px)`}} onKeyDown={e => e.key === 'Enter' && jump()} />
+            </Label>
         </Pagination>
     )
 }
