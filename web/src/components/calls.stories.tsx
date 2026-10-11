@@ -1,10 +1,12 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
 import {expect, userEvent, within} from 'storybook/test'
+import {withCallViews} from '@/lib/args'
 import type {AccountRef, CallCount, CallRef, CallRow} from '@/lib/gql'
 import {HEAD} from '../../../mock/fixtures.js'
 import {batchAll, batchInterrupted, batchOfProxies, CHAIN_PROPS, heartbeat, mined, pick, proxied, referendumSubmission, timestampSet, transfer, vestingPayout} from '../../../mock/fixtures/blocks.js'
-import {CallCell, CallPill, CallTree} from './calls'
+import {CallTree} from './CallTree'
+import {CallCell, CallPill} from './calls'
 
 const meta = {title: 'Components/Calls'} satisfies Meta
 export default meta
@@ -76,7 +78,7 @@ export const CallCells: Story = {
 const tree = (spec: Spec): Story => {
     const {extrinsics, calls} = pick(mined(HEAD - 120, [timestampSet, spec]), 1)
     const signer = extrinsics[0].signer as AccountRef | null
-    return {render: () => <CallTree calls={calls as CallRow[]} chain={CHAIN_PROPS} signer={signer} />}
+    return {render: () => <CallTree calls={withCallViews(calls as CallRow[])} chain={CHAIN_PROPS} signer={signer} />}
 }
 
 const expandAll: Story['play'] = async ({canvasElement}) => {
@@ -102,3 +104,26 @@ export const CallTreeTwoDepths = tree(batchOfProxies)
 export const CallTreeLongArgs = tree(referendumSubmission)
 
 export const CallTreePayoutBatch = tree((height: number) => vestingPayout(height, {count: 40}))
+
+// a runtime newer than the metadata the explorer ships with leaves only the raw args
+export const CallTreeUnknownRuntime: Story = {
+    render: () => {
+        const {extrinsics, calls} = pick(mined(HEAD - 120, [timestampSet, transfer]), 1)
+        const unknown = withCallViews((calls as CallRow[]).map(c => ({...c, block: {specVersion: 999}})))
+        return <CallTree calls={unknown} chain={CHAIN_PROPS} signer={extrinsics[0].signer as AccountRef | null} />
+    },
+    play: async ({canvas}) => {
+        await expect(canvas.queryByRole('tab', {name: 'Table'})).toBeNull()
+        await expect(canvas.getByText(/"transfer_keep_alive"|"dest"/)).toBeVisible()
+    },
+}
+
+export const CallTreeJsonView: Story = {
+    ...tree(transfer),
+    play: async ({canvas}) => {
+        await userEvent.click(canvas.getByRole('tab', {name: 'JSON'}))
+        await expect(canvas.getByText(/"dest"/)).toBeVisible()
+        await userEvent.click(canvas.getByRole('tab', {name: 'Table'}))
+        await expect(canvas.getByText('dest')).toBeVisible()
+    },
+}

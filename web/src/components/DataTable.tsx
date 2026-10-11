@@ -63,48 +63,51 @@ export function DataTable<T extends RowData>({columns, rows, empty = 'None', emp
         getRowCanExpand: (row: Row<Features, T>) => canExpand?.(row.original) ?? false,
     })
     const width = table.getAllLeafColumns().length
+    // an expanded panel stays in view while a table wider than its card scrolls sideways
     return (
-        <Table className={cn('whitespace-nowrap', className)}>
-            {head && (
-                <TableHeader>
-                    {table.getHeaderGroups().map(group => (
-                        <TableRow key={group.id} className="hover:bg-transparent">
-                            {group.headers.map(header => (
-                                <TableHead key={header.id} colSpan={header.colSpan} className={headClass(header.column.columnDef.meta, headClassName)}>
-                                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                                </TableHead>
-                            ))}
-                        </TableRow>
-                    ))}
-                </TableHeader>
-            )}
-            <TableBody>
-                {rows.length === 0 && (
-                    <TableRow className="hover:bg-transparent">
-                        <TableCell colSpan={width} className={cn('text-muted-foreground', emptyClassName)}>
-                            {empty}
-                        </TableCell>
-                    </TableRow>
-                )}
-                {table.getRowModel().rows.map(row => (
-                    <Fragment key={row.id}>
-                        <TableRow onClick={row.getCanExpand() ? row.getToggleExpandedHandler() : undefined} className={cn(row.getCanExpand() && 'cursor-pointer')}>
-                            {row.getAllCells().map(cell => (
-                                <TableCell key={cell.id} className={cellClass(cell.column.columnDef.meta)}>
-                                    <table.FlexRender cell={cell} />
-                                </TableCell>
-                            ))}
-                        </TableRow>
-                        {row.getIsExpanded() && (
-                            <TableRow className="hover:bg-transparent">
-                                <TableCell colSpan={width} className="p-0 whitespace-normal first:pl-0 last:pr-0">
-                                    {expand?.(row.original)}
-                                </TableCell>
+        <div className="@container/table">
+            <Table className={cn('whitespace-nowrap', className)}>
+                {head && (
+                    <TableHeader>
+                        {table.getHeaderGroups().map(group => (
+                            <TableRow key={group.id} className="hover:bg-transparent">
+                                {group.headers.map(header => (
+                                    <TableHead key={header.id} colSpan={header.colSpan} className={headClass(header.column.columnDef.meta, headClassName)}>
+                                        {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                                    </TableHead>
+                                ))}
                             </TableRow>
-                        )}
-                    </Fragment>
-                ))}
-            </TableBody>
-        </Table>
+                        ))}
+                    </TableHeader>
+                )}
+                <TableBody>
+                    {rows.length === 0 && (
+                        <TableRow className="hover:bg-transparent">
+                            <TableCell colSpan={width} className={cn('text-muted-foreground', emptyClassName)}>
+                                {empty}
+                            </TableCell>
+                        </TableRow>
+                    )}
+                    {table.getRowModel().rows.map(row => (
+                        <Fragment key={row.id}>
+                            <TableRow onClick={row.getCanExpand() ? row.getToggleExpandedHandler() : undefined} className={cn(row.getCanExpand() && 'cursor-pointer')}>
+                                {row.getAllCells().map(cell => (
+                                    <TableCell key={cell.id} className={cellClass(cell.column.columnDef.meta)}>
+                                        <table.FlexRender cell={cell} />
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                            {row.getIsExpanded() && (
+                                <TableRow className="hover:bg-transparent">
+                                    <TableCell colSpan={width} className="p-0 whitespace-normal first:pl-0 last:pr-0">
+                                        <div className="sticky left-0 w-[100cqw]">{expand?.(row.original)}</div>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </Fragment>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
     )
 }

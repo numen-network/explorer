@@ -2,7 +2,8 @@ import {Fragment, type ReactNode} from 'react'
 import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
-import {DetailCard, DetailRow, JsonBlock} from '@/components/Detail'
+import {ArgsView} from '@/components/ArgsTable'
+import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
 import {CurvesChart, type TallyStep} from '@/components/charts'
@@ -15,12 +16,14 @@ import {Badge} from '@/components/ui/badge'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
+import {describeArgs} from '@/lib/args'
 import {chainDbHead, chainProps} from '@/lib/chain'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
-import {accountRefs, eventsByIds, referendumDetail, tallySnapshots, type TimelineEventRow} from '@/lib/gql'
+import {accountRefs, eventsByIds, referendumDetail, specVersionAt, tallySnapshots, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
+import {markArgs} from '@/lib/argMarks'
 import {ss58Encode} from '@/lib/ss58'
 import {actionsPanel} from './actions'
 import {statsPanel} from './stats'
@@ -124,14 +127,17 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const payees = nodes.map(node => node.beneficiary)
     const partyIds = [...new Set([...payees, r.proposalBeneficiary, r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
-    const [refs, evs, textEvs, votes, actions, stats] = await Promise.all([
+    const [refs, evs, textEvs, votes, actions, stats, spec] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.metadataActions.map(a => a.id)),
         tab === 'votes' ? votesPanel({index: r.index, counts, at: String(sp.group ?? ''), pg, chain}) : null,
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
+        specVersionAt(r.submittedAt),
     ])
+    const proposalView = r.proposalPallet && r.proposalMethod ? describeArgs({pallet: r.proposalPallet, method: r.proposalMethod, args: r.proposalArgs, specVersion: spec, nested: false}) : null
+    await markArgs([proposalView])
     const stepOf = new Map(trail.map(s => [s.event, s]))
     const rank = (e: TimelineEventRow) => EXTRINSIC_ORDER.indexOf(stepOf.get(e.id)!.name)
     const runs: TimelineEventRow[][] = []
@@ -321,7 +327,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         <DetailRow label="Total">{fmtBalance(r.proposalAmount, chain.decimals, chain.symbol)}</DetailRow>
                     )}
                     <DetailRow label="Args">
-                        <JsonBlock value={r.proposalArgs} />
+                        <ArgsView node={proposalView} raw={r.proposalArgs} chain={chain} />
                     </DetailRow>
                 </>
             )}

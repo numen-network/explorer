@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, waitFor, within} from 'storybook/test'
 import data, {referenda} from '../../../../../mock/data.js'
-import {at, chainInfo, HEAD, numn, paged, PEOPLE} from '../../../../../mock/fixtures.js'
+import {at, block, chainInfo, HEAD, numn, paged, PEOPLE} from '../../../../../mock/fixtures.js'
 import {
     accounts,
     actionLog,
@@ -49,6 +49,8 @@ const story = (r: Referendum, tab: string, extra: Record<string, unknown> = {}, 
         {
             ...data,
             accounts,
+            // the block the proposal was submitted in, which the call args are read against
+            blocks: (args: {where?: {height_eq?: number}}) => (args.where?.height_eq === r.submittedAt ? [block(r.submittedAt)] : data.blocks()),
             referendums: [r],
             referendumTallySnapshots: paged(r.snapshots),
             metadataActions: paged(texts),

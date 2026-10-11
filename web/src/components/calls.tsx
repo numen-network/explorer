@@ -1,15 +1,9 @@
-import AccountLink from '@/components/AccountLink'
-import {JsonBlock} from '@/components/Detail'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
-import {Card} from '@/components/ui/card'
-import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
-import type {ChainProps} from '@/lib/chain'
-import {fmtCount, fmtInt} from '@/lib/format'
-import type {AccountRef, CallCount, CallRef, CallRow} from '@/lib/gql'
-import {ss58Encode} from '@/lib/ss58'
+import {fmtInt} from '@/lib/format'
+import type {CallCount, CallRef} from '@/lib/gql'
 
-const qualified = (c: CallRef) => `${c.pallet}.${c.method}`
+export const qualified = (c: CallRef) => `${c.pallet}.${c.method}`
 
 /** What a transfer really called, which a batch or a proxy hides from the extrinsic. */
 export function CallPill({call}: {call: CallRef | null}) {
@@ -29,13 +23,7 @@ const SEP = ' · '
 const LINE = 46
 
 // a repeated name shows once with its count, which is what a batch of payouts is
-const counted = (name: string, count: number) => (count > 1 ? `${fmtInt(count)}× ${name}` : name)
-
-function tally(refs: CallRef[]): string[] {
-    const n = new Map<string, number>()
-    for (const c of refs) n.set(qualified(c), (n.get(qualified(c)) ?? 0) + 1)
-    return [...n].map(([name, count]) => counted(name, count))
-}
+export const counted = (name: string, count: number) => (count > 1 ? `${fmtInt(count)}× ${name}` : name)
 
 // a wide batch names more calls than the row can hold, so the line keeps whole
 // entries and counts the rest
@@ -58,47 +46,5 @@ export function CallCell({call, leaves}: {call: CallRef; leaves: CallCount[] | n
                 </Tip>
             )}
         </div>
-    )
-}
-
-// calls arrive in preorder, so the length of the address is all the tree there is to draw
-export function CallTree({calls, chain, signer}: {calls: CallRow[]; chain: ChainProps; signer: AccountRef | null}) {
-    return (
-        <Card size="flush" className="divide-y">
-            {calls.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
-            {calls.map(c => {
-                const raised = tally(c.events)
-                const dispatched = c.origin && c.origin.id !== signer?.id ? c.origin : null
-                return (
-                    <Collapsible key={c.id} defaultOpen={c.address.length === 0} className="group py-2.5 pr-5">
-                        <CollapsibleTrigger className="flex w-full cursor-pointer flex-wrap items-center gap-x-3 text-left text-sm" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
-                            <span className="font-mono text-[13px] wrap-anywhere">{qualified(c)}</span>
-                            {!c.success && <Badge variant="neg">Failed</Badge>}
-                            {c.events.length > 0 && <span className="text-[11px] whitespace-nowrap text-dim">{fmtCount(c.events.length, 'event')}</span>}
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-2 space-y-2" style={{paddingLeft: `${36 + c.address.length * 22}px`}}>
-                            {dispatched && (
-                                <div className="flex gap-3 text-sm">
-                                    <span className="text-muted-foreground">Dispatched as</span>
-                                    <AccountLink full addr={ss58Encode(dispatched.id, chain.ss58)} acc={dispatched} />
-                                </div>
-                            )}
-                            <JsonBlock value={c.args} />
-                            {raised.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5">
-                                    {raised.map(name => (
-                                        <Tip key={name} text={name}>
-                                            <Badge variant="outline" className="min-w-0 shrink truncate bg-background font-mono text-muted-foreground">
-                                                {name}
-                                            </Badge>
-                                        </Tip>
-                                    ))}
-                                </div>
-                            )}
-                        </CollapsibleContent>
-                    </Collapsible>
-                )
-            })}
-        </Card>
     )
 }

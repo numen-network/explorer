@@ -1,8 +1,12 @@
 import {notFound} from 'next/navigation'
-import {DetailCard, DetailRow, JsonBlock, NONE} from '@/components/Detail'
+import {ArgsView} from '@/components/ArgsTable'
+import {DetailCard, DetailRow, NONE} from '@/components/Detail'
 import {TimeCell} from '@/components/TimeCell'
 import {BlockLink, ExtrinsicLink} from '@/components/links'
+import {describeEvent} from '@/lib/args'
+import {chainProps} from '@/lib/chain'
 import {eventDetail} from '@/lib/gql'
+import {markArgs} from '@/lib/argMarks'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,9 +21,11 @@ export default async function EventPage(props: PageProps<'/event/[id]'>) {
     const {id} = await props.params
     const canonical = CANONICAL.exec(id)
     if (!canonical) notFound()
-    const {events} = await eventDetail(Number(canonical[1]), Number(canonical[2]))
+    const [chain, {events}] = await Promise.all([chainProps(), eventDetail(Number(canonical[1]), Number(canonical[2]))])
     const ev = events[0]
     if (!ev) notFound()
+    const view = describeEvent({...ev, specVersion: ev.block.specVersion})
+    await markArgs([view])
 
     return (
         <div>
@@ -45,7 +51,7 @@ export default async function EventPage(props: PageProps<'/event/[id]'>) {
                     <DetailRow label="Extrinsic">{ev.extrinsic ? <ExtrinsicLink id={ev.extrinsic.id} /> : NONE}</DetailRow>
                     <DetailRow label="Call">{ev.call ? `${ev.call.pallet}.${ev.call.method}` : NONE}</DetailRow>
                     <DetailRow label="Args">
-                        <JsonBlock value={ev.args} />
+                        <ArgsView node={view} raw={ev.args} chain={chain} />
                     </DetailRow>
                 </DetailCard>
             </div>

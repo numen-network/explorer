@@ -12,5 +12,6 @@ WORKDIR /web
 ENV NODE_ENV=production
 COPY --from=build /web/.next/standalone ./
 COPY --from=build /web/.next/static ./.next/static
+COPY --from=squid specVersions.jsonl /squid/specVersions.jsonl
 EXPOSE 3000
 CMD ["node", "server.js"]

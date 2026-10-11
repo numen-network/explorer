@@ -16,6 +16,7 @@
     "@noble/hashes": "^2.3.0",
     "@subsquid/scale-codec": "^4.0.1",
     "@subsquid/ss58": "^2.0.2",
+    "@subsquid/substrate-runtime": "2.0.1",
     "@tanstack/react-table": "9.2.4",
     "@types/three": "^0.185.4",
     "@zag-js/pagination": "1.43.3",

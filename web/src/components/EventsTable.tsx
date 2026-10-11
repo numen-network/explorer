@@ -2,17 +2,22 @@
 
 import {useMemo} from 'react'
 import {columnsFor, DataTable} from '@/components/DataTable'
-import {JsonBlock, NONE} from '@/components/Detail'
+import {ArgsView} from '@/components/ArgsTable'
+import {NONE} from '@/components/Detail'
 import {ExtrinsicLink} from '@/components/links'
+import type {ArgNode} from '@/lib/args'
+import type {ChainProps} from '@/lib/chain'
 import type {CallRef, EventRow} from '@/lib/gql'
 
-const col = columnsFor<EventRow>()
+type Row = EventRow & {view: ArgNode | null}
+
+const col = columnsFor<Row>()
 
 // the block view says which extrinsic raised the event, the extrinsic view
 // already knows and only names the inner call when a batch or proxy hid it
-export function EventsTable({rows, view, parent}: {rows: EventRow[]; view: 'block' | 'extrinsic'; parent?: CallRef}) {
+export function EventsTable({rows, view, parent, chain}: {rows: Row[]; view: 'block' | 'extrinsic'; parent?: CallRef; chain: ChainProps}) {
     const columns = useMemo(() => {
-        const from = (e: EventRow) => e.call && (view === 'block' || e.call.pallet !== parent?.pallet || e.call.method !== parent?.method)
+        const from = (e: Row) => e.call && (view === 'block' || e.call.pallet !== parent?.pallet || e.call.method !== parent?.method)
         const base = [
             col.display({id: 'index', header: '#', meta: {className: view === 'block' ? 'min-w-14 pr-0' : 'min-w-12 pr-0', cellClassName: 'font-mono text-xs text-muted-foreground'}, cell: ({row}) => row.original.indexInBlock}),
             col.display({
@@ -43,5 +48,20 @@ export function EventsTable({rows, view, parent}: {rows: EventRow[]; view: 'bloc
             }),
         ])
     }, [view, parent])
-    return <DataTable columns={columns} rows={rows} head={view === 'block'} headClassName="font-normal" emptyClassName="py-5" getRowId={e => e.id} canExpand={() => true} expand={e => <div className="px-5 pt-2 pb-2.5 pl-16"><JsonBlock value={e.args} /></div>} />
+    return (
+        <DataTable
+            columns={columns}
+            rows={rows}
+            head={view === 'block'}
+            headClassName="font-normal"
+            emptyClassName="py-5"
+            getRowId={e => e.id}
+            canExpand={() => true}
+            expand={e => (
+                <div className="px-5 pt-2 pb-2.5 pl-16">
+                    <ArgsView node={e.view} raw={e.args} chain={chain} />
+                </div>
+            )}
+        />
+    )
 }

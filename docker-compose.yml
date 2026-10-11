@@ -47,7 +47,10 @@ services:
         condition: service_healthy
 
   web:
-    build: ./web
+    build:
+      context: ./web
+      additional_contexts:
+        squid: ./squid
     restart: unless-stopped
     environment:
       GQL_HTTP: http://graphql:4350/graphql

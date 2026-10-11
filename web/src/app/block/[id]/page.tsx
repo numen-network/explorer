@@ -14,12 +14,14 @@ import AccountLink from '@/components/AccountLink'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious} from '@/components/ui/pagination'
+import {withEventViews} from '@/lib/args'
 import {chainProps} from '@/lib/chain'
 import {parseDigest} from '@/lib/digest'
 import {isH256} from '@/lib/evm'
 import {fmtBalance, fmtCount, fmtInt, shortHash} from '@/lib/format'
 import {blockDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
+import {markArgs} from '@/lib/argMarks'
 import {ss58Encode} from '@/lib/ss58'
 import {DigestTable} from './tables'
 
@@ -39,6 +41,8 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     const [chain, data] = await Promise.all([chainProps(), blockDetail(id, {limit: pg.size, offset: pg.offset})])
     const block = data.blocks[0]
     if (!block) notFound()
+    const eventRows = withEventViews(data.events)
+    await markArgs(eventRows.map(r => r.view))
     const object = data.minedObjects[0]
     // a block with no extrinsics pays the miner nothing beyond the mint
     const minerTake = [block.reward, block.minerFees].filter(v => v !== '0')
@@ -56,7 +60,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
     const events = (
         <>
             <Card size="flush">
-                <EventsTable rows={data.events} view="block" />
+                <EventsTable rows={eventRows} view="block" chain={chain} />
             </Card>
             <Pager paging={pg} total={block.eventCount} href={`/block/${id}?tab=events`} />
         </>

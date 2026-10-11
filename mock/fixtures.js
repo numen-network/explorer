@@ -93,7 +93,7 @@ export const block = (height, traits = {}) => ({
     hash: hashOf('block', height),
     parentHash: hashOf('block', height - 1),
     timestamp: at(height),
-    specVersion: 100,
+    specVersion: 10000,
     author: person(height),
     difficulty: String(4_000_000_000 + (height % 97) * 10_000_000),
     reward: numn(150),
@@ -127,7 +127,7 @@ export const extrinsic = (height, index, traits = {}) => ({
 
 export const event = (height, index, traits = {}) => ({
     id: squidId(height, index),
-    block: {height, timestamp: at(height)},
+    block: {height, timestamp: at(height), specVersion: block(height).specVersion},
     indexInBlock: index,
     phase: 'ApplyExtrinsic',
     pallet: 'Balances',

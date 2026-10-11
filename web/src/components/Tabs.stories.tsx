@@ -1,8 +1,9 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
+import {Tabs, TabsContent} from '@/components/ui/tabs'
 import {all, expectArrowsOnLabelLine} from '../../.storybook/fit'
-import {TabBar, TabPanels, type Panel, type TabItem} from './Tabs'
+import {TabBar, TabPanels, TabSwitch, type Panel, type TabItem} from './Tabs'
 
 const meta = {title: 'Components/Tabs'} satisfies Meta
 export default meta
@@ -99,6 +100,58 @@ export const Pill: Story = {render: () => <TabBar aria-label="Range" variant="pi
 
 // the presets of a chart set to a custom date range
 export const PillNoneActive: Story = {render: () => <TabBar aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], -1)} />, play: linkStrip('Range')}
+
+// tailwind spells no shadow as a stack of transparent layers, the browser default as none
+const visibleShadow = (el: Element) =>
+    getComputedStyle(el)
+        .boxShadow.split(/,(?![^(]*\))/)
+        .map(layer => layer.trim())
+        .filter(layer => layer !== 'none' && !layer.startsWith('rgba(0, 0, 0, 0)'))
+
+// switches a view in place with the pill look, so it reads as the same control as the Range strip
+export const PillSwitch: Story = {
+    render: () => (
+        <div className="space-y-3">
+            <TabBar aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], 2)} />
+            <Tabs defaultValue="table">
+                <TabSwitch
+                    options={[
+                        ['table', 'Table'],
+                        ['json', 'JSON'],
+                    ]}
+                />
+                <TabsContent value="table">table view</TabsContent>
+                <TabsContent value="json">json view</TabsContent>
+            </Tabs>
+        </div>
+    ),
+    play: async ({canvas, userEvent}) => {
+        const pill = within(canvas.getByRole('navigation', {name: 'Range'})).getByRole('link', {current: 'page'})
+        const active = canvas.getByRole('tab', {name: 'Table'})
+        await expect(canvas.getByRole('tablist').getBoundingClientRect().height).toBe(32)
+        await expect(getComputedStyle(active).backgroundColor).toBe(getComputedStyle(pill).backgroundColor)
+        await expect(visibleShadow(active)).toEqual(visibleShadow(pill))
+        await expect(active.getBoundingClientRect().height).toBe(pill.getBoundingClientRect().height)
+        await expect(canvas.getByText('table view')).toBeVisible()
+        await userEvent.click(canvas.getByRole('tab', {name: 'JSON'}))
+        await expect(canvas.getByText('json view')).toBeVisible()
+    },
+}
+
+export const PillSwitchSmall: Story = {
+    render: () => (
+        <Tabs defaultValue="table">
+            <TabSwitch
+                options={[
+                    ['table', 'Table'],
+                    ['json', 'JSON'],
+                ]}
+                size="sm"
+            />
+        </Tabs>
+    ),
+    play: async ({canvas}) => expect(canvas.getByRole('tablist').getBoundingClientRect().height).toBe(24),
+}
 
 export const Segment: Story = {render: () => <TabBar aria-label="Window" variant="segment" items={items(['24h', '7d', '30d'], 0)} />, play: all(linkStrip('Window', '24h'), keyboard, controlHeight('Window'))}
 

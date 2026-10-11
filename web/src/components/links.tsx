@@ -18,6 +18,14 @@ export function BlockLink({height}: {height: number}) {
     )
 }
 
+export function ReferendumLink({index}: {index: number}) {
+    return (
+        <Link href={`/referendum/${index}`} className="font-mono text-primary hover:underline">
+            #{fmtInt(index)}
+        </Link>
+    )
+}
+
 // the hash still resolves, but our own links never leave it ambiguous
 export function ExtrinsicLink({id}: {id: string}) {
     const path = extrinsicPath(id)

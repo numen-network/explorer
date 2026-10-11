@@ -259,7 +259,7 @@ export function referendumSubmission(height, {from = person(height + 7), index =
             'The budget covers twelve weeks of work and a final review, unused funds return to the treasury.'
     )
     const preimage = hashOf('preimage', height)
-    const proposal = {__kind: 'Inline', value: '0x17051f0000004a480114169545081c' + from.id.slice(2) + '01ca1d0200'}
+    const proposal = {__kind: 'Inline', value: '0x17051f0000004a48011416954508' + from.id.slice(2) + '01ca1d0200'}
     const submit = {proposalOrigin: {__kind: 'Origins', value: {__kind: 'SmallSpender'}}, proposal, enactmentMoment: {__kind: 'After', value: 8640}}
     const pay = charge(from.id, height, fee)
     return {
@@ -394,9 +394,11 @@ function leafCalls(tree) {
 // one extrinsic, its call tree and the events it raised, joined by the ids the indexer gives them
 function scene(height, index, first, {calls, events, ...traits}) {
     const x = extrinsic(height, index, traits)
+    const below = address => calls.filter(([a]) => a.length === address.length + 1 && address.every((step, i) => a[i] === step)).slice(0, 1)
     const tree = calls.map(([address, name, args, more]) => {
         const [pallet, method] = name.split('.')
-        return {id: callId(height, index, address), address, pallet, method, args, success: true, origin: x.signer, ...more}
+        const subcalls = below(address).map(([a]) => ({id: callId(height, index, a)}))
+        return {id: callId(height, index, address), address, pallet, method, args, success: true, origin: x.signer, block: {specVersion: block(height).specVersion}, subcalls, ...more}
     })
     const raisedBy = address => {
         const c = address && tree.find(t => t.address.join() === address.join())

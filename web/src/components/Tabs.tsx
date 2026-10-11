@@ -82,6 +82,22 @@ export function TabBar({items, variant = 'line', className, 'aria-label': label}
     )
 }
 
+// the pill strip for a view that switches in place, the triggers of a shadcn
+// Tabs root rather than links, with shadcn's own chrome taken off
+// sm sits beside content rather than among the filter controls
+export function TabSwitch({options, size = 'default', className}: {options: [value: string, label: string][]; size?: 'default' | 'sm'; className?: string}) {
+    const sm = size === 'sm'
+    return (
+        <TabsList className={cn(STYLE.pill.strip, sm && 'h-6 group-data-horizontal/tabs:h-6 rounded-md', className)}>
+            {options.map(([value, label]) => (
+                <TabsTrigger key={value} value={value} className={cn(LINK, STYLE.pill.link, 'border-0 group-data-[variant=default]/tabs-list:data-active:shadow-none', sm && 'rounded-[5px] px-2 text-xs')}>
+                    {label}
+                </TabsTrigger>
+            ))}
+        </TabsList>
+    )
+}
+
 export interface Panel {
     slug: string
     label: string

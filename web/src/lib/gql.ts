@@ -257,6 +257,8 @@ export interface CallRow {
     success: boolean
     origin: AccountRef | null
     events: CallRef[]
+    block: {specVersion: number}
+    subcalls: {id: string}[]
 }
 
 export interface EventRow {
@@ -268,10 +270,11 @@ export interface EventRow {
     args: unknown
     call: {id: string} & CallRef | null
     extrinsic: {id: string} | null
+    block: {specVersion: number}
 }
 
 const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method leafCalls success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp }`
-const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id }`
+const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id } block { specVersion }`
 
 // newest first by chain position. event indices run across the whole
 // block, so they already follow the extrinsic order
@@ -304,6 +307,28 @@ export async function blockDetail(idOrHash: string, page: Slice) {
     return {...data, minedObjects: await withTopology(data.minedObjects)}
 }
 
+export interface PreimageHit {
+    texts: {hash: string; title: string | null; description: string | null; referendum: {index: number}}[]
+    proposals: {index: number; title: string | null; proposalHash: string; proposalPallet: string | null; proposalMethod: string | null; proposalArgs: unknown; submittedAt: number}[]
+}
+
+/** The referendum texts and proposals a set of hashes name, as far as the index has seen them noted. */
+export function preimagesByHash(hashes: string[]) {
+    return gql<PreimageHit>(
+        `query ($h: [String!]) {
+            texts: metadataActions(where: {hash_in: $h, method_eq: "MetadataSet"}, orderBy: id_ASC, limit: 500) { hash title description referendum { index } }
+            proposals: referendums(where: {proposalHash_in: $h}, orderBy: index_ASC, limit: 500) { index title proposalHash proposalPallet proposalMethod proposalArgs submittedAt }
+        }`,
+        {h: hashes}
+    )
+}
+
+/** The runtime a block ran under, which says how to read what it recorded. */
+export async function specVersionAt(height: number): Promise<number | null> {
+    const {blocks} = await gql<{blocks: {specVersion: number}[]}>(`query ($height: Int!) { blocks(where: {height_eq: $height}, limit: 1) { specVersion } }`, {height})
+    return blocks[0]?.specVersion ?? null
+}
+
 export type ExtrinsicHit = Pick<ExtrinsicRow, 'id' | 'indexInBlock' | 'hash' | 'pallet' | 'method' | 'success' | 'block'>
 
 // a hash can name more than one extrinsic, the canonical pair never can
@@ -331,7 +356,7 @@ export function extrinsicDetail(height: number, index: number, page: Slice) {
     }>(
         `query ($height: Int!, $index: Int!, $limit: Int!, $offset: Int!) {
             extrinsics(where: {block: {height_eq: $height}, indexInBlock_eq: $index}, limit: 1) { ${EXTRINSIC_FIELDS} }
-            calls(where: ${of}, orderBy: id_ASC, limit: $limit, offset: $offset) { id address pallet method args success origin { ${ACCOUNT_REF} } events(orderBy: indexInBlock_ASC) { pallet method } }
+            calls(where: ${of}, orderBy: id_ASC, limit: $limit, offset: $offset) { id address pallet method args success origin { ${ACCOUNT_REF} } events(orderBy: indexInBlock_ASC) { pallet method } block { specVersion } subcalls(limit: 1) { id } }
             callCount: callsConnection(where: ${of}, orderBy: id_ASC) { totalCount }
             events(where: ${of}, orderBy: indexInBlock_ASC, limit: $limit, offset: $offset) { ${EVENT_FIELDS} }
             eventCount: eventsConnection(where: ${of}, orderBy: id_ASC) { totalCount }

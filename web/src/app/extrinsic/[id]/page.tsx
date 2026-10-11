@@ -8,14 +8,16 @@ import {TabPanels} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, EvmTxLink} from '@/components/links'
-import {CallTree} from '@/components/calls'
+import {CallTree} from '@/components/CallTree'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {Item} from '@/components/ui/item'
+import {withCallViews, withEventViews} from '@/lib/args'
 import {chainProps} from '@/lib/chain'
 import {extrinsicPath, fmtBalance, fmtCount, shortHash} from '@/lib/format'
 import {extrinsicDetail, extrinsicMatches, type ExtrinsicHit} from '@/lib/gql'
 import {paging, type Paging} from '@/lib/paging'
+import {markArgs} from '@/lib/argMarks'
 import {ss58Encode} from '@/lib/ss58'
 
 export const dynamic = 'force-dynamic'
@@ -74,10 +76,13 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
     const x = data.extrinsics[0]
     if (!x) notFound()
     const path = `/extrinsic/${x.block.height}-${x.indexInBlock}`
+    const callRows = withCallViews(data.calls)
+    const eventRows = withEventViews(data.events)
+    await markArgs([...callRows, ...eventRows].map(r => r.view))
 
     const calls = (
         <>
-            <CallTree calls={data.calls} chain={chain} signer={x.signer} />
+            <CallTree calls={callRows} chain={chain} signer={x.signer} />
             <Pager paging={pg} total={data.callCount.totalCount} href={`${path}?tab=calls`} />
         </>
     )
@@ -85,7 +90,7 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
     const events = (
         <>
             <Card size="flush">
-                <EventsTable rows={data.events} view="extrinsic" parent={{pallet: x.pallet, method: x.method}} />
+                <EventsTable rows={eventRows} view="extrinsic" parent={{pallet: x.pallet, method: x.method}} chain={chain} />
             </Card>
             <Pager paging={pg} total={data.eventCount.totalCount} href={`${path}?tab=events`} />
         </>
