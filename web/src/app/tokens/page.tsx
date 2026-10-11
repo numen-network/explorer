@@ -1,7 +1,7 @@
 import Pager from '@/components/Pager'
+import {TabPanels} from '@/components/Tabs'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
-import {fmtCount} from '@/lib/format'
 import {paging} from '@/lib/paging'
 import {tokensPage} from '@/lib/gql'
 import {TokensTable} from './table'
@@ -9,23 +9,37 @@ import {TokensTable} from './table'
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Tokens'}
 
+const href = (slug: string) => `/tokens?tab=${slug}`
 
 export default async function TokensPage(props: PageProps<'/tokens'>) {
     const sp = await props.searchParams
+    const tab = String(sp.tab ?? '')
     const pg = paging(sp)
     await chainProps()
-    const {tokens, conn} = await tokensPage(pg.size, pg.offset)
+    const lp = tab === 'lp'
+    const {tokens, plain, pairs} = await tokensPage(lp, pg.size, pg.offset)
+
+    const list = (slug: string, total: number) => (
+        <>
+            <Card size="flush">
+                <TokensTable rows={tokens} />
+            </Card>
+            <Pager paging={pg} total={total} href={href(slug)} />
+        </>
+    )
 
     return (
         <div>
-            <div className="mt-6 flex items-baseline justify-between">
-                <h1 className="text-lg font-semibold">ERC20 tokens</h1>
-                <span className="text-xs text-muted-foreground">{fmtCount(conn.totalCount, 'contract')}</span>
-            </div>
-            <Card size="flush" className="mt-3">
-                <TokensTable rows={tokens} />
-            </Card>
-            <Pager paging={pg} total={conn.totalCount} href="/tokens" />
+            <h1 className="mt-6 text-lg font-semibold">ERC20 tokens</h1>
+            <TabPanels
+                at={tab}
+                href={href}
+                className="mt-4"
+                panels={[
+                    {slug: 'tokens', label: 'Tokens', count: plain.totalCount, body: () => list('tokens', plain.totalCount)},
+                    {slug: 'lp', label: 'LP', count: pairs.totalCount, body: () => list('lp', pairs.totalCount)},
+                ]}
+            />
         </div>
     )
 }

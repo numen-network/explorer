@@ -9,15 +9,22 @@ import TokensPage from './page'
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
 export default {title: 'Pages/Tokens', ...pageMeta(TokensPage)}
 
-const list = (rows: object[], total = rows.length) => pageStory({tokens: rows, tokensConnection: {totalCount: total}})
+// the page asks for the plain count and the pair count apart, told by token0_isNull
+const list = (rows: object[], plain = rows.length, pairs = 0, tab?: string) =>
+    pageStory({tokens: rows, tokensConnection: ({where}: {where: {token0_isNull: boolean}}) => ({totalCount: where.token0_isNull ? plain : pairs})}, {searchParams: tab ? {tab} : {}})
 
-const counts = (text: string): StoryObj['play'] => async ({canvas}) => expect(canvas.getByText(text)).toBeVisible()
+const counts =
+    (plain: string, pairs: string): StoryObj['play'] =>
+    async ({canvas}) => {
+        await expect(canvas.getByRole('tab', {name: new RegExp(`^Tokens\\s*${plain}$`)})).toBeVisible()
+        await expect(canvas.getByRole('tab', {name: new RegExp(`^LP\\s*${pairs}$`)})).toBeVisible()
+    }
 
 export const Empty = list([])
 
-export const One: StoryObj = {...list([WTMR]), play: counts('1 contract')}
+export const One: StoryObj = {...list([WTMR]), play: counts('1', '0')}
 
-export const Many: StoryObj = {...list([WTMR, ...Array.from({length: 19}, (_, n) => token(n))], 87), play: counts('87 contracts')}
+export const Many: StoryObj = {...list([WTMR, ...Array.from({length: 19}, (_, n) => token(n))], 87, 4), play: counts('87', '4')}
 
 // what each row's pair badge reads, null for a token that pools nothing
 const badges = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].map(row => row.querySelector('[data-slot=badge]')?.textContent ?? null)
@@ -27,10 +34,15 @@ const NDEX = token(3).id
 
 // a pair names the two tokens it pools in the order it keeps them, and one that
 // answers no symbol shows by its address
-export const Pairs: StoryObj = {
-    ...list([WTMR, pair(10, NUMN, {address: TEST, symbol: 'TEST'}), pair(11, {address: NDEX, symbol: 'NDEX'}, {address: TEST, symbol: 'TEST'}), pair(12, NUMN, {address: NDEX, symbol: null})]),
-    play: async ({canvasElement}) => expect(badges(canvasElement)).toEqual([null, 'LP NUMN/TEST', 'LP NDEX/TEST', `LP NUMN/${shortAddr(NDEX)}`]),
+export const LpTab: StoryObj = {
+    ...list([pair(10, NUMN, {address: TEST, symbol: 'TEST'}), pair(11, {address: NDEX, symbol: 'NDEX'}, {address: TEST, symbol: 'TEST'}), pair(12, NUMN, {address: NDEX, symbol: null})], 5, 3, 'lp'),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^LP/)
+        await expect(badges(canvasElement)).toEqual(['LP NUMN/TEST', 'LP NDEX/TEST', `LP NUMN/${shortAddr(NDEX)}`])
+    },
 }
+
+export const LpEmpty: StoryObj = {...list([], 5, 0, 'lp'), play: counts('5', '0')}
 
 export const LogoKnownAndFallback = list([WTMR, token(0)])
 
@@ -52,9 +64,10 @@ export const ExtremeNumbers: StoryObj = {
             token(3, {totalSupply: units(123_456_789.123456, 12)}),
             token(4, {totalSupply: '0', holderCount: 0, transferCount: 1}),
         ],
-        1_234_567
+        1_234_567,
+        42
     ),
-    play: counts('1,234,567 contracts'),
+    play: counts('1,234,567', '42'),
 }
 
 // a supply that ends within two decimals reads as it is, a cut one carries ≈

@@ -834,13 +834,15 @@ const HOLDER_ORDER = '[balance_DESC_NULLS_LAST, id_ASC]'
 // balances of different tokens don't compare, so an address's holdings go by token name
 const HOLDING_ORDER = '[token_name_ASC_NULLS_LAST, id_ASC]'
 
-export function tokensPage(limit: number, offset: number) {
-    return gql<{tokens: TokenRow[]; conn: {totalCount: number}}>(
-        `query ($limit: Int!, $offset: Int!) {
-            tokens(orderBy: ${TOKEN_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_FIELDS} }
-            conn: tokensConnection(orderBy: id_ASC) { totalCount }
+// a pair answers token0 and token1 together or neither, so token0 alone tells the two apart
+export function tokensPage(lp: boolean, limit: number, offset: number) {
+    return gql<{tokens: TokenRow[]; plain: {totalCount: number}; pairs: {totalCount: number}}>(
+        `query ($plain: Boolean!, $limit: Int!, $offset: Int!) {
+            tokens(where: {token0_isNull: $plain}, orderBy: ${TOKEN_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_FIELDS} }
+            plain: tokensConnection(where: {token0_isNull: true}, orderBy: id_ASC) { totalCount }
+            pairs: tokensConnection(where: {token0_isNull: false}, orderBy: id_ASC) { totalCount }
         }`,
-        {limit, offset}
+        {plain: !lp, limit, offset}
     )
 }
 
