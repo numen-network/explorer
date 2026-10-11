@@ -6,12 +6,12 @@ import {useDebouncedCallback} from 'use-debounce'
 import AccountLink from '@/components/AccountLink'
 import Approx from '@/components/Approx'
 import {columnsFor, DataTable} from '@/components/DataTable'
+import Dropdown from '@/components/Dropdown'
 import Pager from '@/components/Pager'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {actionFilters, type ActionKind, type ActionMove} from '@/lib/actionFilters'
 import {fmtInt, fmtPctMove, sentenceCase} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
@@ -80,23 +80,6 @@ function Delta({label, value: [part, whole]}: {label: string; value: [part: bigi
             <span className="text-muted-foreground">{label} </span>
             <span className={tone}>{fmtPctMove(part, whole)}</span>
         </div>
-    )
-}
-
-function Picker<V extends string>({value, options, onChange}: {value: V; options: {value: V; label: string}[]; onChange: (v: V) => void}) {
-    return (
-        <Select value={value} onValueChange={v => onChange(v as V)}>
-            <SelectTrigger className="w-[150px] grow gap-2 bg-card py-1.5 pr-2.5 pl-3 hover:bg-background data-[size=default]:h-auto sm:grow-0 [&_svg]:size-3.5">
-                <SelectValue>{options.find(o => o.value === value)?.label}</SelectValue>
-            </SelectTrigger>
-            <SelectContent align="start" className="border shadow-lg ring-0">
-                {options.map(o => (
-                    <SelectItem key={o.value} value={o.value} className="gap-3 py-1.5 pl-3 [&_svg]:text-primary">
-                        {o.label}
-                    </SelectItem>
-                ))}
-            </SelectContent>
-        </Select>
     )
 }
 
@@ -201,8 +184,8 @@ export default function ActionList({rows, total, filtered, paging, href, decimal
                                 className="h-auto py-1.5 pr-3 text-sm placeholder:text-dim md:text-sm"
                             />
                         </InputGroup>
-                        <Picker value={action ?? 'all'} options={KINDS} onChange={v => pick({action: v === 'all' ? null : v})} />
-                        <Picker value={impact ?? 'any'} options={MOVES} onChange={v => pick({impact: v === 'any' ? null : v})} />
+                        <Dropdown className="w-[150px] grow sm:grow-0" value={action ?? 'all'} options={KINDS} onChange={v => pick({action: v === 'all' ? null : v})} />
+                        <Dropdown className="w-[150px] grow sm:grow-0" value={impact ?? 'any'} options={MOVES} onChange={v => pick({impact: v === 'any' ? null : v})} />
                     </div>
                 </div>
                 <div className="mt-1">

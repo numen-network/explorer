@@ -5,11 +5,11 @@ import * as pagination from '@zag-js/pagination'
 import {normalizeProps, useMachine} from '@zag-js/react'
 import {ChevronsLeft, ChevronsRight, Ellipsis} from 'lucide-react'
 import {cn} from 'cn'
+import Dropdown from '@/components/Dropdown'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious} from '@/components/ui/pagination'
 import {Tip} from '@/components/Tip'
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {fmtCount} from '@/lib/format'
 import {PAGE_SIZES, type Paging} from '@/lib/paging'
 
@@ -105,18 +105,7 @@ export default function Pager({paging: {page, size}, total, href, className = 'm
                     </PaginationItem>
                 </PaginationContent>
             )}
-            <Select value={String(size)} onValueChange={v => router.push(url(1, Number(v)), {scroll: false})}>
-                <SelectTrigger className="w-30 justify-end bg-card" aria-label="Rows per page">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    {PAGE_SIZES.map(n => (
-                        <SelectItem key={n} value={String(n)}>
-                            {n} / page
-                        </SelectItem>
-                    ))}
-                </SelectContent>
-            </Select>
+            <Dropdown label="Rows per page" value={String(size)} options={PAGE_SIZES.map(n => ({value: String(n), label: `${n} / page`}))} onChange={v => router.push(url(1, Number(v)), {scroll: false})} />
             {paged && (
                 <Label className="font-normal">
                     Go to page
