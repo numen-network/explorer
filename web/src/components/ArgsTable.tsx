@@ -6,7 +6,6 @@ import AccountLink from '@/components/AccountLink'
 import {JsonBlock, NONE} from '@/components/Detail'
 import {BlockLink, ReferendumLink} from '@/components/links'
 import {TabSwitch} from '@/components/Tabs'
-import {Badge} from '@/components/ui/badge'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Tabs, TabsContent} from '@/components/ui/tabs'
@@ -17,24 +16,21 @@ import {ss58Encode} from '@/lib/ss58'
 
 type Ctx = {chain: ChainProps; short?: boolean}
 
-// enum variants nest, Origins(BigSpender) reads as two tags in a row
-function peel(node: ArgNode): {tags: string[]; rest: ArgNode | null} {
-    const tags: string[] = []
+// enum variants nest, Origins(BigSpender) reads as a cell per variant and
+// the innermost one stands as the value when it carries nothing
+function split(node: ArgNode): {lead: string[]; tail: ArgNode | string} {
+    const lead: string[] = []
     let rest: ArgNode | null = node
     while (rest?.kind === 'variant') {
-        tags.push(rest.name)
+        lead.push(rest.name)
         rest = rest.inner
     }
-    return {tags, rest}
+    return rest ? {lead, tail: rest} : {lead: lead.slice(0, -1), tail: lead.at(-1)!}
 }
 
-const isBlock = (node: ArgNode | null) => node != null && (node.kind === 'fields' || node.kind === 'list' || node.kind === 'call')
+const isBlock = (tail: ArgNode | string) => typeof tail !== 'string' && (tail.kind === 'fields' || tail.kind === 'list' || tail.kind === 'call')
 
-const Tag = ({name}: {name: string}) => (
-    <Badge variant="outline" className="font-mono text-muted-foreground">
-        {name}
-    </Badge>
-)
+const CELL = 'px-3 py-1.5'
 
 function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
     switch (node.kind) {
@@ -117,23 +113,33 @@ function PreimageFold({preimage, ctx}: {preimage: Preimage; ctx: Ctx}) {
     )
 }
 
-// a value that is a table of its own, a struct, a list or a call, under the
-// tags of whatever enum wraps it
-function Nested({node, ctx, depth}: {node: ArgNode; ctx: Ctx; depth: number}) {
-    const {tags, rest} = peel(node)
-    const call = rest?.kind === 'call' ? rest : null
-    const head = tags.length > 0 || call
+function Tail({tail, ctx, depth}: {tail: ArgNode | string; ctx: Ctx; depth: number}) {
+    if (typeof tail === 'string') return <div className={CELL}>{tail}</div>
+    if (isBlock(tail)) return <Body node={tail} ctx={ctx} depth={depth + 1} />
+    return (
+        <div className={cn(CELL, 'wrap-anywhere')}>
+            <Inline node={tail} ctx={ctx} />
+        </div>
+    )
+}
+
+// variant cells, then the value running to the end of the row from grid
+// column `first`. in a narrow table the cells of a variant holding a table of
+// its own make a row above that table
+function Cells({node, ctx, depth, first}: {node: ArgNode; ctx: Ctx; depth: number; first: number}) {
+    const {lead, tail} = split(node)
     return (
         <>
-            {head && (
-                <div className="flex flex-wrap items-center gap-1.5 border-b px-3 py-1.5">
-                    {tags.map(t => (
-                        <Tag key={t} name={t} />
-                    ))}
-                    {call && <span className="font-mono">{call.name}</span>}
-                </div>
-            )}
-            {call ? <Body node={call.args} ctx={ctx} depth={depth} /> : rest && <Body node={rest} ctx={ctx} depth={depth} />}
+            <div className={cn('contents', isBlock(tail) && '@max-xs:flex @max-xs:border-b @max-xs:*:last:border-r-0')}>
+                {lead.map((name, i) => (
+                    <div key={i} className={cn(CELL, 'border-r whitespace-nowrap')}>
+                        {name}
+                    </div>
+                ))}
+            </div>
+            <div className="min-w-0 flex-1" style={{gridColumn: `${first + lead.length} / -1`}}>
+                <Tail tail={tail} ctx={ctx} depth={depth} />
+            </div>
         </>
     )
 }
@@ -141,39 +147,40 @@ function Nested({node, ctx, depth}: {node: ArgNode; ctx: Ctx; depth: number}) {
 function Body({node, ctx, depth}: {node: ArgNode; ctx: Ctx; depth: number}) {
     if (node.kind === 'fields') return <Fields fields={node.fields} ctx={ctx} depth={depth} />
     if (node.kind === 'list') return <List node={node} ctx={ctx} depth={depth} />
-    return <Nested node={node} ctx={ctx} depth={depth} />
-}
-
-function Value({node, ctx, depth}: {node: ArgNode; ctx: Ctx; depth: number}) {
-    const {tags, rest} = peel(node)
-    if (isBlock(rest)) return <Nested node={node} ctx={ctx} depth={depth + 1} />
+    if (node.kind === 'call')
+        return (
+            <>
+                <div className={cn(CELL, 'border-b font-mono')}>{node.name}</div>
+                <Body node={node.args} ctx={ctx} depth={depth} />
+            </>
+        )
     return (
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            {tags.map(t => (
-                <Tag key={t} name={t} />
-            ))}
-            {rest && (
-                <div className="min-w-0 wrap-anywhere">
-                    <Inline node={rest} ctx={ctx} />
-                </div>
-            )}
+        <div className="flex">
+            <Cells node={node} ctx={ctx} depth={depth} first={1} />
         </div>
     )
 }
 
-// keys line up down the whole table through subgrid. in a narrow table a row
-// holding a table of its own puts its key on a line above it, and in a very
-// narrow one every row does
+// keys and variant cells line up down the whole table through subgrid, one
+// column per variant depth. in a narrow table a row holding a table of its own
+// puts its key on a line above it, a narrower one does the same for a row of
+// variant cells, and a very narrow one for every row
 function Fields({fields, ctx, depth}: {fields: [string, ArgNode][]; ctx: Ctx; depth: number}) {
+    const lead = Math.max(0, ...fields.map(([, node]) => split(node).lead.length))
+    const columns = ['max-content', ...Array<string>(lead).fill('max-content'), 'minmax(0,1fr)'].join(' ')
     return (
-        <div className="grid grid-cols-[max-content_minmax(0,1fr)]">
+        <div className="grid" style={{gridTemplateColumns: columns}}>
             {fields.map(([key, node]) => {
-                const nested = isBlock(peel(node).rest)
+                const {lead, tail} = split(node)
+                const tagged = lead.length > 0
+                const nested = isBlock(tail)
                 return (
-                    <div key={key} className={cn('col-span-full grid grid-cols-subgrid border-t first:border-t-0 @max-[12rem]:block', nested && '@max-lg:block')}>
-                        <div className={cn('border-r px-3 py-1.5 text-muted-foreground @max-[12rem]:border-r-0 @max-[12rem]:border-b', depth === 0 && 'bg-background', nested && '@max-lg:border-r-0 @max-lg:border-b')}>{key}</div>
-                        <div className={cn('min-w-0', !nested && 'px-3 py-1.5')}>
-                            <Value node={node} ctx={ctx} depth={depth} />
+                    <div key={key} className={cn('col-span-full grid grid-cols-subgrid border-t first:border-t-0 @max-[12rem]:block', tagged && '@max-xs:block', nested && '@max-lg:block')}>
+                        <div className={cn(CELL, 'border-r text-muted-foreground @max-[12rem]:border-r-0 @max-[12rem]:border-b', depth === 0 && 'bg-background', tagged && '@max-xs:border-r-0 @max-xs:border-b', nested && '@max-lg:border-r-0 @max-lg:border-b')}>
+                            {key}
+                        </div>
+                        <div className={cn('contents @max-[12rem]:flex', tagged && '@max-xs:flex', nested && '@max-lg:flex @max-xs:block')}>
+                            <Cells node={node} ctx={ctx} depth={depth} first={2} />
                         </div>
                     </div>
                 )
@@ -182,15 +189,18 @@ function Fields({fields, ctx, depth}: {fields: [string, ArgNode][]; ctx: Ctx; de
     )
 }
 
+// a column spans one table column per variant depth, so variant cells line up
+// down the list
 function List({node, ctx, depth}: {node: Extract<ArgNode, {kind: 'list'}>; ctx: Ctx; depth: number}) {
     const cell = {...ctx, short: true}
+    const leads = node.columns.map((_, j) => Math.max(0, ...node.rows.map(row => split(row[j]).lead.length)))
     return (
         <Table className="text-[13px]">
             <TableHeader>
                 <TableRow className="bg-background hover:bg-background">
                     <TableHead className="h-auto w-px px-3 py-1.5 text-xs font-medium text-muted-foreground first:pl-3">#</TableHead>
-                    {node.columns.map((c, i) => (
-                        <TableHead key={i} className="h-auto border-l px-3 py-1.5 text-xs font-medium text-muted-foreground last:pr-3">
+                    {node.columns.map((c, j) => (
+                        <TableHead key={j} colSpan={leads[j] + 1} className="h-auto border-l px-3 py-1.5 text-xs font-medium text-muted-foreground last:pr-3">
                             {c}
                         </TableHead>
                     ))}
@@ -200,11 +210,19 @@ function List({node, ctx, depth}: {node: Extract<ArgNode, {kind: 'list'}>; ctx: 
                 {node.rows.map((row, i) => (
                     <TableRow key={i} className="hover:bg-transparent">
                         <TableCell className="px-3 py-1.5 align-top text-muted-foreground first:pl-3">{fmtInt(i)}</TableCell>
-                        {row.map((v, j) => (
-                            <TableCell key={j} className={cn('border-l align-top', isBlock(peel(v).rest) ? 'p-0 last:pr-0' : 'px-3 py-1.5 last:pr-3')}>
-                                <Value node={v} ctx={cell} depth={depth + 1} />
-                            </TableCell>
-                        ))}
+                        {row.flatMap((v, j) => {
+                            const {lead, tail} = split(v)
+                            return [
+                                ...lead.map((name, k) => (
+                                    <TableCell key={`${j}.${k}`} className="w-px border-l px-3 py-1.5 align-top">
+                                        {name}
+                                    </TableCell>
+                                )),
+                                <TableCell key={j} colSpan={leads[j] - lead.length + 1} className="border-l p-0 align-top last:pr-0">
+                                    <Tail tail={tail} ctx={cell} depth={depth} />
+                                </TableCell>,
+                            ]
+                        })}
                     </TableRow>
                 ))}
             </TableBody>

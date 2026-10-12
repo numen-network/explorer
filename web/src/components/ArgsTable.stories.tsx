@@ -50,7 +50,20 @@ export const SubIdentities = story(
     ['AccountId32', 'Data', 'Validator1', 'Validator2', 'Raw10']
 )
 
-export const EmptyList = story('Identity', 'set_subs', {subs: []}, ['subs', '—'])
+// a variant that carries nothing spans the cells a deeper one splits into
+export const SubIdentitiesMixedDepth = story(
+    'Identity',
+    'set_subs',
+    {
+        subs: [
+            ['0x0c75ace1a6f6b7857e03f08e170590ed34fbded0b415d37de2dda6c2fa2bf85d', {value: '0x56616c696461746f7231', __kind: 'Raw10'}],
+            ['0x0c75ace1f15ade9f7c63fbe5cf37982d9699a2667e14c789f37b5b720cba8e10', {__kind: 'None'}],
+        ],
+    },
+    ['Raw10', 'Validator1', 'None']
+)
+
+export const EmptyList =story('Identity', 'set_subs', {subs: []}, ['subs', '—'])
 
 export const Judgement = story(
     'Identity',
