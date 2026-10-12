@@ -11,6 +11,7 @@ import {
 } from '@subsquid/substrate-processor'
 import {Store, TypeormDatabase} from '@subsquid/typeorm-store'
 import {RpcClient} from '@subsquid/rpc-client'
+import type {Runtime} from '@subsquid/substrate-runtime'
 import {toJSON} from '@subsquid/util-internal-json'
 import pLimit from 'p-limit'
 import {In, LessThanOrEqual} from 'typeorm'
@@ -18,6 +19,7 @@ import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EventKind,
 import {constants, events, storage} from './types'
 import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
+import {missingCalls, type CallNode} from './callTree'
 import {parseEvmBlockHash, parsePowDigest} from './digest'
 import {Deposit, feeShares} from './fees'
 import {fetchObj, parseMesh} from './objects'
@@ -128,7 +130,7 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     const transfersBefore = batch.transfers.length
     const evmBefore = batch.evmTxs.length
     for (const ext of b.extrinsics) mapExtrinsic(batch, block, ext)
-    mapCalls(batch, block, b.calls)
+    mapCalls(batch, block, b.calls, b.events, h._runtime)
     for (const call of b.calls) {
         if (!call.success) continue
         const origin = originOf(call)
@@ -388,7 +390,6 @@ function mapExtrinsic(batch: BatchData, block: Block, ext: ExtrinsicData<Fields>
         pallet,
         method,
         signer: signer ? batch.touch(signer, block.height) : undefined,
-        leafCalls: leafCalls(ext),
         success: ext.success,
         error: ext.error != null ? toJSON(ext.error) : undefined,
         tip: ext.tip,
@@ -406,45 +407,48 @@ interface CallCount {
 }
 
 // a call id spells out its address, so id order walks the tree in preorder
-function leafCalls(ext: ExtrinsicData<Fields>): CallCount[] | null {
-    const leaves = ext.subcalls.filter(c => c.address.length > 0 && c.subcalls.length === 0).sort((a, b) => (a.id < b.id ? -1 : 1))
+function leafCalls(tree: Call[]): CallCount[] | null {
+    const wrappers = new Set(tree.map(c => c.parent?.id))
+    const leaves = tree.filter(c => c.address.length > 0 && !wrappers.has(c.id)).sort((a, b) => (a.id < b.id ? -1 : 1))
     if (leaves.length === 0) return null
     const counts = new Map<string, CallCount>()
-    for (const c of leaves) {
-        const [pallet, method] = splitName(c.name)
+    for (const {pallet, method} of leaves) {
         const name = `${pallet}.${method}`
         counts.set(name, {pallet, method, count: (counts.get(name)?.count ?? 0) + 1})
     }
     return [...counts.values()]
 }
 
+function addCall(batch: BatchData, block: Block, extrinsic: Extrinsic, node: CallNode, origin: Account | undefined): void {
+    const [pallet, method] = splitName(node.name)
+    const c = new Call({id: node.id, extrinsic, block, address: node.address, pallet, method, args: toJSON(node.args), success: node.success, origin})
+    batch.calls.push(c)
+    batch.callById.set(c.id, c)
+    const kind = `${pallet}.${method}`
+    if (!batch.callKinds.has(kind)) batch.callKinds.set(kind, new CallKind({id: kind, pallet, method}))
+}
+
 // the whole tree, so what a batch or a proxy wraps is a row of its own rather
-// than a shape somebody has to dig out of the root call args
-function mapCalls(batch: BatchData, block: Block, calls: CallData<Fields>[]): void {
+// than a shape somebody has to dig out of the root call args. squid leaves
+// out what never took effect, so the root args fill those calls in
+function mapCalls(batch: BatchData, block: Block, calls: CallData<Fields>[], events: EventData<Fields>[], runtime: Runtime): void {
+    const first = batch.calls.length
+    const nodes = new Map<string, CallNode>(calls.map(c => [c.id, {id: c.id, address: c.address, name: c.name, args: c.args, success: c.success}]))
+    const raised = new Map<string, string[]>()
+    for (const ev of events) if (ev.call != null) raised.set(ev.call.id, [...(raised.get(ev.call.id) ?? []), ev.name])
     for (const call of calls) {
         const extrinsic = call.extrinsic != null ? batch.extrinsicById.get(call.extrinsic.id) : undefined
         if (extrinsic == null) throw new Error(`call ${call.id} belongs to no extrinsic`)
-        const [pallet, method] = splitName(call.name)
         const origin = originOf(call)
-        const c = new Call({
-            id: call.id,
-            extrinsic,
-            block,
-            address: call.address,
-            pallet,
-            method,
-            args: toJSON(call.args),
-            success: call.success,
-            origin: origin ? batch.touch(origin, block.height) : undefined,
-        })
-        batch.calls.push(c)
-        batch.callById.set(c.id, c)
-        const kind = `${pallet}.${method}`
-        if (!batch.callKinds.has(kind)) batch.callKinds.set(kind, new CallKind({id: kind, pallet, method}))
+        addCall(batch, block, extrinsic, nodes.get(call.id)!, origin ? batch.touch(origin, block.height) : undefined)
+        if (call.address.length > 0) continue
+        for (const node of missingCalls(nodes.get(call.id)!, nodes, id => raised.get(id) ?? [], runtime)) addCall(batch, block, extrinsic, node, undefined)
     }
-    for (const call of calls) {
-        if (call.parentCall != null) batch.callById.get(call.id)!.parent = batch.callById.get(call.parentCall.id)
-    }
+    const added = batch.calls.slice(first)
+    for (const c of added) if (c.address.length > 0) c.parent = batch.callById.get(c.id.slice(0, c.id.lastIndexOf('-')))
+    const trees = new Map<Extrinsic, Call[]>()
+    for (const c of added) trees.set(c.extrinsic, [...(trees.get(c.extrinsic) ?? []), c])
+    for (const [extrinsic, tree] of trees) extrinsic.leafCalls = leafCalls(tree)
 }
 
 function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields>, author: string | undefined, treasury: string): void {

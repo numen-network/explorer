@@ -9,7 +9,7 @@ import {TimeCell} from '@/components/TimeCell'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, EvmTxLink} from '@/components/links'
 import {CallTree} from '@/components/CallTree'
-import {Badge} from '@/components/ui/badge'
+import {ResultBadge} from '@/components/calls'
 import {Card} from '@/components/ui/card'
 import {Item} from '@/components/ui/item'
 import {withCallViews, withEventViews} from '@/lib/args'
@@ -105,7 +105,7 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
                         {x.block.height}-{x.indexInBlock}
                     </span>
                 </h1>
-                <Badge variant={x.success ? 'pos' : 'neg'}>{x.success ? 'Success' : 'Failed'}</Badge>
+                <ResultBadge success={x.success} />
             </div>
 
             <div className="mt-3">

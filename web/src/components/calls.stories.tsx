@@ -4,7 +4,7 @@ import {expect, userEvent, within} from 'storybook/test'
 import {withCallViews} from '@/lib/args'
 import type {AccountRef, CallCount, CallRef, CallRow} from '@/lib/gql'
 import {HEAD} from '../../../mock/fixtures.js'
-import {batchAll, batchInterrupted, batchOfProxies, CHAIN_PROPS, heartbeat, mined, pick, proxied, referendumSubmission, timestampSet, transfer, vestingPayout} from '../../../mock/fixtures/blocks.js'
+import {batchAll, batchInterrupted, batchOfProxies, CHAIN_PROPS, failedReferendumSubmission, heartbeat, mined, pick, proxied, referendumSubmission, timestampSet, transfer, vestingPayout} from '../../../mock/fixtures/blocks.js'
 import {CallTree} from './CallTree'
 import {CallCell, CallPill} from './calls'
 
@@ -97,7 +97,23 @@ export const CallTreeSingleCall: Story = {...tree(transfer), play: async ({canva
 
 export const CallTreeBatch = tree(batchAll)
 
-export const CallTreeBatchInterrupted = tree(batchInterrupted)
+// the failed item and the one past it, which never ran
+export const CallTreeBatchInterrupted: Story = {
+    ...tree(batchInterrupted),
+    play: async ({canvas}) => {
+        await expect(canvas.getAllByText('Failed')).toHaveLength(1)
+        await expect(canvas.getAllByText('Not applied')).toHaveLength(1)
+    },
+}
+
+// a rolled back batch fails at the root and leaves every call under it without an outcome
+export const CallTreeFailedBatch: Story = {
+    ...tree(failedReferendumSubmission),
+    play: async ({canvas}) => {
+        await expect(canvas.getAllByText('Failed')).toHaveLength(1)
+        await expect(canvas.getAllByText('Not applied')).toHaveLength(3)
+    },
+}
 
 export const CallTreeNested = tree(proxied)
 

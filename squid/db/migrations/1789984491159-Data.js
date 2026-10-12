@@ -27,7 +27,7 @@ module.exports = class Data1789984491159 {
         await db.query(`CREATE INDEX "idx_event_call_a1335fcb" ON "event" ("call_id") `)
         await db.query(`CREATE INDEX "idx_event_pallet_97942426" ON "event" ("pallet") `)
         await db.query(`CREATE INDEX "idx_event_method_ce4b1f83" ON "event" ("method") `)
-        await db.query(`CREATE TABLE "call" ("id" character varying NOT NULL, "address" integer array NOT NULL, "pallet" text NOT NULL, "method" text NOT NULL, "args" jsonb, "success" boolean NOT NULL, "extrinsic_id" character varying, "block_id" character varying, "parent_id" character varying, "origin_id" character varying, CONSTRAINT "PK_2098af0169792a34f9cfdd39c47" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "call" ("id" character varying NOT NULL, "address" integer array NOT NULL, "pallet" text NOT NULL, "method" text NOT NULL, "args" jsonb, "success" boolean, "extrinsic_id" character varying, "block_id" character varying, "parent_id" character varying, "origin_id" character varying, CONSTRAINT "PK_2098af0169792a34f9cfdd39c47" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_call_extrinsic_83bd0b4e" ON "call" ("extrinsic_id") `)
         await db.query(`CREATE INDEX "idx_call_block_8f3ca806" ON "call" ("block_id") `)
         await db.query(`CREATE INDEX "idx_call_parent_d9400c51" ON "call" ("parent_id") `)

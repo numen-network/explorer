@@ -5,6 +5,12 @@ import type {CallCount, CallRef} from '@/lib/gql'
 
 export const qualified = (c: CallRef) => `${c.pallet}.${c.method}`
 
+/** How a call ended, null when nothing it did took effect and the chain recorded no outcome. */
+export function ResultBadge({success}: {success: boolean | null}) {
+    if (success === null) return <Badge variant="idle">Not applied</Badge>
+    return <Badge variant={success ? 'pos' : 'neg'}>{success ? 'Success' : 'Failed'}</Badge>
+}
+
 /** What a transfer really called, which a batch or a proxy hides from the extrinsic. */
 export function CallPill({call}: {call: CallRef | null}) {
     if (!call) return <span className="text-[11px] text-dim">—</span>

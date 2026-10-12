@@ -142,7 +142,8 @@ type Call @entity {
   pallet: String! @index
   method: String! @index
   args: JSON
-  success: Boolean!
+  "null when the chain records no outcome for it, which only happens where nothing it did took effect, under a call that failed or past where its wrapper stopped"
+  success: Boolean
   "who the call dispatches as, which proxy and multisig move away from the signer"
   origin: Account @index
   events: [Event!]! @derivedFrom(field: "call")

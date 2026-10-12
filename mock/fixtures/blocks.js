@@ -184,7 +184,8 @@ export function batchInterrupted(height, {from = person(height + 6), fee = 9_870
         method: 'batch',
         signer: from,
         ...pay.traits,
-        calls: [[[], 'Utility.batch', {calls: pays.map(([to, value]) => transferCall(to)(value))}], ...pays.slice(0, 3).map(([to, value], i) => [[i], 'Balances.transfer_keep_alive', {dest: ID(to.id), value}, {success: i < 2}])],
+        // the item past the interruption never ran, so the indexer fills it in with no outcome
+        calls: [[[], 'Utility.batch', {calls: pays.map(([to, value]) => transferCall(to)(value))}], ...pays.map(([to, value], i) => [[i], 'Balances.transfer_keep_alive', {dest: ID(to.id), value}, {success: i < 2 ? true : i === 2 ? false : null}])],
         events: [
             ...on([0], pay.withdraw),
             ...items([], pays.slice(0, 2).map(([to, value], i) => [i, [['Balances.Transfer', {from: from.id, to: to.id, amount: value}]]])),
@@ -283,6 +284,19 @@ export function referendumSubmission(height, {from = person(height + 7), index =
             ...on([], ['Utility.BatchCompleted', null], ...pay.paid),
             ['System.ExtrinsicSuccess', info(1177601874, 117874), null],
         ],
+    }
+}
+
+// the same submission rolled back whole, so nothing under the root took effect and the chain kept no outcome for it
+export function failedReferendumSubmission(height, options = {}) {
+    const sent = referendumSubmission(height, options)
+    const pay = charge(sent.signer.id, height, BigInt(sent.fee))
+    return {
+        ...sent,
+        success: false,
+        error: FUNDS_UNAVAILABLE,
+        calls: sent.calls.map(([address, name, args]) => [address, name, args, {success: address.length === 0 ? false : null}]),
+        events: [...on(null, pay.withdraw, ...pay.paid), ['System.ExtrinsicFailed', {dispatchError: FUNDS_UNAVAILABLE, ...info(1177601874, 117874)}, null]],
     }
 }
 

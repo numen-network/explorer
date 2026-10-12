@@ -32,7 +32,7 @@ const Carry = ({keep}: {keep: Record<string, string>}) => (
 )
 
 const LABEL = 'mr-1 w-14 text-xs font-normal text-muted-foreground'
-const RESULT_LABEL: Record<string, string> = {success: 'Success', failed: 'Failed'}
+const RESULT_LABEL: Record<string, string> = {success: 'Success', failed: 'Failed', unapplied: 'Not applied'}
 
 export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
     const sp = await props.searchParams
@@ -45,7 +45,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
     const method = methods.includes(str(sp.method)) ? str(sp.method) : ''
     const rawSigner = str(sp.signer).trim()
     const signer = !rawSigner ? '' : HEX_ID.test(rawSigner) ? rawSigner.toLowerCase() : (ss58TryDecode(rawSigner, chain.ss58) ?? '')
-    const result = str(sp.result) === 'success' || str(sp.result) === 'failed' ? (str(sp.result) as 'success' | 'failed') : undefined
+    const result = str(sp.result) in RESULT_LABEL ? (str(sp.result) as 'success' | 'failed' | 'unapplied') : undefined
     const after = isDay(str(sp.after)) ? str(sp.after) : ''
     const before = isDay(str(sp.before)) ? str(sp.before) : ''
     const pg = paging(sp)
@@ -65,9 +65,7 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
         <div>
             <div className="mt-6 flex items-baseline justify-between">
                 <h1 className="text-lg font-semibold">Extrinsics</h1>
-                <span className="text-xs text-muted-foreground">
-                    {fmtInt(total)} {pallet ? 'calls' : 'matching'}
-                </span>
+                <span className="text-xs text-muted-foreground">{fmtInt(total)} matching</span>
             </div>
 
             <Card size="flush" className="mt-3 px-5 py-4">

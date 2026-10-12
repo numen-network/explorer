@@ -2,11 +2,10 @@
 
 import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
-import {CallCell} from '@/components/calls'
+import {CallCell, ResultBadge} from '@/components/calls'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink, ExtrinsicLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
-import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
 import type {ExtrinsicRow} from '@/lib/gql'
@@ -40,7 +39,7 @@ export function ExtrinsicsTable({rows, chain, view, empty}: {rows: ExtrinsicRow[
                 id: 'result',
                 header: 'Result',
                 meta: view === 'account' ? {align: 'right'} : undefined,
-                cell: ({row}) => <Badge variant={row.original.success ? 'pos' : 'neg'}>{row.original.success ? 'Success' : 'Failed'}</Badge>,
+                cell: ({row}) => <ResultBadge success={row.original.success} />,
             }),
             fee: col.display({id: 'fee', header: 'Fee', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => (row.original.fee ? fmtBalance(row.original.fee, chain.decimals) : '—')}),
             tip: col.display({id: 'tip', header: 'Tip', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => (row.original.tip && row.original.tip !== '0' ? fmtBalance(row.original.tip, chain.decimals) : '—')}),

@@ -48,8 +48,11 @@ export class Call {
     @JSONColumn_({nullable: true})
     args!: unknown | undefined | null
 
-    @BooleanColumn_({nullable: false})
-    success!: boolean
+    /**
+     * null when the chain records no outcome for it, which only happens where nothing it did took effect, under a call that failed or past where its wrapper stopped
+     */
+    @BooleanColumn_({nullable: true})
+    success!: boolean | undefined | null
 
     /**
      * who the call dispatches as, which proxy and multisig move away from the signer

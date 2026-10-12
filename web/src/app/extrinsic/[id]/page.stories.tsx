@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, userEvent, within} from 'storybook/test'
 import {chainInfo, extrinsic, HEAD, hashOf, paged, person} from '../../../../../mock/fixtures.js'
-import {batchAll, batchInterrupted, batchOfProxies, evmTransact, evmTxHash, failedVoteRemoval, heartbeat, mined, pick, proxied, referendumSubmission, signedCall, timestampSet, tipped, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
+import {batchAll, batchInterrupted, batchOfProxies, evmTransact, evmTxHash, failedReferendumSubmission, failedVoteRemoval, heartbeat, mined, pick, proxied, referendumSubmission, signedCall, timestampSet, tipped, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
 import {expectAddressForm, expectFits, expectInContentBox, expectShortHashes, expectTimesFit} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import ExtrinsicPage from './page'
@@ -126,6 +126,8 @@ export const BatchAll = detail(of(batchAll))
 export const BatchAllEvents = detail(of(batchAll), {tab: 'events'})
 
 export const BatchInterrupted = detail(of(batchInterrupted))
+
+export const BatchRolledBack = detail(of(failedReferendumSubmission))
 
 // the miner pays for its own batch, so the refund for the items that never ran
 // lands on the account its fee share and the tip go to

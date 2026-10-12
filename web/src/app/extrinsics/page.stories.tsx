@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, userEvent, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {chainInfo, HEAD, hex, numn, person} from '../../../../mock/fixtures.js'
-import {batchAll, busy, failedTransfer, failedVoteRemoval, heartbeat, mined, referendumSubmission, signedCall, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
+import {batchAll, busy, failedReferendumSubmission, failedTransfer, failedVoteRemoval, heartbeat, mined, referendumSubmission, signedCall, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
 import {cardsFit, filterOptions} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import ExtrinsicsPage from './page'
@@ -12,8 +12,8 @@ export default {title: 'Pages/Extrinsics', ...pageMeta(ExtrinsicsPage)}
 type Mined = ReturnType<typeof mined>
 type Row = Mined['extrinsics'][number]
 type Call = Mined['calls'][number]
-type Kind = [id: string, ok: number, failed: number]
-type Where = {pallet_eq?: string; method_eq?: string; success_eq?: boolean; block?: {timestamp_gte?: string; timestamp_lte?: string}}
+type Kind = [id: string, ok: number, failed: number, unapplied?: number]
+type Where = {pallet_eq?: string; method_eq?: string; success_eq?: boolean; success_isNull?: boolean; block?: {timestamp_gte?: string; timestamp_lte?: string}}
 
 // the calls the chain has run, how often each succeeded and how often it failed
 const KINDS: Kind[] = [
@@ -41,7 +41,8 @@ const KINDS: Kind[] = [
 const callKinds = KINDS.map(([id]) => ({id, pallet: id.split('.')[0], method: id.split('.')[1]}))
 
 const matches = (id: string, where?: Where) => (!where?.pallet_eq || id.startsWith(where.pallet_eq + '.')) && (!where?.method_eq || id.endsWith('.' + where.method_eq))
-const outcome = ([, ok, failed]: Kind, where?: Where) => (where?.success_eq === undefined ? ok + failed : where.success_eq ? ok : failed)
+const outcome = ([, ok, failed, unapplied = 0]: Kind, where?: Where) =>
+    where?.success_isNull ? unapplied : where?.success_eq === undefined ? ok + failed + unapplied : where.success_eq ? ok : failed
 
 // the page asks for its total and for one call total per pallet, each under the filters in the url
 const counting =
@@ -92,7 +93,7 @@ export const EmptyChain: StoryObj = {
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No extrinsics yet.')).toBeInTheDocument()
         expect(await filterOptions(canvasElement, 'Pallet')).toEqual(['[All]'])
-        expect(await filterOptions(canvasElement, 'Result')).toEqual(['[All]', 'Success', 'Failed'])
+        expect(await filterOptions(canvasElement, 'Result')).toEqual(['[All]', 'Success', 'Failed', 'Not applied'])
     },
 }
 
@@ -107,11 +108,22 @@ export const FilterOneMatch = list([], {pallet: 'Identity', method: 'set_fee'}, 
 export const FilterPalletInsideBatch: StoryObj = {
     ...list([], {pallet: 'Referenda'}, [['Referenda.set_metadata', 1, 0], ['Referenda.submit', 1, 0]], hits([mined(HEAD - 12, [timestampSet, referendumSubmission])], c => c.pallet === 'Referenda')),
     play: async ({canvas}) => {
-        await expect(canvas.getByText('2 calls')).toBeInTheDocument()
+        await expect(canvas.getByText('2 matching')).toBeInTheDocument()
         await expect(canvas.getAllByRole('link', {name: `${HEAD - 12}-1`})).toHaveLength(2)
         await expect(canvas.getByText('Referenda.submit')).toBeInTheDocument()
         await expect(canvas.getByText('Referenda.set_metadata')).toBeInTheDocument()
         await expect(canvas.getAllByText('in Utility.batch_all')).toHaveLength(2)
+    },
+}
+
+// calls that never took effect only sit under a root, so asking for them lists calls
+export const FilterNotApplied: StoryObj = {
+    ...list([], {result: 'unapplied'}, [['Preimage.note_preimage', 5, 0, 1], ['Referenda.set_metadata', 4, 0, 1], ['Referenda.submit', 4, 0, 1]], hits([mined(HEAD - 30, [timestampSet, failedReferendumSubmission])], c => c.success === null)),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('3 matching')).toBeInTheDocument()
+        await expect(canvas.getAllByText('Not applied', {selector: '[data-slot=badge]'})).toHaveLength(3)
+        await expect(canvas.getAllByText('in Utility.batch_all')).toHaveLength(3)
+        expect(await filterOptions(canvasElement, 'Result')).toEqual(['All', 'Success', 'Failed', '[Not applied]'])
     },
 }
 
@@ -123,7 +135,7 @@ export const FilterNothingMatches: StoryObj = {
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No matching extrinsics.')).toBeInTheDocument()
         expect(await filterOptions(canvasElement, 'Pallet')).toEqual(['All', 'Balances 12', 'ConvictionVoting 1', 'Ethereum 0', 'Identity 0', 'ImOnline 0', 'Proxy 0', '[Referenda 0]', 'Timestamp 0', 'Utility 0', 'Vesting 0'])
-        expect(await filterOptions(canvasElement, 'Result')).toEqual(['All', 'Success', '[Failed]'])
+        expect(await filterOptions(canvasElement, 'Result')).toEqual(['All', 'Success', '[Failed]', 'Not applied'])
     },
 }
 

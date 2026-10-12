@@ -1,6 +1,6 @@
 import AccountLink from '@/components/AccountLink'
 import {ArgsTable, ArgsToggle} from '@/components/ArgsTable'
-import {counted, qualified} from '@/components/calls'
+import {counted, qualified, ResultBadge} from '@/components/calls'
 import {JsonBlock} from '@/components/Detail'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
@@ -34,7 +34,7 @@ export function CallTree({calls, chain, signer}: {calls: (CallRow & {view: ArgNo
                             <div className="flex flex-wrap items-start gap-x-3 gap-y-1" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
                                 <CollapsibleTrigger className="flex min-h-6 min-w-0 grow cursor-pointer flex-wrap items-center gap-x-3 text-left text-sm">
                                     <span className="font-mono text-[13px] wrap-anywhere">{qualified(c)}</span>
-                                    {!c.success && <Badge variant="neg">Failed</Badge>}
+                                    {c.success !== true && <ResultBadge success={c.success} />}
                                     {c.events.length > 0 && <span className="text-[11px] whitespace-nowrap text-dim">{fmtCount(c.events.length, 'event')}</span>}
                                 </CollapsibleTrigger>
                                 {view && <ArgsToggle className="ml-auto group-data-[state=closed]:hidden" />}

@@ -238,7 +238,8 @@ export interface ExtrinsicRow {
     pallet: string
     method: string
     leafCalls: CallCount[] | null
-    success: boolean
+    // a call row can carry null, an extrinsic never does
+    success: boolean | null
     error: unknown
     fee: string | null
     tip: string | null
@@ -257,7 +258,7 @@ export interface CallRow {
     pallet: string
     method: string
     args: unknown
-    success: boolean
+    success: boolean | null
     origin: AccountRef | null
     events: CallRef[]
     block: {specVersion: number}
@@ -716,7 +717,7 @@ export interface ExtrinsicFilter {
     pallet?: string
     method?: string
     signer?: string
-    result?: 'success' | 'failed'
+    result?: 'success' | 'failed' | 'unapplied'
     after?: string
     before?: string
 }
@@ -729,7 +730,8 @@ function filterParts(f: ExtrinsicFilter, on: 'extrinsic' | 'call', skipCall = fa
     if (f.pallet && !skipCall) parts.push(`pallet_eq: "${f.pallet}"`)
     if (f.method && !skipCall) parts.push(`method_eq: "${f.method}"`)
     if (f.signer) parts.push(on === 'call' ? `extrinsic: {signer: {id_eq: "${f.signer}"}}` : `signer: {id_eq: "${f.signer}"}`)
-    if (f.result) parts.push(`success_eq: ${f.result === 'success'}`)
+    if (f.result === 'unapplied') parts.push('success_isNull: true')
+    else if (f.result) parts.push(`success_eq: ${f.result === 'success'}`)
     const span: string[] = []
     if (f.after) span.push(`timestamp_gte: "${f.after}T00:00:00.000Z"`)
     if (f.before) span.push(`timestamp_lte: "${f.before}T23:59:59.999Z"`)
@@ -744,7 +746,7 @@ interface CallHit {
     address: number[]
     pallet: string
     method: string
-    success: boolean
+    success: boolean | null
     extrinsic: ExtrinsicRow
 }
 
@@ -759,9 +761,10 @@ const callRow = ({id, address, pallet, method, success, extrinsic: x}: CallHit):
 })
 
 // a pallet or method filter lists the calls it matches at any depth, a batch
-// spread over one row per call; without one the list stays one row per extrinsic
+// spread over one row per call, and so does asking for calls that never took
+// effect, which only sit under a root; otherwise the list stays one row per extrinsic
 export async function extrinsicsPage(limit: number, offset: number, f: ExtrinsicFilter, pallets: string[]) {
-    const byCall = !!(f.pallet || f.method)
+    const byCall = !!(f.pallet || f.method || f.result === 'unapplied')
     const w = clause(filterParts(f, byCall ? 'call' : 'extrinsic'))
     // each pallet option counts the calls it would show, with the other filters still on
     const others = filterParts(f, 'call', true)
