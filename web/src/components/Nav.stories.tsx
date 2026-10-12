@@ -41,6 +41,11 @@ export const NestedRouteActive: Story = {parameters: at('/charts/transfer-volume
 
 export const DetailRouteNoneActive: Story = {parameters: at('/block/1000000'), play: current()}
 
+export const EventsActive: Story = {parameters: at('/events'), play: all(current('/events')!, shown('/events')!)}
+
+// /event/<id> shares a prefix with /events without belonging to it
+export const EventDetailNoneActive: Story = {parameters: at('/event/1000000-3'), play: current()}
+
 export const NoChainName: Story = {args: {chain: ''}, parameters: at('/')}
 
 export const LongChainName: Story = {

@@ -14,7 +14,7 @@ import {RpcClient} from '@subsquid/rpc-client'
 import {toJSON} from '@subsquid/util-internal-json'
 import pLimit from 'p-limit'
 import {In, LessThanOrEqual} from 'typeorm'
-import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EvmAddress, EvmLog, EvmTransaction, Extrinsic, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer} from './model'
+import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EventKind, EvmAddress, EvmLog, EvmTransaction, Extrinsic, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer} from './model'
 import {constants, events, storage} from './types'
 import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
@@ -464,6 +464,8 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
             args: toJSON(ev.args),
         })
     )
+    const kind = `${pallet}.${method}`
+    if (!batch.eventKinds.has(kind)) batch.eventKinds.set(kind, new EventKind({id: kind, pallet, method}))
     if (events.balances.transfer.v100.is(ev)) {
         const t = events.balances.transfer.v100.decode(ev)
         batch.transfers.push(
@@ -652,6 +654,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.insert(batch.calls)
     await ctx.store.upsert([...batch.callKinds.values()])
     await ctx.store.insert(batch.events)
+    await ctx.store.upsert([...batch.eventKinds.values()])
     await ctx.store.insert(batch.transfers)
     await ctx.store.insert(batch.objects)
     await ctx.store.insert(batch.evmTxs)

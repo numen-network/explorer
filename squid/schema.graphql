@@ -263,6 +263,14 @@ type CallKind @entity {
   method: String!
 }
 
+"""every pallet and method of an event the chain has actually raised, so an event picker offers real options"""
+type EventKind @entity {
+  "pallet.method"
+  id: ID!
+  pallet: String! @index
+  method: String!
+}
+
 type Judgement @entity @index(fields: ["registrar", "block"]) {
   "the id of the JudgementGiven event that recorded it"
   id: ID!

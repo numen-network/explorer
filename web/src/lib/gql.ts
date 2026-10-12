@@ -273,11 +273,11 @@ export interface EventRow {
     args: unknown
     call: {id: string} & CallRef | null
     extrinsic: {id: string} | null
-    block: {specVersion: number}
+    block: {height: number; timestamp: string; specVersion: number}
 }
 
 const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method leafCalls success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp }`
-const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id } block { specVersion }`
+const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id } block { height timestamp specVersion }`
 
 // newest first by chain position. event indices run across the whole
 // block, so they already follow the extrinsic order
@@ -370,9 +370,9 @@ export function extrinsicDetail(height: number, index: number, page: Slice) {
 }
 
 export function eventDetail(height: number, index: number) {
-    return gql<{events: (EventRow & {block: {height: number; timestamp: string}})[]}>(
+    return gql<{events: EventRow[]}>(
         `query ($height: Int!, $index: Int!) {
-            events(where: {block: {height_eq: $height}, indexInBlock_eq: $index}, limit: 1) { ${EVENT_FIELDS} block { height timestamp } }
+            events(where: {block: {height_eq: $height}, indexInBlock_eq: $index}, limit: 1) { ${EVENT_FIELDS} }
         }`,
         {height, index}
     )
@@ -783,6 +783,52 @@ export async function extrinsicsPage(limit: number, offset: number, f: Extrinsic
     const box = raw as unknown as Record<string, {totalCount: number}> & {rows: (ExtrinsicRow | CallHit)[]}
     return {
         rows: byCall ? (box.rows as CallHit[]).map(callRow) : (box.rows as ExtrinsicRow[]),
+        total: box.conn.totalCount,
+        counts: Object.fromEntries(pallets.map((p, i) => [p, box[`p${i}`]?.totalCount ?? 0])),
+    }
+}
+
+export function eventKinds() {
+    return gql<{eventKinds: CallKindRow[]}>(`query { eventKinds(orderBy: id_ASC, limit: 1000) { id pallet method } }`)
+}
+
+export interface EventFilter {
+    pallet?: string
+    method?: string
+    phase?: string
+    after?: string
+    before?: string
+}
+
+// every value here is checked against the event list or a shape before it lands in the query
+function eventParts(f: EventFilter, skipKind = false): string[] {
+    const parts: string[] = []
+    if (f.pallet && !skipKind) parts.push(`pallet_eq: "${f.pallet}"`)
+    if (f.method && !skipKind) parts.push(`method_eq: "${f.method}"`)
+    if (f.phase) parts.push(`phase_eq: "${f.phase}"`)
+    const span: string[] = []
+    if (f.after) span.push(`timestamp_gte: "${f.after}T00:00:00.000Z"`)
+    if (f.before) span.push(`timestamp_lte: "${f.before}T23:59:59.999Z"`)
+    if (span.length) parts.push(`block: {${span.join(', ')}}`)
+    return parts
+}
+
+export async function eventsPage(limit: number, offset: number, f: EventFilter, pallets: string[]) {
+    const w = clause(eventParts(f))
+    // each pallet option counts what it would show, with the other filters still on
+    const others = eventParts(f, true)
+    const tallies = pallets.map((p, i) => `p${i}: eventsConnection(${clause([...others, `pallet_eq: "${p}"`])}orderBy: id_ASC) { totalCount }`)
+    const raw = await gql<Record<string, never>>(
+        `query ($limit: Int!, $offset: Int!) {
+            rows: events(${w}orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { ${EVENT_FIELDS} }
+            conn: eventsConnection(${w}orderBy: id_ASC) { totalCount }
+            ${tallies.join('\n            ')}
+        }`,
+        {limit, offset}
+    )
+    const box = raw as unknown as Record<string, {totalCount: number}> & {rows: EventRow[]}
+    return {
+        rows: box.rows,
         total: box.conn.totalCount,
         counts: Object.fromEntries(pallets.map((p, i) => [p, box[`p${i}`]?.totalCount ?? 0])),
     }

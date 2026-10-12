@@ -30,6 +30,14 @@ const inExtrinsic = (rows: EventRow[]): Story => ({
     ),
 })
 
+const inList = (rows: EventRow[]): Story => ({
+    render: () => (
+        <Card size="flush">
+            <EventsTable rows={withEventViews(rows)} view="list" chain={CHAIN_PROPS} />
+        </Card>
+    ),
+})
+
 const opening = (name: string): Story['play'] => async ({canvasElement}) => {
     await userEvent.click(within(canvasElement).getAllByText(name)[0])
 }
@@ -43,6 +51,28 @@ export const OneRow = inBlock(BLOCK_EVENTS.slice(0, 1))
 export const EmptyBlockView = inBlock([])
 
 export const EmptyExtrinsicView = inExtrinsic([])
+
+// runtime events stand without an extrinsic, a batch item names the call that raised it
+export const ListView: Story = {
+    ...inList(BLOCK_EVENTS),
+    play: async ({canvas}) => {
+        await expect(canvas.getAllByText('from Balances.transfer_keep_alive').length).toBeGreaterThan(0)
+        await expect(canvas.getAllByText('Initialization').length).toBeGreaterThan(0)
+        await expect(canvas.getAllByText('Finalization').length).toBeGreaterThan(0)
+    },
+}
+
+export const ListOneRow = inList(BLOCK_EVENTS.slice(0, 1))
+
+export const EmptyListView = inList([])
+
+export const ListRowExpanded: Story = {
+    ...inList(BLOCK_EVENTS),
+    play: async context => {
+        await opening('System.ExtrinsicSuccess')!(context)
+        await expect(within(context.canvasElement).getByText('dispatchInfo')).toBeVisible()
+    },
+}
 
 export const RowExpanded: Story = {...inExtrinsic(PROXY_EVENTS), play: opening('Proxy.ProxyExecuted')}
 
@@ -81,7 +111,7 @@ export const RowExpandedJson: Story = {
 
 // a runtime newer than the metadata the explorer ships with leaves only the raw args
 export const RowExpandedUnknownRuntime: Story = {
-    ...inExtrinsic(PROXY_EVENTS.map(e => ({...e, block: {specVersion: 999}}))),
+    ...inExtrinsic(PROXY_EVENTS.map(e => ({...e, block: {...e.block, specVersion: 999}}))),
     play: async context => {
         await opening('Balances.Transfer')!(context)
         const canvas = within(context.canvasElement)

@@ -14,6 +14,7 @@ const ITEMS: [string, string][] = [
     ['/blocks', 'Blocks'],
     ['/transfers', 'Transfers'],
     ['/extrinsics', 'Extrinsics'],
+    ['/events', 'Events'],
     ['/accounts', 'Accounts'],
     ['/identities', 'Identities'],
     ['/tokens', 'Tokens'],
@@ -56,9 +57,9 @@ export default function Nav({chain}: {chain: string}) {
                         </span>
                     </Link>
                 </div>
-                {/* eleven labels fit beside the brand only on a wide screen,
+                {/* twelve labels fit beside the brand only on a wide screen,
                     so narrower screens tuck them behind the burger */}
-                <nav aria-label="Main" className="hidden items-center gap-6 text-sm xl:flex">
+                <nav aria-label="Main" className="hidden items-center gap-5 text-sm xl:flex">
                     {ITEMS.map(([href, label]) => (
                         <Link key={href} href={href} aria-current={current(href)} className={`whitespace-nowrap ${tone(href)}`}>
                             {label}

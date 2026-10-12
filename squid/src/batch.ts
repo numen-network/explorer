@@ -3,6 +3,7 @@ import {
     Block,
     Call,
     CallKind,
+    EventKind,
     Bounty,
     ChildBounty,
     DailyStat,
@@ -81,6 +82,7 @@ export class BatchData {
     calls: Call[] = []
     callById = new Map<string, Call>()
     callKinds = new Map<string, CallKind>()
+    eventKinds = new Map<string, EventKind>()
     transfers: Transfer[] = []
     objects: MinedObject[] = []
     evmTxs: EvmTransaction[] = []
