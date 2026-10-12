@@ -65,7 +65,9 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
         <div>
             <div className="mt-6 flex items-baseline justify-between">
                 <h1 className="text-lg font-semibold">Extrinsics</h1>
-                <span className="text-xs text-muted-foreground">{fmtInt(total)} matching</span>
+                <span className="text-xs text-muted-foreground">
+                    {fmtInt(total)} {pallet ? 'calls' : 'matching'}
+                </span>
             </div>
 
             <Card size="flush" className="mt-3 px-5 py-4">

@@ -1,7 +1,7 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, StringColumn as StringColumn_, Index as Index_} from "@subsquid/typeorm-store"
 
 /**
- * every pallet and method the chain has actually seen, so a call picker offers real options instead of a hardcoded list
+ * every pallet and method the chain has actually seen at any depth of a call tree, so a call picker offers real options instead of a hardcoded list
  */
 @Entity_()
 export class CallKind {

@@ -34,12 +34,13 @@ function fit(parts: string[]): string {
     return line(kept)
 }
 
-/** A list row for a call, with what it ran underneath when it wraps anything. */
-export function CallCell({call, leaves}: {call: CallRef; leaves: CallCount[] | null}) {
+/** A list row for a call, with what it ran underneath when it wraps anything, or the root it sits in. */
+export function CallCell({call, leaves, within}: {call: CallRef; leaves: CallCount[] | null; within?: CallRef | null}) {
     const parts = leaves?.map(c => counted(qualified(c), c.count))
     return (
         <div className="font-mono text-[13px]">
             <div>{qualified(call)}</div>
+            {within && <div className="mt-0.5 text-[11px] text-dim">in {qualified(within)}</div>}
             {parts && (
                 <Tip text={parts.join(SEP)}>
                     <div className="mt-0.5 text-[11px] text-dim">{fit(parts)}</div>

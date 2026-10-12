@@ -246,6 +246,9 @@ export interface ExtrinsicRow {
     treasuryFee: string
     signer: AccountRef | null
     block: {height: number; timestamp: string}
+    // set when the row stands for one call of the extrinsic, whose name,
+    // result and leaves then fill the fields above
+    call?: {id: string; within: CallRef | null}
 }
 
 export interface CallRow {
@@ -719,12 +722,13 @@ export interface ExtrinsicFilter {
 }
 
 // every value here is checked against the call list or a shape before it lands
-// in the query, so the clause can be built by hand
-function extrinsicParts(f: ExtrinsicFilter, skipCall = false): string[] {
+// in the query, so the clause can be built by hand. a call reaches its signer
+// through the extrinsic
+function filterParts(f: ExtrinsicFilter, on: 'extrinsic' | 'call', skipCall = false): string[] {
     const parts: string[] = []
     if (f.pallet && !skipCall) parts.push(`pallet_eq: "${f.pallet}"`)
     if (f.method && !skipCall) parts.push(`method_eq: "${f.method}"`)
-    if (f.signer) parts.push(`signer: {id_eq: "${f.signer}"}`)
+    if (f.signer) parts.push(on === 'call' ? `extrinsic: {signer: {id_eq: "${f.signer}"}}` : `signer: {id_eq: "${f.signer}"}`)
     if (f.result) parts.push(`success_eq: ${f.result === 'success'}`)
     const span: string[] = []
     if (f.after) span.push(`timestamp_gte: "${f.after}T00:00:00.000Z"`)
@@ -735,24 +739,50 @@ function extrinsicParts(f: ExtrinsicFilter, skipCall = false): string[] {
 
 const clause = (parts: string[]) => (parts.length ? `where: {${parts.join(', ')}}, ` : '')
 
+interface CallHit {
+    id: string
+    address: number[]
+    pallet: string
+    method: string
+    success: boolean
+    extrinsic: ExtrinsicRow
+}
+
+// a call under the root stands on its own row, naming the root it sits in
+const callRow = ({id, address, pallet, method, success, extrinsic: x}: CallHit): ExtrinsicRow => ({
+    ...x,
+    pallet,
+    method,
+    success,
+    leafCalls: address.length === 0 ? x.leafCalls : null,
+    call: {id, within: address.length === 0 ? null : {pallet: x.pallet, method: x.method}},
+})
+
+// a pallet or method filter lists the calls it matches at any depth, a batch
+// spread over one row per call; without one the list stays one row per extrinsic
 export async function extrinsicsPage(limit: number, offset: number, f: ExtrinsicFilter, pallets: string[]) {
-    const w = clause(extrinsicParts(f))
-    // each pallet chip counts what it would show, with the other filters still on
-    const others = extrinsicParts(f, true)
+    const byCall = !!(f.pallet || f.method)
+    const w = clause(filterParts(f, byCall ? 'call' : 'extrinsic'))
+    // each pallet option counts the calls it would show, with the other filters still on
+    const others = filterParts(f, 'call', true)
     const tallies = pallets.map(
-        (p, i) => `p${i}: extrinsicsConnection(${clause([...others, `pallet_eq: "${p}"`])}orderBy: id_ASC) { totalCount }`
+        (p, i) => `p${i}: callsConnection(${clause([...others, `pallet_eq: "${p}"`])}orderBy: id_ASC) { totalCount }`
     )
+    const rows = byCall
+        ? `rows: calls(${w}orderBy: [block_height_DESC, extrinsic_indexInBlock_DESC, id_ASC], limit: $limit, offset: $offset) { id address pallet method success extrinsic { ${EXTRINSIC_FIELDS} } }
+            conn: callsConnection(${w}orderBy: id_ASC) { totalCount }`
+        : `rows: extrinsics(${w}orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { ${EXTRINSIC_FIELDS} }
+            conn: extrinsicsConnection(${w}orderBy: id_ASC) { totalCount }`
     const raw = await gql<Record<string, never>>(
         `query ($limit: Int!, $offset: Int!) {
-            rows: extrinsics(${w}orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { ${EXTRINSIC_FIELDS} }
-            conn: extrinsicsConnection(${w}orderBy: id_ASC) { totalCount }
+            ${rows}
             ${tallies.join('\n            ')}
         }`,
         {limit, offset}
     )
-    const box = raw as unknown as Record<string, {totalCount: number}> & {rows: ExtrinsicRow[]}
+    const box = raw as unknown as Record<string, {totalCount: number}> & {rows: (ExtrinsicRow | CallHit)[]}
     return {
-        rows: box.rows,
+        rows: byCall ? (box.rows as CallHit[]).map(callRow) : (box.rows as ExtrinsicRow[]),
         total: box.conn.totalCount,
         counts: Object.fromEntries(pallets.map((p, i) => [p, box[`p${i}`]?.totalCount ?? 0])),
     }

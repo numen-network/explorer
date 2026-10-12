@@ -397,8 +397,6 @@ function mapExtrinsic(batch: BatchData, block: Block, ext: ExtrinsicData<Fields>
     })
     batch.extrinsics.push(e)
     batch.extrinsicById.set(e.id, e)
-    const kind = `${pallet}.${method}`
-    if (!batch.callKinds.has(kind)) batch.callKinds.set(kind, new CallKind({id: kind, pallet, method}))
 }
 
 interface CallCount {
@@ -441,6 +439,8 @@ function mapCalls(batch: BatchData, block: Block, calls: CallData<Fields>[]): vo
         })
         batch.calls.push(c)
         batch.callById.set(c.id, c)
+        const kind = `${pallet}.${method}`
+        if (!batch.callKinds.has(kind)) batch.callKinds.set(kind, new CallKind({id: kind, pallet, method}))
     }
     for (const call of calls) {
         if (call.parentCall != null) batch.callById.get(call.id)!.parent = batch.callById.get(call.parentCall.id)

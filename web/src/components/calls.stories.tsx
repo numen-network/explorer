@@ -47,6 +47,7 @@ export const CallCells: Story = {
         await expect(canvas.getByText('Preimage.note_preimage · +2 more')).toBeVisible()
         await expect(canvas.getByText('526× Vesting.vested_transfer')).toBeVisible()
         await expect(canvas.getByText('1,234× Vesting.vested_transfer')).toBeVisible()
+        await expect(canvas.getByText('in Utility.batch_all')).toBeVisible()
     },
     render: () => (
         <>
@@ -70,6 +71,9 @@ export const CallCells: Story = {
             </Case>
             <Case label="over a thousand identical calls">
                 <CallCell call={call('Utility.batch_all')} leaves={[leaf('Vesting.vested_transfer', 1_234)]} />
+            </Case>
+            <Case label="a call inside a batch">
+                <CallCell call={call('Referenda.submit')} leaves={null} within={call('Utility.batch_all')} />
             </Case>
         </>
     ),

@@ -30,7 +30,7 @@ export function ExtrinsicsTable({rows, chain, view, empty}: {rows: ExtrinsicRow[
             extrinsic: col.display({id: 'extrinsic', header: 'Extrinsic', cell: ({row}) => <ExtrinsicLink id={row.original.id} />}),
             block: col.display({id: 'block', header: 'Block', cell: ({row}) => <BlockLink height={row.original.block.height} />}),
             time: col.display({id: 'time', header: () => <TimeModeButton />, meta: {cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.block.timestamp} />}),
-            call: col.display({id: 'call', header: 'Call', meta: view === 'account' ? {className: 'w-full'} : undefined, cell: ({row}) => <CallCell call={row.original} leaves={row.original.leafCalls} />}),
+            call: col.display({id: 'call', header: 'Call', meta: view === 'account' ? {className: 'w-full'} : undefined, cell: ({row}) => <CallCell call={row.original} leaves={row.original.leafCalls} within={row.original.call?.within} />}),
             signer: col.display({
                 id: 'signer',
                 header: 'Signer', meta: {className: 'w-full'},
@@ -47,5 +47,5 @@ export function ExtrinsicsTable({rows, chain, view, empty}: {rows: ExtrinsicRow[
         }
         return col.columns(VIEW[view].map(k => all[k as keyof typeof all]))
     }, [chain, view])
-    return <DataTable columns={columns} rows={rows} empty={empty} emptyClassName={view === 'account' ? 'py-5' : undefined} getRowId={x => x.id} />
+    return <DataTable columns={columns} rows={rows} empty={empty} emptyClassName={view === 'account' ? 'py-5' : undefined} getRowId={x => x.call?.id ?? x.id} />
 }

@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, userEvent, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {chainInfo, HEAD, hex, numn, person} from '../../../../mock/fixtures.js'
-import {batchAll, busy, failedTransfer, failedVoteRemoval, heartbeat, mined, signedCall, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
+import {batchAll, busy, failedTransfer, failedVoteRemoval, heartbeat, mined, referendumSubmission, signedCall, timestampSet, transfer} from '../../../../mock/fixtures/blocks.js'
 import {cardsFit, filterOptions} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import ExtrinsicsPage from './page'
@@ -11,6 +11,7 @@ export default {title: 'Pages/Extrinsics', ...pageMeta(ExtrinsicsPage)}
 
 type Mined = ReturnType<typeof mined>
 type Row = Mined['extrinsics'][number]
+type Call = Mined['calls'][number]
 type Kind = [id: string, ok: number, failed: number]
 type Where = {pallet_eq?: string; method_eq?: string; success_eq?: boolean; block?: {timestamp_gte?: string; timestamp_lte?: string}}
 
@@ -42,15 +43,22 @@ const callKinds = KINDS.map(([id]) => ({id, pallet: id.split('.')[0], method: id
 const matches = (id: string, where?: Where) => (!where?.pallet_eq || id.startsWith(where.pallet_eq + '.')) && (!where?.method_eq || id.endsWith('.' + where.method_eq))
 const outcome = ([, ok, failed]: Kind, where?: Where) => (where?.success_eq === undefined ? ok + failed : where.success_eq ? ok : failed)
 
-// the page asks for its total and for one total per pallet, each under the filters in the url
+// the page asks for its total and for one call total per pallet, each under the filters in the url
 const counting =
     (kinds: Kind[]) =>
     ({where}: {where?: Where}) => ({totalCount: kinds.filter(([id]) => matches(id, where)).reduce((n, k) => n + outcome(k, where), 0)})
 
 const take = (blocks: Mined[], keep: (x: Row) => boolean = () => true) => blocks.flatMap(b => b.extrinsics).filter(keep).slice(0, 20)
 
-const list = (extrinsics: Row[], searchParams: Record<string, string> = {}, kinds = KINDS) =>
-    pageStory({callKinds, extrinsics, extrinsicsConnection: counting(kinds)}, {searchParams})
+// a pallet filter lists calls, each carrying the extrinsic it belongs to
+const hits = (blocks: Mined[], keep: (c: Call) => boolean) =>
+    blocks
+        .flatMap(b => b.calls.map((c: Call) => ({...c, extrinsic: b.extrinsics.find((x: Row) => c.id === x.id || c.id.startsWith(`${x.id}-`))})))
+        .filter(keep)
+        .slice(0, 20)
+
+const list = (extrinsics: Row[], searchParams: Record<string, string> = {}, kinds = KINDS, calls: ReturnType<typeof hits> = []) =>
+    pageStory({callKinds, extrinsics, calls, extrinsicsConnection: counting(kinds), callsConnection: counting(kinds)}, {searchParams})
 
 const RECENT = [
     mined(HEAD, [timestampSet, transfer]),
@@ -64,7 +72,7 @@ const RECENT = [
 ]
 
 const TRANSFERS = Array.from({length: 20}, (_, i) => mined(HEAD - i * 37, [timestampSet, (height: number) => transfer(height, {from: person(i), to: person(i + 3)})]))
-const isTransfer = (x: Row) => x.pallet === 'Balances'
+const isTransfer = (c: Call) => c.pallet === 'Balances'
 
 const FAILURES = [mined(HEAD - 900, [timestampSet, failedVoteRemoval]), ...Array.from({length: 12}, (_, i) => mined(HEAD - 4_211 * (i + 1), [timestampSet, failedTransfer]))]
 
@@ -88,15 +96,24 @@ export const EmptyChain: StoryObj = {
     },
 }
 
-export const FilterPallet = list(take(TRANSFERS, isTransfer), {pallet: 'Balances'})
+export const FilterPallet = list([], {pallet: 'Balances'}, KINDS, hits(TRANSFERS, isTransfer))
 
 // every filter row keeps inside its card, the method select among them
-export const FilterPalletAndMethod: StoryObj = {...list(take(TRANSFERS, isTransfer), {pallet: 'Balances', method: 'transfer_keep_alive'}), play: cardsFit}
+export const FilterPalletAndMethod: StoryObj = {...list([], {pallet: 'Balances', method: 'transfer_keep_alive'}, KINDS, hits(TRANSFERS, isTransfer)), play: cardsFit}
 
-export const FilterOneMatch = list(
-    take([mined(HEAD - 812_003, [timestampSet, (height: number) => signedCall(height, 'Identity.set_fee', {index: 0, fee: numn(2.5)}, {from: person(1)})])], x => x.pallet === 'Identity'),
-    {pallet: 'Identity', method: 'set_fee'}
-)
+export const FilterOneMatch = list([], {pallet: 'Identity', method: 'set_fee'}, KINDS, hits([mined(HEAD - 812_003, [timestampSet, (height: number) => signedCall(height, 'Identity.set_fee', {index: 0, fee: numn(2.5)}, {from: person(1)})])], c => c.pallet === 'Identity'))
+
+// a batch spreads over one row per matching call, each naming the root it sits in
+export const FilterPalletInsideBatch: StoryObj = {
+    ...list([], {pallet: 'Referenda'}, [['Referenda.set_metadata', 1, 0], ['Referenda.submit', 1, 0]], hits([mined(HEAD - 12, [timestampSet, referendumSubmission])], c => c.pallet === 'Referenda')),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText('2 calls')).toBeInTheDocument()
+        await expect(canvas.getAllByRole('link', {name: `${HEAD - 12}-1`})).toHaveLength(2)
+        await expect(canvas.getByText('Referenda.submit')).toBeInTheDocument()
+        await expect(canvas.getByText('Referenda.set_metadata')).toBeInTheDocument()
+        await expect(canvas.getAllByText('in Utility.batch_all')).toHaveLength(2)
+    },
+}
 
 export const FilterFailed = list(take(FAILURES, x => !x.success), {result: 'failed'})
 
@@ -137,6 +154,7 @@ const badDay = (after: string): StoryObj => {
                 callKinds,
                 extrinsics: ({where}: {where?: Where}) => (where?.block ? [] : extrinsics),
                 extrinsicsConnection: ({where}: {where?: Where}) => (where?.block ? {totalCount: 0} : counting(KINDS)({where})),
+                callsConnection: ({where}: {where?: Where}) => (where?.block ? {totalCount: 0} : counting(KINDS)({where})),
             },
             {searchParams: {after}}
         ),

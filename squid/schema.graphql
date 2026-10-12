@@ -255,7 +255,7 @@ type EvmAddress @entity {
   lastActiveBlock: Int!
 }
 
-"""every pallet and method the chain has actually seen, so a call picker offers real options instead of a hardcoded list"""
+"""every pallet and method the chain has actually seen at any depth of a call tree, so a call picker offers real options instead of a hardcoded list"""
 type CallKind @entity {
   "pallet.method"
   id: ID!
