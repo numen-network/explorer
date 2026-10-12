@@ -470,6 +470,7 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
     )
     const kind = `${pallet}.${method}`
     if (!batch.eventKinds.has(kind)) batch.eventKinds.set(kind, new EventKind({id: kind, pallet, method}))
+    if (events.system.newAccount.v100.is(ev)) batch.touch(events.system.newAccount.v100.decode(ev).account, block.height)
     if (events.balances.transfer.v100.is(ev)) {
         const t = events.balances.transfer.v100.decode(ev)
         batch.transfers.push(
