@@ -1250,7 +1250,6 @@ export function governanceSummary() {
         refs: {totalCount: number}
         ongoing: {totalCount: number}
         spends: {totalCount: number}
-        bounties: {totalCount: number}
         tracks: {totalCount: number}
         delegates: {totalCount: number}
         trackList: {id: string; name: string}[]
@@ -1260,7 +1259,6 @@ export function governanceSummary() {
             refs: referendumsConnection(orderBy: index_ASC) { totalCount }
             ongoing: referendumsConnection(orderBy: index_ASC, where: {status_eq: Ongoing}) { totalCount }
             spends: treasurySpendsConnection(orderBy: block_DESC) { totalCount }
-            bounties: bountiesConnection(orderBy: index_ASC) { totalCount }
             tracks: tracksConnection(orderBy: index_ASC) { totalCount }
             delegates: delegatesConnection(orderBy: id_ASC) { totalCount }
             trackList: tracks(orderBy: index_ASC) { id name }

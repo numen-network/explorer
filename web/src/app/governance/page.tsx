@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import {FileText} from 'lucide-react'
 import Approx from '@/components/Approx'
-import {BountyTable} from '@/components/BountyTable'
 import EmptyList from '@/components/EmptyList'
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
@@ -16,21 +15,19 @@ import {curveAt, type Curve} from '@/lib/curves'
 import {chainDbHead, chainProps} from '@/lib/chain'
 import {camelLabel, fmtCount, fmtInt, trackLabel, truncFixed} from '@/lib/format'
 import {isLive, phaseFraction} from '@/lib/referendum'
-import {bountiesPage, delegatesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
+import {delegatesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {DelegatesTable, TracksTable, TreasuryTable} from './tables'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Governance'}
 
-const TABS = ['referenda', 'treasury', 'bounties', 'tracks', 'delegates'] as const
+const TABS = ['referenda', 'treasury', 'tracks', 'delegates'] as const
 type Tab = (typeof TABS)[number]
 
-// the Treasury call families, the Treasury events a spend can end on and the
-// BountyStatus variants plus the events that drop a bounty
+// the Treasury call families and the Treasury events a spend can end on
 const SPEND_KINDS = ['spend_local', 'spend']
 const SPEND_STATUSES = ['SpendApproved', 'Awarded', 'AssetSpendApproved', 'Paid', 'AssetSpendVoided', 'PaymentFailed', 'SpendProcessed']
-const BOUNTY_STATUSES = ['Proposed', 'Approved', 'ApprovedWithCurator', 'Funded', 'CuratorProposed', 'Active', 'PendingPayout', 'BountyClaimed', 'BountyRejected', 'BountyCanceled']
 const SPEND_KIND_LABEL: Record<string, string> = {spend_local: 'Local', spend: 'Spend'}
 
 export default async function GovernancePage(props: PageProps<'/governance'>) {
@@ -42,20 +39,19 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
     const chosen = (v: unknown, values: string[]) => (values.includes(String(v)) ? String(v) : '')
     const track = chosen(sp.track, trackIds)
     const kind = chosen(sp.kind, SPEND_KINDS)
-    const status = chosen(sp.status, tab === 'bounties' ? BOUNTY_STATUSES : SPEND_STATUSES)
+    const status = chosen(sp.status, SPEND_STATUSES)
     const on = {kind, status, track}
 
-    const [refs, spends, bounties, tracks, delegates] = await Promise.all([
+    const [refs, spends, tracks, delegates] = await Promise.all([
         tab === 'referenda' ? referendaPage(pg.size, pg.offset, track || undefined) : null,
         tab === 'treasury' ? treasurySpendsPage(pg.size, pg.offset, {kind: SPEND_KINDS, status: SPEND_STATUSES, track: trackIds}, on) : null,
-        tab === 'bounties' ? bountiesPage(pg.size, pg.offset, {status: BOUNTY_STATUSES, track: trackIds}, {status, track}) : null,
         tab === 'tracks' ? tracksPage(pg.size, pg.offset) : null,
         tab === 'delegates' ? delegatesPage(pg.size, pg.offset) : null,
     ])
 
     const latest = sum.dailyStats[0]
     const activeIssuance = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
-    const pageTotal = {referenda: refs?.conn.totalCount ?? 0, treasury: spends?.total ?? 0, bounties: bounties?.total ?? 0, tracks: sum.tracks.totalCount, delegates: sum.delegates.totalCount}[tab]
+    const pageTotal = {referenda: refs?.conn.totalCount ?? 0, treasury: spends?.total ?? 0, tracks: sum.tracks.totalCount, delegates: sum.delegates.totalCount}[tab]
 
     // a pick keeps the other dimensions and drops paging
     const facetHref = (field: string, value: string) => {
@@ -72,12 +68,6 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
             <FacetRow label="Kind" field="kind" values={SPEND_KINDS} counts={spends.counts.kind} labelOf={v => SPEND_KIND_LABEL[v]} />
             <FacetRow label="Status" field="status" values={SPEND_STATUSES} counts={spends.counts.status} labelOf={camelLabel} />
             <FacetRow label="Track" field="track" values={trackIds} counts={spends.counts.track} labelOf={trackName} />
-        </div>
-    )
-    const bountyFilter = bounties && bounties.all > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-            <FacetRow label="Status" field="status" values={BOUNTY_STATUSES} counts={bounties.counts.status} labelOf={camelLabel} />
-            <FacetRow label="Track" field="track" values={trackIds} counts={bounties.counts.track} labelOf={trackName} />
         </div>
     )
 
@@ -205,7 +195,6 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                     items={[
                         {label: 'Referenda', count: sum.refs.totalCount, href: '/governance?tab=referenda', active: tab === 'referenda'},
                         {label: 'Treasury spends', count: sum.spends.totalCount, href: '/governance?tab=treasury', active: tab === 'treasury'},
-                        {label: 'Bounties', count: sum.bounties.totalCount, href: '/governance?tab=bounties', active: tab === 'bounties'},
                         {label: 'Tracks', count: sum.tracks.totalCount, href: '/governance?tab=tracks', active: tab === 'tracks'},
                         {label: 'Delegates', count: sum.delegates.totalCount, href: '/governance?tab=delegates', active: tab === 'delegates'},
                     ]}
@@ -217,12 +206,6 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                     {spends && (
                         <Card size="flush">
                             <TreasuryTable rows={spends.rows} chain={chain} filtered={spends.all > 0 && !!(kind || status || track)} />
-                        </Card>
-                    )}
-                    {bountyFilter}
-                    {bounties && (
-                        <Card size="flush">
-                            <BountyTable rows={bounties.rows} chain={chain} filtered={bounties.all > 0 && !!(status || track)} />
                         </Card>
                     )}
                     {tracks && (

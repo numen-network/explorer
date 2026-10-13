@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, screen, waitFor} from 'storybook/test'
 import data, {referenda, referendaCount} from '../../../../mock/data.js'
 import {acct, chainInfo, HEAD, identity, numn, PEOPLE} from '../../../../mock/fixtures.js'
-import {bounty, BOUNTY_STATUSES, counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, spendsInOneBlock, stepped, track} from '../../../../mock/fixtures/governance.js'
+import {counted, linear, listed, proposal, reciprocal, SPEND_STATUSES, spend, spendsInOneBlock, stepped, track} from '../../../../mock/fixtures/governance.js'
 import {all, axesLegible, columnTexts, expectFits, expectLegibleAxes, expectNoHangingDots, expectTimesFit, filterOptions, type Play} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import {fmtBalance} from '@/lib/format'
@@ -165,50 +165,6 @@ export const TreasuryFilteredEmpty: StoryObj = {
         expect(await filterOptions(canvasElement, 'Kind')).toEqual(['[All]', 'Local 0', 'Spend 0'])
         expect(await filterOptions(canvasElement, 'Status')).toEqual(['All', 'Spend approved 0', 'Awarded 0', 'Asset spend approved 0', 'Paid 0', 'Asset spend voided 0', '[Payment failed 0]', 'Spend processed 0'])
         expect(await filterOptions(canvasElement, 'Track')).toEqual(['All', '[Root 0]', 'Runtime Upgrade 0', 'Wish For Change 0', 'Identity Admin 0', 'Referendum Canceller 0', 'Referendum Killer 0', 'Small Spender 2', 'Medium Spender 3', 'Big Spender 2'])
-    },
-}
-
-const bountiesTab = (rows: object[], filters: Record<string, string> = {}) =>
-    pageStory({...data, bounties: listed(rows), bountiesConnection: counted(rows)}, {searchParams: {tab: 'bounties', ...filters}})
-
-const bounties = Array.from({length: 45}, (_, i) => bounty(44 - i, BOUNTY_STATUSES[i % BOUNTY_STATUSES.length]))
-
-export const BountiesEmpty: StoryObj = {
-    ...bountiesTab([]),
-    play: async ({canvas, canvasElement}) => {
-        await expect(canvas.getByText('No bounties yet.')).toBeInTheDocument()
-        for (const row of ['Status', 'Track']) expect(await filterOptions(canvasElement, row)).toBeNull()
-    },
-}
-
-export const BountiesOne = bountiesTab([bounty(0, 'Active')])
-
-export const BountiesEveryStatus: StoryObj = {
-    ...bountiesTab(BOUNTY_STATUSES.map((status, i) => bounty(BOUNTY_STATUSES.length - 1 - i, status))),
-    play: async ({canvas, canvasElement}) => {
-        await expect(await filterOptions(canvasElement, 'Status')).toContain('Bounty cancelled 1')
-        await expect(canvas.getByRole('row', {name: /Bounty cancelled/})).toBeVisible()
-    },
-}
-
-export const BountiesEdgeCases = bountiesTab([
-    bounty(3, 'Proposed', {description: null}),
-    bounty(2, 'Active', {description: 'Maintain the community archive node, the snapshot mirror and the public RPC endpoint for twelve months', referendum: null}),
-    bounty(1, 'BountyRejected', {value: '0'}),
-    bounty(0, 'BountyClaimed', {value: '987654321098765432109876543210'}),
-])
-
-export const BountiesMany = bountiesTab(bounties)
-
-export const BountiesFiltered = bountiesTab(bounties, {status: 'Active', track: '30'})
-
-// every bounty ran on a spender track, so none sits under Root
-export const BountiesFilteredEmpty: StoryObj = {
-    ...bountiesTab(bounties, {status: 'BountyClaimed', track: '0'}),
-    play: async ({canvas, canvasElement}) => {
-        await expect(canvas.getByText('No matching bounties.')).toBeInTheDocument()
-        expect(await filterOptions(canvasElement, 'Status')).toEqual(['All', 'Proposed 0', 'Approved 0', 'Approved with curator 0', 'Funded 0', 'Curator proposed 0', 'Active 0', 'Pending payout 0', '[Bounty claimed 0]', 'Bounty rejected 0', 'Bounty cancelled 0'])
-        expect(await filterOptions(canvasElement, 'Track')).toEqual(['All', '[Root 0]', 'Runtime Upgrade 0', 'Wish For Change 0', 'Identity Admin 0', 'Referendum Canceller 0', 'Referendum Killer 0', 'Small Spender 1', 'Medium Spender 2', 'Big Spender 1'])
     },
 }
 
