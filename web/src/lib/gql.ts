@@ -595,6 +595,8 @@ export function transfersPage(limit: number, offset: number) {
 export interface IdentityRow extends AccountRef {
     identityJson: unknown
     subs: AccountRef[]
+    delegators: number
+    delegated: string
 }
 
 const HAS_IDENTITY = '{identityJson_isNull: false}'
@@ -633,8 +635,29 @@ export async function identityCounts() {
     }
 }
 
-export function identitiesPage(limit: number, offset: number) {
-    return gql<{accounts: IdentityRow[]}>(
+// conviction locks overlap across tracks, so a delegator backs its target with
+// the most it delegated on any one track
+async function delegatedTo(ids: string[]): Promise<Map<string, Map<string, bigint>>> {
+    const rows = await sweep(page =>
+        gql<{delegations: {balance: string; who: {id: string}; target: {id: string}}[]}>(
+            `query ($ids: [String!]!, $limit: Int!, $offset: Int!) {
+                delegations(where: {target: {id_in: $ids}}, orderBy: id_ASC, limit: $limit, offset: $offset) { balance who { id } target { id } }
+            }`,
+            {ids, ...page}
+        ).then(r => r.delegations)
+    )
+    const backers = new Map<string, Map<string, bigint>>()
+    for (const d of rows) {
+        const most = backers.get(d.target.id) ?? new Map<string, bigint>()
+        const balance = BigInt(d.balance)
+        if (balance >= (most.get(d.who.id) ?? 0n)) most.set(d.who.id, balance)
+        backers.set(d.target.id, most)
+    }
+    return backers
+}
+
+export async function identitiesPage(limit: number, offset: number): Promise<{accounts: IdentityRow[]}> {
+    const {accounts} = await gql<{accounts: Omit<IdentityRow, 'delegators' | 'delegated'>[]}>(
         `query ($limit: Int!, $offset: Int!) {
             accounts(where: ${HAS_IDENTITY}, orderBy: ${IDENTITY_ORDER}, limit: $limit, offset: $offset) {
                 ${ACCOUNT_REF} subs(orderBy: ${SUB_ORDER}) { ${ACCOUNT_REF} }
@@ -642,6 +665,13 @@ export function identitiesPage(limit: number, offset: number) {
         }`,
         {limit, offset}
     )
+    const backers = await delegatedTo(accounts.map(a => a.id))
+    return {
+        accounts: accounts.map(a => {
+            const most = [...(backers.get(a.id)?.values() ?? [])]
+            return {...a, delegators: most.length, delegated: most.reduce((sum, b) => sum + b, 0n).toString()}
+        }),
+    }
 }
 
 export interface RegistrarRow {

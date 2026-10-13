@@ -55,6 +55,7 @@ services:
     environment:
       GQL_HTTP: http://graphql:4350/graphql
       SOURCIFY_URL: ${SOURCIFY_URL:-https://sourcify.dev/server}
+      WALLET_URL: ${WALLET_URL:-https://wallet.numen-network.org}
       PORT: 3000
     ports:
       - "127.0.0.1:3000:3000"
