@@ -220,9 +220,17 @@ module.exports = class Data1789984491159 {
         await db.query(`ALTER TABLE "validator" ADD CONSTRAINT "FK_4ddc35f6074f65fa2314a425a6f" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "hourly_stat" ADD CONSTRAINT "FK_ebeaf11ea2612c6e79ae5a5275c" FOREIGN KEY ("block_id") REFERENCES "block"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "miner_day_stat" ADD CONSTRAINT "FK_74b6a61f949a388ff1c34be4f82" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`CREATE TABLE "delegate" ("id" character varying NOT NULL, "delegators" integer NOT NULL, "tracks" integer NOT NULL, "delegated" numeric NOT NULL, "account_id" character varying, CONSTRAINT "PK_810516365b3daa9f6d6d2d4f2b7" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE INDEX "idx_delegate_account_c54b7715" ON "delegate" ("account_id") `)
+        await db.query(`CREATE INDEX "idx_delegate_delegated_delegators_6a965d1e" ON "delegate" ("delegated", "delegators") `)
+        await db.query(`ALTER TABLE "delegate" ADD CONSTRAINT "FK_9fc4c32ac74b83d15ee9f1305f2" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
     }
 
     async down(db) {
+        await db.query(`ALTER TABLE "delegate" DROP CONSTRAINT "FK_9fc4c32ac74b83d15ee9f1305f2"`)
+        await db.query(`DROP INDEX "public"."idx_delegate_delegated_delegators_6a965d1e"`)
+        await db.query(`DROP INDEX "public"."idx_delegate_account_c54b7715"`)
+        await db.query(`DROP TABLE "delegate"`)
         await db.query(`ALTER TABLE "miner_day_stat" DROP CONSTRAINT "FK_74b6a61f949a388ff1c34be4f82"`)
         await db.query(`ALTER TABLE "hourly_stat" DROP CONSTRAINT "FK_ebeaf11ea2612c6e79ae5a5275c"`)
         await db.query(`ALTER TABLE "validator" DROP CONSTRAINT "FK_4ddc35f6074f65fa2314a425a6f"`)

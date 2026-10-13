@@ -635,27 +635,6 @@ export async function identityCounts() {
     }
 }
 
-// conviction locks overlap across tracks, so a delegator backs its target with
-// the most it delegated on any one track
-async function delegatedTo(ids: string[]): Promise<Map<string, Map<string, bigint>>> {
-    const rows = await sweep(page =>
-        gql<{delegations: {balance: string; who: {id: string}; target: {id: string}}[]}>(
-            `query ($ids: [String!]!, $limit: Int!, $offset: Int!) {
-                delegations(where: {target: {id_in: $ids}}, orderBy: id_ASC, limit: $limit, offset: $offset) { balance who { id } target { id } }
-            }`,
-            {ids, ...page}
-        ).then(r => r.delegations)
-    )
-    const backers = new Map<string, Map<string, bigint>>()
-    for (const d of rows) {
-        const most = backers.get(d.target.id) ?? new Map<string, bigint>()
-        const balance = BigInt(d.balance)
-        if (balance >= (most.get(d.who.id) ?? 0n)) most.set(d.who.id, balance)
-        backers.set(d.target.id, most)
-    }
-    return backers
-}
-
 export async function identitiesPage(limit: number, offset: number): Promise<{accounts: IdentityRow[]}> {
     const {accounts} = await gql<{accounts: Omit<IdentityRow, 'delegators' | 'delegated'>[]}>(
         `query ($limit: Int!, $offset: Int!) {
@@ -665,13 +644,41 @@ export async function identitiesPage(limit: number, offset: number): Promise<{ac
         }`,
         {limit, offset}
     )
-    const backers = await delegatedTo(accounts.map(a => a.id))
-    return {
-        accounts: accounts.map(a => {
-            const most = [...(backers.get(a.id)?.values() ?? [])]
-            return {...a, delegators: most.length, delegated: most.reduce((sum, b) => sum + b, 0n).toString()}
-        }),
-    }
+    const ids = accounts.map(a => a.id)
+    const {delegates} = await gql<{delegates: {id: string; delegators: number; delegated: string}[]}>(
+        `query ($ids: [String!]!, $limit: Int!) {
+            delegates(where: {id_in: $ids}, orderBy: id_ASC, limit: $limit) { id delegators delegated }
+        }`,
+        {ids, limit: ids.length}
+    )
+    const backing = new Map(delegates.map(d => [d.id, d]))
+    return {accounts: accounts.map(a => ({...a, delegators: backing.get(a.id)?.delegators ?? 0, delegated: backing.get(a.id)?.delegated ?? '0'}))}
+}
+
+export interface DelegateRow {
+    id: string
+    account: AccountRef
+    delegators: number
+    tracks: number
+    delegated: string
+    voted: number
+}
+
+// account ids are hex, safe to splice into aliases
+export async function delegatesPage(limit: number, offset: number): Promise<DelegateRow[]> {
+    const {delegates} = await gql<{delegates: Omit<DelegateRow, 'voted'>[]}>(
+        `query ($limit: Int!, $offset: Int!) {
+            delegates(orderBy: [delegated_DESC, delegators_DESC, id_ASC], limit: $limit, offset: $offset) { id delegators tracks delegated account { ${ACCOUNT_REF} } }
+        }`,
+        {limit, offset}
+    )
+    if (delegates.length === 0) return []
+    const voted = await gql<Record<string, {totalCount: number}>>(
+        `query {
+            ${delegates.map((d, i) => `v${i}: votesConnection(where: {voter: {id_eq: "${d.id}"}, removed_eq: false}, orderBy: id_ASC) { totalCount }`).join('\n            ')}
+        }`
+    )
+    return delegates.map((d, i) => ({...d, voted: voted[`v${i}`].totalCount}))
 }
 
 export interface RegistrarRow {
@@ -1245,6 +1252,7 @@ export function governanceSummary() {
         spends: {totalCount: number}
         bounties: {totalCount: number}
         tracks: {totalCount: number}
+        delegates: {totalCount: number}
         trackList: {id: string; name: string}[]
     }>(
         `query {
@@ -1254,6 +1262,7 @@ export function governanceSummary() {
             spends: treasurySpendsConnection(orderBy: block_DESC) { totalCount }
             bounties: bountiesConnection(orderBy: index_ASC) { totalCount }
             tracks: tracksConnection(orderBy: index_ASC) { totalCount }
+            delegates: delegatesConnection(orderBy: id_ASC) { totalCount }
             trackList: tracks(orderBy: index_ASC) { id name }
         }`
     )

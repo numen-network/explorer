@@ -24,7 +24,7 @@ import {parseEvmBlockHash, parsePowDigest} from './digest'
 import {Deposit, feeShares} from './fees'
 import {fetchObj, parseMesh} from './objects'
 import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply, fetchPair, fetchProxy} from './evm'
-import {collectGovEvent, finalizeGovernance} from './governance'
+import {collectGovEvent, finalizeGovernance, movedDelegates, refreshDelegates} from './governance'
 import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from './validators'
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig} from './multisig'
@@ -680,8 +680,10 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert(batch.hours)
     await ctx.store.upsert(batch.minerDays)
     if (batch.prime != null) await ctx.store.upsert(batch.prime)
+    const delegates = await movedDelegates(ctx, batch)
     await ctx.store.upsert(batch.delegations)
     if (batch.delegationRemovals.length > 0) await ctx.store.remove(Delegation, batch.delegationRemovals)
+    await refreshDelegates(ctx, delegates)
     await ctx.store.upsert([...batch.msigOps.values()])
     await ctx.store.upsert(batch.proxyRelations)
     await ctx.store.upsert(batch.registrars)

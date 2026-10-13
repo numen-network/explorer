@@ -166,17 +166,17 @@ const registrarRows = (list: Registrar[]) => (args: {orderBy: string[]; limit: n
         ? list.filter(r => r.lastJudgementBlock != null).sort((a, b) => b.lastJudgementBlock! - a.lastJudgementBlock!).slice(0, 1)
         : paged(list)(args)
 
-interface DelegationRow {
-    balance: string
-    who: {id: string}
-    target: {id: string}
+interface DelegateRow {
+    id: string
+    delegators: number
+    delegated: string
 }
 
-const identities = (rows: Row[], {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], tab = 'identities', page = '1', delegations = [] as DelegationRow[]} = {}) =>
+const identities = (rows: Row[], {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], tab = 'identities', page = '1', delegates = [] as DelegateRow[]} = {}) =>
     pageStory(
         {
             accounts: paged(rows),
-            delegations,
+            delegates,
             accountsConnection: tallies(counts),
             registrars: registrarRows(registrars),
             registrarsConnection: ({where}: {where?: {retiredAt_isNull?: boolean}}) => ({totalCount: where?.retiredAt_isNull === false ? registrars.filter(r => r.retiredAt != null).length : registrars.length}),
@@ -367,19 +367,13 @@ export const IdentitiesLanguages: StoryObj = {
 
 const DELEGATES = [registered(140, 'Delegate', {bio: 'Delegate to me on any track.'}), registered(141, 'Undelegated'), registered(142, 'Whale')]
 
-const delegation = (who: number, target: Row, balance: string): DelegationRow => ({balance, who: {id: hashOf('delegator', who)}, target: {id: target.id}})
-
-// one delegator on two tracks counts once at its larger balance
-const DELEGATIONS = [
-    delegation(1, DELEGATES[0], numn(300)),
-    delegation(1, DELEGATES[0], numn(100)),
-    delegation(2, DELEGATES[0], numn(1_234.5678)),
-    delegation(3, DELEGATES[0], '0'),
-    delegation(4, DELEGATES[2], U128_MAX),
+const DELEGATE_ROWS: DelegateRow[] = [
+    {id: DELEGATES[0].id, delegators: 3, delegated: numn(1_534.5678)},
+    {id: DELEGATES[2].id, delegators: 1, delegated: U128_MAX},
 ]
 
 export const IdentitiesDelegations: StoryObj = {
-    ...identities(DELEGATES, {delegations: DELEGATIONS}),
+    ...identities(DELEGATES, {delegates: DELEGATE_ROWS}),
     play: async ({canvasElement}) => {
         const figures = (planck: string) => {
             const {exact, figure} = approxParts(planck, chainInfo.decimals, chainInfo.symbol)

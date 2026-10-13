@@ -10,7 +10,7 @@ import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {camelLabel, fmtBalance, fmtCount, fmtInt, fmtSpan, trackLabel} from '@/lib/format'
-import type {TrackRow, TreasurySpendRow} from '@/lib/gql'
+import type {DelegateRow, TrackRow, TreasurySpendRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 
 const SPEND_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle'> = {
@@ -76,4 +76,21 @@ export function TracksTable({rows, chain}: {rows: TrackRow[]; chain: ChainProps}
         ])
     }, [chain])
     return <DataTable columns={columns} rows={rows} getRowId={t => t.id} />
+}
+
+const dcol = columnsFor<DelegateRow>()
+
+export function DelegatesTable({rows, chain, referenda}: {rows: DelegateRow[]; chain: ChainProps; referenda: number}) {
+    const columns = useMemo(
+        () =>
+            dcol.columns([
+                dcol.display({id: 'delegate', header: 'Delegate', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={ss58Encode(row.original.id, chain.ss58)} acc={row.original.account} />}),
+                dcol.display({id: 'delegators', header: 'Delegators', meta: num, cell: ({row}) => fmtInt(row.original.delegators)}),
+                dcol.display({id: 'tracks', header: 'Tracks', meta: num, cell: ({row}) => fmtInt(row.original.tracks)}),
+                dcol.display({id: 'delegated', header: 'Delegated', meta: num, cell: ({row}) => fmtBalance(row.original.delegated, chain.decimals, chain.symbol)}),
+                dcol.display({id: 'voted', header: 'Voted', meta: num, cell: ({row}) => `${fmtInt(row.original.voted)} / ${fmtInt(referenda)}`}),
+            ]),
+        [chain, referenda]
+    )
+    return <DataTable columns={columns} rows={rows} empty={emptyText('delegates')} getRowId={d => d.id} />
 }
