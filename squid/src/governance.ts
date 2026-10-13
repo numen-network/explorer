@@ -6,7 +6,7 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, DelegatedVote, Delegation, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
+import {Account, Delegate, DelegatedVote, Delegation, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
 import {storage} from './types'
 import type {Deposit, ReferendumInfo} from './types/v100'
 
@@ -265,6 +265,38 @@ async function delegationsTo(ctx: {store: any}, accounts: Set<string>): Promise<
     const rows: Delegation[] = await ctx.store.find(Delegation, {where: {target: {id: In([...accounts])}}, relations: {who: true, target: true, track: true}})
     for (const d of rows) delegationsOn(out, d.target.id, d.track.id).set(d.who.id, {conviction: d.conviction, balance: d.balance})
     return out
+}
+
+// a delegation that moves leaves its old target and joins its new one, so the
+// old targets are read before the batch's delegations land
+export async function movedDelegates(ctx: {store: any}, batch: BatchData): Promise<Set<string>> {
+    const ids = [...batch.delegations.map(d => d.id), ...batch.delegationRemovals]
+    const old: Delegation[] = ids.length > 0 ? await ctx.store.find(Delegation, {where: {id: In(ids)}, relations: {target: true}}) : []
+    return new Set([...old, ...batch.delegations].map(d => d.target.id))
+}
+
+export async function refreshDelegates(ctx: {store: any}, targets: Set<string>): Promise<void> {
+    if (targets.size === 0) return
+    const rows: Delegation[] = await ctx.store.find(Delegation, {where: {target: {id: In([...targets])}}, relations: {who: true, target: true, track: true}})
+    const on = new Map<string, Delegation[]>()
+    for (const d of rows) on.set(d.target.id, [...(on.get(d.target.id) ?? []), d])
+    const delegates = [...on].map(([id, ds]) => {
+        const most = new Map<string, bigint>()
+        for (const d of ds) {
+            const seen = most.get(d.who.id) ?? 0n
+            most.set(d.who.id, d.balance > seen ? d.balance : seen)
+        }
+        return new Delegate({
+            id,
+            account: new Account({id}),
+            delegators: most.size,
+            tracks: new Set(ds.map(d => d.track.id)).size,
+            delegated: [...most.values()].reduce((sum, b) => sum + b, 0n),
+        })
+    })
+    await ctx.store.upsert(delegates)
+    const gone = [...targets].filter(id => !on.has(id))
+    if (gone.length > 0) await ctx.store.remove(Delegate, gone)
 }
 
 // the delegation as its block left it, nothing when the same block undid it

@@ -494,6 +494,18 @@ type Delegation @entity {
   block: Int!
 }
 
+"an account that delegations currently point to, one row while any do"
+type Delegate @entity @index(fields: ["delegated", "delegators"]) {
+  "the account id"
+  id: ID!
+  account: Account!
+  delegators: Int!
+  "how many tracks the delegations cover"
+  tracks: Int!
+  "each delegator's largest balance across tracks, summed, since conviction locks overlap"
+  delegated: BigInt!
+}
+
 type TreasurySpend @entity {
   id: ID!
   "referendum whose enactment created this spend, matched by scheduler task"
