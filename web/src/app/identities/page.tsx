@@ -1,3 +1,4 @@
+import IdentityCards from '@/components/IdentityCards'
 import {BlockLink} from '@/components/links'
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
@@ -7,7 +8,8 @@ import {chainProps} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
 import {paging} from '@/lib/paging'
 import {identitiesPage, identityCounts, registrarsPage} from '@/lib/gql'
-import {IdentitiesTable, RegistrarsTable} from './tables'
+import {WALLET_URL} from '@/lib/wallet'
+import {RegistrarsTable} from './tables'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Identities'}
@@ -53,10 +55,12 @@ export default async function IdentitiesPage(props: PageProps<'/identities'>) {
                         {label: 'Registrars', count: counts.registrars, href: '/identities?tab=registrars', active: tab === 'registrars'},
                     ]}
                 />
-                <Card size="flush" className="mt-4">
-                    {identities && <IdentitiesTable rows={identities.accounts} ss58={chain.ss58} />}
-                    {registrars && <RegistrarsTable rows={registrars.registrars} chain={chain} />}
-                </Card>
+                {identities && <IdentityCards rows={identities.accounts} chain={chain} wallet={WALLET_URL} className="mt-4" />}
+                {registrars && (
+                    <Card size="flush" className="mt-4">
+                        <RegistrarsTable rows={registrars.registrars} chain={chain} />
+                    </Card>
+                )}
                 {identities && <Pager paging={pg} total={counts.direct} href="/identities" />}
                 {registrars && <Pager paging={pg} total={counts.registrars} href="/identities?tab=registrars" />}
             </div>

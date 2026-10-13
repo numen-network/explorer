@@ -1,9 +1,13 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, screen, waitFor} from 'storybook/test'
 import {acct, at, chainInfo, hashOf, HEAD, identity, numn, paged, person, subOf} from '../../../../mock/fixtures.js'
 import {shortAddr} from '@/components/AddressText'
+import {approxParts} from '@/lib/format'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
+import {delegateHref} from '@/components/IdentityCards'
+import {WALLET_URL} from '@/lib/wallet'
+import {AVATAR_HOST, avatars} from '../../../.storybook/avatar'
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import IdentitiesPage from './page'
 
@@ -98,7 +102,7 @@ const LONG_NAMES = [
     registered(100, 'Rocket Pool 🚀🚀🚀', {judgements: ['FeePaid'], web: 'rocket.example'}),
     withSubs(registered(101, WIDEST, {judgements: ['KnownGood', 'Erroneous'], web: `${'w'.repeat(60)}.org`, x: 'w'.repeat(31)}), 'widest', [WIDEST]),
     registered(102, 'the-longest-display-name-allowed', {judgements: ['OutOfDate']}),
-    registered(103, '数值网络官方验证节点', {discord: '数值网络'}),
+    registered(103, 'Numen Foundation Validator Node', {discord: 'numenfoundation'}),
 ]
 
 const WITHOUT_DISPLAY = [
@@ -162,21 +166,30 @@ const registrarRows = (list: Registrar[]) => (args: {orderBy: string[]; limit: n
         ? list.filter(r => r.lastJudgementBlock != null).sort((a, b) => b.lastJudgementBlock! - a.lastJudgementBlock!).slice(0, 1)
         : paged(list)(args)
 
-const identities = (rows: Row[], {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], tab = 'identities', page = '1'} = {}) =>
+interface DelegationRow {
+    balance: string
+    who: {id: string}
+    target: {id: string}
+}
+
+const identities = (rows: Row[], {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], tab = 'identities', page = '1', delegations = [] as DelegationRow[]} = {}) =>
     pageStory(
         {
             accounts: paged(rows),
+            delegations,
             accountsConnection: tallies(counts),
             registrars: registrarRows(registrars),
             registrarsConnection: ({where}: {where?: {retiredAt_isNull?: boolean}}) => ({totalCount: where?.retiredAt_isNull === false ? registrars.filter(r => r.retiredAt != null).length : registrars.length}),
         },
-        {searchParams: {tab, page}}
+        {searchParams: {tab, page}, msw: [avatars]}
     )
 
 const registrarsTab = (registrars: Registrar[], page = '1') => identities(EVERY_VERDICT, {registrars, tab: 'registrars', page})
 
-const expandAll: StoryObj['play'] = async ({canvas, userEvent}) => {
-    for (const button of await canvas.findAllByRole('button', {name: 'expand'})) await userEvent.click(button)
+// the sub list opens in a popover portalled out of the canvas
+const openSubs: StoryObj['play'] = async ({canvas, userEvent}) => {
+    await userEvent.click((await canvas.findAllByRole('button', {name: /sub identities$/}))[0])
+    await screen.findByRole('dialog')
 }
 
 export const IdentitiesEmpty = identities([], {registrars: []})
@@ -185,11 +198,39 @@ export const IdentitiesOne = identities([person(0)])
 
 export const IdentitiesEveryVerdict = identities(EVERY_VERDICT)
 
-export const IdentitiesChannels = identities(CHANNELS)
+export const IdentitiesChannels: StoryObj = {
+    ...identities(CHANNELS),
+    play: async ({canvas}) => {
+        const card = (await canvas.findByText('All channels')).closest<HTMLElement>('[data-slot=card]')!
+        const sizes = [...card.querySelectorAll('[aria-label]:not(button):has(> svg)')].map(m => [m.getAttribute('aria-label'), m.querySelector('svg')!.getBoundingClientRect().width])
+        expect(sizes).toEqual([
+            ['Web', 18],
+            ['Email', 18],
+            ['GitHub', 18],
+            ['Matrix', 18],
+            ['X', 16],
+            ['Telegram', 18],
+            ['Discord', 18],
+        ])
+    },
+}
 
-export const IdentitiesSubsExpanded: StoryObj = {...identities(WITH_SUBS), play: expandAll}
+// the popover grows to its longest name, cutting names short only once it
+// fills the 32rem cap or the room the viewport leaves
+export const IdentitiesSubsOpen: StoryObj = {
+    ...identities(WITH_SUBS),
+    play: async ctx => {
+        await openSubs!(ctx)
+        const dialog = await screen.findByRole('dialog')
+        const names = [...dialog.querySelectorAll<HTMLElement>('a[href^="/account/"] .truncate')]
+        expect(names).toHaveLength(100)
+        const room = Math.min(32 * parseFloat(getComputedStyle(document.documentElement).fontSize), parseFloat(getComputedStyle(dialog).getPropertyValue('--radix-popover-content-available-width')))
+        const full = dialog.offsetWidth >= room - 1
+        expect(full || names.every(n => n.scrollWidth <= n.clientWidth)).toBe(true)
+    },
+}
 
-export const IdentitiesLongNames: StoryObj = {...identities(LONG_NAMES), play: expandAll}
+export const IdentitiesLongNames: StoryObj = {...identities(LONG_NAMES), play: openSubs}
 
 const short = (row: {id: string}) => shortAddr(ss58Encode(row.id, chainInfo.ss58))
 
@@ -197,17 +238,141 @@ const short = (row: {id: string}) => shortAddr(ss58Encode(row.id, chainInfo.ss58
 export const IdentitiesWithoutDisplay: StoryObj = {
     ...identities(WITHOUT_DISPLAY),
     play: async ctx => {
-        await expandAll!(ctx)
-        const links = [...ctx.canvasElement.querySelectorAll<HTMLElement>('a[href^="/account/"]')]
-        const marks = links.map(l => [l.textContent, [...(l.querySelector('svg')?.classList ?? [])].find(c => c.startsWith('lucide-')) ?? null])
+        const marks = (root: HTMLElement) =>
+            [...root.querySelectorAll<HTMLElement>('a[href^="/account/"]')].map(l => [l.textContent, [...(l.querySelector('svg')?.classList ?? [])].find(c => c.startsWith('lucide-')) ?? null])
         const [, anon, spam, unjudged] = WITHOUT_DISPLAY
-        expect(marks).toEqual([
+        expect(marks(ctx.canvasElement)).toEqual([
             ['Named and known good', 'lucide-circle-check'],
             [short(anon), 'lucide-circle-check'],
-            [short(anon.subs![0]), 'lucide-circle-check'],
             [short(spam), 'lucide-circle-x'],
             [short(unjudged), 'lucide-circle-question-mark'],
             ['anon.numen', 'lucide-circle-check'],
+        ])
+        await openSubs!(ctx)
+        expect(marks(await screen.findByRole('dialog'))).toEqual([[short(anon.subs![0]), 'lucide-circle-check']])
+    },
+}
+
+const pictured = (n: number, display: string, avatar: string) => registered(n, display, {avatar})
+
+const AVATARS = [
+    pictured(120, 'Pictured', `${AVATAR_HOST}/pictured.png`),
+    pictured(121, 'Dead link', `${AVATAR_HOST}/missing.png`),
+    pictured(122, 'Plain http', 'http://avatar.example/plain.png'),
+    registered(123, 'no picture'),
+    nameless(125, {}),
+]
+
+// a picture that loads shows, any other avatar falls back to the first letter of the label
+export const IdentitiesAvatars: StoryObj = {
+    ...identities(AVATARS),
+    play: async ({canvasElement}) => {
+        const cards = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card]')].slice(-AVATARS.length)
+        const faces = () => cards.map(c => c.querySelector('img')?.getAttribute('src') ?? c.querySelector('[aria-hidden].rounded-full')?.textContent)
+        await waitFor(() =>
+            expect(faces()).toEqual([
+            `${AVATAR_HOST}/pictured.png`,
+            'D',
+            'P',
+            'N',
+            ss58Encode(AVATARS.at(-1)!.id, chainInfo.ss58)[0].toUpperCase(),
+            ])
+        )
+    },
+}
+
+const BIOS = [
+    registered(130, 'Short bio', {bio: 'Validator operator since genesis.'}),
+    registered(131, 'Long bio', {bio: 'I vote on every treasury referendum and publish my reasoning before the decision period ends. '.repeat(20).trim()}),
+    registered(132, 'Lines', {bio: 'Root and Treasurer tracks\nVotes within a day\nNo split votes\nAsk on Discord'}),
+    registered(133, 'Unbroken', {bio: 'x'.repeat(2048)}),
+    registered(134, 'No bio', {discord: 'nobio'}),
+]
+
+// every card hands its own address to the wallet's Delegate and offers it to
+// copy, and only a card with a bio opens one
+export const IdentitiesBios: StoryObj = {
+    ...identities(BIOS),
+    play: async ({canvas}) => {
+        expect((await canvas.findAllByRole('link', {name: 'Delegate'})).map(a => a.getAttribute('href'))).toEqual(BIOS.map(r => delegateHref(WALLET_URL, ss58Encode(r.id, chainInfo.ss58))))
+        expect(canvas.getAllByRole('button', {name: 'copy'})).toHaveLength(BIOS.length)
+        expect(canvas.getAllByRole('button', {name: 'Bio'})).toHaveLength(BIOS.filter(r => r.identityDisplay !== 'No bio').length)
+    },
+}
+
+const openBio = async (canvasElement: HTMLElement, name: string) => {
+    const card = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card]')].find(c => c.querySelector('a[href^="/account/"]')?.textContent === name)!
+    card.querySelector<HTMLButtonElement>('button[aria-label=Bio]')!.click()
+    return screen.findByRole('dialog')
+}
+
+// the dialog carries the whole bio the card cuts at three lines
+export const IdentitiesBioOpen: StoryObj = {
+    ...identities(BIOS),
+    play: async ({canvasElement}) => {
+        const dialog = await openBio(canvasElement, 'Long bio')
+        const bio = (BIOS[1].identityJson as {info: {bio: string}}).info.bio
+        expect(dialog.querySelector('p[dir=auto]')!.textContent).toBe(new TextDecoder().decode(Uint8Array.from(bio.slice(2).match(/../g)!, h => parseInt(h, 16))))
+    },
+}
+
+// every script outside English lives here and only here. displays stay within
+// the 32 bytes the chain takes, the last bio fills its 2048
+const LANGUAGES = [
+    registered(150, '数值网络官方验证节点', {discord: '数值网络', bio: '我们运行主网验证节点，并在每一次国库公投前公开投票理由。'}),
+    registered(151, 'ヌーメン検証者', {bio: 'メインネットのバリデーターを運営し、すべての国庫提案に投票します。'}),
+    registered(152, '누멘 검증인', {bio: '메인넷 검증인을 운영하며 모든 재무 국민투표에 투표합니다.'}),
+    registered(153, 'مدقق نومن', {bio: 'نشغّل مدقق الشبكة الرئيسية ونصوّت على كل استفتاء للخزينة.'}),
+    registered(154, 'מאמת נומן', {bio: 'אנחנו מפעילים מאמת ברשת הראשית ומצביעים בכל משאל עם של האוצר.'}),
+    registered(155, 'Валидатор Нумен', {bio: 'Мы управляем валидатором основной сети и голосуем по каждому референдуму казначейства.'}),
+    registered(156, 'นูเมน', {bio: 'เราดูแลโหนดตรวจสอบบนเครือข่ายหลักและลงคะแนนในการลงประชามติคลังทุกครั้งโดยไม่เว้นวรรคระหว่างคำเลย'}),
+    registered(157, 'नूमेन', {bio: 'हम मुख्य नेटवर्क पर सत्यापनकर्ता चलाते हैं और हर कोष जनमत संग्रह में मतदान करते हैं।'}),
+    registered(158, '🇨🇳 Flag first', {bio: '🇨🇳🇯🇵🇰🇷 flags and 👩‍💻 joined emoji in a bio'}),
+    registered(159, '👩‍💻 Coder', {bio: '👩‍💻'.repeat(40)}),
+    registered(160, '全宽', {bio: '链'.repeat(682)}),
+]
+
+// the monogram takes the first whole grapheme, a right to left bio runs right to
+// left, and no bio passes three lines or pushes its card wider
+export const IdentitiesLanguages: StoryObj = {
+    ...identities(LANGUAGES),
+    play: async ({canvasElement}) => {
+        const cards = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card]')].slice(-LANGUAGES.length)
+        expect(cards.map(c => c.querySelector('[aria-hidden].rounded-full')?.textContent)).toEqual(['数', 'ヌ', '누', 'م', 'מ', 'В', 'นู', 'नू', '🇨🇳', '👩‍💻', '全'])
+        const bios = cards.map(c => c.querySelector('p')!)
+        expect(bios.map(p => p.matches(':dir(rtl)'))).toEqual(LANGUAGES.map((_, i) => i === 3 || i === 4))
+        for (const p of bios) expect(p.getBoundingClientRect().height).toBeLessThanOrEqual(3 * parseFloat(getComputedStyle(p).lineHeight))
+        for (const c of cards) expect(c.scrollWidth).toBeLessThanOrEqual(c.clientWidth)
+        const dialog = await openBio(canvasElement, 'مدقق نومن')
+        expect(dialog.querySelector('p[dir=auto]')!.matches(':dir(rtl)')).toBe(true)
+    },
+}
+
+const DELEGATES = [registered(140, 'Delegate', {bio: 'Delegate to me on any track.'}), registered(141, 'Undelegated'), registered(142, 'Whale')]
+
+const delegation = (who: number, target: Row, balance: string): DelegationRow => ({balance, who: {id: hashOf('delegator', who)}, target: {id: target.id}})
+
+// one delegator on two tracks counts once at its larger balance
+const DELEGATIONS = [
+    delegation(1, DELEGATES[0], numn(300)),
+    delegation(1, DELEGATES[0], numn(100)),
+    delegation(2, DELEGATES[0], numn(1_234.5678)),
+    delegation(3, DELEGATES[0], '0'),
+    delegation(4, DELEGATES[2], U128_MAX),
+]
+
+export const IdentitiesDelegations: StoryObj = {
+    ...identities(DELEGATES, {delegations: DELEGATIONS}),
+    play: async ({canvasElement}) => {
+        const figures = (planck: string) => {
+            const {exact, figure} = approxParts(planck, chainInfo.decimals, chainInfo.symbol)
+            return `${exact ? '' : '≈'}${figure}`
+        }
+        const stats = [...canvasElement.querySelectorAll('dl')].map(dl => [...dl.querySelectorAll('dd')].slice(0, 2).map(dd => dd.textContent))
+        expect(stats).toEqual([
+            ['3', figures(numn(1_534.5678))],
+            ['0', figures('0')],
+            ['1', figures(U128_MAX)],
         ])
     },
 }
