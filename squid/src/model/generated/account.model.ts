@@ -1,4 +1,5 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_, Index as Index_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, ManyToOne as ManyToOne_, Relation as Relation_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_, Index as Index_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, ManyToOne as ManyToOne_, Relation as Relation_, OneToMany as OneToMany_, OneToOne as OneToOne_} from "@subsquid/typeorm-store"
+import {Delegate} from "./delegate.model"
 
 @Entity_()
 export class Account {
@@ -53,6 +54,18 @@ export class Account {
     identityJson!: unknown | undefined | null
 
     /**
+     * judgement badge from 0 to 3 as verified, out of date, unjudged and flagged, null without a registration
+     */
+    @IntColumn_({nullable: true})
+    identityRank!: number | undefined | null
+
+    /**
+     * the IdentitySet that turned this registration on, later edits keep it
+     */
+    @IntColumn_({nullable: true})
+    identitySetBlock!: number | undefined | null
+
+    /**
      * the sub name as readable text, only a Raw Data variant decodes to one
      */
     @StringColumn_({nullable: true})
@@ -70,6 +83,9 @@ export class Account {
 
     @OneToMany_(() => Account, e => e.identitySuper)
     subs!: Relation_<Account[]>
+
+    @OneToOne_(() => Delegate, e => e.account)
+    delegate!: Relation_<Delegate> | undefined | null
 
     /**
      * primary username granted through a username authority

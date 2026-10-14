@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, IntColumn as IntColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, Index as Index_, OneToOne as OneToOne_, JoinColumn as JoinColumn_, Relation as Relation_, IntColumn as IntColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
 
 /**
@@ -17,8 +17,9 @@ export class Delegate {
     @PrimaryColumn_()
     id!: string
 
-    @Index_("idx_delegate_account_c54b7715")
-    @ManyToOne_(() => Account, {nullable: true})
+    @Index_("idx_delegate_account_0ddc86fb", {unique: true})
+    @OneToOne_(() => Account, {nullable: true})
+    @JoinColumn_()
     account!: Relation_<Account>
 
     @IntColumn_({nullable: false})

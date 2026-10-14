@@ -47,6 +47,7 @@ export function collectAnnotationEvent(batch: BatchData, id: string, name: strin
             const who = args.who ?? args.target
             batch.touch(who, height)
             batch.identityRefresh.add(who)
+            if (name === 'Identity.IdentitySet' && !batch.identitySetAt.has(who)) batch.identitySetAt.set(who, height)
             if (name === 'Identity.JudgementGiven') {
                 const s = registrarStat(batch, args.registrarIndex, at)
                 s.given += 1
@@ -61,6 +62,8 @@ export function collectAnnotationEvent(batch: BatchData, id: string, name: strin
             batch.touch(args.who, height)
             batch.identityRefresh.add(args.who)
             batch.subsReset.add(args.who)
+            batch.identitySetAt.delete(args.who)
+            batch.identityCleared.add(args.who)
             break
         case 'Identity.SubIdentityAdded':
         case 'Identity.SubIdentityRemoved':
@@ -160,6 +163,28 @@ export function collectAnnotationCall(batch: BatchData, name: string, args: any,
             break
         }
     }
+}
+
+// one rank per judgement badge, a bad verdict outweighing a good one
+const KNOWN = ['KnownGood', 'Reasonable', 'OutOfDate', 'FeePaid', 'Unknown', 'LowQuality', 'Erroneous']
+
+function rankOf(judgements: [number, {__kind: string}][]): number {
+    const kinds = judgements.map(([, j]) => j.__kind)
+    const odd = kinds.find(k => !KNOWN.includes(k))
+    if (odd != null) throw new Error(`unknown judgement ${odd}`)
+    if (kinds.some(k => k === 'LowQuality' || k === 'Erroneous')) return 3
+    if (kinds.some(k => k === 'KnownGood' || k === 'Reasonable')) return 0
+    if (kinds.includes('OutOfDate')) return 1
+    return 2
+}
+
+// an edit to a live registration emits IdentitySet again and keeps the block
+// the registration started at
+function identitySince(batch: BatchData, a: Account): number {
+    if (a.identitySetBlock != null && !batch.identityCleared.has(a.id)) return a.identitySetBlock
+    const set = batch.identitySetAt.get(a.id)
+    if (set == null) throw new Error(`identity of ${a.id} has no IdentitySet behind it`)
+    return set
 }
 
 function judgementOf(json: unknown, registrar: number): {kind?: string; fee?: bigint} {
@@ -277,6 +302,8 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
             const reg = regs[i]
             a.identityDisplay = reg ? decodeUtf8(reg.info?.display) : null
             a.identityJson = reg ? toJSON(reg) : null
+            a.identityRank = reg ? rankOf(reg.judgements) : null
+            a.identitySetBlock = reg ? identitySince(batch, a) : null
         })
     }
     // the event names no verdict, the registration at its own block does

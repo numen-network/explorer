@@ -600,7 +600,7 @@ export interface IdentityRow extends AccountRef {
 }
 
 const HAS_IDENTITY = '{identityJson_isNull: false}'
-const IDENTITY_ORDER = '[identityDisplay_ASC_NULLS_LAST, id_ASC]'
+const IDENTITY_ORDER = '[identityRank_ASC, delegate_delegated_DESC_NULLS_LAST, identitySetBlock_ASC, id_ASC]'
 const SUB_ORDER = '[identitySubName_ASC_NULLS_LAST, id_ASC]'
 
 // a registration lists its judgements as [registrar, verdict] pairs, so a
@@ -636,23 +636,15 @@ export async function identityCounts() {
 }
 
 export async function identitiesPage(limit: number, offset: number): Promise<{accounts: IdentityRow[]}> {
-    const {accounts} = await gql<{accounts: Omit<IdentityRow, 'delegators' | 'delegated'>[]}>(
+    const {accounts} = await gql<{accounts: (Omit<IdentityRow, 'delegators' | 'delegated'> & {delegate: {delegators: number; delegated: string} | null})[]}>(
         `query ($limit: Int!, $offset: Int!) {
             accounts(where: ${HAS_IDENTITY}, orderBy: ${IDENTITY_ORDER}, limit: $limit, offset: $offset) {
-                ${ACCOUNT_REF} subs(orderBy: ${SUB_ORDER}) { ${ACCOUNT_REF} }
+                ${ACCOUNT_REF} subs(orderBy: ${SUB_ORDER}) { ${ACCOUNT_REF} } delegate { delegators delegated }
             }
         }`,
         {limit, offset}
     )
-    const ids = accounts.map(a => a.id)
-    const {delegates} = await gql<{delegates: {id: string; delegators: number; delegated: string}[]}>(
-        `query ($ids: [String!]!, $limit: Int!) {
-            delegates(where: {id_in: $ids}, orderBy: id_ASC, limit: $limit) { id delegators delegated }
-        }`,
-        {ids, limit: ids.length}
-    )
-    const backing = new Map(delegates.map(d => [d.id, d]))
-    return {accounts: accounts.map(a => ({...a, delegators: backing.get(a.id)?.delegators ?? 0, delegated: backing.get(a.id)?.delegated ?? '0'}))}
+    return {accounts: accounts.map(({delegate, ...a}) => ({...a, delegators: delegate?.delegators ?? 0, delegated: delegate?.delegated ?? '0'}))}
 }
 
 export interface DelegateRow {

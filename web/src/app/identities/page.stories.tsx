@@ -166,17 +166,10 @@ const registrarRows = (list: Registrar[]) => (args: {orderBy: string[]; limit: n
         ? list.filter(r => r.lastJudgementBlock != null).sort((a, b) => b.lastJudgementBlock! - a.lastJudgementBlock!).slice(0, 1)
         : paged(list)(args)
 
-interface DelegateRow {
-    id: string
-    delegators: number
-    delegated: string
-}
-
-const identities = (rows: Row[], {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], tab = 'identities', page = '1', delegates = [] as DelegateRow[]} = {}) =>
+const identities = (rows: Row[], {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], tab = 'identities', page = '1'} = {}) =>
     pageStory(
         {
             accounts: paged(rows),
-            delegates,
             accountsConnection: tallies(counts),
             registrars: registrarRows(registrars),
             registrarsConnection: ({where}: {where?: {retiredAt_isNull?: boolean}}) => ({totalCount: where?.retiredAt_isNull === false ? registrars.filter(r => r.retiredAt != null).length : registrars.length}),
@@ -379,15 +372,14 @@ export const IdentitiesLanguages: StoryObj = {
     },
 }
 
-const DELEGATES = [registered(140, 'Delegate', {bio: 'Delegate to me on any track.'}), registered(141, 'Undelegated'), registered(142, 'Whale')]
-
-const DELEGATE_ROWS: DelegateRow[] = [
-    {id: DELEGATES[0].id, delegators: 3, delegated: numn(1_534.5678)},
-    {id: DELEGATES[2].id, delegators: 1, delegated: U128_MAX},
+const DELEGATES = [
+    {...registered(140, 'Delegate', {bio: 'Delegate to me on any track.'}), delegate: {delegators: 3, delegated: numn(1_534.5678)}},
+    {...registered(141, 'Undelegated'), delegate: null},
+    {...registered(142, 'Whale'), delegate: {delegators: 1, delegated: U128_MAX}},
 ]
 
 export const IdentitiesDelegations: StoryObj = {
-    ...identities(DELEGATES, {delegates: DELEGATE_ROWS}),
+    ...identities(DELEGATES),
     play: async ({canvasElement}) => {
         const figures = (planck: string) => {
             const {exact, figure} = approxParts(planck, chainInfo.decimals, chainInfo.symbol)

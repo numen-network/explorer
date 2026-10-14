@@ -118,6 +118,9 @@ export class BatchData {
     registrarStats = new Map<number, {requests: number; given: number; block: number; at: Date}>()
     registrars: Registrar[] = []
     identityRefresh = new Set<string>()
+    // the first IdentitySet since the last clear, per account
+    identitySetAt = new Map<string, number>()
+    identityCleared = new Set<string>()
     superRefresh = new Set<string>()
     subsReset = new Set<string>()
     vestingRefresh = new Set<string>()

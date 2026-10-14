@@ -88,12 +88,17 @@ type Account @entity {
   lastMinedTimestamp: DateTime @index
   identityDisplay: String @index
   identityJson: JSON
+  "judgement badge from 0 to 3 as verified, out of date, unjudged and flagged, null without a registration"
+  identityRank: Int
+  "the IdentitySet that turned this registration on, later edits keep it"
+  identitySetBlock: Int
   "the sub name as readable text, only a Raw Data variant decodes to one"
   identitySubName: String
   "the Data the super filed for this sub, whole"
   identitySubData: JSON
   identitySuper: Account
   subs: [Account!]! @derivedFrom(field: "identitySuper")
+  delegate: Delegate @derivedFrom(field: "account")
   "primary username granted through a username authority"
   username: String @index
   evmAddress: String @index
@@ -498,7 +503,7 @@ type Delegation @entity {
 type Delegate @entity @index(fields: ["delegated", "delegators"]) {
   "the account id"
   id: ID!
-  account: Account!
+  account: Account! @unique
   delegators: Int!
   "how many tracks the delegations cover"
   tracks: Int!
