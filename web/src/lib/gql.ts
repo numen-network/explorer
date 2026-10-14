@@ -203,6 +203,24 @@ export async function homeData(since24: string | null, since30: string | null) {
     return {...data, minedObjects: await withTopology(data.minedObjects)}
 }
 
+export interface MinedBlockRow {
+    id: string
+    height: number
+    hash: string
+    timestamp: string
+    reward: string
+    minerFees: string
+}
+
+export function minedBlocks(authorHex: string, limit: number, offset: number) {
+    return gql<{blocks: MinedBlockRow[]}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            blocks(where: {author: {id_eq: $id}}, orderBy: height_DESC, limit: $limit, offset: $offset) { id height hash timestamp reward minerFees }
+        }`,
+        {id: authorHex, limit, offset}
+    )
+}
+
 export function blocksPage(limit: number, offset: number) {
     return gql<{blocks: BlockRow[]; conn: {totalCount: number}}>(
         `query ($limit: Int!, $offset: Int!) {

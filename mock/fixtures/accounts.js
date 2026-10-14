@@ -1,5 +1,5 @@
 import data from '../data.js'
-import {account, acct, at, chainInfo, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer} from '../fixtures.js'
+import {account, acct, at, base, block, chainInfo, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer} from '../fixtures.js'
 
 // the account every account page story is about, and the H160 it maps from
 export const SUBJECT = account(77)
@@ -328,6 +328,9 @@ export const validatorRow = (traits = {}) => ({
 export const minedDays = count =>
     Array.from({length: count}, (_, i) => ({day: new Date(HEAD_TIME - i * 86_400_000).toISOString().slice(0, 10), blocks: 12 + ((i * 37) % 90)}))
 
+// blocks the subject mined, newest first, some carrying fees on top of the mint
+export const minedBlockRows = count => rows(count, (h, i) => block(h, {author: ME, minerFees: i % 2 ? numn(0.0021) : '0'}))
+
 const WTMR = '0xa1795b3c6f74866c7def1df390f9e2e403dca2e9'
 
 const contract = n => '0x' + ('e' + n.toString(16)).repeat(20).slice(0, 40)
@@ -417,6 +420,7 @@ export function accountPage({
     registrar = null,
     prime = false,
     minerDays = [],
+    mined = [],
     curated = 0,
     childCurated = 0,
     transfers = [],
@@ -456,6 +460,7 @@ export function accountPage({
             where?.account ? (registrar == null ? [] : [{index: registrar}]) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
         primeStates: prime ? [{id: 'prime'}] : [],
         minerDayStats: minerDays,
+        blocks: args => (args.where?.author ? mined : base.blocks(args)),
         blocksConnection: count(counts.mined ?? minerDays.reduce((n, d) => n + d.blocks, 0)),
         bountiesConnection: count(curated),
         childBountiesConnection: count(childCurated),

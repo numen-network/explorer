@@ -19,6 +19,7 @@ import {
     judgementsGiven,
     ME,
     MAX_U128,
+    minedBlockRows,
     minedDays,
     MULTISIG_ENDS,
     multisigOp,
@@ -395,11 +396,13 @@ export const ValidatorInactive = story({validator: validatorRow({active: false, 
 
 export const ValidatorKicked = story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}, offlineSessions: 12})}, {tab: 'validator'})
 
-export const MiningOneDay = story({minerDays: minedDays(1)}, {tab: 'mining'})
+export const MiningOneBlock = story({minerDays: [{...minedDays(1)[0], blocks: 1}], mined: minedBlockRows(1)}, {tab: 'mining'})
 
-export const MiningMany = story({minerDays: minedDays(60)}, {tab: 'mining'})
+export const MiningOneDay = story({minerDays: minedDays(1), mined: minedBlockRows(12)}, {tab: 'mining'})
 
-export const MiningBeyondChart = story({minerDays: minedDays(60), counts: {mined: 48_213}}, {tab: 'mining'})
+export const MiningMany = story({minerDays: minedDays(60), mined: minedBlockRows(20)}, {tab: 'mining'})
+
+export const MiningBeyondChart = story({minerDays: minedDays(60), mined: minedBlockRows(20), counts: {mined: 48_213}}, {tab: 'mining'})
 
 const voting = (amount: string) => subject({...funds(numn(1250.5), '0', amount), locksJson: [lock('pyconvot', amount)]})
 
