@@ -9,6 +9,7 @@ import {
     DailyStat,
     DelegatedVote,
     Delegation,
+    DelegationAction,
     Event,
     EvmAddress,
     EvmLog,
@@ -97,6 +98,7 @@ export class BatchData {
     votes = new Map<string, Vote>()
     delegatedVotes = new Map<string, DelegatedVote>()
     votingActions: VotingAction[] = []
+    delegationActions: DelegationAction[] = []
     metadataActions: MetadataAction[] = []
     tallySnapshots = new Map<string, ReferendumTallySnapshot>()
     spends = new Map<string, TreasurySpend>()

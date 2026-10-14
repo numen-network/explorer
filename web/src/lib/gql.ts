@@ -474,6 +474,8 @@ export interface AccountSummary {
     bountyDeposits: BountyDepositRow[]
     childBountyDeposits: ChildBountyDepositRow[]
     nVotes: {totalCount: number}
+    nVoteHistory: {totalCount: number}
+    nDelegHistory: {totalCount: number}
 }
 
 /** Bounties whose proposal or curator deposit this account still has reserved. */
@@ -537,6 +539,8 @@ export function accountSummary(idHex: string) {
                 parent { index } childIndex curatorDeposit
             }
             nVotes: votesConnection(orderBy: id_ASC, where: {voter: ${self}}) { totalCount }
+            nVoteHistory: votingActionsConnection(orderBy: id_ASC, where: ${OWN_VOTE_ACTIONS}) { totalCount }
+            nDelegHistory: delegationActionsConnection(orderBy: id_ASC, where: ${delegationSide('')}) { totalCount }
         }`,
         {id: idHex}
     )
@@ -560,6 +564,55 @@ export function votesFor(idHex: string, limit: number, offset: number) {
         `query ($id: String!, $limit: Int!, $offset: Int!) {
             votes(where: {voter: {id_eq: $id}}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index status endedAt } }
             conn: votesConnection(where: {voter: {id_eq: $id}}, orderBy: id_ASC) { totalCount }
+        }`,
+        {id: idHex, limit, offset}
+    )
+}
+
+export interface VoteHistoryRow extends VoteShape {
+    id: string
+    method: string
+    delegatedVotes: string
+    block: number
+    timestamp: string
+    referendum: {index: number}
+}
+
+export interface DelegationActionRow {
+    id: string
+    method: string
+    conviction: string | null
+    balance: string | null
+    block: number
+    timestamp: string
+    track: {id: string; name: string}
+    who: AccountRef
+    target: AccountRef
+}
+
+// the account's own votes and removals, a delegation row names it only as the
+// target whose vote the delegation moved
+const OWN_VOTE_ACTIONS = `{voter: {id_eq: $id}, delegator_isNull: true}`
+
+const delegationSide = (dir: 'in' | 'out' | '') =>
+    dir === 'out' ? '{who: {id_eq: $id}}' : dir === 'in' ? '{target: {id_eq: $id}}' : '{OR: [{who: {id_eq: $id}}, {target: {id_eq: $id}}]}'
+
+export function voteHistoryFor(idHex: string, limit: number, offset: number) {
+    return gql<{actions: VoteHistoryRow[]; conn: {totalCount: number}}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            actions: votingActions(where: ${OWN_VOTE_ACTIONS}, orderBy: [block_DESC, indexInBlock_DESC], limit: $limit, offset: $offset) { id method kind aye conviction balance ayeAmount nayAmount abstainAmount delegatedVotes block timestamp referendum { index } }
+            conn: votingActionsConnection(where: ${OWN_VOTE_ACTIONS}, orderBy: id_ASC) { totalCount }
+        }`,
+        {id: idHex, limit, offset}
+    )
+}
+
+export function delegationHistoryFor(idHex: string, dir: 'in' | 'out' | '', limit: number, offset: number) {
+    const side = delegationSide(dir)
+    return gql<{actions: DelegationActionRow[]; conn: {totalCount: number}}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            actions: delegationActions(where: ${side}, orderBy: [block_DESC, indexInBlock_DESC], limit: $limit, offset: $offset) { id method conviction balance block timestamp track { id name } who { ${ACCOUNT_REF} } target { ${ACCOUNT_REF} } }
+            conn: delegationActionsConnection(where: ${side}, orderBy: id_ASC) { totalCount }
         }`,
         {id: idHex, limit, offset}
     )

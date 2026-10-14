@@ -22,7 +22,6 @@ const base = (i: number, own: string, delegated = '0') => ({
     block: HEAD - 40 * i,
     iso: at(HEAD - 40 * i),
     actor: actor(i),
-    amount: String(BigInt(own) + BigInt(delegated)),
     own,
     delegated,
 })

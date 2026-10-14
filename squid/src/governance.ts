@@ -6,7 +6,7 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, Delegate, DelegatedVote, Delegation, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
+import {Account, Delegate, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
 import {storage} from './types'
 import type {Deposit, ReferendumInfo} from './types/v100'
 
@@ -222,6 +222,20 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<vo
             const delegated = method === 'Delegated' ? await delegationAt(ev, who, target, track) : onTarget.get(who)
             if (method === 'Undelegated') onTarget.delete(who)
             else if (delegated != null) onTarget.set(who, delegated)
+            batch.delegationActions.push(
+                new DelegationAction({
+                    id: ev.id,
+                    who: batch.touch(who, ev.height),
+                    target: new Account({id: target}),
+                    track: new Track({id: track}),
+                    method,
+                    conviction: delegated?.conviction ?? null,
+                    balance: delegated?.balance ?? null,
+                    block: ev.height,
+                    indexInBlock: ev.indexInBlock,
+                    timestamp: stampOf(ev),
+                })
+            )
             for (const [index, held] of standing.get(target)!) {
                 if (held.track !== track) continue
                 await log(ev, index, target, who, held)

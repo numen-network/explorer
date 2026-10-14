@@ -24,7 +24,6 @@ function rowOf(a: VotingActionRow, ss58: number): ActionRow {
         block: a.block,
         iso: a.timestamp,
         actor: {addr: ss58Encode(a.voter.id, ss58), acc: a.voter},
-        amount: String(own + BigInt(a.delegatedVotes)),
         own: String(own),
         delegated: a.delegatedVotes,
         impact,

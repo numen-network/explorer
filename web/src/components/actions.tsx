@@ -29,8 +29,8 @@ export interface ActionImpact {
 }
 
 export type ActionRow =
-    | {id: string; block: number; iso: string; actor: ActionActor; amount: string; own: string; delegated: string; impact?: ActionImpact; kind: 'vote' | 'remove'; decision: string}
-    | {id: string; block: number; iso: string; actor: ActionActor; amount: string; own: string; delegated: string; impact?: ActionImpact; kind: 'delegate' | 'undelegate'; by: ActionActor}
+    | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; kind: 'vote' | 'remove'; decision: string}
+    | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; kind: 'delegate' | 'undelegate'; by: ActionActor}
 
 const TONE: Record<string, string> = {aye: 'text-good', nay: 'text-destructive'}
 
@@ -52,17 +52,35 @@ const MOVES: {value: ActionMove | 'any'; label: string}[] = [
     {value: 'support-down', label: 'Support down'},
 ]
 
+export function VoteMove({removed, decision}: {removed: boolean; decision: string}) {
+    return (
+        <span>
+            {removed ? 'Removed' : 'Voted'} <span className={TONE[decision] ?? 'text-muted-foreground'}>{sentenceCase(decision)}</span>
+        </span>
+    )
+}
+
+/** What a vote put on the tally, split into the voter's own and the delegated part when anybody delegates. */
+export function VoteWeight({own, delegated, decimals, symbol}: {own: bigint; delegated: bigint; decimals: number; symbol: string}) {
+    return (
+        <>
+            <Approx planck={own + delegated} decimals={decimals} symbol={symbol} />
+            {delegated !== 0n && (
+                <div className="text-xs text-dim">
+                    <Approx planck={own} decimals={decimals} /> + <Approx planck={delegated} decimals={decimals} /> delegated
+                </div>
+            )}
+        </>
+    )
+}
+
 // branches by switch because typescript 7.0 fails to narrow the negation of
 // an or-combined discriminant guard
 function Action({a}: {a: ActionRow}) {
     switch (a.kind) {
         case 'vote':
         case 'remove':
-            return (
-                <span>
-                    {a.kind === 'vote' ? 'Voted' : 'Removed'} <span className={TONE[a.decision] ?? 'text-muted-foreground'}>{sentenceCase(a.decision)}</span>
-                </span>
-            )
+            return <VoteMove removed={a.kind === 'remove'} decision={a.decision} />
         default:
             return (
                 <span className="flex flex-col">
@@ -136,16 +154,7 @@ export default function ActionList({rows, total, filtered, paging, href, decimal
                 id: 'amount',
                 header: 'Amount',
                 meta: {align: 'right', cellClassName: 'font-mono'},
-                cell: ({row}) => (
-                    <>
-                        <Approx planck={row.original.amount} decimals={decimals} symbol={symbol} />
-                        {row.original.delegated !== '0' && (
-                            <div className="text-xs text-dim">
-                                <Approx planck={row.original.own} decimals={decimals} /> + <Approx planck={row.original.delegated} decimals={decimals} /> delegated
-                            </div>
-                        )}
-                    </>
-                ),
+                cell: ({row}) => <VoteWeight own={BigInt(row.original.own)} delegated={BigInt(row.original.delegated)} decimals={decimals} symbol={symbol} />,
             }),
             col.display({
                 id: 'impact',

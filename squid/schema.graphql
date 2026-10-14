@@ -499,6 +499,24 @@ type Delegation @entity {
   block: Int!
 }
 
+"append-only delegation log, one row per Delegated or Undelegated event"
+type DelegationAction @entity {
+  "the id of the event"
+  id: ID!
+  who: Account! @index
+  target: Account! @index
+  track: Track!
+  "Delegated or Undelegated"
+  method: String!
+  "the Conviction variant name of the delegation the event set up or ended, null when the same block set it up and undid it"
+  conviction: String
+  balance: BigInt
+  block: Int!
+  "position of the event in its block"
+  indexInBlock: Int!
+  timestamp: DateTime!
+}
+
 "an account that delegations currently point to, one row while any do"
 type Delegate @entity @index(fields: ["delegated", "delegators"]) {
   "the account id"

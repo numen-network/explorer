@@ -1,3 +1,4 @@
+import {FilterRow} from '@/components/pills'
 import type {ChainProps} from '@/lib/chain'
 import {fmtCount} from '@/lib/format'
 import type {AccountRow, AccountSummary, BountyDepositRow, ChildBountyDepositRow, GovDepositRow, ValidatorRow} from '@/lib/gql'
@@ -26,6 +27,16 @@ export function tabHref(addr: string, tab: string, extra: Record<string, string 
     const q = new URLSearchParams({tab})
     for (const [k, v] of Object.entries(extra)) if (v !== '') q.set(k, String(v))
     return `/account/${addr}?${q}`
+}
+
+export type Direction = 'in' | 'out' | ''
+
+const DIRECTION_LABEL: Record<string, string> = {out: 'Out', in: 'In'}
+
+export const directionOf = (sp: TabCtx['sp']): Direction => (sp.dir === 'in' || sp.dir === 'out' ? sp.dir : '')
+
+export function DirectionFilter({addr, tab, value}: {addr: string; tab: string; value: Direction}) {
+    return <FilterRow label="Direction" className="mb-3" values={Object.keys(DIRECTION_LABEL)} labelOf={d => DIRECTION_LABEL[d]} value={value} href={d => tabHref(addr, tab, {dir: d})} />
 }
 
 export interface Schedule {

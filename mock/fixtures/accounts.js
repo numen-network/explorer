@@ -243,6 +243,74 @@ const VOTE_CASES = [
 
 export const voteRows = () => VOTE_CASES.map((c, i) => vote(i, c))
 
+// a vote the account cast or took off, newest first. delegatedVotes is what its
+// casting record held as the block ended
+export const voteAction = (i, traits = {}) => {
+    const h = HEAD - 300 * (i + 1)
+    return {
+        id: `6-${squidId(h, 3)}`,
+        method: 'Voted',
+        kind: 'Standard',
+        aye: true,
+        conviction: 'Locked1x',
+        balance: numn(1_000 + i * 250),
+        ayeAmount: null,
+        nayAmount: null,
+        abstainAmount: null,
+        delegatedVotes: '0',
+        block: h,
+        indexInBlock: 3,
+        timestamp: at(h),
+        referendum: {index: 6},
+        ...traits,
+    }
+}
+
+// one row per decision, each conviction label, a removal and a vote carrying delegations
+const VOTE_ACTION_CASES = [
+    {conviction: 'Locked1x', delegatedVotes: numn(4_500)},
+    {method: 'VoteRemoved', aye: false, conviction: 'Locked3x', referendum: {index: 9}},
+    {aye: false, conviction: 'Locked3x', referendum: {index: 9}},
+    {kind: 'Split', aye: null, conviction: null, balance: null, ayeAmount: numn(4_000), nayAmount: numn(1_500), referendum: {index: 10}},
+    {kind: 'SplitAbstain', aye: null, conviction: null, balance: null, ayeAmount: numn(100), nayAmount: numn(100), abstainAmount: numn(9_800), referendum: {index: 11}},
+    {conviction: 'None', referendum: {index: 0}},
+    {conviction: 'Locked6x', balance: numn(250_000), referendum: {index: 1}},
+]
+
+export const voteActionRows = () => VOTE_ACTION_CASES.map((c, i) => voteAction(i, c))
+
+// a delegation the account set up or ended, or one somebody else pointed at it
+export const delegationAction = (i, traits = {}) => {
+    const h = HEAD - 400 * (i + 1)
+    return {
+        id: squidId(h, 2),
+        method: 'Delegated',
+        conviction: CONVICTIONS[i % CONVICTIONS.length],
+        balance: numn(1_000 * (i + 1) + 0.25 * i),
+        block: h,
+        indexInBlock: 2,
+        timestamp: at(h),
+        track: TRACKS[i % TRACKS.length],
+        who: ME,
+        target: person(i),
+        ...traits,
+    }
+}
+
+// both directions and both methods, plus a delegation its own block undid, which leaves no amount
+const DELEGATION_ACTION_CASES = [
+    {who: person(3), target: ME},
+    {method: 'Undelegated', target: person(5)},
+    {method: 'Undelegated', who: person(4), target: ME},
+    {target: person(5)},
+    {who: person(4), target: ME, conviction: null, balance: null},
+]
+
+export const delegationActionRows = () => DELEGATION_ACTION_CASES.map((c, i) => delegationAction(i, c))
+
+export const delegationActionsOf = (count, side) =>
+    Array.from({length: count}, (_, i) => delegationAction(i, side === 'out' ? {target: person(i)} : {who: person(i), target: ME}))
+
 const judgement = (i, traits = {}) => {
     const h = HEAD - 2_000 * (i + 1)
     return {id: squidId(h, i % 5), kind: 'Reasonable', fee: null, block: h, timestamp: at(h), target: person(i), ...traits}
@@ -435,6 +503,8 @@ export function accountPage({
     proxiesIn = [],
     multisigOps = [],
     votes = [],
+    voteActions = [],
+    delegationActions = [],
     govDeposits = [],
     bountyDeposits = [],
     childBountyDeposits = [],
@@ -452,6 +522,7 @@ export function accountPage({
     const perTrack = id => counts.tracks?.[id] ?? onTrack(id).length
     const allIn = counts.tracks ? Object.values(counts.tracks).reduce((a, b) => a + b, 0) : delegationsIn.length
     // the index keeps rows for tokens the account doesn't hold, only a query asking for a balance above zero leaves them out
+    const delegationsSide = where => delegationActions.filter(a => (where.who ? a.who : a.target).id === self)
     const holderRows = where => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
     return {
         accountById: account,
@@ -491,6 +562,10 @@ export function accountPage({
         childBounties: childBountyDeposits,
         votesConnection: count(votes.length),
         votes: paged(votes),
+        votingActionsConnection: count(counts.voteActions ?? voteActions.length),
+        votingActions: paged(voteActions),
+        delegationActionsConnection: ({where}) => count(where.OR ? (counts.delegationActions ?? delegationActions.length) : delegationsSide(where).length),
+        delegationActions: args => paged(args.where.OR ? delegationActions : delegationsSide(args.where))(args),
         evmTransactionsConnection: count(deploys),
         tokensConnection: count(tokens),
         tokenTransfersConnection: count(counts.tokenTransfers ?? tokenTransfers.length),

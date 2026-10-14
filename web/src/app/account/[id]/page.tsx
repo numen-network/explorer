@@ -8,6 +8,7 @@ import {TabBar, type Panel} from '@/components/Tabs'
 import {BlockLink} from '@/components/links'
 import {Badge, type BadgeVariant} from '@/components/ui/badge'
 import Delegations from '@/components/account/Delegations'
+import DelegationHistory from '@/components/account/DelegationHistory'
 import Extrinsics from '@/components/account/Extrinsics'
 import Holdings from '@/components/account/Holdings'
 import Identity from '@/components/account/Identity'
@@ -23,6 +24,7 @@ import Transfers from '@/components/account/Transfers'
 import Validator from '@/components/account/Validator'
 import Vesting from '@/components/account/Vesting'
 import Votes from '@/components/account/Votes'
+import VoteHistory from '@/components/account/VoteHistory'
 import {lockRows, schedules, tabHref, type TabCtx} from '@/components/account/shared'
 import {chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
@@ -113,12 +115,16 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
         tabs.push({slug: 'judgements', label: 'Judgements Given', group: 'Identity', count: s.nJudged.totalCount, body: () => <Judgements {...ctx} index={registrar.index} />})
     if (validator) tabs.push({slug: 'validator', label: 'Validator', body: () => <Validator v={validator} chain={chain} />})
     if (minedBlocks > 0) tabs.push({slug: 'mining', label: 'Mining', count: minedBlocks, body: () => <Mining {...ctx} days={s.minerDays} total={minedBlocks} />})
-    if (s.nDelegOut.totalCount + s.nDelegIn.totalCount > 0)
-        tabs.push({slug: 'delegations', label: 'Delegations', count: s.nDelegOut.totalCount + s.nDelegIn.totalCount, body: () => <Delegations {...ctx} />})
     if (s.nProxyOut.totalCount + s.nProxyIn.totalCount > 0)
         tabs.push({slug: 'proxies', label: 'Proxies', count: s.nProxyOut.totalCount + s.nProxyIn.totalCount, body: () => <Proxies {...ctx} />})
     if (s.nMultisig.totalCount > 0) tabs.push({slug: 'multisig', label: 'Multisig', count: s.nMultisig.totalCount, body: () => <Multisig {...ctx} />})
-    if (s.nVotes.totalCount > 0) tabs.push({slug: 'votes', label: 'Governance votes', count: s.nVotes.totalCount, body: () => <Votes {...ctx} />})
+    if (s.nVotes.totalCount > 0) tabs.push({slug: 'votes', label: 'Votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} />})
+    if (s.nVoteHistory.totalCount > 0)
+        tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
+    if (s.nDelegOut.totalCount + s.nDelegIn.totalCount > 0)
+        tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount + s.nDelegIn.totalCount, body: () => <Delegations {...ctx} />})
+    if (s.nDelegHistory.totalCount > 0)
+        tabs.push({slug: 'delegation-history', label: 'Delegation history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} />})
 
     const active = tabs.find(t => t.slug === sp.tab) ?? tabs[0]
     const groups = [...new Set(tabs.map(t => t.group ?? t.label))]
