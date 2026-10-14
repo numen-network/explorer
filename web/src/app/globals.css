@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "@bprogress/core/css";
 @import "./shadcn.css";
+@plugin "@tailwindcss/typography";
 
 /* the generated parts carry dark: classes, this keeps them off the system
    colour scheme since the site has no dark theme to switch to */
@@ -121,3 +122,53 @@ html body[data-scroll-locked] {
 }
 
 
+
+/* text from the chain, kept below the page's own headings */
+.prose {
+    --tw-prose-body: var(--foreground);
+    --tw-prose-headings: var(--foreground);
+    --tw-prose-bold: var(--foreground);
+    --tw-prose-links: var(--primary);
+    --tw-prose-code: var(--foreground);
+    --tw-prose-pre-code: var(--foreground);
+    --tw-prose-pre-bg: var(--muted);
+    --tw-prose-quotes: var(--muted-foreground);
+    --tw-prose-quote-borders: var(--border);
+    --tw-prose-counters: var(--muted-foreground);
+    --tw-prose-bullets: var(--dim);
+    --tw-prose-hr: var(--border);
+    --tw-prose-th-borders: var(--border);
+    --tw-prose-td-borders: var(--border);
+    --tw-prose-captions: var(--muted-foreground);
+
+    :where(h1, h2, h3, h4):not(:where(.not-prose *)) {
+        font-size: 1em;
+        font-weight: 600;
+    }
+    :where(h1):not(:where(.not-prose *)) {
+        font-size: 1.125em;
+    }
+    :where(code, pre):not(:where(.not-prose *)) {
+        font-family: var(--font-code);
+    }
+    :where(code):not(:where(pre *, .not-prose *))::before,
+    :where(code):not(:where(pre *, .not-prose *))::after {
+        content: none;
+    }
+    :where(div:has(> table)):not(:where(.not-prose *)) {
+        margin-block: 1.25em;
+    }
+    :where(table):not(:where(.not-prose *)) {
+        margin-block: 0;
+    }
+    :where(.contains-task-list):not(:where(.not-prose *)) {
+        list-style: none;
+        padding-inline-start: 0;
+    }
+    :where(.task-list-item input):not(:where(.not-prose *)) {
+        margin: 0 0.5em 0 0;
+    }
+    :where(a):not(:where(.not-prose *)):hover {
+        color: var(--primary-hover);
+    }
+}

@@ -2,6 +2,7 @@ import {Fragment, type ReactNode} from 'react'
 import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
+import Markdown from '@/components/Markdown'
 import {ArgsView} from '@/components/ArgsTable'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
@@ -482,7 +483,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     <ReferendumByline r={r} chain={chain} className="mt-3" />
                     <Separator className="my-4" />
                     {r.description ? (
-                        <p className="text-sm whitespace-pre-wrap wrap-anywhere">{r.description}</p>
+                        <Markdown text={r.description} />
                     ) : (
                         <p className="py-4 text-center text-sm text-dim">No description provided.</p>
                     )}

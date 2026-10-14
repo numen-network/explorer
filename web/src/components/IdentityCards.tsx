@@ -8,6 +8,7 @@ import AddressText from '@/components/AddressText'
 import Approx from '@/components/Approx'
 import CopyBtn from '@/components/CopyBtn'
 import IdentityName from '@/components/IdentityName'
+import Markdown from '@/components/Markdown'
 import Socials from '@/components/Socials'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
@@ -18,10 +19,9 @@ import {fmtInt} from '@/lib/format'
 import type {IdentityRow} from '@/lib/gql'
 import {fieldText, identityLabel} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
+import {https} from '@/lib/url'
 
 const infoField = (json: unknown, key: string) => fieldText((json as {info?: Record<string, unknown>})?.info?.[key])
-
-const https = (url: string | null) => (url && /^https:\/\//i.test(url) ? url : null)
 
 // the wallet takes the first line of a bio as its short bio and the rest as the full one
 function splitBio(bio: string | null) {
@@ -95,9 +95,7 @@ function BioDialog({row, addr, label, short, full}: {row: IdentityRow; addr: str
                             {short}
                         </p>
                     )}
-                    <p dir="auto" className="whitespace-pre-line">
-                        {full}
-                    </p>
+                    <Markdown text={full} />
                 </div>
             </DialogContent>
         </Dialog>

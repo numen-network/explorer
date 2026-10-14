@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, screen, waitFor} from 'storybook/test'
+import {expect, screen, waitFor, within} from 'storybook/test'
 import {acct, at, chainInfo, hashOf, HEAD, identity, numn, paged, person, subOf} from '../../../../mock/fixtures.js'
 import {shortAddr} from '@/components/AddressText'
 import {approxParts} from '@/lib/format'
@@ -288,6 +288,7 @@ const BIOS = [
     registered(131, 'Long bio', {bio: LONG_BIO}),
     registered(132, 'Lines', {bio: 'Root and Treasurer tracks\nVotes within a day\nNo split votes\nAsk on Discord'}),
     registered(133, 'Full bio only', {bio: '\nVotes within a day'}),
+    registered(136, 'Markdown', {bio: 'Treasury-minded validator\n## Votes\n- **Root** and Treasurer tracks\n- reasoning on [the forum](https://forum.example.com/u/markdown)'}),
     registered(134, 'Unbroken', {bio: 'x'.repeat(2048)}),
     registered(135, 'No bio', {discord: 'nobio'}),
 ]
@@ -303,9 +304,9 @@ export const IdentitiesBios: StoryObj = {
         expect((await canvas.findAllByRole('link', {name: 'Delegate'})).map(a => a.getAttribute('href'))).toEqual(BIOS.map(r => delegateHref(WALLET_URL, ss58Encode(r.id, chainInfo.ss58))))
         expect(canvas.getAllByRole('button', {name: 'copy'})).toHaveLength(BIOS.length)
         const names = BIOS.map(r => r.identityDisplay!)
-        expect(names.filter(n => cardOf(canvasElement, n).querySelector('button[aria-label=Bio]'))).toEqual(['Lines', 'Full bio only'])
+        expect(names.filter(n => cardOf(canvasElement, n).querySelector('button[aria-label=Bio]'))).toEqual(['Lines', 'Full bio only', 'Markdown'])
         const shorts = names.map(n => cardOf(canvasElement, n).querySelector('p')!)
-        expect(shorts.map(p => p.textContent)).toEqual(['Validator operator since genesis.', LONG_BIO, 'Root and Treasurer tracks', '', 'x'.repeat(2048), ''])
+        expect(shorts.map(p => p.textContent)).toEqual(['Validator operator since genesis.', LONG_BIO, 'Root and Treasurer tracks', '', 'Treasury-minded validator', 'x'.repeat(2048), ''])
         for (const p of shorts.filter(p => p.textContent)) expect(p.getBoundingClientRect().height).toBeLessThanOrEqual(parseFloat(getComputedStyle(p).lineHeight))
     },
 }
@@ -320,7 +321,8 @@ export const IdentitiesBioOpen: StoryObj = {
     ...identities(BIOS),
     play: async ({canvasElement}) => {
         const dialog = await openBio(canvasElement, 'Lines')
-        expect([...dialog.querySelectorAll('p[dir=auto]')].map(p => p.textContent)).toEqual(['Root and Treasurer tracks', 'Votes within a day\nNo split votes\nAsk on Discord'])
+        expect(dialog.querySelector('p[dir=auto]')!.textContent).toBe('Root and Treasurer tracks')
+        expect(dialog.querySelector<HTMLElement>('.prose')!.innerText).toBe('Votes within a day\nNo split votes\nAsk on Discord')
     },
 }
 
@@ -329,7 +331,19 @@ export const IdentitiesBioOpenFullOnly: StoryObj = {
     ...identities(BIOS),
     play: async ({canvasElement}) => {
         const dialog = await openBio(canvasElement, 'Full bio only')
-        expect([...dialog.querySelectorAll('p[dir=auto]')].map(p => p.textContent)).toEqual(['Votes within a day'])
+        expect(dialog.querySelector('p[dir=auto]')).toBeNull()
+        expect(dialog.querySelector<HTMLElement>('.prose')!.innerText).toBe('Votes within a day')
+    },
+}
+
+// the full bio reads as markdown, the short bio stays plain text
+export const IdentitiesBioOpenMarkdown: StoryObj = {
+    ...identities(BIOS),
+    play: async ({canvasElement}) => {
+        const dialog = within(await openBio(canvasElement, 'Markdown'))
+        expect(dialog.getByRole('heading', {level: 2, name: 'Votes'})).toBeInTheDocument()
+        expect(dialog.getByText('Root').tagName).toBe('STRONG')
+        expect(dialog.getByRole('link', {name: 'the forum'})).toHaveAttribute('href', 'https://forum.example.com/u/markdown')
     },
 }
 
