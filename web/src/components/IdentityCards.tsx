@@ -1,61 +1,21 @@
 'use client'
 
-import {useState} from 'react'
-import {ChevronDown, Menu, Plus} from 'lucide-react'
+import {ChevronDown, Plus} from 'lucide-react'
 import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
 import AddressText from '@/components/AddressText'
 import Approx from '@/components/Approx'
+import BioDialog, {Avatar} from '@/components/BioDialog'
 import CopyBtn from '@/components/CopyBtn'
-import IdentityName from '@/components/IdentityName'
-import Markdown from '@/components/Markdown'
 import Socials from '@/components/Socials'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
-import {Dialog, DialogContent, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import type {ChainProps} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
 import type {IdentityRow} from '@/lib/gql'
-import {fieldText, identityLabel} from '@/lib/identity'
+import {identityLabel, splitBio} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
-import {https} from '@/lib/url'
-
-const infoField = (json: unknown, key: string) => fieldText((json as {info?: Record<string, unknown>})?.info?.[key])
-
-// the wallet takes the first line of a bio as its short bio and the rest as the full one
-function splitBio(bio: string | null) {
-    const [short = '', ...rest] = (bio ?? '').split('\n')
-    return {short, full: rest.join('\n').trim()}
-}
-
-const graphemes = new Intl.Segmenter()
-
-const initial = (label: string) => graphemes.segment(label)[Symbol.iterator]().next().value?.segment.toUpperCase()
-
-// an image that failed before hydration never fires onError, so the ref checks it too
-function Avatar({src, label}: {src: string | null; label: string}) {
-    const [broken, setBroken] = useState(false)
-    if (src && !broken)
-        return (
-            <img
-                src={src}
-                alt=""
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                ref={img => {
-                    if (img?.complete && img.naturalWidth === 0) setBroken(true)
-                }}
-                onError={() => setBroken(true)}
-                className="size-11 shrink-0 rounded-full bg-muted object-cover"
-            />
-        )
-    return (
-        <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-full bg-primary-soft text-[17px] font-semibold text-primary">
-            {initial(label)}
-        </span>
-    )
-}
 
 function Subs({row, ss58}: {row: IdentityRow; ss58: number}) {
     if (row.subs.length === 0) return fmtInt(0)
@@ -74,34 +34,6 @@ function Subs({row, ss58}: {row: IdentityRow; ss58: number}) {
     )
 }
 
-function BioDialog({row, addr, label, short, full}: {row: IdentityRow; addr: string; label: string | undefined; short: string; full: string}) {
-    return (
-        <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Bio" className="bg-card">
-                    <Menu />
-                </Button>
-            </DialogTrigger>
-            <DialogContent aria-describedby={undefined} className="max-h-[85dvh] gap-4 overflow-y-auto p-6 sm:max-w-lg">
-                <DialogTitle className="flex min-w-0 items-center gap-3 pr-8 text-base font-normal">
-                    <Avatar src={https(infoField(row.identityJson, 'avatar'))} label={label ?? addr} />
-                    <span className="flex min-w-0 items-center gap-1">
-                        <IdentityName acc={row} fallback={<AddressText addr={addr} />} />
-                    </span>
-                </DialogTitle>
-                <div className="flex flex-col gap-2 text-sm leading-[22px] wrap-anywhere">
-                    {short && (
-                        <p dir="auto" className="font-semibold">
-                            {short}
-                        </p>
-                    )}
-                    <Markdown text={full} />
-                </div>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
 export function delegateHref(wallet: string, addr: string): string {
     const url = new URL(wallet)
     url.searchParams.set('delegate', addr)
@@ -111,12 +43,12 @@ export function delegateHref(wallet: string, addr: string): string {
 function IdentityCard({row, chain, wallet}: {row: IdentityRow; chain: ChainProps; wallet: string}) {
     const addr = ss58Encode(row.id, chain.ss58)
     const label = identityLabel(row)
-    const {short, full} = splitBio(infoField(row.identityJson, 'bio'))
+    const {short} = splitBio(row.identityJson)
     return (
         <Card className="row-span-4 mb-4 grid grid-rows-subgrid gap-0 py-0">
             <div className="flex min-w-0 flex-wrap items-center gap-3 px-5 pt-[18px]">
                 <div className="flex min-w-0 flex-auto items-center gap-3">
-                    <Avatar src={https(infoField(row.identityJson, 'avatar'))} label={label ?? addr} />
+                    <Avatar acc={row} addr={addr} />
                     <div className="flex min-w-0 flex-col gap-0.5 text-[15px]">
                         <span className="flex min-w-0 items-center">
                             <AccountLink addr={addr} acc={row} className="min-w-0" />
@@ -137,7 +69,7 @@ function IdentityCard({row, chain, wallet}: {row: IdentityRow; chain: ChainProps
                             Delegate
                         </a>
                     </Button>
-                    {full && <BioDialog row={row} addr={addr} label={label} short={short} full={full} />}
+                    <BioDialog acc={row} addr={addr} />
                 </div>
             </div>
             <p dir="auto" className={cn('truncate px-5 text-[13px] leading-5 text-muted-foreground', short && 'mt-3')}>{short}</p>

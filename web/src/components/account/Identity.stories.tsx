@@ -1,5 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect, within} from 'storybook/test'
+import {expect, screen, userEvent, within} from 'storybook/test'
 import {expectOneLine} from '../../../.storybook/fit'
 import type {AccountRow} from '@/lib/gql'
 import {CHAIN, FULL_FIELDS, RETIRED, subject, subUnder, VERDICTS} from '../../../../mock/fixtures/accounts.js'
@@ -18,9 +18,48 @@ const card = (traits: object) => (
 
 const polarisSub = subUnder(PEOPLE[0], 'payouts')
 
+const withBio = (bio: string) => {
+    const fields = {...FULL_FIELDS, bio}
+    return card(identity('Aurora Labs', fields))
+}
+
 const rowValue = (root: HTMLElement, label: string) => within(root).getByText(label, {selector: 'div'}).nextElementSibling!.textContent
 
 export const Full: Story = {render: () => card(identity('Aurora Labs', FULL_FIELDS))}
+
+// the row shows the first line of a bio, a bio with nothing past it opens no dialog
+export const BioOneLine: Story = {
+    render: () => withBio('Validator operator since genesis.'),
+    play: async ({canvas, canvasElement}) => {
+        expect(rowValue(canvasElement, 'Bio')).toBe('Validator operator since genesis.')
+        expect(canvas.queryByRole('button', {name: 'Bio'})).toBeNull()
+    },
+}
+
+// the dialog leads with the short bio and reads the full one as markdown
+export const BioLines: Story = {
+    render: () => withBio('Treasury-minded validator\n## Votes\n- **Root** and Treasurer tracks'),
+    play: async ({canvas, canvasElement}) => {
+        expect(rowValue(canvasElement, 'Bio')).toBe('Treasury-minded validator')
+        await userEvent.click(canvas.getByRole('button', {name: 'Bio'}))
+        const dialog = await screen.findByRole('dialog')
+        expect(dialog.querySelector('p[dir=auto]')!.textContent).toBe('Treasury-minded validator')
+        expect(within(dialog).getByRole('heading', {level: 2, name: 'Votes'})).toBeInTheDocument()
+        expect(within(dialog).getByText('Root').tagName).toBe('STRONG')
+    },
+}
+
+// a bio with no first line leaves the row empty and still opens the full bio
+export const BioFullOnly: Story = {
+    render: () => withBio('\nVotes within a day'),
+    play: async ({canvas, canvasElement}) => {
+        expect(rowValue(canvasElement, 'Bio')).toBe('—')
+        await userEvent.click(canvas.getByRole('button', {name: 'Bio'}))
+        const dialog = await screen.findByRole('dialog')
+        expect(dialog.querySelector('p[dir=auto]')).toBeNull()
+        expect(dialog.querySelector<HTMLElement>('.prose')!.innerText).toBe('Votes within a day')
+    },
+}
 
 export const DisplayOnly: Story = {render: () => card(identity('Aurora Labs'))}
 

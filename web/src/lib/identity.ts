@@ -60,6 +60,14 @@ export function fieldText(v: unknown): string | null {
     return hexText(v) || null
 }
 
+export const infoField = (json: unknown, key: string) => fieldText((json as {info?: Record<string, unknown>})?.info?.[key])
+
+// the wallet takes the first line of a bio as its short bio and the rest as the full one
+export function splitBio(json: unknown) {
+    const [short = '', ...rest] = (infoField(json, 'bio') ?? '').split('\n')
+    return {short, full: rest.join('\n').trim()}
+}
+
 export interface IdentityField {
     key: string
     label: string
