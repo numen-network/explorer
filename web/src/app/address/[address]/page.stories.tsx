@@ -234,7 +234,7 @@ export const ContractUnverified: StoryObj = {
     ...contractTab(sourcify({status: 404, body: NOT_VERIFIED})),
     play: async ({canvas, canvasElement}) => {
         expect(canvas.getByText('Not verified')).toBeVisible()
-        expect(canvas.getByRole('link', {name: /How to verify/})).toHaveAttribute('href', 'https://docs.numen-network.org/en/evm/verify-a-contract/')
+        expect(canvas.getByRole('link', {name: /How to verify/})).toHaveAttribute('href', 'https://docs.sourcify.dev/docs/how-to-verify/')
         expect(rowValue(canvasElement, 'Creation code')).toBe('2,048 bytes')
         expect(codeBoxes(canvasElement)).toEqual([])
     },

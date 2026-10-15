@@ -9,7 +9,7 @@ import type {ContractData} from '@/lib/contract'
 import {fmtInt} from '@/lib/format'
 import {sourcifyRepoUrl, type SourcifyContract} from '@/lib/sourcify'
 
-const VERIFY_GUIDE = 'https://docs.numen-network.org/en/evm/verify-a-contract/'
+const VERIFY_GUIDE = 'https://docs.sourcify.dev/docs/how-to-verify/'
 
 const MATCH: Record<string, {label: string; variant: 'pos' | 'primary'}> = {
     exact_match: {label: 'Exact match', variant: 'pos'},
