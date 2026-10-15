@@ -281,7 +281,7 @@ const BIOS = [
     registered(131, 'Long bio', {bio: LONG_BIO}),
     registered(132, 'Lines', {bio: 'Root and Treasurer tracks\nVotes within a day\nNo split votes\nAsk on Discord'}),
     registered(133, 'Full bio only', {bio: '\nVotes within a day'}),
-    registered(136, 'Markdown', {bio: 'Treasury-minded validator\n## Votes\n- **Root** and Treasurer tracks\n- reasoning on [the forum](https://forum.example.com/u/markdown)'}),
+    registered(136, 'Markdown', {bio: 'Treasury-minded validator\n## Votes\n- **Root** and Treasurer tracks\n- reasoning on [the forum](https://forum.example.com/u/markdown)', web: 'markdown.example.com'}),
     registered(134, 'Unbroken', {bio: 'x'.repeat(2048)}),
     registered(135, 'No bio', {discord: 'nobio'}),
 ]
@@ -309,11 +309,18 @@ const openBio = async (canvasElement: HTMLElement, name: string) => {
     return screen.findByRole('dialog')
 }
 
-// the dialog leads with the short bio and carries the full one below it
+// the dialog's close button sits level with its title, and the dialog leads
+// with the short bio and carries the full one below it
 export const IdentitiesBioOpen: StoryObj = {
     ...identities(BIOS),
     play: async ({canvasElement}) => {
         const dialog = await openBio(canvasElement, 'Lines')
+        const mid = (el: Element) => {
+            const r = el.getBoundingClientRect()
+            return r.top + r.height / 2
+        }
+        expect(mid(within(dialog).getByRole('button', {name: 'Close'}))).toBeCloseTo(mid(within(dialog).getByRole('heading', {name: 'Detail'})), 0)
+        expect(within(dialog).getByText('Lines')).toBeInTheDocument()
         expect(dialog.querySelector('p[dir=auto]')!.textContent).toBe('Root and Treasurer tracks')
         expect(dialog.querySelector<HTMLElement>('.prose')!.innerText).toBe('Votes within a day\nNo split votes\nAsk on Discord')
     },
@@ -329,7 +336,7 @@ export const IdentitiesBioOpenFullOnly: StoryObj = {
     },
 }
 
-// the full bio reads as markdown, the short bio stays plain text
+// the full bio reads as markdown under the socials, the short bio stays plain text
 export const IdentitiesBioOpenMarkdown: StoryObj = {
     ...identities(BIOS),
     play: async ({canvasElement}) => {
@@ -337,6 +344,7 @@ export const IdentitiesBioOpenMarkdown: StoryObj = {
         expect(dialog.getByRole('heading', {level: 2, name: 'Votes'})).toBeInTheDocument()
         expect(dialog.getByText('Root').tagName).toBe('STRONG')
         expect(dialog.getByRole('link', {name: 'the forum'})).toHaveAttribute('href', 'https://forum.example.com/u/markdown')
+        expect(dialog.getByRole('link', {name: 'Web'})).toHaveAttribute('href', 'https://markdown.example.com/')
     },
 }
 
