@@ -193,3 +193,67 @@ export interface UsernameInfoOfV100  {
     getPairsPaged(pageSize: number, block: Block): AsyncIterable<[k: v100.BoundedVec, v: (v100.UsernameInformation | undefined)][]>
     getPairsPaged(pageSize: number, block: Block, key: v100.BoundedVec): AsyncIterable<[k: v100.BoundedVec, v: (v100.UsernameInformation | undefined)][]>
 }
+
+export const pendingUsernames =  {
+    /**
+     *  Usernames that an authority has granted, but that the account controller has not confirmed
+     *  that they want it. Used primarily in cases where the `AccountId` cannot provide a signature
+     *  because they are a pure proxy, multisig, etc. In order to confirm it, they should call
+     *  [accept_username](`Call::accept_username`).
+     * 
+     *  First tuple item is the account and second is the acceptance deadline.
+     */
+    v100: new StorageType('Identity.PendingUsernames', 'Optional', [v100.BoundedVec], sts.tuple(() => [v100.AccountId32, sts.number(), v100.Provider])) as PendingUsernamesV100,
+}
+
+/**
+ *  Usernames that an authority has granted, but that the account controller has not confirmed
+ *  that they want it. Used primarily in cases where the `AccountId` cannot provide a signature
+ *  because they are a pure proxy, multisig, etc. In order to confirm it, they should call
+ *  [accept_username](`Call::accept_username`).
+ * 
+ *  First tuple item is the account and second is the acceptance deadline.
+ */
+export interface PendingUsernamesV100  {
+    is(block: RuntimeCtx): boolean
+    get(block: Block, key: v100.BoundedVec): Promise<([v100.AccountId32, number, v100.Provider] | undefined)>
+    getMany(block: Block, keys: v100.BoundedVec[]): Promise<([v100.AccountId32, number, v100.Provider] | undefined)[]>
+    getKeys(block: Block): Promise<v100.BoundedVec[]>
+    getKeys(block: Block, key: v100.BoundedVec): Promise<v100.BoundedVec[]>
+    getKeysPaged(pageSize: number, block: Block): AsyncIterable<v100.BoundedVec[]>
+    getKeysPaged(pageSize: number, block: Block, key: v100.BoundedVec): AsyncIterable<v100.BoundedVec[]>
+    getPairs(block: Block): Promise<[k: v100.BoundedVec, v: ([v100.AccountId32, number, v100.Provider] | undefined)][]>
+    getPairs(block: Block, key: v100.BoundedVec): Promise<[k: v100.BoundedVec, v: ([v100.AccountId32, number, v100.Provider] | undefined)][]>
+    getPairsPaged(pageSize: number, block: Block): AsyncIterable<[k: v100.BoundedVec, v: ([v100.AccountId32, number, v100.Provider] | undefined)][]>
+    getPairsPaged(pageSize: number, block: Block, key: v100.BoundedVec): AsyncIterable<[k: v100.BoundedVec, v: ([v100.AccountId32, number, v100.Provider] | undefined)][]>
+}
+
+export const unbindingUsernames =  {
+    /**
+     *  Usernames for which the authority that granted them has started the removal process by
+     *  unbinding them. Each unbinding username maps to its grace period expiry, which is the first
+     *  block in which the username could be deleted through a
+     *  [remove_username](`Call::remove_username`) call.
+     */
+    v100: new StorageType('Identity.UnbindingUsernames', 'Optional', [v100.BoundedVec], sts.number()) as UnbindingUsernamesV100,
+}
+
+/**
+ *  Usernames for which the authority that granted them has started the removal process by
+ *  unbinding them. Each unbinding username maps to its grace period expiry, which is the first
+ *  block in which the username could be deleted through a
+ *  [remove_username](`Call::remove_username`) call.
+ */
+export interface UnbindingUsernamesV100  {
+    is(block: RuntimeCtx): boolean
+    get(block: Block, key: v100.BoundedVec): Promise<(number | undefined)>
+    getMany(block: Block, keys: v100.BoundedVec[]): Promise<(number | undefined)[]>
+    getKeys(block: Block): Promise<v100.BoundedVec[]>
+    getKeys(block: Block, key: v100.BoundedVec): Promise<v100.BoundedVec[]>
+    getKeysPaged(pageSize: number, block: Block): AsyncIterable<v100.BoundedVec[]>
+    getKeysPaged(pageSize: number, block: Block, key: v100.BoundedVec): AsyncIterable<v100.BoundedVec[]>
+    getPairs(block: Block): Promise<[k: v100.BoundedVec, v: (number | undefined)][]>
+    getPairs(block: Block, key: v100.BoundedVec): Promise<[k: v100.BoundedVec, v: (number | undefined)][]>
+    getPairsPaged(pageSize: number, block: Block): AsyncIterable<[k: v100.BoundedVec, v: (number | undefined)][]>
+    getPairsPaged(pageSize: number, block: Block, key: v100.BoundedVec): AsyncIterable<[k: v100.BoundedVec, v: (number | undefined)][]>
+}

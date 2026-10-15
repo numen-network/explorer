@@ -9,9 +9,9 @@ import {delegateHref} from '@/components/IdentityCards'
 import {WALLET_URL} from '@/lib/wallet'
 import {AVATAR_HOST, avatars} from '../../../.storybook/avatar'
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
-import IdentitiesPage from './page'
+import PeoplePage from './page'
 
-export default {title: 'Pages/Identities', ...pageMeta(IdentitiesPage)}
+export default {title: 'Pages/People', ...pageMeta(PeoplePage)}
 
 type Fields = {judgements?: string[]} & Partial<Record<'avatar' | 'bio' | 'web' | 'email' | 'github' | 'matrix' | 'x' | 'telegram' | 'discord', string>>
 
@@ -113,9 +113,9 @@ const WITHOUT_DISPLAY = [
     {...nameless(114, {judgements: ['Reasonable'], discord: 'anon_operator'}), username: 'anon.numen'},
 ]
 
+const kindsOf = (r: Row) => ((r.identityJson as {judgements?: [number, {__kind: string}][]} | null)?.judgements ?? []).map(([, j]) => j.__kind)
 const subCount = (rows: Row[]) => rows.reduce((n, r) => n + (r.subs?.length ?? 0), 0)
 
-const kindsOf = (r: Row) => ((r.identityJson as {judgements?: [number, {__kind: string}][]} | null)?.judgements ?? []).map(([, j]) => j.__kind)
 const judged = (r: Row, kinds: string[]) => kindsOf(r).some(k => kinds.includes(k))
 
 interface Counts {
@@ -166,13 +166,23 @@ const registrarRows = (list: Registrar[]) => (args: {orderBy: string[]; limit: n
         ? list.filter(r => r.lastJudgementBlock != null).sort((a, b) => b.lastJudgementBlock! - a.lastJudgementBlock!).slice(0, 1)
         : paged(list)(args)
 
-const identities = (rows: Row[], {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], tab = 'identities', page = '1'} = {}) =>
+interface Username {
+    status: string
+}
+
+const identities = (
+    rows: Row[],
+    {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], usernames = [] as Username[], authorities = [] as object[], tab = 'identities', page = '1'} = {}
+) =>
     pageStory(
         {
             accounts: paged(rows),
             accountsConnection: tallies(counts),
             registrars: registrarRows(registrars),
             registrarsConnection: ({where}: {where?: {retiredAt_isNull?: boolean}}) => ({totalCount: where?.retiredAt_isNull === false ? registrars.filter(r => r.retiredAt != null).length : registrars.length}),
+            usernames: paged(usernames),
+            usernamesConnection: ({where}: {where?: {status_eq?: string}}) => ({totalCount: usernames.filter(u => where?.status_eq == null || u.status === where.status_eq).length}),
+            usernameAuthorities: paged(authorities),
         },
         {searchParams: {tab, page}, msw: [avatars]}
     )
@@ -185,11 +195,19 @@ const openSubs: StoryObj['play'] = async ({canvas, userEvent}) => {
     await screen.findByRole('dialog')
 }
 
+const tileText = (root: HTMLElement, label: string) => {
+    const tile = [...root.querySelectorAll<HTMLElement>('[data-slot=card]')].find(c => c.querySelector('[data-slot=card-description]')?.textContent === label)!
+    return [...tile.querySelectorAll('[data-slot=card-description], [data-slot=card-title], [data-slot=card-content]')].map(e => e.textContent)
+}
+
 export const IdentitiesEmpty = identities([], {registrars: []})
 
 export const IdentitiesOne = identities([person(0)])
 
-export const IdentitiesEveryVerdict = identities(EVERY_VERDICT)
+export const IdentitiesEveryVerdict: StoryObj = {
+    ...identities(EVERY_VERDICT),
+    play: async ({canvasElement}) => expect(tileText(canvasElement, 'Direct identities')).toEqual(['Direct identities', '11', 'Sub identities', '0', '3 · verified5 · unverified3 · flagged']),
+}
 
 export const IdentitiesChannels: StoryObj = {
     ...identities(CHANNELS),
@@ -213,6 +231,7 @@ export const IdentitiesChannels: StoryObj = {
 export const IdentitiesSubsOpen: StoryObj = {
     ...identities(WITH_SUBS),
     play: async ctx => {
+        expect(tileText(ctx.canvasElement, 'Direct identities')).toEqual(['Direct identities', '4', 'Sub identities', '104', '4 · verified0 · unverified0 · flagged'])
         await openSubs!(ctx)
         const dialog = await screen.findByRole('dialog')
         const names = [...dialog.querySelectorAll<HTMLElement>('a[href^="/account/"] .truncate')]
@@ -430,3 +449,108 @@ export const RegistrarsMany = registrarsTab(manyRegistrars)
 export const RegistrarsPage2 = registrarsTab(manyRegistrars, '2')
 
 export const RegistrarsLastPage = registrarsTab(manyRegistrars, lastPage(manyRegistrars.length))
+
+const username = (name: string, owner: object, traits: object = {}) => ({
+    id: name,
+    owner,
+    status: 'Active',
+    expiresAt: null,
+    provider: 'Allocation',
+    deposit: null,
+    primary: true,
+    grantedBlock: HEAD - 1_000,
+    grantedAt: at(HEAD - 1_000),
+    ...traits,
+})
+
+const bare = (n: number) => acct(n, {identityDisplay: null, identityJson: null})
+
+const NAMED_OWNER = registered(200, 'Polaris Guild', {judgements: ['KnownGood']})
+
+const EVERY_USERNAME = [
+    username('polaris.numen', NAMED_OWNER),
+    username('polarispool.numen', NAMED_OWNER, {primary: false, provider: 'AuthorityDeposit', deposit: numn(0.32), grantedBlock: HEAD - 2_000, grantedAt: at(HEAD - 2_000)}),
+    username('anon.numen', bare(201), {grantedBlock: HEAD - 3_000, grantedAt: at(HEAD - 3_000)}),
+    username('waiting.numen', bare(202), {status: 'Pending', expiresAt: HEAD + 60_000, primary: false, grantedBlock: HEAD - 4_000, grantedAt: at(HEAD - 4_000)}),
+    username('leaving.pool', bare(203), {status: 'Unbinding', expiresAt: HEAD + 250_000, provider: 'AuthorityDeposit', deposit: U128_MAX, grantedBlock: HEAD - 5_000, grantedAt: at(HEAD - 5_000)}),
+    username('legacy.dot', bare(204), {provider: 'System', grantedBlock: HEAD - 6_000, grantedAt: at(HEAD - 6_000)}),
+    username(`${'w'.repeat(27)}.numen`, bare(205), {grantedBlock: HEAD - 7_000, grantedAt: at(HEAD - 7_000)}),
+]
+
+const usernamesTab = (usernames: object[], page = '1') => identities(EVERY_VERDICT, {usernames: usernames as Username[], tab: 'usernames', page})
+
+export const UsernamesEmpty = usernamesTab([])
+
+export const UsernamesOne = usernamesTab([username('polaris.numen', NAMED_OWNER)])
+
+// the owner column names the owner by identity or address, never by the username beside it, and the tile splits the total by status
+export const UsernamesEveryCase: StoryObj = {
+    ...usernamesTab(EVERY_USERNAME),
+    play: async ({canvas, canvasElement}) => {
+        const rows = [...(await canvas.findAllByRole('row'))].slice(1).map(r => [...r.querySelectorAll('td')].map(td => td.textContent))
+        expect(rows.map(([name, owner, , status, expires, provider]) => [name, owner, status, expires, provider])).toEqual([
+            ['polaris.numenPrimary', 'Polaris Guild', 'Active', '—', 'Allocation'],
+            ['polarispool.numen', 'Polaris Guild', 'Active', '—', 'Deposit'],
+            ['anon.numenPrimary', short(EVERY_USERNAME[2].owner as {id: string}), 'Active', '—', 'Allocation'],
+            ['waiting.numen', short(EVERY_USERNAME[3].owner as {id: string}), 'Pending', `#${(HEAD + 60_000).toLocaleString('en-US')}`, 'Allocation'],
+            ['leaving.poolPrimary', short(EVERY_USERNAME[4].owner as {id: string}), 'Unbinding', `#${(HEAD + 250_000).toLocaleString('en-US')}`, 'Deposit'],
+            ['legacy.dotPrimary', short(EVERY_USERNAME[5].owner as {id: string}), 'Active', '—', 'System'],
+            [`${'w'.repeat(27)}.numenPrimary`, short(EVERY_USERNAME[6].owner as {id: string}), 'Active', '—', 'Allocation'],
+        ])
+        expect(tileText(canvasElement, 'Usernames')).toEqual(['Usernames', '7', '5 · active1 · pending1 · unbinding'])
+    },
+}
+
+const MANY_USERNAMES = Array.from({length: 45}, (_, i) =>
+    username(`user${String(i).padStart(2, '0')}.numen`, i % 3 ? bare(300 + i) : person(i), {primary: i % 4 !== 1, grantedBlock: HEAD - 1_000 * (i + 1), grantedAt: at(HEAD - 1_000 * (i + 1))})
+)
+
+export const UsernamesMany = usernamesTab(MANY_USERNAMES)
+
+export const UsernamesPage2 = usernamesTab(MANY_USERNAMES, '2')
+
+export const UsernamesLastPage = usernamesTab(MANY_USERNAMES, lastPage(MANY_USERNAMES.length))
+
+const authority = (suffix: string, account: object, traits: object = {}) => ({
+    id: suffix,
+    account,
+    allocation: 47,
+    usernameCount: 3,
+    addedBlock: HEAD - 20_000,
+    addedAt: at(HEAD - 20_000),
+    ...traits,
+})
+
+const authoritiesTab = (authorities: object[], page = '1') => identities(EVERY_VERDICT, {authorities, tab: 'authorities', page})
+
+export const AuthoritiesEmpty = authoritiesTab([])
+
+export const AuthoritiesOne = authoritiesTab([authority('numen', NAMED_OWNER)])
+
+// a suffix the chain started with has no AuthorityAdded behind it
+export const AuthoritiesEveryCase: StoryObj = {
+    ...authoritiesTab([
+        authority('genesis', bare(210), {addedBlock: null, addedAt: null}),
+        authority('numen', NAMED_OWNER),
+        authority('spent', bare(211), {allocation: 0, usernameCount: 0}),
+        authority('maxed', person(1), {allocation: INT_MAX, usernameCount: INT_MAX}),
+    ]),
+    play: async ({canvas, canvasElement}) => {
+        const rows = [...(await canvas.findAllByRole('row'))].slice(1).map(r => [...r.querySelectorAll('td')].map(td => td.textContent))
+        expect(tileText(canvasElement, 'Authorities')).toEqual(['Authorities', '4', '2,147,483,741 · allocation left'])
+        expect(rows.map(([, suffix, added, names, left]) => [suffix, added, names, left])).toEqual([
+            ['.genesis', '—', '3', '47'],
+            ['.numen', expect.stringMatching(/ago/), '3', '47'],
+            ['.spent', expect.stringMatching(/ago/), '0', '0'],
+            ['.maxed', expect.stringMatching(/ago/), '2,147,483,647', '2,147,483,647'],
+        ])
+    },
+}
+
+const MANY_AUTHORITIES = Array.from({length: 45}, (_, i) => authority(`sfx${String(i).padStart(2, '0')}`, i % 2 ? bare(400 + i) : person(i), {addedBlock: HEAD - 50_000 + i * 100, addedAt: at(HEAD - 50_000 + i * 100)}))
+
+export const AuthoritiesMany = authoritiesTab(MANY_AUTHORITIES)
+
+export const AuthoritiesPage2 = authoritiesTab(MANY_AUTHORITIES, '2')
+
+export const AuthoritiesLastPage = authoritiesTab(MANY_AUTHORITIES, lastPage(MANY_AUTHORITIES.length))

@@ -31,6 +31,8 @@ import {
     TokenTransfer,
     Transfer,
     TreasurySpend,
+    Username,
+    UsernameAuthority,
     Validator,
     Vote,
     VotingAction,
@@ -38,6 +40,7 @@ import {
 import {DecodedErc20Transfer} from './evm'
 import {MsigEvent} from './multisig'
 import {BountyEvent} from './bounties'
+import {UsernameEvent} from './usernames'
 
 export interface GovEvent {
     id: string
@@ -128,6 +131,11 @@ export class BatchData {
     vestingRefresh = new Set<string>()
     usernameRefresh = new Set<string>()
     usernameDrop = new Set<string>()
+    usernameEvents: UsernameEvent[] = []
+    usernames: Username[] = []
+    usernameRemovals: string[] = []
+    usernameAuthorities: UsernameAuthority[] = []
+    usernameAuthorityRemovals: string[] = []
     primeChanged: number | undefined
     prime: PrimeState | undefined
     delegationRefresh = new Map<string, number>()

@@ -43,6 +43,8 @@ export const MixedPercentChips: Story = {args: {label: 'Difficulty', value: '5.1
 
 export const IdleChips: Story = {args: {label: 'Difficulty', value: '3.68B', href: '/charts/difficulty', chips: chips(['0.00%', '24h', 'idle'], ['—', '30d', 'idle'])}}
 
+export const StatusChips: Story = {args: {label: 'Usernames', value: '7', chips: chips(['5', 'active', 'pos'], ['1', 'pending', 'idle'], ['1', 'unbinding', 'warn'])}}
+
 export const CountChips: Story = {args: {label: 'Miners', value: '23', href: '/charts/miners', chips: chips(['43', '30d', 'idle'], ['54', 'total', 'idle'])}}
 
 export const ZeroValue: Story = {args: {label: 'EVM txs', value: '0', href: '/charts/evm-transactions', chips: chips(['0', '24h', 'idle'], ['0', '30d', 'idle'])}}
@@ -63,6 +65,47 @@ const groupsWhole: Play = async ({canvasElement}) => {
 export const LongValue: Story = {
     args: {label: 'Total supply', value: <Approx planck={((1n << 256n) - 1n).toString()} decimals={18} symbol="TEST" breakable />},
     play: all(cardsFit, groupsWhole),
+}
+
+const figureTops = (root: HTMLElement) => [...root.querySelectorAll('[data-slot=card-title]')].map(t => Math.round(t.getBoundingClientRect().top))
+
+const oneLine = (root: HTMLElement) => {
+    for (const t of root.querySelectorAll<HTMLElement>('[data-slot=card-title]')) expect(t.getBoundingClientRect().height).toBeLessThanOrEqual(parseFloat(getComputedStyle(t).lineHeight))
+}
+
+const IDENTITY_CHIPS = chips(['2', 'verified', 'pos'], ['5', 'unverified', 'idle'], ['0', 'flagged', 'neg'])
+
+export const BesideStat: Story = {
+    args: {label: 'Direct identities', value: '7', beside: [{label: 'Sub identities', value: '4'}], chips: IDENTITY_CHIPS},
+    decorators: [
+        Story => (
+            <div className="col-span-full max-w-72">
+                <Story />
+            </div>
+        ),
+    ],
+    play: async ({canvasElement}) => {
+        const [main, beside] = figureTops(canvasElement)
+        expect(beside).toBe(main)
+        oneLine(canvasElement)
+    },
+}
+
+// a stat with no room beside the main one drops below it whole
+export const BesideStatWrapped: Story = {
+    args: {label: 'Direct identities', value: '2,147,483,647', beside: [{label: 'Sub identities', value: '1,000,000'}], chips: IDENTITY_CHIPS},
+    decorators: [
+        Story => (
+            <div className="col-span-full max-w-56">
+                <Story />
+            </div>
+        ),
+    ],
+    play: all(cardsFit, async ({canvasElement}) => {
+        const [main, beside] = figureTops(canvasElement)
+        expect(beside).toBeGreaterThan(main)
+        oneLine(canvasElement)
+    }),
 }
 
 export const HomeRow: Story = {

@@ -718,11 +718,6 @@ export const AccountVote: sts.Type<AccountVote> = sts.closedEnum(() => {
 
 export const Vote = sts.number()
 
-export interface UsernameInformation {
-    owner: AccountId32
-    provider: Provider
-}
-
 export type Provider = Provider_Allocation | Provider_AuthorityDeposit | Provider_System
 
 export interface Provider_Allocation {
@@ -738,18 +733,23 @@ export interface Provider_System {
     __kind: 'System'
 }
 
-export const UsernameInformation: sts.Type<UsernameInformation> = sts.struct(() => {
-    return  {
-        owner: AccountId32,
-        provider: Provider,
-    }
-})
-
 export const Provider: sts.Type<Provider> = sts.closedEnum(() => {
     return  {
         Allocation: sts.unit(),
         AuthorityDeposit: sts.bigint(),
         System: sts.unit(),
+    }
+})
+
+export interface UsernameInformation {
+    owner: AccountId32
+    provider: Provider
+}
+
+export const UsernameInformation: sts.Type<UsernameInformation> = sts.struct(() => {
+    return  {
+        owner: AccountId32,
+        provider: Provider,
     }
 })
 

@@ -45,6 +45,8 @@
     "Identity.UsernameOf",
     "Identity.UsernameInfoOf",
     "Identity.AuthorityOf",
+    "Identity.PendingUsernames",
+    "Identity.UnbindingUsernames",
     "Proxy.Proxies",
     "Proxy.Announcements",
     "Multisig.Multisigs",

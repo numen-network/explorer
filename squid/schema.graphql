@@ -309,6 +309,40 @@ type Registrar @entity {
   lastJudgementAt: DateTime
 }
 
+"a username from the moment its authority grants it until the chain drops it"
+type Username @entity {
+  "the full username, suffix included"
+  id: ID!
+  owner: Account! @index
+  suffix: String! @index
+  "Pending while it waits in PendingUsernames, Unbinding while UnbindingUsernames holds it, Active otherwise"
+  status: String! @index
+  "block a pending username lapses at, or the first block an unbinding one can be removed at"
+  expiresAt: Int
+  "the Provider variant name"
+  provider: String!
+  "what the authority reserved for an AuthorityDeposit username"
+  deposit: BigInt
+  "whether it is the name UsernameOf maps its owner to"
+  primary: Boolean!
+  "block of the UsernameQueued or UsernameSet that granted it"
+  grantedBlock: Int! @index
+  grantedAt: DateTime!
+}
+
+type UsernameAuthority @entity {
+  "the suffix the authority grants usernames under"
+  id: ID!
+  account: Account! @index
+  "usernames it can still grant without a deposit"
+  allocation: Int!
+  "its usernames that are active or unbinding"
+  usernameCount: Int!
+  "block of the AuthorityAdded that brought the suffix in, null for a suffix the chain started with"
+  addedBlock: Int
+  addedAt: DateTime
+}
+
 type Track @entity {
   id: ID!
   "the TrackId as a number, id holds it as a string"

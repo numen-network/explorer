@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   redirects: () => [
     { source: "/evm/tx/:hash", destination: "/tx/:hash", permanent: true },
     { source: "/evm/address/:address", destination: "/address/:address", permanent: true },
+    { source: "/identities", destination: "/people", permanent: true },
   ],
 };
 

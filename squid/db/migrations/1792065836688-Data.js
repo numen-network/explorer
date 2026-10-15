@@ -1,5 +1,5 @@
-module.exports = class Data1789984491159 {
-    name = 'Data1789984491159'
+module.exports = class Data1792065836688 {
+    name = 'Data1792065836688'
 
     async up(db) {
         await db.query(`CREATE TABLE "delegate" ("id" character varying NOT NULL, "delegators" integer NOT NULL, "tracks" integer NOT NULL, "delegated" numeric NOT NULL, "account_id" character varying, CONSTRAINT "REL_9fc4c32ac74b83d15ee9f1305f" UNIQUE ("account_id"), CONSTRAINT "PK_810516365b3daa9f6d6d2d4f2b7" PRIMARY KEY ("id"))`)
@@ -88,6 +88,13 @@ module.exports = class Data1789984491159 {
         await db.query(`CREATE INDEX "idx_judgement_target_52d06aef" ON "judgement" ("target_id") `)
         await db.query(`CREATE INDEX "idx_judgement_block_e9143e28" ON "judgement" ("block") `)
         await db.query(`CREATE INDEX "idx_judgement_registrar_block_c7e4ceff" ON "judgement" ("registrar_id", "block") `)
+        await db.query(`CREATE TABLE "username" ("id" character varying NOT NULL, "suffix" text NOT NULL, "status" text NOT NULL, "expires_at" integer, "provider" text NOT NULL, "deposit" numeric, "primary" boolean NOT NULL, "granted_block" integer NOT NULL, "granted_at" TIMESTAMP WITH TIME ZONE NOT NULL, "owner_id" character varying, CONSTRAINT "PK_fd8e31cc54a22af809d3fbf587b" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE INDEX "idx_username_owner_1ca1de2a" ON "username" ("owner_id") `)
+        await db.query(`CREATE INDEX "idx_username_suffix_7e01e684" ON "username" ("suffix") `)
+        await db.query(`CREATE INDEX "idx_username_status_10cd64a1" ON "username" ("status") `)
+        await db.query(`CREATE INDEX "idx_username_granted_block_beb51ac7" ON "username" ("granted_block") `)
+        await db.query(`CREATE TABLE "username_authority" ("id" character varying NOT NULL, "allocation" integer NOT NULL, "username_count" integer NOT NULL, "added_block" integer, "added_at" TIMESTAMP WITH TIME ZONE, "account_id" character varying, CONSTRAINT "PK_100d366fb109751953e8a027a28" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE INDEX "idx_username_authority_account_7941a8d4" ON "username_authority" ("account_id") `)
         await db.query(`CREATE TABLE "track" ("id" character varying NOT NULL, "index" integer NOT NULL, "name" text NOT NULL, "max_deciding" integer NOT NULL, "max_spend" numeric, "decision_deposit" numeric NOT NULL, "prepare_period" integer NOT NULL, "decision_period" integer NOT NULL, "confirm_period" integer NOT NULL, "min_enactment_period" integer NOT NULL, "min_approval" jsonb NOT NULL, "min_support" jsonb NOT NULL, CONSTRAINT "PK_0631b9bcf521f8fab3a15f2c37e" PRIMARY KEY ("id"))`)
         await db.query(`CREATE UNIQUE INDEX "idx_track_index_ef7c4ac1" ON "track" ("index") `)
         await db.query(`CREATE TABLE "referendum" ("id" character varying NOT NULL, "index" integer NOT NULL, "origin" jsonb, "proposal_hash" text, "title" text, "description" text, "proposal_pallet" text, "proposal_method" text, "proposal_args" jsonb, "proposal_calls" jsonb, "proposal_amount" numeric, "proposal_beneficiary" text, "proposal_bounty_index" integer, "submitted_at" integer NOT NULL, "submitted_timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "status" character varying(9) NOT NULL, "deciding_since" integer, "confirming_since" integer, "ended_at" integer, "ayes" numeric NOT NULL, "nays" numeric NOT NULL, "support" numeric NOT NULL, "timeline" jsonb NOT NULL, "submission_depositor" text, "submission_deposit" numeric, "decision_depositor" text, "decision_deposit" numeric, "track_id" character varying, "submitter_id" character varying, CONSTRAINT "PK_772fc260f18c235a6327252ce00" PRIMARY KEY ("id"))`)
@@ -196,6 +203,8 @@ module.exports = class Data1789984491159 {
         await db.query(`ALTER TABLE "registrar" ADD CONSTRAINT "FK_468ca168db0480ba0354b8a3942" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "judgement" ADD CONSTRAINT "FK_fbfca402e42403ee3c68187e904" FOREIGN KEY ("registrar_id") REFERENCES "registrar"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "judgement" ADD CONSTRAINT "FK_4e1c4367e563d78edf1402a3ec7" FOREIGN KEY ("target_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`ALTER TABLE "username" ADD CONSTRAINT "FK_07480b7d54ba6ed50c50ebb05ff" FOREIGN KEY ("owner_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`ALTER TABLE "username_authority" ADD CONSTRAINT "FK_da0014c9465ff98a39b4277caae" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "referendum" ADD CONSTRAINT "FK_678945daf4785b82db282ccce76" FOREIGN KEY ("track_id") REFERENCES "track"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "referendum" ADD CONSTRAINT "FK_a69a6309d62e9a87022d7dfbc66" FOREIGN KEY ("submitter_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "vote" ADD CONSTRAINT "FK_6c157f7819d8bf5869a9e2ab86a" FOREIGN KEY ("referendum_id") REFERENCES "referendum"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
@@ -269,6 +278,8 @@ module.exports = class Data1789984491159 {
         await db.query(`ALTER TABLE "vote" DROP CONSTRAINT "FK_6c157f7819d8bf5869a9e2ab86a"`)
         await db.query(`ALTER TABLE "referendum" DROP CONSTRAINT "FK_a69a6309d62e9a87022d7dfbc66"`)
         await db.query(`ALTER TABLE "referendum" DROP CONSTRAINT "FK_678945daf4785b82db282ccce76"`)
+        await db.query(`ALTER TABLE "username_authority" DROP CONSTRAINT "FK_da0014c9465ff98a39b4277caae"`)
+        await db.query(`ALTER TABLE "username" DROP CONSTRAINT "FK_07480b7d54ba6ed50c50ebb05ff"`)
         await db.query(`ALTER TABLE "judgement" DROP CONSTRAINT "FK_4e1c4367e563d78edf1402a3ec7"`)
         await db.query(`ALTER TABLE "judgement" DROP CONSTRAINT "FK_fbfca402e42403ee3c68187e904"`)
         await db.query(`ALTER TABLE "registrar" DROP CONSTRAINT "FK_468ca168db0480ba0354b8a3942"`)
@@ -377,6 +388,13 @@ module.exports = class Data1789984491159 {
         await db.query(`DROP TABLE "referendum"`)
         await db.query(`DROP INDEX "public"."idx_track_index_ef7c4ac1"`)
         await db.query(`DROP TABLE "track"`)
+        await db.query(`DROP INDEX "public"."idx_username_authority_account_7941a8d4"`)
+        await db.query(`DROP TABLE "username_authority"`)
+        await db.query(`DROP INDEX "public"."idx_username_granted_block_beb51ac7"`)
+        await db.query(`DROP INDEX "public"."idx_username_status_10cd64a1"`)
+        await db.query(`DROP INDEX "public"."idx_username_suffix_7e01e684"`)
+        await db.query(`DROP INDEX "public"."idx_username_owner_1ca1de2a"`)
+        await db.query(`DROP TABLE "username"`)
         await db.query(`DROP INDEX "public"."idx_judgement_registrar_block_c7e4ceff"`)
         await db.query(`DROP INDEX "public"."idx_judgement_block_e9143e28"`)
         await db.query(`DROP INDEX "public"."idx_judgement_target_52d06aef"`)

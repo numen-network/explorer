@@ -16,7 +16,7 @@ const ITEMS: [string, string][] = [
     ['/extrinsics', 'Extrinsics'],
     ['/events', 'Events'],
     ['/accounts', 'Accounts'],
-    ['/identities', 'Identities'],
+    ['/people', 'People'],
     ['/tokens', 'Tokens'],
     ['/governance', 'Governance'],
     ['/validators', 'Validators'],

@@ -119,7 +119,8 @@ export interface DailyRow {
 }
 
 // every list that shows an account shows the same identity trimmings
-const ACCOUNT_REF = `id identityDisplay identityJson identitySubName identitySubData username identitySuper { identityDisplay identityJson }`
+const IDENTITY_REF = `id identityDisplay identityJson identitySubName identitySubData identitySuper { identityDisplay identityJson }`
+const ACCOUNT_REF = `${IDENTITY_REF} username`
 
 const BLOCK_FIELDS = `id height hash parentHash timestamp finalized extrinsicCount eventCount difficulty reward minerFees treasuryFees nonce workHash specVersion author { ${ACCOUNT_REF} }`
 const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACCOUNT_REF} } to { ${ACCOUNT_REF} } block { height } extrinsic { id }`
@@ -678,17 +679,27 @@ const SUB_ORDER = '[identitySubName_ASC_NULLS_LAST, id_ASC]'
 // verdict kind is found by containment
 const judged = (kinds: string[]) => `{OR: [${kinds.map(k => `{identityJson_jsonContains: {judgements: [[{__kind: "${k}"}]]}}`).join(', ')}]}`
 
-export async function identityCounts() {
+export async function peopleCounts() {
     const tally = (where: string) => `accountsConnection(orderBy: id_ASC, where: ${where}) { totalCount }`
+    const names = (status?: string) => `usernamesConnection(orderBy: id_ASC${status ? `, where: {status_eq: "${status}"}` : ''}) { totalCount }`
     const good = judged(GOOD_JUDGEMENTS)
     const bad = judged(BAD_JUDGEMENTS)
-    const r = await gql<Record<'direct' | 'good' | 'goodAndBad' | 'bad' | 'subs' | 'registrars' | 'retired', {totalCount: number}> & {latest: {lastJudgementBlock: number | null}[]}>(
+    const r = await gql<
+        Record<'direct' | 'good' | 'goodAndBad' | 'bad' | 'subs' | 'usernames' | 'pending' | 'unbinding' | 'registrars' | 'retired', {totalCount: number}> & {
+            authorities: {allocation: number}[]
+            latest: {lastJudgementBlock: number | null}[]
+        }
+    >(
         `query {
             direct: ${tally(HAS_IDENTITY)}
             good: ${tally(good)}
             goodAndBad: ${tally(`{AND: [${good}, ${bad}]}`)}
             bad: ${tally(bad)}
             subs: ${tally('{identitySuper_isNull: false}')}
+            usernames: ${names()}
+            pending: ${names('Pending')}
+            unbinding: ${names('Unbinding')}
+            authorities: usernameAuthorities(orderBy: id_ASC) { allocation }
             registrars: registrarsConnection(orderBy: index_ASC) { totalCount }
             retired: registrarsConnection(orderBy: index_ASC, where: {retiredAt_isNull: false}) { totalCount }
             latest: registrars(orderBy: [lastJudgementBlock_DESC_NULLS_LAST, index_ASC], limit: 1) { lastJudgementBlock }
@@ -700,6 +711,11 @@ export async function identityCounts() {
         verified: r.good.totalCount - r.goodAndBad.totalCount,
         flagged: r.bad.totalCount,
         subs: r.subs.totalCount,
+        usernames: r.usernames.totalCount,
+        pending: r.pending.totalCount,
+        unbinding: r.unbinding.totalCount,
+        authorities: r.authorities.length,
+        allocationLeft: r.authorities.reduce((n, a) => n + a.allocation, 0),
         registrars: r.registrars.totalCount,
         retired: r.retired.totalCount,
         latestJudgement: r.latest[0]?.lastJudgementBlock ?? null,
@@ -770,6 +786,50 @@ export function registrarsPage(limit: number, offset: number) {
 
 export function registrarsByIndex(indexes: number[]) {
     return gql<{registrars: RegistrarRow[]}>(`query ($indexes: [Int!]) { registrars(where: {index_in: $indexes}) { ${REGISTRAR_FIELDS} } }`, {indexes})
+}
+
+export interface UsernameRow {
+    id: string
+    owner: AccountRef
+    status: string
+    expiresAt: number | null
+    provider: string
+    deposit: string | null
+    primary: boolean
+    grantedBlock: number
+    grantedAt: string
+}
+
+// the owner leaves its username out, the row already names it
+export function usernamesPage(limit: number, offset: number) {
+    return gql<{usernames: UsernameRow[]}>(
+        `query ($limit: Int!, $offset: Int!) {
+            usernames(orderBy: [grantedBlock_DESC, id_ASC], limit: $limit, offset: $offset) {
+                id status expiresAt provider deposit primary grantedBlock grantedAt owner { ${IDENTITY_REF} }
+            }
+        }`,
+        {limit, offset}
+    )
+}
+
+export interface UsernameAuthorityRow {
+    id: string
+    account: AccountRef
+    allocation: number
+    usernameCount: number
+    addedBlock: number | null
+    addedAt: string | null
+}
+
+export function usernameAuthoritiesPage(limit: number, offset: number) {
+    return gql<{usernameAuthorities: UsernameAuthorityRow[]}>(
+        `query ($limit: Int!, $offset: Int!) {
+            usernameAuthorities(orderBy: [addedBlock_ASC_NULLS_FIRST, id_ASC], limit: $limit, offset: $offset) {
+                id allocation usernameCount addedBlock addedAt account { ${ACCOUNT_REF} }
+            }
+        }`,
+        {limit, offset}
+    )
 }
 
 export function transfersFor(idHex: string, dir: 'in' | 'out' | '', limit: number, offset: number) {

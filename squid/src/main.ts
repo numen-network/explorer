@@ -31,6 +31,7 @@ import {collectMultisigCall, collectMultisigEvent, finalizeMultisig} from './mul
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
 import {accumulateDay, finalizeStats, treasuryAccount} from './stats'
 import {readBatchTracks} from './tracks'
+import {collectUsernameEvent, finalizeUsernames, persistUsernames} from './usernames'
 
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT
 if (!RPC_ENDPOINT) throw new Error('RPC_ENDPOINT is not set')
@@ -77,6 +78,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     await finalizeBounties(batch, lastHeader, ctx.store)
     await finalizeValidators(ctx, batch)
     await finalizeRegistrars(batch, lastHeader, ctx.store)
+    await finalizeUsernames(batch, lastHeader, ctx.store)
     await refreshPrime(batch, lastHeader, ctx.store)
     await finalizeAccounts(ctx, batch, lastHeader)
     await finalizeStats(ctx, batch)
@@ -502,6 +504,7 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
     collectGovEvent(batch, ev.id, ev.index, name, ev.args, block.height, ev.block, signerOf(ev.extrinsic), ev.call?.args, ev.extrinsic?.id)
     collectValidatorEvent(batch, name, ev.args, block.height, ev.block)
     collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, at, ev)
+    collectUsernameEvent(batch, name, ev.args, block.height, at, ev.block)
     collectMultisigEvent(batch, name, ev.args, block.height, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined)
     collectBountyEvent(batch, ev.id, name, ev.args, block.height, at, signerOf(ev.extrinsic))
 }
@@ -692,6 +695,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     if (batch.proxyRemovals.length > 0) await ctx.store.remove(ProxyRelation, batch.proxyRemovals)
     await ctx.store.upsert([...batch.bounties.values()])
     await ctx.store.upsert([...batch.childBounties.values()])
+    await persistUsernames(ctx.store, batch)
 }
 
 async function markFinalized(ctx: Ctx, finalizedHeight: number): Promise<void> {

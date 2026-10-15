@@ -404,7 +404,7 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
 // to. one it has never met joins the batch before the account merge, first seen
 // where the seat came to it, or at the batch's first block when it held the
 // seat before the batch began
-async function seatHolder(batch: BatchData, store: Store, who: string, since: number): Promise<Account> {
+export async function seatHolder(batch: BatchData, store: Store, who: string, since: number): Promise<Account> {
     return batch.accounts.get(who) ?? (await store.get(Account, who)) ?? batch.touch(who, since)
 }
 
