@@ -49,11 +49,8 @@ export class Referendum {
     @StringColumn_({nullable: true})
     proposalMethod!: string | undefined | null
 
-    @JSONColumn_({nullable: true})
-    proposalArgs!: unknown | undefined | null
-
     /**
-     * the proposal call tree flattened in preorder, spend nodes carrying what they pay and when
+     * the proposal call tree flattened in preorder, each node with its address and args, spend nodes carrying what they pay and when
      */
     @JSONColumn_({nullable: true})
     proposalCalls!: unknown | undefined | null
@@ -63,6 +60,12 @@ export class Referendum {
      */
     @BigIntColumn_({nullable: true})
     proposalAmount!: bigint | undefined | null
+
+    /**
+     * how many spends the proposal holds, more than one makes it staged
+     */
+    @IntColumn_({nullable: true})
+    proposalPayouts!: number | undefined | null
 
     /**
      * set when every spend pays one account

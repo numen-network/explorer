@@ -332,7 +332,7 @@ export async function blockDetail(idOrHash: string, page: Slice) {
 
 export interface PreimageHit {
     texts: {hash: string; title: string | null; description: string | null; referendum: {index: number}}[]
-    proposals: {index: number; title: string | null; proposalHash: string; proposalPallet: string | null; proposalMethod: string | null; proposalArgs: unknown; submittedAt: number}[]
+    proposals: {index: number; title: string | null; proposalHash: string; proposalPallet: string | null; proposalMethod: string | null; proposalCalls: ProposalNode[] | null; submittedAt: number}[]
 }
 
 /** The referendum texts and proposals a set of hashes name, as far as the index has seen them noted. */
@@ -340,7 +340,7 @@ export function preimagesByHash(hashes: string[]) {
     return gql<PreimageHit>(
         `query ($h: [String!]) {
             texts: metadataActions(where: {hash_in: $h, method_eq: "MetadataSet"}, orderBy: id_ASC, limit: 500) { hash title description referendum { index } }
-            proposals: referendums(where: {proposalHash_in: $h}, orderBy: index_ASC, limit: 500) { index title proposalHash proposalPallet proposalMethod proposalArgs submittedAt }
+            proposals: referendums(where: {proposalHash_in: $h}, orderBy: index_ASC, limit: 500) { index title proposalHash proposalPallet proposalMethod proposalCalls submittedAt }
         }`,
         {h: hashes}
     )
@@ -1252,13 +1252,14 @@ export interface TrackRow {
 }
 
 /**
- * One call out of a proposal, flattened in preorder. Depth is what reads the
- * list back as the tree the chain would run.
+ * One call out of a proposal, flattened in preorder. The address reads the
+ * list back as the tree the chain would run, the way Call rows do.
  */
 export interface ProposalNode {
     pallet: string
     method: string
-    depth: number
+    address: number[]
+    args: unknown
     amount?: string
     beneficiary?: string
     validFrom?: number | null
@@ -1274,7 +1275,7 @@ export interface ReferendumRow {
     description: string | null
     proposalPallet: string | null
     proposalMethod: string | null
-    proposalCalls: ProposalNode[] | null
+    proposalPayouts: number | null
     proposalAmount: string | null
     proposalBeneficiary: string | null
     submittedAt: number
@@ -1296,11 +1297,22 @@ export interface ReferendumRow {
 }
 
 export interface ReferendumDetailRow extends ReferendumRow {
-    proposalArgs: unknown
+    proposalCalls: ProposalNode[] | null
+}
+
+/** A spend an enactment created, tied back to the proposal call it came from. */
+export interface ReferendumSpendRow {
+    id: string
+    kind: string
+    status: string
+    validFrom: number | null
+    expireAt: number | null
+    paidAt: number | null
+    proposalCall: number | null
 }
 
 const TRACK_FIELDS = `id name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
-const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalCalls proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } submissionDepositor submissionDeposit decisionDepositor decisionDeposit track { ${TRACK_FIELDS} }`
+const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } submissionDepositor submissionDeposit decisionDepositor decisionDeposit track { ${TRACK_FIELDS} }`
 
 export interface TreasurySpendRow {
     id: string
@@ -1443,6 +1455,16 @@ export function bountiesPage(limit: number, offset: number, facets: Facets, on: 
     return facetPage<BountyRow>('bounties', `${BOUNTY_FIELDS} referendum { index status }`, 'index_DESC', limit, offset, facets, on)
 }
 
+/** The bounties a proposal names, for what each one is worth. */
+export function bountiesByIndex(indices: number[]) {
+    return gql<{bounties: {index: number; value: string}[]}>(
+        `query ($i: [Int!]) {
+            bounties(where: {index_in: $i}, orderBy: index_ASC, limit: 500) { index value }
+        }`,
+        {i: indices}
+    )
+}
+
 export function tracksPage(limit: number, offset: number) {
     return gql<{tracks: TrackRow[]}>(
         `query ($limit: Int!, $offset: Int!) {
@@ -1532,6 +1554,7 @@ export function referendumDetail(index: number, page: Slice) {
     const tally = (list: VoteList) => `votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false, ${VOTE_LISTS[list].where}}, orderBy: id_ASC) { totalCount }`
     return gql<{
         referendums: ReferendumDetailRow[]
+        spends: ReferendumSpendRow[]
         metadataActions: MetadataActionRow[]
         metadataCount: {totalCount: number}
         dailyStats: {issuanceTotal: string; issuanceInactive: string}[]
@@ -1542,7 +1565,8 @@ export function referendumDetail(index: number, page: Slice) {
         splitCount: {totalCount: number}
     }>(
         `query ($index: Int!, $limit: Int!, $offset: Int!) {
-            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalArgs }
+            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalCalls }
+            spends: treasurySpends(where: {referendum: {index_eq: $index}}, orderBy: [block_ASC, indexInBlock_ASC], limit: 500) { id kind status validFrom expireAt paidAt proposalCall }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }

@@ -141,13 +141,7 @@ export const CallMultiPayout = story(
         id: '13',
         index: 13,
         title: 'Staged grant paid out in four tranches',
-        ...proposal(
-            [
-                {pallet: 'Utility', method: 'batch_all', depth: 0},
-                ...tranches.map(([amount, beneficiary, validFrom]) => ({pallet: 'Treasury', method: 'spend', depth: 1, amount, beneficiary, validFrom})),
-            ],
-            {calls: tranches.map(t => treasurySpend(...t))}
-        ),
+        ...proposal({__kind: 'Utility', value: {__kind: 'batch_all', calls: tranches.map(t => treasurySpend(...t))}}),
     },
     'call'
 )
@@ -158,18 +152,10 @@ export const CallBatchTree = story(
         id: '14',
         index: 14,
         title: 'Batch that pays two grants, notes a remark and approves a bounty',
-        ...proposal(
-            [
-                {pallet: 'Utility', method: 'batch_all', depth: 0},
-                {pallet: 'System', method: 'remark_with_event', depth: 1},
-                {pallet: 'Utility', method: 'batch', depth: 1},
-                {pallet: 'Treasury', method: 'spend_local', depth: 2, amount: numn(12_000), beneficiary: PEOPLE[3].id, validFrom: null},
-                {pallet: 'Utility', method: 'force_batch', depth: 2},
-                {pallet: 'Treasury', method: 'spend', depth: 3, amount: numn(8_000), beneficiary: PEOPLE[3].id, validFrom: HEAD + 9 * 8640},
-                {pallet: 'Bounties', method: 'approve_bounty', depth: 3, bounty: 7},
-                {pallet: 'Scheduler', method: 'schedule_after', depth: 1},
-            ],
-            {
+        ...proposal({
+            __kind: 'Utility',
+            value: {
+                __kind: 'batch_all',
                 calls: [
                     {__kind: 'System', value: {__kind: 'remark_with_event', remark: '0x6772616e7473'}},
                     {
@@ -190,8 +176,8 @@ export const CallBatchTree = story(
                     },
                     {__kind: 'Scheduler', value: {__kind: 'schedule_after', after: 100, maybePeriodic: null, priority: 63, call: {__kind: 'System', value: {__kind: 'remark', remark: '0x'}}}},
                 ],
-            }
-        ),
+            },
+        }),
     },
     'call'
 )
@@ -204,8 +190,8 @@ export const CallUnreadable = story(
         title: 'Proposal whose preimage was never noted',
         proposalPallet: null,
         proposalMethod: null,
-        proposalArgs: null,
         proposalCalls: null,
+        proposalPayouts: null,
         proposalAmount: null,
         proposalBeneficiary: null,
     },
@@ -421,12 +407,7 @@ const overCap = {
     id: '25',
     index: 25,
     title: 'Spend over the small spender cap, approved and refused at enactment',
-    ...proposal([{pallet: 'Treasury', method: 'spend', depth: 0, amount: numn(250_000), beneficiary: PEOPLE[2].id, validFrom: null}], {
-        assetKind: null,
-        amount: numn(250_000),
-        beneficiary: PEOPLE[2].id,
-        validFrom: null,
-    }),
+    ...proposal(treasurySpend(numn(250_000), PEOPLE[2].id, null)),
     timeline: (curated(0).timeline as RawStep[]).map(s => (s.name === 'Scheduler.Dispatched' ? {...s, error: 'Treasury.InsufficientPermission'} : s)),
 }
 const refused = {__kind: 'Err', value: {__kind: 'Module', value: {index: 23, error: '0x02000000'}}}
@@ -719,12 +700,7 @@ const extremeAmounts = (tab: string) =>
     cast(
         {
             ...deciding(18, refundTitle),
-            ...proposal([{pallet: 'Treasury', method: 'spend', depth: 0, amount: hugeSpend, beneficiary: PEOPLE[7].id, validFrom: null}], {
-                assetKind: null,
-                amount: hugeSpend,
-                beneficiary: PEOPLE[7].id,
-                validFrom: null,
-            }),
+            ...proposal(treasurySpend(hugeSpend, PEOPLE[7].id, null)),
         },
         [
             {...standard(PEOPLE[7], true, 'Locked1x', numn(52_000_000)), block: 975_000},

@@ -248,7 +248,7 @@ export const HomeReferendumTitleHovered: StoryObj = {
     },
 }
 
-const undecoded = {...referenda[3], id: '12', index: 12, title: null, proposalPallet: null, proposalMethod: null, proposalCalls: null, proposalAmount: null, proposalBeneficiary: null}
+const undecoded = {...referenda[3], id: '12', index: 12, title: null, proposalPallet: null, proposalMethod: null, proposalPayouts: null, proposalAmount: null, proposalBeneficiary: null}
 
 export const HomeReferendaEnded = pageStory(home({...many, referendums: [undecoded, referenda[0], referenda[1], referenda[9], referenda[10]]}))
 

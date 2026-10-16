@@ -19,23 +19,27 @@ function tally(refs: CallRef[]): string[] {
     return [...n].map(([name, count]) => counted(name, count))
 }
 
+// a proposal call has not run, so it carries no outcome, origin or events
+type TreeCall = Pick<CallRow, 'address' | 'pallet' | 'method' | 'args'> & Partial<Pick<CallRow, 'success' | 'origin' | 'events'>> & {view: ArgNode | null}
+
 // calls arrive in preorder, so the length of the address is all the tree there is to draw
-export function CallTree({calls, chain, signer}: {calls: (CallRow & {view: ArgNode | null})[]; chain: ChainProps; signer: AccountRef | null}) {
+export function CallTree({calls, chain, signer = null}: {calls: TreeCall[]; chain: ChainProps; signer?: AccountRef | null}) {
     return (
         <Card size="flush" className="divide-y">
             {calls.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
             {calls.map(c => {
-                const raised = tally(c.events)
+                const events = c.events ?? []
+                const raised = tally(events)
                 const dispatched = c.origin && c.origin.id !== signer?.id ? c.origin : null
                 const view = c.view
                 return (
-                    <Collapsible key={c.id} defaultOpen={c.address.length === 0} className="group py-2.5 pr-5" asChild>
+                    <Collapsible key={c.address.join('.')} defaultOpen={c.address.length === 0} className="group py-2.5 pr-5" asChild>
                         <Tabs defaultValue={view ? 'table' : 'json'} className="gap-0">
                             <div className="flex flex-wrap items-start gap-x-3 gap-y-1" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
                                 <CollapsibleTrigger className="flex min-h-6 min-w-0 grow cursor-pointer flex-wrap items-center gap-x-3 text-left text-sm">
                                     <span className="font-mono text-[13px] wrap-anywhere">{qualified(c)}</span>
-                                    {c.success !== true && <ResultBadge success={c.success} />}
-                                    {c.events.length > 0 && <span className="text-[11px] whitespace-nowrap text-dim">{fmtCount(c.events.length, 'event')}</span>}
+                                    {c.success !== undefined && c.success !== true && <ResultBadge success={c.success} />}
+                                    {events.length > 0 && <span className="text-[11px] whitespace-nowrap text-dim">{fmtCount(events.length, 'event')}</span>}
                                 </CollapsibleTrigger>
                                 {view && <ArgsToggle className="ml-auto group-data-[state=closed]:hidden" />}
                             </div>

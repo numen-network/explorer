@@ -257,16 +257,31 @@ export const eventsById = (...lists) => {
     return ({where}) => (where?.id_in ?? []).flatMap(id => byId.get(id) ?? []).sort(newestFirst)
 }
 
-// what the indexer derives from a proposal call tree, the total over its
-// spends and the payee when every spend pays the same one
-export function proposal(nodes, args) {
+const BATCHES = new Set(['Utility.batch', 'Utility.batch_all', 'Utility.force_batch'])
+
+// a call laid out the way the indexer walks it, preorder with an address per
+// node, spends carrying what they pay and approvals the bounty they name
+function walk({__kind: pallet, value: {__kind: method, ...args}}, address, nodes) {
+    const node = {pallet, method, address, args}
+    if (pallet === 'Treasury' && method === 'spend') Object.assign(node, {amount: args.amount, beneficiary: args.beneficiary, validFrom: args.validFrom ?? null})
+    if (pallet === 'Treasury' && method === 'spend_local') Object.assign(node, {amount: args.amount, beneficiary: args.beneficiary.value, validFrom: null})
+    if (pallet === 'Bounties' && method.startsWith('approve_bounty')) node.bounty = args.bountyId
+    nodes.push(node)
+    if (BATCHES.has(`${pallet}.${method}`)) args.calls.forEach((c, i) => walk(c, [...address, i], nodes))
+    return nodes
+}
+
+// what the indexer derives from a proposal call, the total over its spends and
+// the payee when every spend pays the same one
+export function proposal(call) {
+    const nodes = walk(call, [], [])
     const spends = nodes.filter(n => n.amount != null)
     const payees = new Set(spends.map(n => n.beneficiary))
     return {
         proposalPallet: nodes[0].pallet,
         proposalMethod: nodes[0].method,
-        proposalArgs: args,
         proposalCalls: nodes,
+        proposalPayouts: spends.length,
         proposalAmount: spends.length > 0 ? spends.reduce((sum, n) => sum + BigInt(n.amount), 0n).toString() : null,
         proposalBeneficiary: payees.size === 1 ? spends[0].beneficiary : null,
     }

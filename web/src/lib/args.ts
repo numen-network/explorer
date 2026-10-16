@@ -246,6 +246,10 @@ export function nodesOf<K extends ArgNode['kind']>(nodes: (ArgNode | null)[], ki
 export const withCallViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}; subcalls: unknown[]}>(rows: T[]) =>
     rows.map(c => ({...c, view: describeArgs({...c, specVersion: c.block.specVersion, nested: c.subcalls.length > 0})}))
 
+/** Proposal calls with their args worked out, a call nests whatever follows it deeper in preorder. */
+export const withProposalViews = <T extends {pallet: string; method: string; args: unknown; address: number[]}>(nodes: T[], specVersion: number | null) =>
+    nodes.map((c, i) => ({...c, view: describeArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length})}))
+
 /** Event rows with their args worked out, ready for a client table that cannot read the metadata. */
 export const withEventViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}}>(rows: T[]) => rows.map(e => ({...e, view: describeEvent({...e, specVersion: e.block.specVersion})}))
 

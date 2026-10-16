@@ -13,7 +13,7 @@ async function markPreimages(nodes: (ArgNode | null)[]): Promise<void> {
     }
     for (const r of proposals) {
         const spec = await specVersionAt(r.submittedAt)
-        const call = r.proposalPallet && r.proposalMethod ? describeArgs({pallet: r.proposalPallet, method: r.proposalMethod, args: r.proposalArgs, specVersion: spec, nested: false}) : null
+        const call = r.proposalPallet && r.proposalMethod ? describeArgs({pallet: r.proposalPallet, method: r.proposalMethod, args: r.proposalCalls?.[0]?.args, specVersion: spec, nested: false}) : null
         known.set(r.proposalHash, {kind: 'proposal', referendum: r.index, title: r.title, call: call && {kind: 'call', name: `${r.proposalPallet}.${r.proposalMethod}`, args: call}})
     }
     for (const node of found) node.preimage = known.get(node.hex)

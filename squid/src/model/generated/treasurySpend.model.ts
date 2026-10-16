@@ -46,4 +46,28 @@ export class TreasurySpend {
      */
     @IntColumn_({nullable: false})
     indexInBlock!: number
+
+    /**
+     * first block a spend can be claimed at, spend_local has no window
+     */
+    @IntColumn_({nullable: true})
+    validFrom!: number | undefined | null
+
+    /**
+     * block the claim window closes at
+     */
+    @IntColumn_({nullable: true})
+    expireAt!: number | undefined | null
+
+    /**
+     * block of the last Paid event, which sets a payout apart from an expiry since both end in SpendProcessed
+     */
+    @IntColumn_({nullable: true})
+    paidAt!: number | undefined | null
+
+    /**
+     * position of the spend call in the referendum's proposalCalls
+     */
+    @IntColumn_({nullable: true})
+    proposalCall!: number | undefined | null
 }

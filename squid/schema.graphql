@@ -384,11 +384,12 @@ type Referendum @entity {
   "the call a proposal runs, read back from the runtime whether it sits inline or behind a preimage"
   proposalPallet: String @index
   proposalMethod: String @index
-  proposalArgs: JSON
-  "the proposal call tree flattened in preorder, spend nodes carrying what they pay and when"
+  "the proposal call tree flattened in preorder, each node with its address and args, spend nodes carrying what they pay and when"
   proposalCalls: JSON
   "what the proposal asks the treasury for, summed over its spends"
   proposalAmount: BigInt
+  "how many spends the proposal holds, more than one makes it staged"
+  proposalPayouts: Int
   "set when every spend pays one account"
   proposalBeneficiary: String
   "bounty this referendum moves to approve, taken from the proposal call"
@@ -576,6 +577,14 @@ type TreasurySpend @entity {
   block: Int!
   "indexInBlock of the event that approved the spend"
   indexInBlock: Int!
+  "first block a spend can be claimed at, spend_local has no window"
+  validFrom: Int
+  "block the claim window closes at"
+  expireAt: Int
+  "block of the last Paid event, which sets a payout apart from an expiry since both end in SpendProcessed"
+  paidAt: Int
+  "position of the spend call in the referendum's proposalCalls"
+  proposalCall: Int
 }
 
 type Bounty @entity {

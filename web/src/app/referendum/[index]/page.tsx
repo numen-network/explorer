@@ -3,7 +3,6 @@ import type {LucideIcon} from 'lucide-react'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import Markdown from '@/components/Markdown'
-import {ArgsView} from '@/components/ArgsTable'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
@@ -11,18 +10,20 @@ import {CurvesChart, type TallyStep} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import Approx from '@/components/Approx'
 import {BlockLink} from '@/components/links'
-import {Gauge, ProposalTree, ReferendumByline} from '@/components/referenda'
+import {CallTree} from '@/components/CallTree'
+import {Gauge, ReferendumByline} from '@/components/referenda'
+import {RequestCard, requestAccounts} from '@/components/RequestCard'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
 import {Badge} from '@/components/ui/badge'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
-import {describeArgs} from '@/lib/args'
+import {withProposalViews} from '@/lib/args'
 import {chainDbHead, chainProps} from '@/lib/chain'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
-import {accountRefs, eventsByIds, referendumDetail, specVersionAt, tallySnapshots, type TimelineEventRow} from '@/lib/gql'
+import {accountRefs, bountiesByIndex, eventsByIds, referendumDetail, specVersionAt, tallySnapshots, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
 import {ss58Encode} from '@/lib/ss58'
@@ -125,10 +126,10 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const trail = rawSteps(r.timeline)
     const nodes = r.proposalCalls ?? []
-    const payees = nodes.map(node => node.beneficiary)
-    const partyIds = [...new Set([...payees, r.proposalBeneficiary, r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
+    const partyIds = [...new Set([...requestAccounts(nodes), r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
+    const bountyIds = nodes.flatMap(node => (node.bounty != null ? [node.bounty] : []))
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
-    const [refs, evs, textEvs, votes, actions, stats, spec] = await Promise.all([
+    const [refs, evs, textEvs, votes, actions, stats, spec, bounties] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.metadataActions.map(a => a.id)),
@@ -136,9 +137,10 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
         specVersionAt(r.submittedAt),
+        bountyIds.length > 0 ? bountiesByIndex(bountyIds) : {bounties: []},
     ])
-    const proposalView = r.proposalPallet && r.proposalMethod ? describeArgs({pallet: r.proposalPallet, method: r.proposalMethod, args: r.proposalArgs, specVersion: spec, nested: false}) : null
-    await markArgs([proposalView])
+    const callRows = withProposalViews(nodes, spec)
+    await markArgs(callRows.map(c => c.view))
     const stepOf = new Map(trail.map(s => [s.event, s]))
     const rank = (e: TimelineEventRow) => EXTRINSIC_ORDER.indexOf(stepOf.get(e.id)!.name)
     const runs: TimelineEventRow[][] = []
@@ -214,6 +216,20 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     // enactment only starts once the referendum is approved, keep the card
     // up through that phase
+    const request = (
+        <RequestCard
+            index={r.index}
+            track={r.track.name}
+            nodes={nodes}
+            spends={data.spends}
+            enacted={trail.some(s => s.name === 'Scheduler.Dispatched')}
+            chain={chain}
+            head={head.height}
+            party={party}
+            bounties={new Map(bounties.bounties.map(b => [b.index, b.value]))}
+        />
+    )
+
     const status = (!ended || r.status === 'Approved') && (
         <Card className="gap-3 py-4 [--card-spacing:--spacing(5)]">
             <CardHeader>
@@ -314,26 +330,16 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         </div>
     )
 
-    const spends = nodes.filter(node => node.amount != null)
-    const call = (
-        <DetailCard>
-            {nodes.length === 0 ? (
+    const call =
+        nodes.length === 0 ? (
+            <DetailCard>
                 <DetailRow label="Call">
                     <span className="text-dim">Nothing here reads back as a call</span>
                 </DetailRow>
-            ) : (
-                <>
-                    <ProposalTree nodes={nodes} chain={chain} head={head.height} party={party} />
-                    {spends.length > 1 && r.proposalAmount != null && (
-                        <DetailRow label="Total">{fmtBalance(r.proposalAmount, chain.decimals, chain.symbol)}</DetailRow>
-                    )}
-                    <DetailRow label="Args">
-                        <ArgsView node={proposalView} raw={r.proposalArgs} chain={chain} />
-                    </DetailRow>
-                </>
-            )}
-        </DetailCard>
-    )
+            </DetailCard>
+        ) : (
+            <CallTree calls={callRows} chain={chain} />
+        )
 
     const metadata = (
         <DetailCard>
@@ -490,6 +496,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 </Card>
 
                 <div className="space-y-4 lg:row-span-2">
+                    {request}
                     {status}
                     {tally}
                 </div>

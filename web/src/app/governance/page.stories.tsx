@@ -67,11 +67,11 @@ export const ReferendaIndexBehind: StoryObj = {
     },
 }
 
-const tranche = (amount: number) => ({pallet: 'Treasury', method: 'spend', depth: 1, amount: numn(amount), beneficiary: PEOPLE[0].id, validFrom: null})
+const tranche = (amount: number) => ({__kind: 'Treasury', value: {__kind: 'spend', assetKind: null, amount: numn(amount), beneficiary: PEOPLE[0].id, validFrom: null}})
 
 // a grant staged over four spends counts its payouts after the total
 export const ReferendaStagedPayouts: StoryObj = {
-    ...referendaTab([{...referenda[5], id: '13', index: 13, title: 'Staged grant paid out in four tranches', ...proposal([{pallet: 'Utility', method: 'batch_all', depth: 0}, ...[200_000, 150_000, 120_000, 80_000].map(tranche)], null)}]),
+    ...referendaTab([{...referenda[5], id: '13', index: 13, title: 'Staged grant paid out in four tranches', ...proposal({__kind: 'Utility', value: {__kind: 'batch_all', calls: [200_000, 150_000, 120_000, 80_000].map(tranche)}})}]),
     play: all(async ({canvas}) => expect(canvas.getByText('· 4 payouts')).toBeVisible(), referendumCardsFit),
 }
 

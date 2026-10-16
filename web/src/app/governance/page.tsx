@@ -8,7 +8,7 @@ import {TabBar} from '@/components/Tabs'
 import {Tip} from '@/components/Tip'
 import {FilterSelect} from '@/components/pills'
 import {ThresholdChart} from '@/components/charts'
-import {payouts, ReferendumByline, ThresholdBar} from '@/components/referenda'
+import {ReferendumByline, ThresholdBar} from '@/components/referenda'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {curveAt, type Curve} from '@/lib/curves'
@@ -112,7 +112,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     <>
                                         <span className="font-semibold">{fmtInt(truncFixed(r.proposalAmount, 0, chain.decimals))}</span>{' '}
                                         <span className="font-medium text-dim">{chain.symbol}</span>
-                                        {payouts(r.proposalCalls) > 1 && <span className="text-muted-foreground"> · {fmtCount(payouts(r.proposalCalls), 'payout')}</span>}
+                                        {r.proposalPayouts != null && r.proposalPayouts > 1 && <span className="text-muted-foreground"> · {fmtCount(r.proposalPayouts, 'payout')}</span>}
                                     </>
                                 ) : (
                                     <span className="text-muted-foreground">{r.proposalMethod ?? ''}</span>

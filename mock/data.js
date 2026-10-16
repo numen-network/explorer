@@ -29,8 +29,8 @@ const step = (name, block, index) => ({name, block, event: `${String(block).padS
 const spend = (amount, beneficiary) => ({
     proposalPallet: 'Treasury',
     proposalMethod: 'spend',
-    proposalArgs: {amount: numn(amount), validFrom: null, beneficiary},
-    proposalCalls: [{pallet: 'Treasury', method: 'spend', depth: 0, amount: numn(amount), beneficiary, validFrom: null}],
+    proposalCalls: [{pallet: 'Treasury', method: 'spend', address: [], args: {amount: numn(amount), validFrom: null, beneficiary}, amount: numn(amount), beneficiary, validFrom: null}],
+    proposalPayouts: 1,
     proposalAmount: numn(amount),
     proposalBeneficiary: beneficiary,
 })
@@ -133,8 +133,8 @@ export const referenda = [
         title: 'Voting inside the prepare period with the decision deposit already in',
         proposalPallet: 'System',
         proposalMethod: 'remark',
-        proposalArgs: {remark: hex('Fund a community translation sprint')},
-        proposalCalls: [{pallet: 'System', method: 'remark', depth: 0}],
+        proposalCalls: [{pallet: 'System', method: 'remark', address: [], args: {remark: hex('Fund a community translation sprint')}}],
+        proposalPayouts: 0,
         steps: [
             step('Referenda.Submitted', 999_700, 2),
             step('Referenda.DecisionDepositPlaced', 999_705, 4),
@@ -250,8 +250,8 @@ export const referenda = [
         title: null,
         proposalPallet: 'System',
         proposalMethod: 'remark',
-        proposalArgs: {remark: hex('Ship a native mobile wallet')},
-        proposalCalls: [{pallet: 'System', method: 'remark', depth: 0}],
+        proposalCalls: [{pallet: 'System', method: 'remark', address: [], args: {remark: hex('Ship a native mobile wallet')}}],
+        proposalPayouts: 0,
         steps: [
             step('Referenda.Submitted', 700_000, 3),
             step('Referenda.TimedOut', 820_960, 0),
@@ -269,8 +269,8 @@ export const referenda = [
         title: 'Cancelled non-spend proposal with both deposits refunded',
         proposalPallet: 'Identity',
         proposalMethod: 'add_registrar',
-        proposalArgs: {account: {__kind: 'Id', value: account(5)}},
-        proposalCalls: [{pallet: 'Identity', method: 'add_registrar', depth: 0}],
+        proposalCalls: [{pallet: 'Identity', method: 'add_registrar', address: [], args: {account: {__kind: 'Id', value: account(5)}}}],
+        proposalPayouts: 0,
         steps: [
             step('Referenda.Submitted', 640_000, 4),
             step('Referenda.DecisionDepositPlaced', 640_100, 2),

@@ -37,6 +37,7 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         await loadTouchedSpends(ctx, batch)
         for (const ev of batch.govEvents) applyGovEvent(batch, ev)
         await applyProposals(batch, rpc)
+        matchEnactedSpends(batch)
         await applyMetadata(batch, rpc)
         await logVotingActions(ctx, batch)
         await snapshotTallies(ctx, batch)
@@ -447,14 +448,15 @@ export function enactmentId(index: number): string {
 type Call = {name: string; args: any}
 
 /**
- * One call out of a proposal, kept in the order the chain would run it. Depth
- * is what puts a batch back together, since a flat list of nodes reads out as a
- * tree without carrying one.
+ * One call out of a proposal, kept in the order the chain would run it. The
+ * address is what puts a batch back together the way Call rows do, its length
+ * is the depth.
  */
-interface ProposalNode {
+export interface ProposalNode {
     pallet: string
     method: string
-    depth: number
+    address: number[]
+    args: unknown
     /** Planck, held as a string because this lands in a json column. */
     amount?: string
     beneficiary?: string
@@ -480,16 +482,16 @@ async function applyProposals(batch: BatchData, rpc: RpcClient): Promise<void> {
         if (call == null) continue
 
         const nodes: ProposalNode[] = []
-        walkProposal(call, runtime, nodes, 0)
+        walkProposal(call, runtime, nodes, [])
         r.proposalPallet = nodes[0].pallet
         r.proposalMethod = nodes[0].method
-        r.proposalArgs = toJSON(call.args)
         r.proposalCalls = nodes
 
         const bounty = nodes.find(node => node.bounty != null)
         if (bounty != null) r.proposalBountyIndex = bounty.bounty
 
         const spends = nodes.filter(node => node.amount != null)
+        r.proposalPayouts = spends.length
         if (spends.length === 0) continue
         r.proposalAmount = spends.reduce((sum, spend) => sum + BigInt(spend.amount!), 0n)
         const payees = new Set(spends.map(spend => spend.beneficiary))
@@ -507,14 +509,14 @@ async function proposalCall(rpc: RpcClient, proposal: any, height: number, runti
     return decodeCall(bytes, runtime)
 }
 
-function walkProposal(call: Call, runtime: Runtime, nodes: ProposalNode[], depth: number): void {
+function walkProposal(call: Call, runtime: Runtime, nodes: ProposalNode[], address: number[]): void {
     const [pallet, method] = call.name.split('.')
-    nodes.push(Object.assign({pallet, method, depth}, readSpend(call), readBounty(call)))
+    nodes.push(Object.assign({pallet, method, address, args: toJSON(call.args)}, readSpend(call), readBounty(call)))
 
-    if (!BATCH_CALLS.has(call.name) || depth >= MAX_PROPOSAL_DEPTH) return
-    for (const inner of call.args.calls ?? []) {
+    if (!BATCH_CALLS.has(call.name) || address.length >= MAX_PROPOSAL_DEPTH) return
+    for (const [i, inner] of (call.args.calls ?? []).entries()) {
         const record = decodeInner(inner, runtime)
-        if (record != null) walkProposal(record, runtime, nodes, depth + 1)
+        if (record != null) walkProposal(record, runtime, nodes, [...address, i])
     }
 }
 
@@ -734,10 +736,35 @@ function applyDispatch(batch: BatchData, ev: GovEvent): void {
     const r = batch.referenda.get(index)
     const result = ev.args.result
     if (r != null) pushTimeline(r, ev, {error: result.__kind === 'Err' ? dispatchErrorName(result.value, ev.header._runtime) : null})
-    for (const spendId of pending) {
-        const s = batch.spends.get(spendId)
-        if (s != null) s.referendum = new Referendum({id: String(index)})
+    const spends = pending.map(spendId => batch.spends.get(spendId)).filter(s => s != null)
+    for (const s of spends) s.referendum = new Referendum({id: String(index)})
+    batch.enacted.push({index, height: ev.height, spends})
+}
+
+// spends land in the order their calls ran, and a batch that skips a failed
+// call leaves a gap, so each spend takes the next call it could have come from
+function matchEnactedSpends(batch: BatchData): void {
+    for (const {index, height, spends} of batch.enacted) {
+        const nodes = batch.referenda.get(index)?.proposalCalls as ProposalNode[] | null | undefined
+        if (nodes != null) matchSpendCalls(spends, nodes, height)
     }
+}
+
+export function matchSpendCalls(spends: TreasurySpend[], nodes: ProposalNode[], height: number): void {
+    let next = 0
+    for (const s of spends) {
+        const at = nodes.findIndex((node, i) => i >= next && fromCall(s, node, height))
+        if (at < 0) throw new Error(`spend ${s.id} matches no call of its referendum`)
+        s.proposalCall = at
+        next = at + 1
+    }
+}
+
+// a spend without valid_from opens at the block that dispatched it
+function fromCall(s: TreasurySpend, node: ProposalNode, height: number): boolean {
+    if (`${node.pallet}.${node.method}` !== `Treasury.${s.kind}`) return false
+    if (node.beneficiary !== s.beneficiary.id || node.amount !== String(s.amount)) return false
+    return s.kind !== 'spend' || (node.validFrom ?? height) === s.validFrom
 }
 
 // a module error is a pallet index and an index into that pallet's error enum,
@@ -799,6 +826,7 @@ function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): voi
         const s = batch.spends.get(id)
         if (s == null) throw new Error(`Treasury.${method} names spend ${id}, which was never approved`)
         s.status = method
+        if (method === 'Paid') s.paidAt = ev.height
         return
     }
     batch.spendsAtHeight.set(ev.height, [...(batch.spendsAtHeight.get(ev.height) ?? []), id])
@@ -812,6 +840,10 @@ function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): voi
             status: method,
             block: ev.height,
             indexInBlock: ev.indexInBlock,
+            validFrom: args.validFrom ?? null,
+            expireAt: args.expireAt ?? null,
+            paidAt: null,
+            proposalCall: null,
         })
     )
 }

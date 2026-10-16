@@ -6,8 +6,8 @@ import DotRow from '@/components/DotRow'
 import {TimeCell} from '@/components/TimeCell'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtBalance, fmtPct, fmtSpan, pctToNum, trackLabel} from '@/lib/format'
-import type {AccountRef, ProposalNode, ReferendumRow} from '@/lib/gql'
+import {camelLabel, fmtPct, pctToNum, trackLabel} from '@/lib/format'
+import type {ReferendumRow} from '@/lib/gql'
 import {phaseOf, type Phase} from '@/lib/referendum'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -81,41 +81,6 @@ export function ThresholdBar({label, part, whole, need, variant, foot}: {label: 
                 <Gauge value={value} need={need} variant={variant} />
             </div>
             {foot && <div className="mt-1 flex justify-between gap-2 font-mono text-[10px] text-muted-foreground">{foot}</div>}
-        </div>
-    )
-}
-
-/** How many payouts a proposal books, which is what makes one staged. */
-export const payouts = (nodes: ProposalNode[] | null) => (nodes ?? []).filter(node => node.amount != null).length
-
-// a payout the chain still holds back says how long is left on it
-function release(validFrom: number | null | undefined, head: number, blockTime: number): string {
-    if (validFrom == null || validFrom <= head) return 'immediately'
-    return `in ${fmtSpan((validFrom - head) * blockTime)}`
-}
-
-/**
- * The call a referendum runs, read out as the tree the chain would run.
- * Depth is the indent, and a spend says what it pays and when it opens.
- */
-export function ProposalTree({nodes, chain, head, party}: {nodes: ProposalNode[]; chain: ChainProps; head: number; party: Map<string, AccountRef>}) {
-    return (
-        <div className="divide-y">
-            {nodes.map((node, i) => (
-                <div key={i} className="flex flex-col gap-1 px-5 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                    <span className="shrink-0 font-mono text-[13px]" style={{paddingLeft: `${node.depth * 22}px`}}>
-                        {node.pallet}.{node.method}
-                    </span>
-                    {node.amount != null && node.beneficiary != null && (
-                        <span className="flex min-w-0 flex-wrap items-center gap-2">
-                            <span className="font-semibold">{fmtBalance(node.amount, chain.decimals, chain.symbol)}</span>
-                            <span className="text-muted-foreground">to</span>
-                            <AccountLink addr={ss58Encode(node.beneficiary, chain.ss58)} acc={party.get(node.beneficiary)} />
-                            <span className="text-dim">{release(node.validFrom, head, chain.blockTime)}</span>
-                        </span>
-                    )}
-                </div>
-            ))}
         </div>
     )
 }
