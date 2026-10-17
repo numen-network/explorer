@@ -47,7 +47,7 @@ export function AccountsTable({rows, chain, issuance}: {rows: AccountListRow[]; 
             col.display({id: 'share', header: 'Share', meta: {align: 'right'}, cell: ({row}) => <ShareBar part={row.original.balance} whole={issuance} />}),
             col.display({id: 'extrinsics', header: 'Extrinsics', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.nonce)}),
             col.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.firstSeenBlock} />}),
-            col.display({id: 'last', header: 'Last active', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.lastActiveBlock} />}),
+            col.display({id: 'last', header: 'Last active', meta: {align: 'right'}, cell: ({row}) => row.original.lastActiveBlock != null && <BlockLink height={row.original.lastActiveBlock} />}),
         ])
     }, [chain, issuance])
     return <DataTable columns={columns} rows={rows} getRowId={a => a.id} />

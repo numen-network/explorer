@@ -101,7 +101,7 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     const timestamp = h.timestamp ? new Date(h.timestamp) : null
     if (h.height > 0 && !timestamp) throw new Error(`block ${h.height} has no timestamp inherent`)
     const [difficulty, balances] = await Promise.all([currentDifficulty(h), balanceSnapshot(h)])
-    const miner = author ? batch.touch(author, h.height) : undefined
+    const miner = author ? batch.act(author, h.height) : undefined
     if (miner != null) miner.lastMinedTimestamp = timestamp
     const block = new Block({
         id: h.id,
@@ -229,9 +229,10 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
         extrinsic.tip = gasUsed * (decoded.gasPrice - baseFee)
         // canonical home of the tx payload is EvmTransaction, keep the call row lean
         batch.callById.get(ext.call!.id)!.args = null
-        batch.touch(evmMappedAccount(decoded.from), h.height).evmAddress = decoded.from
+        batch.act(evmMappedAccount(decoded.from), h.height).evmAddress = decoded.from
         // a transaction counts once for each address that sent, received or created it
         for (const addr of new Set([decoded.from, decoded.to ?? decoded.contractAddress!])) batch.touchEvm(addr, h.height, 1)
+        batch.actEvm(decoded.from, h.height)
         const evmTx = new EvmTransaction({
             id: decoded.hash,
             extrinsic,
@@ -361,7 +362,7 @@ async function finalizeEvmAddresses(ctx: Ctx, batch: BatchData): Promise<void> {
     for (const stored of await ctx.store.findBy(EvmAddress, {id: In([...batch.evmAddresses.keys()])})) {
         const draft = batch.evmAddresses.get(stored.id)!
         stored.txCount += draft.txCount
-        stored.lastActiveBlock = draft.lastActiveBlock
+        stored.lastActiveBlock = draft.lastActiveBlock ?? stored.lastActiveBlock
         batch.evmAddresses.set(stored.id, stored)
     }
 }
@@ -391,7 +392,7 @@ function mapExtrinsic(batch: BatchData, block: Block, ext: ExtrinsicData<Fields>
         hash: ext.hash,
         pallet,
         method,
-        signer: signer ? batch.touch(signer, block.height) : undefined,
+        signer: signer ? batch.act(signer, block.height) : undefined,
         success: ext.success,
         error: ext.error != null ? toJSON(ext.error) : undefined,
         tip: ext.tip,
@@ -442,7 +443,7 @@ function mapCalls(batch: BatchData, block: Block, calls: CallData<Fields>[], eve
         const extrinsic = call.extrinsic != null ? batch.extrinsicById.get(call.extrinsic.id) : undefined
         if (extrinsic == null) throw new Error(`call ${call.id} belongs to no extrinsic`)
         const origin = originOf(call)
-        addCall(batch, block, extrinsic, nodes.get(call.id)!, origin ? batch.touch(origin, block.height) : undefined)
+        addCall(batch, block, extrinsic, nodes.get(call.id)!, origin ? batch.act(origin, block.height) : undefined)
         if (call.address.length > 0) continue
         for (const node of missingCalls(nodes.get(call.id)!, nodes, id => raised.get(id) ?? [], runtime)) addCall(batch, block, extrinsic, node, undefined)
     }
@@ -570,7 +571,7 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
     }
     for (const e of existing) {
         const draft = batch.accounts.get(e.id)!
-        e.lastActiveBlock = draft.lastActiveBlock
+        e.lastActiveBlock = draft.lastActiveBlock ?? e.lastActiveBlock
         if (draft.lastMinedTimestamp != null) e.lastMinedTimestamp = draft.lastMinedTimestamp
         if (draft.evmAddress != null) e.evmAddress = draft.evmAddress
         batch.accounts.set(e.id, e)

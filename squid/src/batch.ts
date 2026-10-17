@@ -166,23 +166,34 @@ export class BatchData {
     minerDays: MinerDayStat[] = []
 
     // block mapping touches in chain order but the finalize steps touch at their
-    // own event heights afterwards, so the earliest and the latest height win
+    // own event heights afterwards, so the earliest height wins
     touch(id: string, height: number): Account {
         let a = this.accounts.get(id)
         if (a == null) {
-            a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: height})
+            a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: null})
             this.accounts.set(id, a)
         }
         a.firstSeenBlock = Math.min(a.firstSeenBlock, height)
-        a.lastActiveBlock = Math.max(a.lastActiveBlock, height)
+        return a
+    }
+
+    // signing, sealing a block or dispatching a call as its origin, nothing
+    // that happens to an account
+    act(id: string, height: number): Account {
+        const a = this.touch(id, height)
+        a.lastActiveBlock = Math.max(a.lastActiveBlock ?? height, height)
         return a
     }
 
     // only EVM mapping touches these, and it walks the blocks in chain order
     touchEvm(addr: string, height: number, txs: number): void {
-        const a = this.evmAddresses.get(addr) ?? new EvmAddress({id: addr, txCount: 0, firstSeenBlock: height})
+        const a = this.evmAddresses.get(addr) ?? new EvmAddress({id: addr, txCount: 0, firstSeenBlock: height, lastActiveBlock: null})
         a.txCount += txs
-        a.lastActiveBlock = height
         this.evmAddresses.set(addr, a)
+    }
+
+    // only sending a transaction, a contract never sends one
+    actEvm(addr: string, height: number): void {
+        this.evmAddresses.get(addr)!.lastActiveBlock = height
     }
 }

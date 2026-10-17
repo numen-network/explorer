@@ -127,16 +127,17 @@ export const NoMetadata = {...tokenPage(bare, {holders: holders(bare, 5)}), play
 export const NoMetadataTransfers = tokenPage(bare, {transfers: rows(5, (h: number, i: number) => tokenTransfer(token(1), h, i, {token: bare}))}, TRANSFERS_TAB)
 
 // a holder just short of half the largest supply with as many transactions as
-// the index can count, and one holding its smallest unit
+// the index can count, and one holding its smallest unit that never sent one
 export const ExtremeNumbers: StoryObj = {
     ...tokenPage(huge, {
         holders: [holder(huge, evmAddress(0), (BigInt(UINT256_MAX) / 2n).toString()), holder(huge, evmAddress(1), '1')],
-        tallies: [{id: evmAddress(0), txCount: 2_147_483_647, firstSeenBlock: 0, lastActiveBlock: HEAD}, activity(evmAddress(1), 1)],
+        tallies: [{id: evmAddress(0), txCount: 2_147_483_647, firstSeenBlock: 0, lastActiveBlock: HEAD}, {...activity(evmAddress(1), 1), lastActiveBlock: null}],
     }),
     play: async ({canvasElement}) => {
         expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
         await expect(shares(canvasElement)).toEqual(['49.99%', '<0.01%'])
         await expect(columnTexts(canvasElement, 'Transactions')).toEqual(['2,147,483,647', '37'])
+        expect(columnTexts(canvasElement, 'Last active')).toEqual([`#${fmtInt(HEAD)}`, ''])
     },
 }
 

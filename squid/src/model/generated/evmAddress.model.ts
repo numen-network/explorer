@@ -25,8 +25,8 @@ export class EvmAddress {
     firstSeenBlock!: number
 
     /**
-     * latest block holding one of its transactions or token transfers
+     * latest block where it sent an EVM transaction, null if it never sent one
      */
-    @IntColumn_({nullable: false})
-    lastActiveBlock!: number
+    @IntColumn_({nullable: true})
+    lastActiveBlock!: number | undefined | null
 }

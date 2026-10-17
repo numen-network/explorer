@@ -85,7 +85,10 @@ export const ExtremeNumbers: StoryObj = {
         {...row(PEOPLE[7], MAX_U128, 0), nonce: 2_147_483_647, firstSeenBlock: 0, lastActiveBlock: HEAD},
         row(PEOPLE[8], numn(0.000001), 1),
         {...row(acct(19), PLANCK, 2), nonce: 0},
-        {...row(acct(20), '0', 3), nonce: 0, firstSeenBlock: HEAD, lastActiveBlock: HEAD},
+        {...row(acct(20), '0', 3), nonce: 0, firstSeenBlock: HEAD, lastActiveBlock: null},
     ]),
-    play: async ({canvas}) => expect(canvas.getByRole('cell', {name: '2,147,483,647'})).toBeVisible(),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByRole('cell', {name: '2,147,483,647'})).toBeVisible()
+        expect(columnTexts(canvasElement, 'Last active')[3]).toBe('')
+    },
 }

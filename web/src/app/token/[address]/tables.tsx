@@ -27,7 +27,7 @@ export function HoldersTable({rows, offset, supply, decimals, symbol}: {rows: Ho
                 hcol.display({id: 'share', header: 'Share', meta: {align: 'right'}, cell: ({row}) => <ShareBar part={row.original.balance} whole={supply} />}),
                 hcol.display({id: 'txs', header: 'Transactions', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.activity.txCount)}),
                 hcol.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.activity.firstSeenBlock} />}),
-                hcol.display({id: 'last', header: 'Last active', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.activity.lastActiveBlock} />}),
+                hcol.display({id: 'last', header: 'Last active', meta: {align: 'right'}, cell: ({row}) => row.original.activity.lastActiveBlock != null && <BlockLink height={row.original.activity.lastActiveBlock} />}),
             ]),
         [offset, supply, decimals, symbol]
     )

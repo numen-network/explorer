@@ -254,11 +254,14 @@ export const QrCode: StoryObj = {
 // born at genesis, which carries no timestamp, so its active age has no figure
 export const Treasury: StoryObj = {
     ...story({
-        account: subject({id: TREASURY.id, ...funds(issuance.treasuryPot), nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: null}),
+        account: subject({id: TREASURY.id, ...funds(issuance.treasuryPot), nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: null, lastActiveBlock: null}),
         transfers: rows(8, (h: number, i: number) => (i % 2 === 0 ? transfer(h, i, {from: TREASURY, extrinsic: null, call: null, amount: numn(5_000 * (i + 1))}) : transfer(h, i, {to: TREASURY}))),
         counts: {transfers: 312},
     }),
-    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'First seen')).toBe('#0—'),
+    play: async ({canvas, canvasElement}) => {
+        expect(rowValue(canvasElement, 'First seen')).toBe('#0—')
+        expect(canvas.queryByText('Last active')).toBeNull()
+    },
 }
 
 export const TransfersEmpty: StoryObj = {

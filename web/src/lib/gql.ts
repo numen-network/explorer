@@ -236,7 +236,7 @@ export interface AccountListRow extends AccountRef {
     balance: string
     nonce: number
     firstSeenBlock: number
-    lastActiveBlock: number
+    lastActiveBlock: number | null
 }
 
 export function accountsPage(limit: number, offset: number) {
@@ -406,7 +406,7 @@ export interface AccountRow extends AccountRef {
     nonce: number
     firstSeenBlock: number
     firstSeenTimestamp: string | null
-    lastActiveBlock: number
+    lastActiveBlock: number | null
     identityJson: unknown
     identitySuper?: AccountRef | null
     evmAddress: string | null
@@ -1160,7 +1160,7 @@ export interface EvmActivity {
     id: string
     txCount: number
     firstSeenBlock: number
-    lastActiveBlock: number
+    lastActiveBlock: number | null
 }
 
 export function evmActivity(addresses: string[]) {

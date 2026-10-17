@@ -83,7 +83,8 @@ type Account @entity {
   firstSeenBlock: Int!
   "timestamp of the first seen block, null for an account born at genesis"
   firstSeenTimestamp: DateTime @index
-  lastActiveBlock: Int! @index
+  "null for an account that never signed, sealed or dispatched anything"
+  lastActiveBlock: Int @index
   "when this account last sealed a block"
   lastMinedTimestamp: DateTime @index
   identityDisplay: String @index
@@ -257,8 +258,8 @@ type EvmAddress @entity {
   txCount: Int!
   "earliest block holding one of its transactions or token transfers"
   firstSeenBlock: Int!
-  "latest block holding one of its transactions or token transfers"
-  lastActiveBlock: Int!
+  "latest block where it sent an EVM transaction, null if it never sent one"
+  lastActiveBlock: Int
 }
 
 """every pallet and method the chain has actually seen at any depth of a call tree, so a call picker offers real options instead of a hardcoded list"""

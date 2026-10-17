@@ -66,7 +66,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const refIds = controlRefIds(s)
     const [evm, lastActiveTime, refs] = await Promise.all([
         a.evmAddress ? evmCounts(a.evmAddress) : {transfers: 0, holdings: 0, contracts: 0, tokens: 0},
-        blockTime(a.lastActiveBlock),
+        a.lastActiveBlock != null ? blockTime(a.lastActiveBlock) : null,
         refIds.length > 0 ? accountRefs(refIds).then(r => new Map(r.accounts.map(acc => [acc.id, acc]))) : new Map<string, AccountRef>(),
     ])
 
@@ -175,12 +175,14 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                                 <TimeCell iso={a.firstSeenTimestamp} cycle />
                             </span>
                         </DetailRow>
-                        <DetailRow label="Last active">
-                            <BlockLink height={a.lastActiveBlock} />
-                            <span className="ml-3 text-muted-foreground">
-                                <TimeCell iso={lastActiveTime} cycle />
-                            </span>
-                        </DetailRow>
+                        {a.lastActiveBlock != null && (
+                            <DetailRow label="Last active">
+                                <BlockLink height={a.lastActiveBlock} />
+                                <span className="ml-3 text-muted-foreground">
+                                    <TimeCell iso={lastActiveTime} cycle />
+                                </span>
+                            </DetailRow>
+                        )}
                         {a.evmAddress && (
                             <DetailRow label="EVM origin">
                                 <Link href={`/address/${a.evmAddress}`} className="text-primary hover:underline">

@@ -35,9 +35,12 @@ export class Account {
     @DateTimeColumn_({nullable: true})
     firstSeenTimestamp!: Date | undefined | null
 
+    /**
+     * null for an account that never signed, sealed or dispatched anything
+     */
     @Index_("idx_account_last_active_block_82d33d5a")
-    @IntColumn_({nullable: false})
-    lastActiveBlock!: number
+    @IntColumn_({nullable: true})
+    lastActiveBlock!: number | undefined | null
 
     /**
      * when this account last sealed a block
