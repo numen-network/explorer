@@ -1,15 +1,14 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import Balance from '@/components/Balance'
-import CopyBtn from '@/components/CopyBtn'
-import {AddrMark} from '@/components/addrHot'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import {TabBar, type Panel} from '@/components/Tabs'
+import {TimeCell} from '@/components/TimeCell'
 import {BlockLink} from '@/components/links'
-import {Badge, type BadgeVariant} from '@/components/ui/badge'
 import Delegations from '@/components/account/Delegations'
 import DelegationHistory from '@/components/account/DelegationHistory'
 import Extrinsics from '@/components/account/Extrinsics'
+import Header from '@/components/account/Header'
 import Holdings from '@/components/account/Holdings'
 import Identity from '@/components/account/Identity'
 import Judgements from '@/components/account/Judgements'
@@ -25,11 +24,12 @@ import Validator from '@/components/account/Validator'
 import Vesting from '@/components/account/Vesting'
 import Votes from '@/components/account/Votes'
 import VoteHistory from '@/components/account/VoteHistory'
-import {lockRows, schedules, tabHref, type TabCtx} from '@/components/account/shared'
+import {controlRefIds, controlRoles, lockRows, multisigRole, schedules, tabHref, type Role, type TabCtx} from '@/components/account/shared'
 import {chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
-import {fmtAge, fmtInt} from '@/lib/format'
-import {accountSummary, evmCounts} from '@/lib/gql'
+import {votesPower} from '@/lib/conviction'
+import {fmtInt} from '@/lib/format'
+import {accountRefs, accountSummary, blockTime, evmCounts, type AccountRef} from '@/lib/gql'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {PRIME, TREASURY} from '@/lib/wellKnown'
 
@@ -63,7 +63,12 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const a = s.accountById
     if (!a) notFound()
 
-    const evm = a.evmAddress ? await evmCounts(a.evmAddress) : {transfers: 0, holdings: 0, contracts: 0, tokens: 0}
+    const refIds = controlRefIds(s)
+    const [evm, lastActiveTime, refs] = await Promise.all([
+        a.evmAddress ? evmCounts(a.evmAddress) : {transfers: 0, holdings: 0, contracts: 0, tokens: 0},
+        blockTime(a.lastActiveBlock),
+        refIds.length > 0 ? accountRefs(refIds).then(r => new Map(r.accounts.map(acc => [acc.id, acc]))) : new Map<string, AccountRef>(),
+    ])
 
     const ctx: TabCtx = {hex, addr, chain, sp}
     const validator = s.validators[0]
@@ -87,7 +92,9 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
         return v !== MAX_U128 && v > m ? v : m
     }, 0n)
 
-    const roles: {text: string; tone: BadgeVariant}[] = []
+    const power = votesPower(a.balance, s.delegationsIn)
+
+    const roles: Role[] = []
     if (hex === chain.treasuryAccount) roles.push({text: TREASURY.label, tone: 'primary'})
     if (s.prime.length > 0) roles.push({text: PRIME.label, tone: 'warn'})
     if (validator) roles.push({text: validator.active ? 'Active validator' : 'Validator', tone: validator.active ? 'pos' : 'idle'})
@@ -97,8 +104,9 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (evm.contracts > evm.tokens) roles.push({text: 'Contract deployer', tone: 'idle'})
     if (s.curated.totalCount + s.childCurated.totalCount > 0) roles.push({text: 'Bounty curator', tone: 'idle'})
     if (s.nDelegIn.totalCount > 0) roles.push({text: 'Delegate', tone: 'idle'})
-    if (s.nMultisigSelf.totalCount > 0) roles.push({text: 'Multisig', tone: 'idle'})
+    if (s.nMultisigSelf.totalCount > 0) roles.push(multisigRole(s, refs, chain))
     if (s.nProxyIn.totalCount > 0) roles.push({text: 'Proxy', tone: 'idle'})
+    roles.push(...controlRoles(s, refs, chain))
 
     const tabs: Tab[] = [{slug: 'transfers', label: 'Native', group: 'Transfers', count: s.nTransfers.totalCount, body: () => <Transfers {...ctx} />}]
     if (a.evmAddress) tabs.push({slug: 'tokens', label: 'Tokens', group: 'Transfers', count: evm.transfers, body: () => <TokenTransfers {...ctx} evm={a.evmAddress!} />})
@@ -131,22 +139,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
 
     return (
         <div>
-            <div className="mt-6">
-                <h1 className="text-lg font-semibold">Account</h1>
-                <div className="mt-1.5 font-mono text-[15px] break-all">
-                    <AddrMark addr={addr}>{addr}</AddrMark>
-                    <CopyBtn text={addr} />
-                </div>
-                {roles.length > 0 && (
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        {roles.map(r => (
-                            <Badge key={r.text} variant={r.tone}>
-                                {r.text}
-                            </Badge>
-                        ))}
-                    </div>
-                )}
-            </div>
+            <Header a={a} addr={addr} roles={roles} />
 
             <div className={`mt-4 grid items-start gap-4 ${hasIdentity ? 'lg:grid-cols-2' : ''}`}>
                 <div>
@@ -169,13 +162,24 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                         <DetailRow label="Frozen">
                             <Balance planck={frozen} chain={chain} />
                         </DetailRow>
+                        <DetailRow label="Votes power **">
+                            <Balance planck={power.votesPower} chain={chain} />
+                        </DetailRow>
+                        <DetailRow label="Max delegations">
+                            <Balance planck={power.maxDelegations} chain={chain} />
+                        </DetailRow>
                         <DetailRow label="Nonce">{fmtInt(a.nonce)}</DetailRow>
                         <DetailRow label="First seen">
                             <BlockLink height={a.firstSeenBlock} />
-                            <span className="ml-3 text-xs text-dim">active age {fmtAge(a.firstSeenTimestamp)}</span>
+                            <span className="ml-3 text-muted-foreground">
+                                <TimeCell iso={a.firstSeenTimestamp} cycle />
+                            </span>
                         </DetailRow>
                         <DetailRow label="Last active">
                             <BlockLink height={a.lastActiveBlock} />
+                            <span className="ml-3 text-muted-foreground">
+                                <TimeCell iso={lastActiveTime} cycle />
+                            </span>
                         </DetailRow>
                         {a.evmAddress && (
                             <DetailRow label="EVM origin">
@@ -187,6 +191,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                         )}
                     </DetailCard>
                     <div className="mt-2 px-1 text-xs text-dim">* computed from on-chain data, not raw on-chain data</div>
+                    <div className="mt-1 px-1 text-xs text-dim">** balance × 6 + max delegated votes on one track</div>
                 </div>
                 {hasIdentity && <Identity a={a} chain={chain} retired={s.retiredRegistrars} />}
             </div>

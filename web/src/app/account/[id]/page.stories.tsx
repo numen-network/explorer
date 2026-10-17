@@ -1,5 +1,5 @@
 import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
-import {expect, within} from 'storybook/test'
+import {expect, waitFor, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {
@@ -32,6 +32,7 @@ import {
     proxyDelegates,
     proxyDelays,
     proxyFor,
+    pureCreatedBy,
     reservedOf,
     SIGNATORIES,
     subject,
@@ -89,9 +90,17 @@ const mapped = (traits = {}) => subject({evmAddress: SUBJECT_EVM, ...traits})
 const lock = (id: string, amount: string) => ({id, amount, reasons: id === 'validatr' ? 'All' : 'Misc'})
 const schedule = (locked: number, perBlock: number, startingBlock: number) => ({locked: numn(locked), perBlock: numn(perBlock), startingBlock})
 
-export const IdentityNone = story({transfers: accountTransfers(5)})
+const heading = (root: HTMLElement) => within(root).getByRole('heading', {level: 1}).textContent
 
-export const IdentityFull = story({account: named(identity('Aurora Labs', FULL_FIELDS)), transfers: accountTransfers(3)})
+export const IdentityNone: StoryObj = {
+    ...story({transfers: accountTransfers(5)}),
+    play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Account'),
+}
+
+export const IdentityFull: StoryObj = {
+    ...story({account: named(identity('Aurora Labs', FULL_FIELDS)), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Aurora Labs'),
+}
 
 export const IdentityDisplayOnly = story({account: named(identity('Aurora Labs')), transfers: accountTransfers(3)})
 
@@ -109,10 +118,16 @@ export const IdentityWithoutDisplay: StoryObj = {
 
 export const UsernameOnly: StoryObj = {
     ...story({account: subject({username: 'aurora.numen'}), transfers: accountTransfers(3)}),
-    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Username')).toBe('aurora.numen'),
+    play: async ({canvasElement}) => {
+        expect(rowValue(canvasElement, 'Username')).toBe('aurora.numen')
+        expect(heading(canvasElement)).toBe('aurora.numen')
+    },
 }
 
-export const SubIdentity = story({account: subject(subUnder(PEOPLE[0], 'payouts')), transfers: accountTransfers(3)})
+export const SubIdentity: StoryObj = {
+    ...story({account: subject(subUnder(PEOPLE[0], 'payouts')), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Polaris Guild/payouts'),
+}
 
 export const SubFiledUnderAHash: StoryObj = {
     ...story({
@@ -158,7 +173,10 @@ export const EveryRole: StoryObj = {
     play: async ({canvas}) => expectWholeWords(await canvas.findByText('mapped account of this H160')),
 }
 
-const roles = (root: HTMLElement) => [...within(root).getByRole('heading', {name: 'Account'}).parentElement!.querySelectorAll('[data-slot=badge]')].map(b => b.textContent)
+// a badge behind a Tip wears the trigger's data-slot, its variant stays its own
+const badges = (root: HTMLElement) => [...within(root).getByRole('heading', {level: 1}).parentElement!.querySelectorAll<HTMLElement>('span[data-variant]')]
+const roles = (root: HTMLElement) => badges(root).map(b => b.textContent)
+const tones = (root: HTMLElement) => Object.fromEntries(badges(root).map(b => [b.textContent, b.dataset.variant]))
 
 // the roles an account earns from the contracts and tokens it deployed
 const deployed = (contracts: number, tokens: number, earned: string[]): StoryObj => ({
@@ -176,6 +194,63 @@ export const DeployedManyTokens = deployed(150, 150, ['Token issuer · 150'])
 
 export const DeployedMoreContractsThanTokens = deployed(160, 150, ['Token issuer · 150', 'Contract deployer'])
 
+// spawned by Polaris Guild, which kept an Any proxy with no delay, beside a Governance proxy that waits 100 blocks
+export const PureProxy: StoryObj = {
+    ...story({
+        pure: pureCreatedBy(PEOPLE[0], HEAD - 9_000),
+        proxiesOut: [...proxyDelays(PEOPLE[0], 'Any', [0]), ...proxyDelays(PEOPLE[1], 'Governance', [100])],
+        refs: [PEOPLE[0]],
+        transfers: accountTransfers(3),
+    }),
+    play: async ({canvasElement}) => expect(tones(canvasElement)).toEqual({'Pure proxy': 'idle', 'Has proxies': 'warn'}),
+}
+
+// every proxy waits out a delay, so none can take over at once
+export const ProxiesDelayed: StoryObj = {
+    ...story({proxiesOut: proxyDelays(PEOPLE[0], 'Any', [100, 14_400]), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect(tones(canvasElement)).toEqual({'Has proxies': 'idle'}),
+}
+
+const multisigSelf = (threshold: number, signatories: string[]): StoryObj => ({
+    ...story({multisigOps: [multisigOp(0, {multisig: ME, depositor: PEOPLE[1], signatories, threshold})], refs: PEOPLE.slice(0, 3), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect(tones(canvasElement)).toEqual({[`Multisig ${threshold}/${signatories.length}`]: threshold === 1 || threshold === signatories.length ? 'warn' : 'idle'}),
+})
+
+export const MultisigTwoOfThree = multisigSelf(2, PEOPLE.slice(0, 3).map(p => p.id))
+
+export const MultisigOneOfTwo = multisigSelf(1, PEOPLE.slice(0, 2).map(p => p.id))
+
+export const MultisigThreeOfThree = multisigSelf(3, PEOPLE.slice(0, 3).map(p => p.id))
+
+// no call has named the signer set yet
+export const MultisigSignersUnknown: StoryObj = {
+    ...story({multisigOps: [multisigOp(0, {multisig: ME, depositor: PEOPLE[1]})], transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect(tones(canvasElement)).toEqual({Multisig: 'idle'}),
+}
+
+// 1,250.5 at 6x plus the 4,500 votes Root carries, the larger of its two tracks
+export const VotesPower: StoryObj = {
+    ...story({
+        delegationsIn: [...delegatedOnTracks(PEOPLE[1], TRACKS.slice(0, 2), numn(1_000)), ...delegatedOnTracks(PEOPLE[2], TRACKS.slice(0, 1), numn(500))],
+        transfers: accountTransfers(3),
+    }),
+    play: async ({canvasElement}) => {
+        expect(rowValue(canvasElement, 'Votes power **')).toBe('12,003.000000000000000000 NUMN')
+        expect(rowValue(canvasElement, 'Max delegations')).toBe('4,500.000000000000000000 NUMN')
+    },
+}
+
+export const QrCode: StoryObj = {
+    ...story({transfers: accountTransfers(3)}),
+    play: async ({canvas, userEvent}) => {
+        await userEvent.click(canvas.getByRole('button', {name: 'QR code'}))
+        const body = within(document.body)
+        const code = await body.findByRole('img', {name: `QR code for ${ss58Encode(SUBJECT, chainInfo.ss58)}`})
+        await waitFor(() => expect(code).toBeVisible())
+        await expect(body.getByRole('button', {name: 'Save PNG'})).toBeVisible()
+    },
+}
+
 // born at genesis, which carries no timestamp, so its active age has no figure
 export const Treasury: StoryObj = {
     ...story({
@@ -183,7 +258,7 @@ export const Treasury: StoryObj = {
         transfers: rows(8, (h: number, i: number) => (i % 2 === 0 ? transfer(h, i, {from: TREASURY, extrinsic: null, call: null, amount: numn(5_000 * (i + 1))}) : transfer(h, i, {to: TREASURY}))),
         counts: {transfers: 312},
     }),
-    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'First seen')).toBe('#0active age —'),
+    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'First seen')).toBe('#0—'),
 }
 
 export const TransfersEmpty: StoryObj = {

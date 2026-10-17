@@ -10,6 +10,17 @@ export function weigh(amount: string | bigint, conviction: string | null): bigin
     return level === 0 ? BigInt(amount) / 10n : BigInt(amount) * BigInt(level)
 }
 
+/**
+ * The most votes an account can bring to one referendum, its balance at the
+ * top conviction plus the most votes delegated to it on any one track.
+ */
+export function votesPower(balance: string, delegations: {balance: string; conviction: string; track: {id: string}}[]) {
+    const perTrack = new Map<string, bigint>()
+    for (const d of delegations) perTrack.set(d.track.id, (perTrack.get(d.track.id) ?? 0n) + weigh(d.balance, d.conviction))
+    const maxDelegations = [...perTrack.values()].reduce((m, v) => (v > m ? v : m), 0n)
+    return {votesPower: weigh(balance, 'Locked6x') + maxDelegations, maxDelegations}
+}
+
 /** How many conviction periods a vote pays, doubling with each level. */
 export function lockPeriods(conviction: string | null): number {
     const level = convictionLevel(conviction)

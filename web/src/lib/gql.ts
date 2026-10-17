@@ -477,6 +477,12 @@ export interface AccountSummary {
     nVotes: {totalCount: number}
     nVoteHistory: {totalCount: number}
     nDelegHistory: {totalCount: number}
+    /** The proxies this account granted, the accounts that can act for it. */
+    proxiesOut: ProxyRow[]
+    /** The signer set of this account as a multisig, recovered from its latest call that names one. */
+    msigSet: {threshold: number | null; signatories: string[] | null}[]
+    pureCreated: {args: {who: string}; block: {height: number}}[]
+    delegationsIn: {balance: string; conviction: string; track: {id: string}}[]
 }
 
 /** Bounties whose proposal or curator deposit this account still has reserved. */
@@ -542,9 +548,18 @@ export function accountSummary(idHex: string) {
             nVotes: votesConnection(orderBy: id_ASC, where: {voter: ${self}}) { totalCount }
             nVoteHistory: votingActionsConnection(orderBy: id_ASC, where: ${OWN_VOTE_ACTIONS}) { totalCount }
             nDelegHistory: delegationActionsConnection(orderBy: id_ASC, where: ${delegationSide('')}) { totalCount }
+            proxiesOut: proxyRelations(where: {delegator: ${self}}, orderBy: [delegatee_id_ASC, proxyType_ASC, delay_ASC], limit: 100) { id proxyType delay delegatee { ${ACCOUNT_REF} } }
+            msigSet: multisigOps(where: {multisig: ${self}, signatories_isNull: false}, orderBy: [updatedBlock_DESC, id_DESC], limit: 1) { threshold signatories }
+            pureCreated: events(where: {pallet_eq: "Proxy", method_eq: "PureCreated", args_jsonContains: {pure: "${idHex}"}}, orderBy: id_ASC, limit: 1) { args block { height } }
+            delegationsIn: delegations(where: {target: ${self}}, orderBy: id_ASC) { balance conviction track { id } }
         }`,
         {id: idHex}
     )
+}
+
+export async function blockTime(height: number) {
+    const {blocks} = await gql<{blocks: {timestamp: string | null}[]}>(`query ($height: Int!) { blocks(where: {height_eq: $height}, limit: 1) { timestamp } }`, {height})
+    return blocks[0]?.timestamp ?? null
 }
 
 export async function evmCounts(address: string) {

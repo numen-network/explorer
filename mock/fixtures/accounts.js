@@ -472,6 +472,9 @@ export const tokenTransferCases = (height = HEAD - 3) => [
     tokenTransfer(height - 1, 1, {token: {id: TOKENS[3].id, symbol: TOKENS[3].symbol, decimals: 18}, amount: MAX_U128}),
 ]
 
+// the PureCreated event that spawned the subject, its args the way the index keeps them
+export const pureCreatedBy = (who, height) => ({args: {pure: SUBJECT, who: who.id, proxyType: 'Any', disambiguationIndex: 0}, block: {height}})
+
 const OPEN = ['NewMultisig', 'MultisigApproval']
 
 const count = n => ({totalCount: n})
@@ -513,6 +516,8 @@ export function accountPage({
     tokenTransfers = [],
     holdings = [],
     notHeld = [],
+    pure = null,
+    refs = [],
     counts = {},
 }) {
     const self = account.id
@@ -531,7 +536,7 @@ export function accountPage({
             where?.account ? (registrar == null ? [] : [{index: registrar}]) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
         primeStates: prime ? [{id: 'prime'}] : [],
         minerDayStats: minerDays,
-        blocks: args => (args.where?.author ? mined : base.blocks(args)),
+        blocks: args => (args.where?.author ? mined : args.where?.height_eq != null ? [{height: account.lastActiveBlock, timestamp: at(account.lastActiveBlock)}] : base.blocks(args)),
         blocksConnection: count(counts.mined ?? minerDays.reduce((n, d) => n + d.blocks, 0)),
         bountiesConnection: count(curated),
         childBountiesConnection: count(childCurated),
@@ -540,11 +545,11 @@ export function accountPage({
         extrinsicsConnection: count(counts.extrinsics ?? extrinsics.length),
         extrinsics,
         eventsConnection: count(counts.timeline ?? timeline.length),
-        events: timeline,
+        events: ({where}) => (where.method_eq === 'PureCreated' ? (pure ? [pure] : []) : timeline),
         judgements: ({where}) => (where.id_in ? verdicts : judged),
         judgementsConnection: count(counts.judged ?? judged.length),
         accountsConnection: count(counts.subs ?? subs.length),
-        accounts: subs,
+        accounts: ({where}) => (where?.id_in ? refs : subs),
         delegationsConnection: ({where}) => count(where.who ? delegationsOut.length : where.track ? perTrack(where.track.id_eq) : allIn),
         delegations: ({where}) => (where.who ? delegationsOut : where.track ? onTrack(where.track.id_eq) : delegationsIn),
         tracks: TRACKS,

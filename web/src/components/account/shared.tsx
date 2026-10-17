@@ -1,7 +1,11 @@
+import {shortAddr} from '@/components/AddressText'
 import {FilterRow} from '@/components/pills'
+import type {BadgeVariant} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {fmtCount} from '@/lib/format'
-import type {AccountRow, AccountSummary, BountyDepositRow, ChildBountyDepositRow, GovDepositRow, ValidatorRow} from '@/lib/gql'
+import {fmtCount, fmtInt, fmtSpan} from '@/lib/format'
+import type {AccountRef, AccountRow, AccountSummary, BountyDepositRow, ChildBountyDepositRow, GovDepositRow, ValidatorRow} from '@/lib/gql'
+import {identityLabel} from '@/lib/identity'
+import {ss58Encode} from '@/lib/ss58'
 import {variantName} from '@/lib/variant'
 
 export interface TabCtx {
@@ -207,3 +211,42 @@ export function lockRows(a: AccountRow, validator: ValidatorRow | undefined, s: 
         ...(rest > 0n ? ([{kind: 'Reserved', source: 'Unattributed', amount: rest, until: null, unattributed: true}] as LockRow[]) : []),
     ]
 }
+
+export interface Role {
+    text: string
+    tone: BadgeVariant
+    /** Lines its tooltip lists. */
+    tip?: string[]
+}
+
+const refName = (id: string, acc: AccountRef | undefined, chain: ChainProps) => identityLabel(acc) ?? shortAddr(ss58Encode(id, chain.ss58))
+
+// one signer alone can act, or one lost key locks the account
+export function multisigRole(s: AccountSummary, refs: Map<string, AccountRef>, chain: ChainProps): Role {
+    const set = s.msigSet[0]
+    if (set?.signatories == null || set.threshold == null) return {text: 'Multisig', tone: 'idle'}
+    const n = set.signatories.length
+    return {
+        text: `Multisig ${set.threshold}/${n}`,
+        tone: set.threshold === 1 || set.threshold === n ? 'warn' : 'idle',
+        tip: set.signatories.map(id => refName(id, refs.get(id), chain)),
+    }
+}
+
+// the accounts that can sign for this one, an Any proxy with no delay takes
+// over the moment it wants to
+export function controlRoles(s: AccountSummary, refs: Map<string, AccountRef>, chain: ChainProps): Role[] {
+    const roles: Role[] = []
+    const pure = s.pureCreated[0]
+    if (pure) roles.push({text: 'Pure proxy', tone: 'idle', tip: [`Created by ${refName(pure.args.who, refs.get(pure.args.who), chain)} at #${fmtInt(pure.block.height)}`]})
+    if (s.proxiesOut.length > 0)
+        roles.push({
+            text: 'Has proxies',
+            tone: s.proxiesOut.some(p => p.proxyType === 'Any' && p.delay === 0) ? 'warn' : 'idle',
+            tip: s.proxiesOut.map(p => `${p.proxyType} · ${refName(p.delegatee!.id, p.delegatee, chain)} · ${p.delay > 0 ? `delay ${fmtSpan(p.delay * chain.blockTime)}` : 'no delay'}`),
+        })
+    return roles
+}
+
+/** Accounts the control roles name by id alone, whose identities take a lookup of their own. */
+export const controlRefIds = (s: AccountSummary) => [...new Set([...(s.pureCreated[0] ? [s.pureCreated[0].args.who] : []), ...(s.msigSet[0]?.signatories ?? [])])]

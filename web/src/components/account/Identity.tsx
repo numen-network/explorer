@@ -57,10 +57,14 @@ export default function Identity({a, chain, retired}: {a: AccountRow; chain: Cha
     const sup = a.identitySuper
     return (
         <div className="grid gap-4">
-            {(a.identityJson != null || a.username != null) && (
+            {a.identityJson != null && (
                 <DetailCard title="Identity">
-                    {a.identityJson != null && <Registration a={a} chain={chain} retired={retired} />}
-                    <DetailRow label="Username">{a.username ?? NONE}</DetailRow>
+                    <Registration a={a} chain={chain} retired={retired} />
+                </DetailCard>
+            )}
+            {(a.identityJson != null || a.username != null) && (
+                <DetailCard title="Username">
+                    <div className="px-5 py-2.5 font-mono text-sm wrap-anywhere">{a.username ?? NONE}</div>
                 </DetailCard>
             )}
             {sup && (
