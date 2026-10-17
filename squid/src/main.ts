@@ -37,6 +37,7 @@ const RPC_ENDPOINT = process.env.RPC_ENDPOINT
 if (!RPC_ENDPOINT) throw new Error('RPC_ENDPOINT is not set')
 
 const OBJECT_FETCH_CONCURRENCY = 8
+const BALANCE_EVENT_ACCOUNTS = ['who', 'account', 'from', 'to', 'source', 'dest']
 
 const rpc = new RpcClient({url: RPC_ENDPOINT})
 
@@ -142,7 +143,7 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         else if (call.name.startsWith('ChildBounties.')) collectBountyCall(batch, call.name, call.args, h.height)
     }
     const treasury = treasuryAccount(h)
-    for (const ev of b.events) mapEvent(batch, block, timestamp, ev, author, treasury)
+    for (const ev of b.events) mapEvent(batch, block, timestamp, ev, author)
     await mapEvm(batch, b, block, timestamp)
     let transferVolume = 0n
     for (let i = transfersBefore; i < batch.transfers.length; i++) transferVolume += batch.transfers[i].amount
@@ -454,7 +455,7 @@ function mapCalls(batch: BatchData, block: Block, calls: CallData<Fields>[], eve
     for (const [extrinsic, tree] of trees) extrinsic.leafCalls = leafCalls(tree)
 }
 
-function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields>, author: string | undefined, treasury: string): void {
+function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields>, author: string | undefined): void {
     const [pallet, method] = splitName(ev.name)
     const extrinsic = ev.extrinsic != null ? batch.extrinsicById.get(ev.extrinsic.id) : undefined
     const call = ev.call != null ? batch.callById.get(ev.call.id) : undefined
@@ -489,11 +490,10 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
             })
         )
     }
+    // every change to an account's balance data raises a Balances event naming it
+    if (pallet === 'Balances') for (const key of BALANCE_EVENT_ACCOUNTS) if (typeof ev.args?.[key] === 'string') batch.touch(ev.args[key], block.height)
     if (events.balances.deposit.v100.is(ev)) {
         const d = events.balances.deposit.v100.decode(ev)
-        // the treasury never signs, so its fee share is what keeps
-        // its account row current
-        if (d.who === treasury) batch.touch(treasury, block.height)
         // the reward is minted on finalization, after every extrinsic has run
         if (d.who === author && ev.phase === 'Finalization') block.reward += d.amount
     }
