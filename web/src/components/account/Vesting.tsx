@@ -27,10 +27,10 @@ export default async function Vesting({vest, chain}: {vest: Schedule[]; chain: C
                             <span className="text-xs text-muted-foreground">{fmtPct(done, v.locked)} released</span>
                         </div>
                         <Progress value={Math.min(100, pct)} className="mt-2 h-1.5 bg-background" />
-                        <dl className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">
+                        <dl className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-1.5 text-sm lg:grid-cols-2">
                             {rows.map(([label, value]) => (
-                                <div key={label} className="flex gap-4">
-                                    <dt className="w-36 shrink-0 text-muted-foreground">{label}</dt>
+                                <div key={label} className="flex flex-col sm:flex-row sm:gap-4">
+                                    <dt className="shrink-0 text-muted-foreground sm:w-36">{label}</dt>
                                     <dd className="min-w-0 font-mono">{value}</dd>
                                 </div>
                             ))}

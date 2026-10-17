@@ -429,6 +429,24 @@ export const VestingSchedules = story(
     {tab: 'vesting'}
 )
 
+// full-precision mainnet amounts keep inside the schedule card at every width
+export const VestingFullPrecision: StoryObj = {
+    ...story(
+        {
+            account: subject({
+                ...funds('890433818381069939076252', '0', '889683335677682244209740'),
+                vestingJson: [{locked: '890383818381069939076252', perBlock: '141169428332868776', startingBlock: 0}],
+                locksJson: [lock('vesting', '889683335677682244209740')],
+            }),
+        },
+        {tab: 'vesting'}
+    ),
+    play: async ({canvas, canvasElement}) => {
+        await canvas.findByText('Fully vested at')
+        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+    },
+}
+
 // indexed to the middle of the schedule while the chain has run past its end
 export const VestingIndexBehind: StoryObj = {
     ...behind(
