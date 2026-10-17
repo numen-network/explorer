@@ -36,10 +36,18 @@ function StatFigure({label, value, href}: Stat) {
 }
 
 // stats beside the main one move to a line of their own rather than squeeze it
-export default function StatTile({label, value, href, beside = [], chips, className}: Stat & {beside?: Stat[]; chips?: StatChip[]; className?: string}) {
+export default function StatTile({
+    label,
+    value,
+    href,
+    beside = [],
+    even,
+    chips,
+    className,
+}: Stat & {beside?: Stat[]; even?: boolean; chips?: StatChip[]; className?: string}) {
     return (
         <Card className={cn('gap-1 py-3.5 sm:py-4 sm:[--card-spacing:--spacing(5)]', className)}>
-            <CardHeader className="flex flex-wrap gap-x-10 gap-y-2">
+            <CardHeader className={cn('gap-x-10 gap-y-2', even ? 'flex flex-col sm:flex-row sm:*:flex-1 sm:*:basis-0' : 'flex flex-wrap')}>
                 {[{label, value, href}, ...beside].map(s => (
                     <StatFigure key={s.label} {...s} />
                 ))}

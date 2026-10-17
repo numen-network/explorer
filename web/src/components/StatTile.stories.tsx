@@ -119,3 +119,26 @@ export const HomeRow: Story = {
         </>
     ),
 }
+
+// figures share the tile evenly from sm up and stack below it
+export const Even: Story = {
+    args: {label: 'In lock', value: '700,000 NUMN', beside: [{label: 'Still vesting', value: '520,000 NUMN'}, {label: 'Releasable by vest', value: '180,000 NUMN'}], even: true},
+    decorators: [
+        Story => (
+            <div className="col-span-full">
+                <Story />
+            </div>
+        ),
+    ],
+    play: all(cardsFit, async ({canvasElement}) => {
+        const titles = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card-title]')]
+        const tops = new Set(figureTops(canvasElement))
+        if (matchMedia('(min-width: 40rem)').matches) {
+            expect(tops.size).toBe(1)
+            const widths = titles.map(t => t.parentElement!.getBoundingClientRect().width)
+            expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(1)
+        } else {
+            expect(tops.size).toBe(3)
+        }
+    }),
+}

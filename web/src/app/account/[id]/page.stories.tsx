@@ -418,16 +418,23 @@ export const LocksChildBounties: StoryObj = {
 
 export const VestingOne = story({account: subject({...funds(numn(1_001_250.5), '0', numn(400_000)), vestingJson: [PARTIAL], locksJson: [lock('vesting', numn(400_000))]})}, {tab: 'vesting'})
 
-export const VestingSchedules = story(
-    {
-        account: subject({
-            ...funds(numn(1_171_250.5), '0', numn(520_000)),
-            vestingJson: [schedule(120_000, 0.5, HEAD + 10_000), PARTIAL, schedule(50_000, 0.25, 100_000)],
-            locksJson: [lock('vesting', numn(520_000))],
-        }),
+// the lock still holds what vested since the last vest call
+export const VestingSchedules: StoryObj = {
+    ...story(
+        {
+            account: subject({
+                ...funds(numn(1_171_250.5), '0', numn(700_000)),
+                vestingJson: [schedule(120_000, 0.5, HEAD + 10_000), PARTIAL, schedule(50_000, 0.25, 100_000)],
+                locksJson: [lock('vesting', numn(700_000))],
+            }),
+        },
+        {tab: 'vesting'}
+    ),
+    play: async ({canvas}) => {
+        await expect(canvas.findByText('520,000 NUMN')).resolves.toBeInTheDocument()
+        expect(canvas.getByText('180,000 NUMN')).toBeInTheDocument()
     },
-    {tab: 'vesting'}
-)
+}
 
 // full-precision mainnet amounts keep inside the schedule card at every width
 export const VestingFullPrecision: StoryObj = {
@@ -455,7 +462,7 @@ export const VestingIndexBehind: StoryObj = {
         1_500_000,
         {tab: 'vesting'}
     ),
-    play: async ({canvas}) => expect(canvas.getByText('30.00% released')).toBeInTheDocument(),
+    play: async ({canvas}) => expect(canvas.getByText('30.00% vested')).toBeInTheDocument(),
 }
 
 export const TimelineOne = story({account: named(), timeline: [identitySet(HEAD - 10_000)]}, {tab: 'timeline'})

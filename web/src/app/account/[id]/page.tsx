@@ -113,7 +113,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (evm.holdings > 0) tabs.push({slug: 'holdings', label: 'Tokens', count: evm.holdings, body: () => <Holdings {...ctx} evm={a.evmAddress!} />})
     tabs.push({slug: 'extrinsics', label: 'Extrinsics', count: s.nExtrinsics.totalCount, body: () => <Extrinsics {...ctx} />})
     if (locks.length > 0) tabs.push({slug: 'locks', label: 'Locks', count: locks.length, body: () => <Locks rows={locks} chain={chain} />})
-    if (vest.length > 0) tabs.push({slug: 'vesting', label: 'Vesting', count: vest.length, body: () => <Vesting vest={vest} chain={chain} />})
+    if (vest.length > 0) tabs.push({slug: 'vesting', label: 'Vesting', count: vest.length, body: () => <Vesting vest={vest} inLock={BigInt(a.locksJson?.find(l => l.id === 'vesting')?.amount ?? 0)} chain={chain} />})
     // an account that cleared its identity keeps every event it ever raised, so
     // the tab answers to its own rows rather than to the identity standing now
     if (s.nTimeline.totalCount > 0)
