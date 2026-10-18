@@ -25,7 +25,7 @@ export default async function Votes({hex, addr, chain, sp, firstSeenBlock, locke
                 value={fmtInt(sum.all.totalCount)}
                 beside={[
                     {label: 'Active', value: fmtInt(sum.active.totalCount)},
-                    {label: 'Participation rate', value: sum.open.totalCount > 0 ? fmtPct(sum.all.totalCount, sum.open.totalCount) : '—'},
+                    {label: 'Participation rate', tip: 'Counts only referenda still open after the account first appeared', value: sum.open.totalCount > 0 ? fmtPct(sum.all.totalCount, sum.open.totalCount) : '—'},
                     {label: 'Total locked', value: <Approx planck={locked} decimals={chain.decimals} symbol={chain.symbol} breakable />},
                 ]}
                 pairs

@@ -910,11 +910,13 @@ export const VotesInOneBlock: StoryObj = {
     play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Referendum').map(t => t!.split(' · ')[0])).toEqual(['#11', '#10', '#9']),
 }
 
-// nine standing votes over 14 referenda open since the account showed up, #6 and #9 still deciding and the removed #8 left out
+// nine standing votes over 14 referenda open since the account showed up, #6 and #9 still deciding and the removed #8 left out, the rate's tip saying which referenda it counts
 export const VotesSummary: StoryObj = {
     ...story({account: voting(numn(250_000)), votes: voteRows(), counts: {referenda: 14}}, {tab: 'votes'}),
-    play: async ({canvasElement}) =>
-        expect(summaries(canvasElement)).toEqual([{'All votes': '9', Active: '2', 'Participation rate': '64.28%', 'Total locked': '250K NUMN'}]),
+    play: async ({canvas, canvasElement}) => {
+        expect(summaries(canvasElement)).toEqual([{'All votes': '9', Active: '2', 'Participation rate': '64.28%', 'Total locked': '250K NUMN'}])
+        await expect(canvas.getByLabelText('Counts only referenda still open after the account first appeared')).toBeInTheDocument()
+    },
 }
 
 // the delegated votes a referendum counts reach the account's standard vote

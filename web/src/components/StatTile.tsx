@@ -1,7 +1,9 @@
 import {cn} from 'cn'
+import {CircleQuestionMark} from 'lucide-react'
 import Link from 'next/link'
 import {ReactNode} from 'react'
 import {Jump} from '@/components/links'
+import {Tip} from '@/components/Tip'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 
 export interface StatChip {
@@ -16,9 +18,10 @@ interface Stat {
     label: string
     value: ReactNode
     href?: string
+    tip?: string
 }
 
-function StatFigure({label, value, href, className}: Stat & {className?: string}) {
+function StatFigure({label, value, href, tip, className}: Stat & {className?: string}) {
     return (
         <div className={cn('grid min-w-0 gap-1.5', className)}>
             <CardDescription className="text-xs">
@@ -28,6 +31,11 @@ function StatFigure({label, value, href, className}: Stat & {className?: string}
                     </Link>
                 ) : (
                     label
+                )}
+                {tip && (
+                    <Tip text={tip}>
+                        <CircleQuestionMark aria-label={tip} className="ml-1 inline size-3 align-[-1px]" />
+                    </Tip>
                 )}
             </CardDescription>
             <CardTitle className="text-[17px] leading-7 font-semibold tracking-tight wrap-anywhere sm:text-[19px]">{value}</CardTitle>
