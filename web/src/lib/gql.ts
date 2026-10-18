@@ -1,5 +1,5 @@
 import type {ActionKind, ActionMove, DelegationSort, DelegationSortBy} from './actionFilters'
-import {weigh, type VoteShape} from './conviction'
+import type {VoteShape} from './conviction'
 import {isH256} from './evm'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
 import {ss58TryDecode} from './ss58'
@@ -584,7 +584,7 @@ export interface AccountVoteRow extends VoteRow {
 }
 
 // the account's votes on one page, the vote count under each list a vote can
-// be filed in, and the delegated votes each referendum on the page counts
+// be filed in, and the delegations each referendum on the page counts
 // through the account's standard vote there
 export async function votesFor(idHex: string, list: VoteList | '', limit: number, offset: number) {
     const own = 'voter: {id_eq: $id}'
@@ -604,23 +604,25 @@ export async function votesFor(idHex: string, list: VoteList | '', limit: number
         total: raw.conn.totalCount,
         all: raw.all.totalCount,
         counts: Object.fromEntries(VOTE_LIST_KEYS.map(l => [l, raw[l].totalCount])) as Record<VoteList, number>,
-        delegated: await delegatedVotesOn(idHex, raw.votes.map(v => v.referendum.index)),
+        delegations: await delegationsCountedBy(idHex, raw.votes.map(v => v.referendum.index)),
     }
 }
 
-async function delegatedVotesOn(idHex: string, indexes: number[]): Promise<Map<number, bigint>> {
-    const totals = new Map<number, bigint>()
-    if (indexes.length === 0) return totals
+// the delegations each referendum counts through the account's standard vote
+// there, biggest first
+async function delegationsCountedBy(idHex: string, indexes: number[]): Promise<Map<number, CountedDelegationRow[]>> {
+    const byReferendum = new Map<number, CountedDelegationRow[]>()
+    if (indexes.length === 0) return byReferendum
     const rows = await sweep(page =>
-        gql<{delegatedVotes: {conviction: string; balance: string; referendum: {index: number}}[]}>(
+        gql<{delegatedVotes: (CountedDelegationRow & {referendum: {index: number}})[]}>(
             `query ($id: String!, $indexes: [Int!], $limit: Int!, $offset: Int!) {
-                delegatedVotes(where: {voter: {id_eq: $id}, referendum: {index_in: $indexes}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { conviction balance referendum { index } }
+                delegatedVotes(where: {voter: {id_eq: $id}, referendum: {index_in: $indexes}, removed_eq: false}, orderBy: [balance_DESC, delegator_id_ASC, id_ASC], limit: $limit, offset: $offset) { conviction balance voter { id } delegator { id } referendum { index } }
             }`,
             {id: idHex, indexes, ...page}
         ).then(r => r.delegatedVotes)
     )
-    for (const d of rows) totals.set(d.referendum.index, (totals.get(d.referendum.index) ?? 0n) + weigh(d.balance, d.conviction))
-    return totals
+    for (const d of rows) byReferendum.set(d.referendum.index, [...(byReferendum.get(d.referendum.index) ?? []), d])
+    return byReferendum
 }
 
 // open counts the referenda still taking votes once the account showed up

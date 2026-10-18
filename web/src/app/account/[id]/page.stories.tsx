@@ -917,10 +917,17 @@ export const VotesSummary: StoryObj = {
         expect(summaries(canvasElement)).toEqual([{'All votes': '9', Active: '2', 'Participation rate': '64.28%', 'Total locked': '250K NUMN'}]),
 }
 
-// the delegated votes a referendum counts reach the account's standard vote there
+// the delegated votes a referendum counts reach the account's standard vote
+// there, and its panel names who delegated
 export const VotesDelegated: StoryObj = {
-    ...story({account: voting(numn(250_000)), votes: voteRows(), delegatedVotes: [delegatedVote(6, 'Locked3x', 1_500)]}, {tab: 'votes'}),
-    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Votes')[0]).toBe('5,500 NUMN1,000 + 4,500 delegated'),
+    ...story({account: voting(numn(250_000)), votes: voteRows(), delegatedVotes: [delegatedVote(6, 'Locked3x', 1_500, PEOPLE[1])], refs: [PEOPLE[1]]}, {tab: 'votes'}),
+    play: async ({canvasElement, userEvent}) => {
+        expect(columnTexts(canvasElement, 'Votes')[0]).toBe('5,500 NUMN1,000 + 4,500 delegated')
+        const row = within(canvasElement).getByRole('link', {name: /^#6\b/}).closest('tr')!
+        await userEvent.click(within(row).getByRole('button', {name: 'expand'}))
+        const list = within(canvasElement).getByText('Delegation list').parentElement!
+        expect(columnTexts(list, 'Delegator')).toEqual(['Orbit Labs'])
+    },
 }
 
 // the type chips count every vote the account cast, removed ones too

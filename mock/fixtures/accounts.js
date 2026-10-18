@@ -250,7 +250,7 @@ const VOTE_CASES = [
 export const voteRows = () => VOTE_CASES.map((c, i) => vote(i, c))
 
 // a delegation a referendum counts through the account's standard vote there
-export const delegatedVote = (index, conviction, units) => ({conviction, balance: numn(units), referendum: {index}})
+export const delegatedVote = (index, conviction, units, from = person(1)) => ({conviction, balance: numn(units), voter: {id: SUBJECT}, delegator: {id: from.id}, referendum: {index}})
 
 // a vote the account cast or took off, newest first. delegatedVotes is what its
 // casting record held as the block ended

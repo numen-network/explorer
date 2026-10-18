@@ -1,13 +1,9 @@
 import VoteLists, {type VoteGroup, type VoteRows} from '@/components/votes'
 import type {ChainProps} from '@/lib/chain'
-import {capitalOf, convictionLabel, votesOf, weigh} from '@/lib/conviction'
-import {accountRefs, countedDelegations, referendumVotes, VOTE_LISTS, type ReferendumVoteRow, type VoteList} from '@/lib/gql'
+import {countedDelegations, referendumVotes, VOTE_LISTS, type ReferendumVoteRow, type VoteList} from '@/lib/gql'
 import type {Paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
-
-// the panel answers who is behind the vote, the full roster lives on the
-// delegate account page
-const INLINE_DELEGATORS = 10
+import {inlineRefs, voteEntry} from '@/lib/voteEntry'
 
 const LISTS: [VoteList, string][] = [
     ['aye', 'Aye'],
@@ -31,33 +27,8 @@ async function standardRows(rows: ReferendumVoteRow[], index: number, chain: Cha
     const dels = await countedDelegations(index, rows.map(v => v.voter.id))
     const byVoter = new Map<string, typeof dels>()
     for (const d of dels) byVoter.set(d.voter.id, [...(byVoter.get(d.voter.id) ?? []), d])
-    const inline = [...new Set([...byVoter.values()].flatMap(list => list.slice(0, INLINE_DELEGATORS).map(d => d.delegator.id)))]
-    const refs = new Map((await accountRefs(inline)).accounts.map(a => [a.id, a]))
-    const addr = (id: string) => ss58Encode(id, chain.ss58)
-    return {
-        kind: 'standard',
-        rows: rows.map(v => {
-            const list = byVoter.get(v.voter.id) ?? []
-            return {
-                id: v.id,
-                addr: addr(v.voter.id),
-                acc: v.voter,
-                conviction: convictionLabel(v.conviction),
-                capital: String(capitalOf(v)),
-                selfVotes: String(votesOf(v)),
-                delegatorCount: list.length,
-                delegatedCapital: String(list.reduce((n, d) => n + BigInt(d.balance), 0n)),
-                delegatedVotes: String(list.reduce((n, d) => n + weigh(d.balance, d.conviction), 0n)),
-                delegators: list.slice(0, INLINE_DELEGATORS).map(d => ({
-                    addr: addr(d.delegator.id),
-                    acc: refs.get(d.delegator.id),
-                    conviction: convictionLabel(d.conviction),
-                    capital: d.balance,
-                    votes: String(weigh(d.balance, d.conviction)),
-                })),
-            }
-        }),
-    }
+    const refs = await inlineRefs([...byVoter.values()])
+    return {kind: 'standard', rows: rows.map(v => voteEntry(v, {id: v.voter.id, acc: v.voter}, byVoter.get(v.voter.id) ?? [], refs, chain.ss58))}
 }
 
 interface Props {

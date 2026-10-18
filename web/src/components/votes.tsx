@@ -68,7 +68,8 @@ function Stat({label, value}: {label: string; value: ReactNode}) {
 
 const dcol = columnsFor<Delegator>()
 
-function Detail({v, decimals, symbol}: {v: VoteEntry; decimals: number; symbol: string}) {
+/** What a standard vote brings to the tally, its own part and every delegation it carries, moreHref holding the delegators past the inline few. */
+export function VoteDetail({v, moreHref, decimals, symbol}: {v: VoteEntry; moreHref: string; decimals: number; symbol: string}) {
     const hidden = v.delegatorCount - v.delegators.length
     const columns = useMemo(
         () => [
@@ -112,7 +113,7 @@ function Detail({v, decimals, symbol}: {v: VoteEntry; decimals: number; symbol: 
                     <h3 className="text-[13px] font-semibold">Delegation list</h3>
                     <DataTable columns={columns} rows={v.delegators} getRowId={d => d.addr} className="mt-1" />
                     {hidden > 0 && (
-                        <Link href={`/account/${v.addr}`} className="mt-2 inline-block text-xs text-primary hover:underline">
+                        <Link href={moreHref} className="mt-2 inline-block text-xs text-primary hover:underline">
                             {fmtCount(hidden, 'more delegator')} on the account page <Jump />
                         </Link>
                     )}
@@ -156,7 +157,7 @@ function StandardTable({rows, decimals, symbol, empty}: {rows: VoteEntry[]; deci
         ],
         [decimals, symbol]
     )
-    return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} canExpand={() => true} expand={v => <Detail v={v} decimals={decimals} symbol={symbol} />} />
+    return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} canExpand={() => true} expand={v => <VoteDetail v={v} moreHref={`/account/${v.addr}`} decimals={decimals} symbol={symbol} />} />
 }
 
 const scol = columnsFor<SplitEntry>()

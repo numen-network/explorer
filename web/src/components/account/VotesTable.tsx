@@ -6,11 +6,12 @@ import {useMemo} from 'react'
 import {cn} from 'cn'
 import Approx from '@/components/Approx'
 import {VoteWeight} from '@/components/actions'
-import {columnsFor, DataTable} from '@/components/DataTable'
+import {columnsFor, DataTable, expander} from '@/components/DataTable'
 import {NONE} from '@/components/Detail'
 import {BlockLink} from '@/components/links'
 import {StatusTag} from '@/components/referenda'
 import {Badge} from '@/components/ui/badge'
+import {VoteDetail, type VoteEntry} from '@/components/votes'
 import type {ChainProps} from '@/lib/chain'
 import {convictionLabel, levelLabel, unlockAt, voteParts, type VoteSide} from '@/lib/conviction'
 import {fmtBalance} from '@/lib/format'
@@ -34,7 +35,7 @@ function Lines({items, end}: {items: ReactNode[]; end?: boolean}) {
     )
 }
 
-export function VotesTable({rows, delegated, chain}: {rows: AccountVoteRow[]; delegated: Map<number, bigint>; chain: ChainProps}) {
+export function VotesTable({rows, details, moreHref, chain}: {rows: AccountVoteRow[]; details: Map<string, VoteEntry>; moreHref: string; chain: ChainProps}) {
     const columns = useMemo(
         () =>
             col.columns([
@@ -88,7 +89,7 @@ export function VotesTable({rows, delegated, chain}: {rows: AccountVoteRow[]; de
                     cell: ({row}) => {
                         const parts = voteParts(row.original)
                         if (row.original.kind !== 'Standard') return <Lines end items={parts.map(p => <Approx planck={p.votes} decimals={chain.decimals} symbol={chain.symbol} />)} />
-                        return <VoteWeight own={parts[0].votes} delegated={delegated.get(row.original.referendum.index) ?? 0n} decimals={chain.decimals} symbol={chain.symbol} />
+                        return <VoteWeight own={parts[0].votes} delegated={BigInt(details.get(row.original.id)?.delegatedVotes ?? 0)} decimals={chain.decimals} symbol={chain.symbol} />
                     },
                 }),
                 col.display({id: 'block', header: 'Block', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.block} />}),
@@ -101,8 +102,17 @@ export function VotesTable({rows, delegated, chain}: {rows: AccountVoteRow[]; de
                         return free != null ? <BlockLink height={free} /> : NONE
                     },
                 }),
+                expander(col),
             ]),
-        [chain, delegated]
+        [chain, details]
     )
-    return <DataTable columns={columns} rows={rows} getRowId={v => v.id} />
+    return (
+        <DataTable
+            columns={columns}
+            rows={rows}
+            getRowId={v => v.id}
+            canExpand={v => details.has(v.id)}
+            expand={v => <VoteDetail v={details.get(v.id)!} moreHref={moreHref} decimals={chain.decimals} symbol={chain.symbol} />}
+        />
+    )
 }

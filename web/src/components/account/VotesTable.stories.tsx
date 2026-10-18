@@ -1,9 +1,10 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import type {AccountVoteRow} from '@/lib/gql'
-import {numn} from '../../../../mock/fixtures.js'
-import {CHAIN, vote, voteRows} from '../../../../mock/fixtures/accounts.js'
+import {voteEntry, type CountedDelegation} from '@/lib/voteEntry'
+import {account, numn, PEOPLE, person} from '../../../../mock/fixtures.js'
+import {CHAIN, SUBJECT, vote, voteRows} from '../../../../mock/fixtures/accounts.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {VotesTable} from './VotesTable'
 
@@ -11,11 +12,31 @@ const meta = {title: 'Components/Account/VotesTable'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-const table = (rows: AccountVoteRow[], delegated = new Map<number, bigint>()) => (
-    <Card size="flush">
-        <VotesTable rows={rows} delegated={delegated} chain={CHAIN} />
-    </Card>
-)
+const MORE = `/account/${SUBJECT}?tab=received&rtab=delegators`
+
+const counted = (i: number, conviction: string, units: number): CountedDelegation => ({conviction, balance: numn(units), delegator: {id: person(i).id}})
+
+// the delegators past the named few carry no identity
+const unnamed = (i: number, units: number): CountedDelegation => ({conviction: 'Locked1x', balance: numn(units), delegator: {id: account(200 + i)}})
+
+const REFS = new Map(PEOPLE.map(p => [p.id, p]))
+
+// each standard vote's panel, from the delegations its referendum counts through it
+const table = (rows: AccountVoteRow[], delegations: Record<number, CountedDelegation[]> = {}) => {
+    const details = new Map(rows.filter(v => v.kind === 'Standard').map(v => [v.id, voteEntry(v, {id: SUBJECT}, delegations[v.referendum.index] ?? [], REFS, CHAIN.ss58)]))
+    return (
+        <Card size="flush">
+            <VotesTable rows={rows} details={details} moreHref={MORE} chain={CHAIN} />
+        </Card>
+    )
+}
+
+const expand = (index: number) => async ({canvasElement, userEvent}: {canvasElement: HTMLElement; userEvent: {click: (el: Element) => Promise<void>}}) => {
+    const row = within(canvasElement).getByRole('link', {name: new RegExp(`^#${index}\\b`)}).closest('tr')!
+    await userEvent.click(within(row).getByRole('button', {name: 'expand'}))
+}
+
+const EVERY_KIND_DELEGATIONS = {6: [counted(1, 'Locked3x', 1_500)], 10: [counted(2, 'Locked2x', 3_000), counted(3, 'Locked4x', 1_500)]}
 
 export const Empty: Story = {render: () => table([])}
 
@@ -23,7 +44,7 @@ export const One: Story = {render: () => table([vote(0)])}
 
 // aye, nay, split and abstain, every conviction, each phase a referendum ends in, one untitled and one removed
 export const EveryKind: Story = {
-    render: () => table(voteRows(), new Map([[6, BigInt(numn(4_500))], [10, BigInt(numn(12_000))]])),
+    render: () => table(voteRows(), EVERY_KIND_DELEGATIONS),
     play: async ({canvasElement}) => {
         expect(columnTexts(canvasElement, 'Referendum')).toEqual([
             '#6 · Fund the Q4 explorer roadmap',
@@ -67,3 +88,41 @@ export const EveryKind: Story = {
     },
 }
 
+// only a standard vote opens, a split has no conviction to show and carries no delegations
+export const OnlyStandardOpens: Story = {
+    render: () => table(voteRows(), EVERY_KIND_DELEGATIONS),
+    play: async ({canvasElement}) => {
+        const rows = within(canvasElement).getAllByRole('row').slice(1)
+        expect(rows.map(r => within(r).queryByRole('button', {name: 'expand'}) != null)).toEqual([true, false, true, true, true, false, true, true, true, true])
+    },
+}
+
+export const ExpandedWithoutDelegators: Story = {
+    render: () => table(voteRows(), EVERY_KIND_DELEGATIONS),
+    play: async ctx => {
+        await expand(3)(ctx)
+        await expect(within(ctx.canvasElement).getByText('Self votes')).toBeInTheDocument()
+        expect(within(ctx.canvasElement).queryByText('Delegation list')).toBeNull()
+    },
+}
+
+// #10 at 3x carries two delegations, 3,000 at 2x and 1,500 at 4x
+export const ExpandedWithDelegators: Story = {
+    render: () => table(voteRows(), EVERY_KIND_DELEGATIONS),
+    play: async ctx => {
+        await expand(10)(ctx)
+        const list = within(ctx.canvasElement).getByText('Delegation list').parentElement!
+        expect(columnTexts(list, 'Capital')).toEqual(['3,000 NUMN 2x', '1,500 NUMN 4x'])
+        expect(columnTexts(list, 'Votes')).toEqual(['6,000 NUMN', '6,000 NUMN'])
+    },
+}
+
+// twelve delegations list the biggest ten, the other two wait on the account's Received tab
+export const ExpandedOverInlineLimit: Story = {
+    render: () => table([vote(0)], {6: Array.from({length: 12}, (_, i) => unnamed(i, 12_000 - i * 500))}),
+    play: async ctx => {
+        await expand(6)(ctx)
+        const more = within(ctx.canvasElement).getByRole('link', {name: /2 more delegators on the account page/})
+        expect(more.getAttribute('href')).toBe(MORE)
+    },
+}
