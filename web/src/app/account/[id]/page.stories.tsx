@@ -14,6 +14,7 @@ import {
     delegationAction,
     delegationActionRows,
     delegationActionsOf,
+    EVERY_REFUND,
     FULL_FIELDS,
     funds,
     HOLDING,
@@ -30,6 +31,7 @@ import {
     multisigOps,
     NOT_HELD,
     PRIME_KEY,
+    proposals,
     proxyDelegates,
     proxyDelays,
     proxyFor,
@@ -895,6 +897,20 @@ export const MultisigPage2 = story({multisigOps: manyOps}, {tab: 'multisig', pag
 
 export const MultisigLastPage = story({multisigOps: manyOps}, {tab: 'multisig', page: lastPage(manyOps.length)})
 
+export const ProposedOne: StoryObj = {
+    ...story({account: voting(numn(1_000)), proposed: proposals(1)}, {tab: 'proposed'}),
+    play: async ({canvasElement}) => {
+        expect(tabCount(canvasElement, 'proposed')).toBe('1')
+        expect(columnTexts(canvasElement, 'Referendum')).toEqual(['#1 · Referendum 1 title'])
+    },
+}
+
+const manyProposed = proposals(25)
+
+export const ProposedMany = story({account: voting(numn(1_000)), proposed: manyProposed}, {tab: 'proposed'})
+
+export const ProposedLastPage = story({account: voting(numn(1_000)), proposed: manyProposed}, {tab: 'proposed', page: lastPage(manyProposed.length)})
+
 export const VotesOne = story({account: voting(numn(1_000)), votes: [vote(0)]}, {tab: 'votes'})
 
 const manyVotes = [...voteRows(), ...Array.from({length: 35}, (_, i) => vote(i + 10, {referendum: poll(47 - i, 'Ongoing', null)}))]
@@ -970,18 +986,18 @@ export const VotesSummaryNoReferenda: StoryObj = {
     play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', Active: '0', 'Participation rate': '—', 'Total locked': '0 NUMN'}]),
 }
 
-// the five governance lists share one group, each pairing what stands now with its log
+// the six governance lists share one group
 export const GovernanceTabs: StoryObj = {
     ...story(
-        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows()},
+        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND},
         {tab: 'vote-history'}
     ),
     play: async ({canvas}) => {
         expect(within(canvas.getByRole('navigation', {name: 'Account'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Governance/)
         const nav = canvas.getByRole('navigation', {name: 'Governance'})
         const slugs = within(nav).getAllByRole('link').map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!)
-        expect(slugs).toEqual(['votes', 'vote-history', 'delegations', 'received', 'delegation-history'])
-        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '7', '3', '2', '5'])
+        expect(slugs).toEqual(['votes', 'vote-history', 'proposed', 'delegations', 'received', 'delegation-history'])
+        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '7', '5', '3', '2', '5'])
     },
 }
 

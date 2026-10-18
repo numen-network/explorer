@@ -162,11 +162,14 @@ function identityRows(a: AccountRow, addr: string, retired: {index: number}[]): 
 // or a cancellation and a decision deposit after any ending, a kill leaves none
 const SUBMISSION_REFUNDED = new Set(['Approved', 'Cancelled'])
 
+/** Whether a deposit still held on an ended referendum can be claimed back. */
+export const refundable = (kind: GovDepositRow['kind'], status: string) => kind === 'Decision' || SUBMISSION_REFUNDED.has(status)
+
 function govRows(deposits: GovDepositRow[]): LockRow[] {
     return deposits.map(({kind, amount, referendum: {index, status}}) =>
         reserved(`Referendum #${index} ${kind.toLowerCase()} deposit`, BigInt(amount), {
             href: `/referendum/${index}`,
-            ...(status === 'Ongoing' ? {freedBy: 'until claimed back after the referendum ends'} : {refund: kind === 'Decision' || SUBMISSION_REFUNDED.has(status) ? 'now' : 'never'}),
+            ...(status === 'Ongoing' ? {freedBy: 'until claimed back after the referendum ends'} : {refund: refundable(kind, status) ? 'now' : 'never'}),
         })
     )
 }

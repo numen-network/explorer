@@ -164,6 +164,32 @@ const delegation = (i, traits = {}) =>
         ...traits,
     })
 
+// a referendum the account put deposits on, as the Proposed tab reads it
+export const proposal = (index, status, deposits, extra = {}) => ({
+    index,
+    title: `Referendum ${index} title`,
+    status,
+    decidingSince: null,
+    confirmingSince: null,
+    submittedAt: HEAD - 50_000 + index * 1_000,
+    track: {name: 'small_spender'},
+    deposits,
+    ...extra,
+})
+
+export const proposalDeposit = (kind, state = 'Held', endedAt = null) => ({kind, amount: kind === 'Submission' ? numn(5) : numn(1_000), state, endedAt})
+
+// one row per way a deposit stands, newest referendum first
+export const EVERY_REFUND = [
+    proposal(9, 'Ongoing', [proposalDeposit('Submission'), proposalDeposit('Decision')], {decidingSince: HEAD - 4_000, confirmingSince: HEAD - 400}),
+    proposal(8, 'Approved', [proposalDeposit('Submission'), proposalDeposit('Decision')]),
+    proposal(7, 'Rejected', [proposalDeposit('Submission')], {title: null}),
+    proposal(4, 'Killed', [proposalDeposit('Submission', 'Slashed', HEAD - 9_000), proposalDeposit('Decision', 'Slashed', HEAD - 9_000)], {track: {name: 'treasurer'}}),
+    proposal(1, 'Approved', [proposalDeposit('Decision', 'Refunded', HEAD - 20_000)], {track: {name: 'big_spender'}}),
+]
+
+export const proposals = count => Array.from({length: count}, (_, i) => proposal(count - i, 'Ongoing', [proposalDeposit('Submission')]))
+
 export const delegatingTo = count => Array.from({length: count}, (_, i) => delegation(i, {target: person(i)}))
 
 // the incoming list is ordered by balance, biggest first
@@ -530,6 +556,7 @@ export function accountPage({
     referenda = null,
     delegationActions = [],
     govDeposits = [],
+    proposed = [],
     bountyDeposits = [],
     childBountyDeposits = [],
     deploys = 0,
@@ -587,13 +614,14 @@ export function accountPage({
                   ? multisigOps.filter(o => o.multisig.id === self && o.signatories != null)
                   : paged(multisigOps)(args),
         // the vote record lists every referendum, one through the highest the account voted on unless set
-        referendums: referenda ?? Array.from({length: Math.max(-1, ...votes.map(v => v.referendum.index)) + 1}, (_, index) => ({index, title: `Referendum ${index} title`})),
+        referendums: ({where}) =>
+            where?.deposits_some ? proposed : (referenda ?? Array.from({length: Math.max(-1, ...votes.map(v => v.referendum.index)) + 1}, (_, index) => ({index, title: `Referendum ${index} title`}))),
         referendumDeposits: govDeposits,
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
         votesConnection: ({where}) => count(where.removed_eq === false ? (where.referendum ? standing.filter(v => v.referendum.status === 'Ongoing') : standing).length : where.kind_eq ? ofType(where).length : votes.length),
         delegatedVotes,
-        referendumsConnection: count(counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size),
+        referendumsConnection: ({where}) => count(where?.deposits_some ? proposed.length : (counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size)),
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,
         votes: args => (args.where?.removed_eq === false ? standing : paged(votes)(args)),
         votingActionsConnection: count(counts.voteActions ?? voteActions.length),

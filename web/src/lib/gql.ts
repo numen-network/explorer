@@ -1,5 +1,6 @@
 import type {ActionKind, ActionMove, DelegationSort, DelegationSortBy} from './actionFilters'
 import type {VoteShape} from './conviction'
+import type {RefPhaseFields} from './referendum'
 import {isH256} from './evm'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
 import {ss58TryDecode} from './ss58'
@@ -478,6 +479,7 @@ export interface AccountSummary {
     bountyDeposits: BountyDepositRow[]
     childBountyDeposits: ChildBountyDepositRow[]
     nVotes: {totalCount: number}
+    nProposed: {totalCount: number}
     nVoteHistory: {totalCount: number}
     nDelegHistory: {totalCount: number}
     /** The proxies this account granted, the accounts that can act for it. */
@@ -547,6 +549,7 @@ export function accountSummary(idHex: string) {
                 parent { index } childIndex curatorDeposit
             }
             nVotes: votesConnection(orderBy: id_ASC, where: {voter: ${self}}) { totalCount }
+            nProposed: referendumsConnection(orderBy: index_ASC, where: {deposits_some: {who: ${self}}}) { totalCount }
             nVoteHistory: votingActionsConnection(orderBy: id_ASC, where: ${OWN_VOTE_ACTIONS}) { totalCount }
             nDelegHistory: delegationActionsConnection(orderBy: id_ASC, where: ${delegationSide('')}) { totalCount }
             proxiesOut: proxyRelations(where: {delegator: ${self}}, orderBy: [delegatee_id_ASC, proxyType_ASC, delay_ASC], limit: 100) { id proxyType delay delegatee { ${ACCOUNT_REF} } }
@@ -655,6 +658,31 @@ export function votesSummary(idHex: string, firstSeenBlock: number) {
         }`,
         {id: idHex, from: firstSeenBlock}
     )
+}
+
+export interface ProposedRow extends RefPhaseFields {
+    index: number
+    title: string | null
+    submittedAt: number
+    track: {name: string}
+    /** This account's deposits on the referendum, submission first. */
+    deposits: {kind: ReferendumDepositRow['kind']; amount: string; state: ReferendumDepositRow['state']; endedAt: number | null}[]
+}
+
+// the referenda this account put a submission or decision deposit on
+export async function proposedFor(idHex: string, limit: number, offset: number) {
+    const where = '{deposits_some: {who: {id_eq: $id}}}'
+    const {referendums, conn} = await gql<{referendums: ProposedRow[]; conn: {totalCount: number}}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            referendums(where: ${where}, orderBy: index_DESC, limit: $limit, offset: $offset) {
+                index title status decidingSince confirmingSince submittedAt track { name }
+                deposits(where: {who: {id_eq: $id}}, orderBy: id_DESC) { kind amount state endedAt }
+            }
+            conn: referendumsConnection(where: ${where}, orderBy: index_ASC) { totalCount }
+        }`,
+        {id: idHex, limit, offset}
+    )
+    return {rows: referendums, total: conn.totalCount}
 }
 
 export interface VoteHistoryRow extends VoteShape {

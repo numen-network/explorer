@@ -1,6 +1,5 @@
 'use client'
 
-import type {ReactNode} from 'react'
 import Link from 'next/link'
 import {useMemo} from 'react'
 import {cn} from 'cn'
@@ -8,6 +7,7 @@ import Approx from '@/components/Approx'
 import {VoteWeight} from '@/components/actions'
 import {columnsFor, DataTable, expander} from '@/components/DataTable'
 import {NONE} from '@/components/Detail'
+import {Lines} from '@/components/Lines'
 import {BlockLink} from '@/components/links'
 import {StatusTag} from '@/components/referenda'
 import {Badge} from '@/components/ui/badge'
@@ -21,19 +21,6 @@ import {phaseOf} from '@/lib/referendum'
 const col = columnsFor<AccountVoteRow>()
 
 const SIDE = {aye: ['pos', 'Aye'], nay: ['neg', 'Nay'], abstain: ['idle', 'Abstain']} as const satisfies Record<VoteSide, [string, string]>
-
-// one line per side a vote takes, the same height in every column so a split lines up across the row
-function Lines({items, end}: {items: ReactNode[]; end?: boolean}) {
-    return (
-        <div className={cn('flex flex-col', end ? 'items-end' : 'items-start')}>
-            {items.map((item, i) => (
-                <div key={i} className="flex h-6 items-center">
-                    {item}
-                </div>
-            ))}
-        </div>
-    )
-}
 
 export function VotesTable({rows, details, moreHref, head, chain}: {rows: AccountVoteRow[]; details: Map<string, VoteEntry>; moreHref: string; head: number; chain: ChainProps}) {
     const columns = useMemo(
