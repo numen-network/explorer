@@ -4,12 +4,24 @@ import StatTile from '@/components/StatTile'
 import {FilterSelect} from '@/components/pills'
 import {Card} from '@/components/ui/card'
 import {fmtInt, trackLabel} from '@/lib/format'
-import {delegateTally, delegationsInPage, trackList} from '@/lib/gql'
+import {weigh} from '@/lib/conviction'
+import {delegateTally, delegationsInPage, trackList, type AccountSummary} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {DelegationsTable} from './DelegationsTable'
+import {ReceivedTracksTable, type ReceivedTrackRow} from './ReceivedTracksTable'
 import {tabHref, type TabCtx} from './shared'
 
-export default async function Received({hex, addr, chain, sp, maxDelegations}: TabCtx & {maxDelegations: bigint}) {
+// a delegator holds one delegation per track, so the rows on a track count its delegators
+function perTrack(delegations: AccountSummary['delegationsIn'], tracks: {id: string; name: string}[], picked: string, hrefOf: (track: string) => string): ReceivedTrackRow[] {
+    return tracks.flatMap(t => {
+        const on = delegations.filter(d => d.track.id === t.id)
+        if (on.length === 0) return []
+        const sum = (f: (d: (typeof on)[number]) => bigint) => on.reduce((n, d) => n + f(d), 0n).toString()
+        return [{id: t.id, name: trackLabel(t.name), delegators: on.length, capital: sum(d => BigInt(d.balance)), votes: sum(d => weigh(d.balance, d.conviction)), href: hrefOf(t.id === picked ? '' : t.id), picked: t.id === picked}]
+    })
+}
+
+export default async function Received({hex, addr, chain, sp, delegations, maxDelegations}: TabCtx & {delegations: AccountSummary['delegationsIn']; maxDelegations: bigint}) {
     const pg = paging(sp)
     const [{tracks}, {delegateById: tally}] = await Promise.all([trackList(), delegateTally(hex)])
     const trackIds = tracks.map(t => t.id)
@@ -34,6 +46,9 @@ export default async function Received({hex, addr, chain, sp, maxDelegations}: T
                     className="mb-3"
                 />
             )}
+            <Card size="flush" className="mb-3">
+                <ReceivedTracksTable rows={perTrack(delegations, tracks, track, t => tabHref(addr, 'received', {dtrack: t}))} chain={chain} />
+            </Card>
             {dIn.all > 0 && (
                 <FilterSelect label="Track" className="mb-3" values={trackIds} labelOf={trackName} counts={dIn.perTrack} allCount={dIn.all} value={track} href={t => tabHref(addr, 'received', {dtrack: t})} />
             )}

@@ -630,11 +630,53 @@ export const DelegationsBoth: StoryObj = {
     },
 }
 
+const tracksTable = (root: HTMLElement) => within(root).getByRole('columnheader', {name: 'Delegators'}).closest('table')!
+const rootAndUpgrade = [...delegatedOnTracks(PEOPLE[1], TRACKS.slice(0, 2), numn(1_000)), ...delegatedOnTracks(PEOPLE[2], TRACKS.slice(0, 1), numn(500))]
+
 // two delegators over two tracks, Root carrying 1,500 at 3x for the most on one track
 export const ReceivedSummary: StoryObj = {
-    ...story({delegationsIn: [...delegatedOnTracks(PEOPLE[1], TRACKS.slice(0, 2), numn(1_000)), ...delegatedOnTracks(PEOPLE[2], TRACKS.slice(0, 1), numn(500))]}, {tab: 'received'}),
+    ...story({delegationsIn: rootAndUpgrade}, {tab: 'received'}),
     play: async ({canvasElement}) =>
         expect(summaries(canvasElement)).toEqual([{Tracks: '2', Delegators: '2', Capital: '1,500 NUMN', 'Max delegations': '4,500 NUMN'}]),
+}
+
+// one delegator on one track, 5,000 at 3x
+export const ReceivedTracksOne: StoryObj = {
+    ...story({delegationsIn: delegatedOnTracks(PEOPLE[1], TRACKS.slice(0, 1), numn(5_000))}, {tab: 'received'}),
+    play: async ({canvasElement}) => {
+        const table = tracksTable(canvasElement)
+        expect(columnTexts(table, 'Track')).toEqual(['Root'])
+        expect([columnTexts(table, 'Delegators'), columnTexts(table, 'Capital'), columnTexts(table, 'Votes')]).toEqual([['1'], ['5,000 NUMN'], ['15,000 NUMN']])
+    },
+}
+
+// Root carries both delegators, Runtime Upgrade one, every row linking to its own filter
+export const ReceivedTracksMany: StoryObj = {
+    ...story({delegationsIn: rootAndUpgrade}, {tab: 'received'}),
+    play: async ({canvasElement}) => {
+        const table = tracksTable(canvasElement)
+        expect(columnTexts(table, 'Track')).toEqual(['Root', 'Runtime Upgrade'])
+        expect([columnTexts(table, 'Delegators'), columnTexts(table, 'Capital'), columnTexts(table, 'Votes')]).toEqual([
+            ['2', '1'],
+            ['1,500 NUMN', '1,000 NUMN'],
+            ['4,500 NUMN', '3,000 NUMN'],
+        ])
+        const links = within(table).getAllByRole('link')
+        expect(links.map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('dtrack'))).toEqual([TRACKS[0].id, TRACKS[1].id])
+        expect(links.filter(a => a.getAttribute('aria-current') === 'page')).toHaveLength(0)
+    },
+}
+
+// the picked track stands out and its link goes back to every track
+export const ReceivedTracksPicked: StoryObj = {
+    ...story({delegationsIn: rootAndUpgrade}, {tab: 'received', dtrack: TRACKS[0].id}),
+    play: async ({canvasElement}) => {
+        const [root, upgrade] = within(tracksTable(canvasElement)).getAllByRole('link')
+        expect(root).toHaveAttribute('aria-current', 'page')
+        expect(new URL(root.getAttribute('href')!, 'http://x').searchParams.has('dtrack')).toBe(false)
+        expect(upgrade).not.toHaveAttribute('aria-current')
+        expect(getComputedStyle(root.closest('tr')!).backgroundColor).not.toBe(getComputedStyle(upgrade.closest('tr')!).backgroundColor)
+    },
 }
 
 const SPENDERS = TRACKS.filter(t => t.name.endsWith('_spender'))
@@ -668,11 +710,14 @@ export const ReceivedTrackOptions: StoryObj = {
         expect(await filterOptions(canvasElement, 'Track')).toEqual(['[All 5]', 'Root 1', 'Runtime Upgrade 1', 'Wish For Change 1', 'Identity Admin 1', 'Referendum Canceller 1', 'Referendum Killer 0', 'Small Spender 0', 'Medium Spender 0', 'Big Spender 0']),
 }
 
-// one account delegating the same balance on every track, its rows in track order with two-digit ids after the single digits
+// one account delegating the same balance on every track, both lists in track order with two-digit ids after the single digits
 export const ReceivedEveryTrack: StoryObj = {
     ...story({delegationsIn: delegatedOnTracks(person(1), TRACKS, numn(5_000))}, {tab: 'received'}),
-    play: async ({canvasElement}) =>
-        expect(columnTexts(canvasElement, 'Track')).toEqual(['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender', 'Medium Spender', 'Big Spender']),
+    play: async ({canvasElement}) => {
+        const order = ['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender', 'Medium Spender', 'Big Spender']
+        expect(columnTexts(tracksTable(canvasElement), 'Track')).toEqual(order)
+        expect(columnTexts(within(canvasElement).getByRole('columnheader', {name: 'Delegated from'}).closest('table')!, 'Track')).toEqual(order)
+    },
 }
 
 const proxied = (n: number) => subject({...funds(numn(1250.5), numn(1.75 * n)), depositsJson: [{id: 'proxy', amount: numn(1.75 * n)}]})
