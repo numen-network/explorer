@@ -923,6 +923,24 @@ export const VotesDelegated: StoryObj = {
     play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Votes')[0]).toBe('5,500 NUMN1,000 + 4,500 delegated'),
 }
 
+// the type chips count every vote the account cast, removed ones too
+export const VotesTypes: StoryObj = {
+    ...story({account: voting(numn(250_000)), votes: voteRows()}, {tab: 'votes'}),
+    play: async ({canvasElement}) => expect(filterChips(canvasElement, 'Type')).toEqual(['[All 10]', 'Aye 4', 'Nay 4', 'Split 1', 'Abstain 1']),
+}
+
+// picking Split asks for split votes only and keeps every chip's count
+export const VotesTypeSplit: StoryObj = {
+    ...pageStory(
+        {...build({account: voting(numn(250_000)), votes: voteRows()}), votes: ({where}: {where: {kind_eq?: string}}) => voteRows().filter(v => v.kind === where.kind_eq)},
+        {params: {id: SUBJECT}, searchParams: {tab: 'votes', type: 'split'}}
+    ),
+    play: async ({canvasElement}) => {
+        expect(filterChips(canvasElement, 'Type')).toEqual(['All 10', 'Aye 4', 'Nay 4', '[Split 1]', 'Abstain 1'])
+        expect(columnTexts(canvasElement, 'Vote')).toEqual(['AyeNay'])
+    },
+}
+
 // every vote taken off and no referendum open since, so there is no rate to give
 export const VotesSummaryNoReferenda: StoryObj = {
     ...story({account: voting('0'), votes: [vote(0, {removed: true, referendum: poll(6, 'Rejected', HEAD - 100)})], counts: {referenda: 0}}, {tab: 'votes'}),

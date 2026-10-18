@@ -546,6 +546,8 @@ export function accountPage({
     // the index keeps rows for tokens the account doesn't hold, only a query asking for a balance above zero leaves them out
     const delegationsSide = where => delegationActions.filter(a => (where.who ? a.who : a.target).id === self)
     const standing = votes.filter(v => !v.removed)
+    // a type filter names the kind, and a standard vote's side too
+    const ofType = where => votes.filter(v => v.kind === where.kind_eq && (where.aye_eq == null || v.aye === where.aye_eq))
     const holderRows = where => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
     return {
         accountById: account,
@@ -583,7 +585,7 @@ export function accountPage({
         referendums: govDeposits,
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
-        votesConnection: ({where}) => count(where.removed_eq === false ? (where.referendum ? standing.filter(v => v.referendum.status === 'Ongoing') : standing).length : votes.length),
+        votesConnection: ({where}) => count(where.removed_eq === false ? (where.referendum ? standing.filter(v => v.referendum.status === 'Ongoing') : standing).length : where.kind_eq ? ofType(where).length : votes.length),
         delegatedVotes,
         referendumsConnection: count(counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size),
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,

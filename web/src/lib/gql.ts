@@ -583,17 +583,29 @@ export interface AccountVoteRow extends VoteRow {
     referendum: {index: number; title: string | null; status: string; decidingSince: number | null; confirmingSince: number | null; endedAt: number | null}
 }
 
-// the account's votes on one page and the delegated votes each referendum on
-// the page counts through the account's standard vote there
-export async function votesFor(idHex: string, limit: number, offset: number) {
-    const raw = await gql<{votes: AccountVoteRow[]; conn: {totalCount: number}}>(
+// the account's votes on one page, the vote count under each list a vote can
+// be filed in, and the delegated votes each referendum on the page counts
+// through the account's standard vote there
+export async function votesFor(idHex: string, list: VoteList | '', limit: number, offset: number) {
+    const own = 'voter: {id_eq: $id}'
+    const where = list ? `{${own}, ${VOTE_LISTS[list].where}}` : `{${own}}`
+    const counts = VOTE_LIST_KEYS.map(l => `${l}: votesConnection(where: {${own}, ${VOTE_LISTS[l].where}}, orderBy: id_ASC) { totalCount }`)
+    const raw = await gql<{votes: AccountVoteRow[]; conn: {totalCount: number}; all: {totalCount: number}} & Record<VoteList, {totalCount: number}>>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            votes(where: {voter: {id_eq: $id}}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index title status decidingSince confirmingSince endedAt } }
-            conn: votesConnection(where: {voter: {id_eq: $id}}, orderBy: id_ASC) { totalCount }
+            votes(where: ${where}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index title status decidingSince confirmingSince endedAt } }
+            conn: votesConnection(where: ${where}, orderBy: id_ASC) { totalCount }
+            all: votesConnection(where: {${own}}, orderBy: id_ASC) { totalCount }
+            ${counts.join('\n            ')}
         }`,
         {id: idHex, limit, offset}
     )
-    return {votes: raw.votes, total: raw.conn.totalCount, delegated: await delegatedVotesOn(idHex, raw.votes.map(v => v.referendum.index))}
+    return {
+        votes: raw.votes,
+        total: raw.conn.totalCount,
+        all: raw.all.totalCount,
+        counts: Object.fromEntries(VOTE_LIST_KEYS.map(l => [l, raw[l].totalCount])) as Record<VoteList, number>,
+        delegated: await delegatedVotesOn(idHex, raw.votes.map(v => v.referendum.index)),
+    }
 }
 
 async function delegatedVotesOn(idHex: string, indexes: number[]): Promise<Map<number, bigint>> {
@@ -1588,6 +1600,8 @@ export const VOTE_LISTS = {
 } as const satisfies Record<string, {where: string; lead: readonly (keyof VoteShape)[]}>
 
 export type VoteList = keyof typeof VOTE_LISTS
+
+export const VOTE_LIST_KEYS = Object.keys(VOTE_LISTS) as VoteList[]
 
 export interface ReferendumVoteRow extends VoteRow {
     voter: AccountRef
