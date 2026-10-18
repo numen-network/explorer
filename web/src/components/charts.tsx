@@ -1,8 +1,10 @@
 'use client'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
 import {fmtInt, fmtPct, fmtSpan, fmtTick, pctToNum, type Share} from '@/lib/format'
+import {GRID_LEGEND, type GridCell, type GridVote} from '@/lib/voteGrid'
 import * as echarts from 'echarts'
-import {useEffect, useRef} from 'react'
+import {useRouter} from 'next/navigation'
+import {useEffect, useRef, useState} from 'react'
 
 const SUB = '#7c828e'
 const EDGE = '#e8eaef'
@@ -15,12 +17,17 @@ const GREEN_FILL = 'rgba(76,175,80,.11)'
 const SUB_FILL = 'rgba(124,130,142,.08)'
 const LABEL_FONT = '11px sans-serif'
 
-function useChart(option: echarts.EChartsOption) {
+function useChart(option: echarts.EChartsOption, onClick?: (dataIndex: number) => void) {
     const ref = useRef<HTMLDivElement>(null)
     const chart = useRef<echarts.ECharts>(null)
+    const click = useRef(onClick)
+    useEffect(() => {
+        click.current = onClick
+    })
     useEffect(() => {
         const el = ref.current!
         chart.current = echarts.init(el)
+        chart.current.on('click', p => click.current?.(p.dataIndex))
         const ro = new ResizeObserver(() => chart.current?.resize())
         ro.observe(el)
         return () => {
@@ -599,4 +606,110 @@ export function RingChart({slices, total, unit}: {slices: RingSlice[]; total: st
             </div>
         </div>
     )
+}
+
+// --good and --destructive mixed 45% into white
+const LIGHT_GOOD = '#aedbb0'
+const LIGHT_BAD = '#faaaa4'
+const HOLLOW = '#d5d8dd'
+
+const GRID_ROWS = 5
+const GRID_STEP = 18
+const GRID_PAD = 6
+const HALF = 5
+
+/** One square drawn the way a referendum's cell is. */
+export function GridSwatch({vote}: {vote: GridVote}) {
+    const style =
+        vote === 'split'
+            ? {background: `linear-gradient(135deg, ${LIGHT_GOOD} 50%, ${LIGHT_BAD} 50%)`}
+            : vote === null
+              ? {border: `1px solid ${HOLLOW}`, background: '#fff'}
+              : {background: vote === 'aye' ? LIGHT_GOOD : vote === 'nay' ? LIGHT_BAD : EDGE}
+    return <span className="block size-2.5 rounded-[2px]" style={style} />
+}
+
+function gridSquare(x: number, y: number, vote: GridVote) {
+    const box = {x: x - HALF, y: y - HALF, width: HALF * 2, height: HALF * 2, r: 2}
+    switch (vote) {
+        case 'split':
+            return {
+                type: 'group',
+                children: [
+                    {type: 'rect', shape: box, style: {fill: LIGHT_GOOD}},
+                    {type: 'polygon', shape: {points: [[x + HALF, y - HALF], [x + HALF, y + HALF], [x - HALF, y + HALF]]}, style: {fill: LIGHT_BAD}},
+                ],
+            }
+        case null:
+            return {type: 'rect', shape: {...box, x: box.x + 0.5, y: box.y + 0.5, width: box.width - 1, height: box.height - 1}, style: {fill: '#fff', stroke: HOLLOW, lineWidth: 1}}
+        default:
+            return {type: 'rect', shape: box, style: {fill: vote === 'aye' ? LIGHT_GOOD : vote === 'nay' ? LIGHT_BAD : EDGE}}
+    }
+}
+
+// five referenda to a column in index order, the columns that do not fit
+// scroll like any chart, opening on the newest
+export function VoteGrid({cells}: {cells: GridCell[]}) {
+    const router = useRouter()
+    const [width, setWidth] = useState(0)
+    const cols = Math.ceil(cells.length / GRID_ROWS)
+    const fit = Math.max(1, Math.floor((width - GRID_PAD * 2) / GRID_STEP))
+    const span = Math.max(cols, fit)
+    const scrolls = width > 0 && cols > fit
+    const ref = useChart(
+        {
+            animation: false,
+            tooltip: {
+                ...TOOLTIP,
+                trigger: 'item',
+                formatter: (params: unknown) => {
+                    const c = cells[(params as {dataIndex: number}).dataIndex]
+                    const title = c.title ? ` · ${echarts.format.encodeHTML(c.title)}` : ''
+                    return `#${c.index}${title}<br/>Vote: ${GRID_LEGEND.find(l => l.vote === c.vote)!.label}`
+                },
+            },
+            grid: {left: GRID_PAD, right: GRID_PAD, top: GRID_PAD, height: GRID_ROWS * GRID_STEP - GRID_PAD * 2},
+            xAxis: {type: 'value', min: -0.5, max: span - 0.5, show: false},
+            yAxis: {type: 'value', min: -0.5, max: GRID_ROWS - 0.5, inverse: true, show: false},
+            dataZoom: [
+                {type: 'inside', disabled: !scrolls, zoomLock: true, filterMode: 'none', startValue: span - fit - 0.5, endValue: span - 0.5},
+                {
+                    type: 'slider',
+                    show: scrolls,
+                    zoomLock: true,
+                    filterMode: 'none',
+                    bottom: 12,
+                    height: 10,
+                    borderColor: 'transparent',
+                    backgroundColor: '#f1f2f5',
+                    fillerColor: 'rgba(8,145,178,.10)',
+                    handleSize: 14,
+                    handleStyle: {color: '#fff', borderColor: GRAY},
+                    moveHandleSize: 0,
+                    showDetail: false,
+                    brushSelect: false,
+                    showDataShadow: false,
+                },
+            ],
+            series: [
+                {
+                    type: 'custom',
+                    clip: true,
+                    cursor: 'pointer',
+                    data: cells.map((c, i) => [Math.floor(i / GRID_ROWS), i % GRID_ROWS]),
+                    renderItem: ((params: {dataIndex: number}, api: {value: (dim: number) => number; coord: (v: number[]) => number[]}) => {
+                        const [x, y] = api.coord([api.value(0), api.value(1)])
+                        return gridSquare(x, y, cells[params.dataIndex].vote)
+                    }) as never,
+                },
+            ],
+        },
+        i => router.push(`/referendum/${cells[i].index}`)
+    )
+    useEffect(() => {
+        const ro = new ResizeObserver(([e]) => setWidth(e.contentRect.width))
+        ro.observe(ref.current!)
+        return () => ro.disconnect()
+    }, [ref])
+    return <div ref={ref} style={{height: GRID_ROWS * GRID_STEP + (scrolls ? 34 : 0)}} />
 }

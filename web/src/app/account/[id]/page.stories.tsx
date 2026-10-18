@@ -950,6 +950,19 @@ export const VotesTypeSplit: StoryObj = {
     },
 }
 
+// the record lists every referendum up to the highest voted on, its legend naming each kind of square
+export const VotesRecord: StoryObj = {
+    ...story({account: voting(numn(250_000)), votes: voteRows()}, {tab: 'votes'}),
+    play: async ({canvas}) =>
+        expect(within(canvas.getByRole('list', {name: 'Vote record legend'})).getAllByRole('listitem').map(li => li.textContent)).toEqual(['Aye', 'Nay', 'Split', 'Abstain', 'No vote']),
+}
+
+// with no referendum on chain there is no record to draw
+export const VotesRecordNoReferenda: StoryObj = {
+    ...story({account: voting('0'), referenda: []}, {tab: 'votes'}),
+    play: async ({canvas}) => expect(canvas.queryByRole('list', {name: 'Vote record legend'})).toBeNull(),
+}
+
 // every vote taken off and no referendum open since, so there is no rate to give
 export const VotesSummaryNoReferenda: StoryObj = {
     ...story({account: voting('0'), votes: [vote(0, {removed: true, referendum: poll(6, 'Rejected', HEAD - 100)})], counts: {referenda: 0}}, {tab: 'votes'}),

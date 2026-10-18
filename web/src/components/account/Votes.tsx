@@ -8,6 +8,7 @@ import {VOTE_LIST_KEYS, votesFor, votesSummary, type VoteList} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {inlineRefs, voteEntry} from '@/lib/voteEntry'
 import {tabHref, type TabCtx} from './shared'
+import VoteRecord from './VoteRecord'
 import {VotesTable} from './VotesTable'
 
 const TYPES: VoteList[] = ['aye', 'nay', 'split', 'abstain']
@@ -31,6 +32,7 @@ export default async function Votes({hex, addr, chain, sp, firstSeenBlock, locke
                 pairs
                 className="mb-3"
             />
+            <VoteRecord hex={hex} />
             <FilterRow
                 label="Type"
                 className="mb-3"

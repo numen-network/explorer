@@ -59,7 +59,9 @@ export function voteParts(v: VoteShape): {side: VoteSide; capital: bigint; votes
 }
 
 /** The side a vote list files a vote under. */
-export const decisionOf = (v: {kind: string; aye: boolean | null}) => (v.kind === 'Standard' ? (v.aye ? 'aye' : 'nay') : v.kind === 'Split' ? 'split' : 'abstain')
+export type Decision = 'aye' | 'nay' | 'split' | 'abstain'
+
+export const decisionOf = (v: {kind: string; aye: boolean | null}): Decision => (v.kind === 'Standard' ? (v.aye ? 'aye' : 'nay') : v.kind === 'Split' ? 'split' : 'abstain')
 
 /**
  * The block a vote lets go of its balance. Conviction is only charged to the

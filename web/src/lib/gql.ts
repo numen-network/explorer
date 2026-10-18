@@ -625,6 +625,29 @@ async function delegationsCountedBy(idHex: string, indexes: number[]): Promise<M
     return byReferendum
 }
 
+// every referendum in index order and the account's standing vote on each it voted on
+export async function voteGrid(idHex: string) {
+    const [referenda, votes] = await Promise.all([
+        sweep(page =>
+            gql<{referendums: {index: number; title: string | null}[]}>(
+                `query ($limit: Int!, $offset: Int!) {
+                    referendums(orderBy: index_ASC, limit: $limit, offset: $offset) { index title }
+                }`,
+                {...page}
+            ).then(r => r.referendums)
+        ),
+        sweep(page =>
+            gql<{votes: {kind: string; aye: boolean | null; referendum: {index: number}}[]}>(
+                `query ($id: String!, $limit: Int!, $offset: Int!) {
+                    votes(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { kind aye referendum { index } }
+                }`,
+                {id: idHex, ...page}
+            ).then(r => r.votes)
+        ),
+    ])
+    return {referenda, votes}
+}
+
 // open counts the referenda still taking votes once the account showed up
 export function votesSummary(idHex: string, firstSeenBlock: number) {
     return gql<Record<'all' | 'active' | 'open', {totalCount: number}>>(

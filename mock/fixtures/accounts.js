@@ -524,6 +524,7 @@ export function accountPage({
     votes = [],
     voteActions = [],
     delegatedVotes = [],
+    referenda = null,
     delegationActions = [],
     govDeposits = [],
     bountyDeposits = [],
@@ -582,14 +583,15 @@ export function accountPage({
                 : args.where.signatories_isNull === false
                   ? multisigOps.filter(o => o.multisig.id === self && o.signatories != null)
                   : paged(multisigOps)(args),
-        referendums: govDeposits,
+        // the vote record lists every referendum, one through the highest the account voted on unless set
+        referendums: ({where}) => (where ? govDeposits : (referenda ?? Array.from({length: Math.max(-1, ...votes.map(v => v.referendum.index)) + 1}, (_, index) => ({index, title: `Referendum ${index} title`})))),
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
         votesConnection: ({where}) => count(where.removed_eq === false ? (where.referendum ? standing.filter(v => v.referendum.status === 'Ongoing') : standing).length : where.kind_eq ? ofType(where).length : votes.length),
         delegatedVotes,
         referendumsConnection: count(counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size),
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,
-        votes: paged(votes),
+        votes: args => (args.where?.removed_eq === false ? standing : paged(votes)(args)),
         votingActionsConnection: count(counts.voteActions ?? voteActions.length),
         votingActions: paged(voteActions),
         delegationActionsConnection: ({where}) => count(where.OR ? (counts.delegationActions ?? delegationActions.length) : delegationsSide(where).length),
