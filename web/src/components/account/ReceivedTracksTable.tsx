@@ -12,9 +12,8 @@ export interface ReceivedTrackRow {
     delegators: number
     capital: string
     votes: string
-    /** Where the track link goes, the filter on this track or, when it is the one picked, back to all. */
+    /** The delegators on this track. */
     href: string
-    picked: boolean
 }
 
 const col = columnsFor<ReceivedTrackRow>()
@@ -28,7 +27,7 @@ export function ReceivedTracksTable({rows, chain}: {rows: ReceivedTrackRow[]; ch
                     header: 'Track',
                     meta: {className: 'w-full'},
                     cell: ({row}) => (
-                        <Link href={row.original.href} aria-current={row.original.picked ? 'page' : undefined} scroll={false} className="text-primary hover:underline">
+                        <Link href={row.original.href} scroll={false} className="text-primary hover:underline">
                             {row.original.name}
                         </Link>
                     ),
@@ -39,5 +38,5 @@ export function ReceivedTracksTable({rows, chain}: {rows: ReceivedTrackRow[]; ch
             ]),
         [chain]
     )
-    return <DataTable columns={columns} rows={rows} getRowId={r => r.id} className="[&_tr:has([aria-current=page])]:bg-muted" />
+    return <DataTable columns={columns} rows={rows} getRowId={r => r.id} />
 }

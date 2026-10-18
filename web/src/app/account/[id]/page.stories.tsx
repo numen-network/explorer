@@ -662,26 +662,42 @@ export const ReceivedTracksMany: StoryObj = {
             ['4,500 NUMN', '3,000 NUMN'],
         ])
         const links = within(table).getAllByRole('link')
-        expect(links.map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('dtrack'))).toEqual([TRACKS[0].id, TRACKS[1].id])
-        expect(links.filter(a => a.getAttribute('aria-current') === 'page')).toHaveLength(0)
+        const params = links.map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams)
+        expect(params.map(q => [q.get('rtab'), q.get('dtrack')])).toEqual([
+            ['delegators', TRACKS[0].id],
+            ['delegators', TRACKS[1].id],
+        ])
     },
 }
 
-// the picked track stands out and its link goes back to every track
-export const ReceivedTracksPicked: StoryObj = {
-    ...story({delegationsIn: rootAndUpgrade}, {tab: 'received', dtrack: TRACKS[0].id}),
+// Received opens on its tracks, the delegator list a tab away
+export const ReceivedOpensOnTracks: StoryObj = {
+    ...story({delegationsIn: rootAndUpgrade}, {tab: 'received'}),
     play: async ({canvasElement}) => {
-        const [root, upgrade] = within(tracksTable(canvasElement)).getAllByRole('link')
-        expect(root).toHaveAttribute('aria-current', 'page')
-        expect(new URL(root.getAttribute('href')!, 'http://x').searchParams.has('dtrack')).toBe(false)
-        expect(upgrade).not.toHaveAttribute('aria-current')
-        expect(getComputedStyle(root.closest('tr')!).backgroundColor).not.toBe(getComputedStyle(upgrade.closest('tr')!).backgroundColor)
+        const links = within(within(canvasElement).getByRole('navigation', {name: 'Received'})).getAllByRole('link')
+        expect(links.map(a => [new URL(a.getAttribute('href')!, 'http://x').searchParams.get('rtab'), a.querySelector('[data-slot=badge]')!.textContent, a.getAttribute('aria-current')])).toEqual([
+            ['tracks', '2', 'page'],
+            ['delegators', '3', null],
+        ])
+        expect(within(canvasElement).queryByRole('columnheader', {name: 'Delegated from'})).toBeNull()
+    },
+}
+
+// the delegator list keeps the summary and leaves the tracks table behind
+export const ReceivedDelegators: StoryObj = {
+    ...story({delegationsIn: rootAndUpgrade}, {tab: 'received', rtab: 'delegators'}),
+    play: async ({canvasElement}) => {
+        const links = within(within(canvasElement).getByRole('navigation', {name: 'Received'})).getAllByRole('link')
+        expect(links.map(a => a.getAttribute('aria-current'))).toEqual([null, 'page'])
+        expect(within(canvasElement).getByRole('columnheader', {name: 'Delegated from'})).toBeInTheDocument()
+        expect(within(canvasElement).queryByRole('columnheader', {name: 'Delegators'})).toBeNull()
+        expect(summaries(canvasElement)).toHaveLength(1)
     },
 }
 
 const SPENDERS = TRACKS.filter(t => t.name.endsWith('_spender'))
 
-export const Received = story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'received'})
+export const Received = story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'received', rtab: 'delegators'})
 
 export const ReceivedTrackFilter = story({delegationsIn: delegatedFrom(20, SPENDERS.slice(0, 1)), counts: {tracks: {30: 26, 31: 15, 32: 12}}}, {tab: 'received', dtrack: '30'})
 
@@ -691,6 +707,7 @@ export const ReceivedFromDelegationsLink: StoryObj = {
     play: async ({canvas, canvasElement}) => {
         expect(governanceTabs(canvasElement)).toEqual({delegations: false, received: true})
         await expect(canvas.getByText('Delegated from')).toBeInTheDocument()
+        expect(within(canvas.getByRole('navigation', {name: 'Received'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Delegators/)
     },
 }
 
@@ -705,19 +722,23 @@ export const ReceivedTrackFilterEmpty: StoryObj = {
 
 // Track options go by track id, two-digit ids after the single digits
 export const ReceivedTrackOptions: StoryObj = {
-    ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'received'}),
+    ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'received', rtab: 'delegators'}),
     play: async ({canvasElement}) =>
         expect(await filterOptions(canvasElement, 'Track')).toEqual(['[All 5]', 'Root 1', 'Runtime Upgrade 1', 'Wish For Change 1', 'Identity Admin 1', 'Referendum Canceller 1', 'Referendum Killer 0', 'Small Spender 0', 'Medium Spender 0', 'Big Spender 0']),
 }
 
-// one account delegating the same balance on every track, both lists in track order with two-digit ids after the single digits
+const EVERY_TRACK = ['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender', 'Medium Spender', 'Big Spender']
+
+// one account delegating the same balance on every track, its tracks in track order with two-digit ids after the single digits
 export const ReceivedEveryTrack: StoryObj = {
     ...story({delegationsIn: delegatedOnTracks(person(1), TRACKS, numn(5_000))}, {tab: 'received'}),
-    play: async ({canvasElement}) => {
-        const order = ['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender', 'Medium Spender', 'Big Spender']
-        expect(columnTexts(tracksTable(canvasElement), 'Track')).toEqual(order)
-        expect(columnTexts(within(canvasElement).getByRole('columnheader', {name: 'Delegated from'}).closest('table')!, 'Track')).toEqual(order)
-    },
+    play: async ({canvasElement}) => expect(columnTexts(tracksTable(canvasElement), 'Track')).toEqual(EVERY_TRACK),
+}
+
+// the same delegations listed one row per track, in the same order
+export const ReceivedEveryTrackDelegators: StoryObj = {
+    ...story({delegationsIn: delegatedOnTracks(person(1), TRACKS, numn(5_000))}, {tab: 'received', rtab: 'delegators'}),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Track')).toEqual(EVERY_TRACK),
 }
 
 const proxied = (n: number) => subject({...funds(numn(1250.5), numn(1.75 * n)), depositsJson: [{id: 'proxy', amount: numn(1.75 * n)}]})

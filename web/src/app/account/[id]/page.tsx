@@ -128,7 +128,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
         tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
     if (s.nDelegOut.totalCount > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount, body: () => <Delegations {...ctx} />})
     if (s.nDelegIn.totalCount > 0)
-        tabs.push({slug: 'received', label: 'Received', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Received {...ctx} delegations={s.delegationsIn} maxDelegations={power.maxDelegations} />})
+        tabs.push({slug: 'received', label: 'Received', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Received {...ctx} delegations={s.delegationsIn} total={s.nDelegIn.totalCount} maxDelegations={power.maxDelegations} />})
     if (s.nDelegHistory.totalCount > 0)
         tabs.push({slug: 'delegation-history', label: 'Delegation history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} />})
 
