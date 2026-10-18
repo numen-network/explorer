@@ -740,6 +740,71 @@ export const ReceivedSearchNoMatch: StoryObj = {
     play: async ({canvas}) => expect(canvas.getByText('No matching delegations.')).toBeInTheDocument(),
 }
 
+// where each sortable heading of the delegator list leads, and which one shows an arrow pointing a way
+const sortHeads = (root: HTMLElement) => {
+    const head = within(root).getByRole('columnheader', {name: 'Delegated from'}).closest('tr')!
+    return Object.fromEntries(
+        within(head)
+            .getAllByRole('link')
+            .map(a => {
+                const q = new URL(a.getAttribute('href')!, 'http://x').searchParams
+                return [a.textContent, [q.get('sort'), q.get('order'), a.querySelector('.lucide-arrow-down') ? 'down' : a.querySelector('.lucide-arrow-up') ? 'up' : null]]
+            })
+    )
+}
+
+// capital biggest first is the default, the url carries no order and its heading turns it around
+export const ReceivedSortDefault: StoryObj = {
+    ...story({delegationsIn: rootAndUpgrade}, {tab: 'received', rtab: 'delegators'}),
+    play: async ({canvasElement}) =>
+        expect(sortHeads(canvasElement)).toEqual({
+            Conviction: ['conviction', 'desc', null],
+            Capital: ['capital', 'asc', 'down'],
+            Votes: ['votes', 'desc', null],
+            Since: ['since', 'desc', null],
+        }),
+}
+
+// votes smallest first reaches the query as votes_ASC, its heading turns it back and capital goes home to the default
+export const ReceivedSortVotesAscending: StoryObj = {
+    ...pageStory(
+        {
+            ...build({delegationsIn: rootAndUpgrade}),
+            delegations: ({orderBy}: {orderBy: string[]}) => (orderBy?.[0] === 'votes_ASC' ? [...rootAndUpgrade].reverse() : rootAndUpgrade),
+        },
+        {params: {id: SUBJECT}, searchParams: {tab: 'received', rtab: 'delegators', sort: 'votes', order: 'asc'}}
+    ),
+    play: async ({canvasElement}) => {
+        expect(sortHeads(canvasElement)).toEqual({
+            Conviction: ['conviction', 'desc', null],
+            Capital: [null, null, null],
+            Votes: ['votes', 'desc', 'up'],
+            Since: ['since', 'desc', null],
+        })
+        expect(columnTexts(within(canvasElement).getByRole('columnheader', {name: 'Delegated from'}).closest('table')!, 'Capital')).toEqual(['500 NUMN', '1,000 NUMN', '1,000 NUMN'])
+    },
+}
+
+// conviction strongest first reaches the query as the numeric level, so None sits below Locked1x
+export const ReceivedSortConviction: StoryObj = {
+    ...pageStory(
+        {
+            ...build({delegationsIn: rootAndUpgrade}),
+            delegations: ({orderBy}: {orderBy: string[]}) => (orderBy?.[0] === 'convictionLevel_DESC' ? [...rootAndUpgrade].reverse() : rootAndUpgrade),
+        },
+        {params: {id: SUBJECT}, searchParams: {tab: 'received', rtab: 'delegators', sort: 'conviction'}}
+    ),
+    play: async ({canvasElement}) => {
+        expect(sortHeads(canvasElement)).toEqual({
+            Conviction: ['conviction', 'asc', 'down'],
+            Capital: [null, null, null],
+            Votes: ['votes', 'desc', null],
+            Since: ['since', 'desc', null],
+        })
+        expect(columnTexts(within(canvasElement).getByRole('columnheader', {name: 'Delegated from'}).closest('table')!, 'Capital')).toEqual(['500 NUMN', '1,000 NUMN', '1,000 NUMN'])
+    },
+}
+
 const SPENDERS = TRACKS.filter(t => t.name.endsWith('_spender'))
 
 export const Received = story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'received', rtab: 'delegators'})

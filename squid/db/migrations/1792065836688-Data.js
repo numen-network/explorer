@@ -126,7 +126,7 @@ module.exports = class Data1792065836688 {
         await db.query(`CREATE TABLE "referendum_tally_snapshot" ("id" character varying NOT NULL, "block" integer NOT NULL, "ayes" numeric NOT NULL, "nays" numeric NOT NULL, "support" numeric NOT NULL, "total_issuance" numeric NOT NULL, "inactive_issuance" numeric NOT NULL, "referendum_id" character varying, CONSTRAINT "PK_0992bbc5473b0d06c2290fe8493" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_referendum_tally_snapshot_referendum_497a6e6b" ON "referendum_tally_snapshot" ("referendum_id") `)
         await db.query(`CREATE INDEX "idx_referendum_tally_snapshot_block_6e3bcde9" ON "referendum_tally_snapshot" ("block") `)
-        await db.query(`CREATE TABLE "delegation" ("id" character varying NOT NULL, "conviction" text NOT NULL, "balance" numeric NOT NULL, "votes" numeric NOT NULL, "block" integer NOT NULL, "who_id" character varying, "target_id" character varying, "track_id" character varying, CONSTRAINT "PK_a2cb6c9b942d68b109131beab44" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "delegation" ("id" character varying NOT NULL, "conviction" text NOT NULL, "conviction_level" integer NOT NULL, "balance" numeric NOT NULL, "votes" numeric NOT NULL, "block" integer NOT NULL, "who_id" character varying, "target_id" character varying, "track_id" character varying, CONSTRAINT "PK_a2cb6c9b942d68b109131beab44" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_delegation_who_4c79bac5" ON "delegation" ("who_id") `)
         await db.query(`CREATE INDEX "idx_delegation_target_54f285e6" ON "delegation" ("target_id") `)
         await db.query(`CREATE INDEX "idx_delegation_track_c05b90a8" ON "delegation" ("track_id") `)

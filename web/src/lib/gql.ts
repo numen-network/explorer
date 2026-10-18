@@ -1,4 +1,4 @@
-import type {ActionKind, ActionMove} from './actionFilters'
+import type {ActionKind, ActionMove, DelegationSort, DelegationSortBy} from './actionFilters'
 import type {VoteShape} from './conviction'
 import {isH256} from './evm'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
@@ -422,6 +422,7 @@ export interface DelegationRow {
     id: string
     conviction: string
     balance: string
+    votes: string
     block: number
     track: {id: string; name: string}
     who?: AccountRef
@@ -652,7 +653,7 @@ export function delegationHistoryFor(idHex: string, dir: 'in' | 'out' | '', limi
 export function delegationsOutFor(idHex: string) {
     return gql<{delegations: DelegationRow[]}>(
         `query ($id: String!) {
-            delegations(where: {who: {id_eq: $id}}, orderBy: [track_index_ASC, id_ASC], limit: 100) { id conviction balance block track { id name } target { ${ACCOUNT_REF} } }
+            delegations(where: {who: {id_eq: $id}}, orderBy: [track_index_ASC, id_ASC], limit: 100) { id conviction balance votes block track { id name } target { ${ACCOUNT_REF} } }
         }`,
         {id: idHex}
     )
@@ -1716,18 +1717,20 @@ export function trackList() {
     return gql<{tracks: {id: string; name: string}[]}>(`query { tracks(orderBy: index_ASC) { id name } }`)
 }
 
-const DELEGATION_ORDER = '[balance_DESC, who_id_ASC, track_index_ASC, id_ASC]'
+// the columns the delegator list sorts by, ties settled the same way whichever leads
+const DELEGATION_SORT_FIELD: Record<DelegationSortBy, string> = {conviction: 'convictionLevel', capital: 'balance', votes: 'votes', since: 'block'}
+const delegationOrder = ({by, dir}: DelegationSort) => `[${DELEGATION_SORT_FIELD[by]}_${dir.toUpperCase()}, who_id_ASC, track_index_ASC, id_ASC]`
 
 // track ids are the pallet class numbers, safe to splice into aliases. the
 // track counts follow the search so each option says what picking it shows
-export async function delegationsInPage(id: string, tracks: string[], track: string, {account, name}: AccountSearch, limit: number, offset: number) {
+export async function delegationsInPage(id: string, tracks: string[], track: string, {account, name}: AccountSearch, sort: DelegationSort, limit: number, offset: number) {
     const target = [`target: {id_eq: $id}`, account != null && 'who: {id_eq: $account}', name != null && `who: ${nameMatch('$name')}`].filter(Boolean).join(', ')
     const where = track ? `{${target}, track: {id_eq: "${track}"}}` : `{${target}}`
     const counts = tracks.map(t => `t${t}: delegationsConnection(where: {${target}, track: {id_eq: "${t}"}}, orderBy: id_ASC) { totalCount }`)
     const vars = [account != null && '$account: String!', name != null && '$name: String!'].filter(Boolean).join(', ')
     const raw = await gql<{delegations: DelegationRow[]; conn: {totalCount: number}; all: {totalCount: number}} & Record<string, {totalCount: number}>>(
         `query ($id: String!, ${vars ? `${vars}, ` : ''}$limit: Int!, $offset: Int!) {
-            delegations(where: ${where}, orderBy: ${DELEGATION_ORDER}, limit: $limit, offset: $offset) { id conviction balance block track { id name } who { ${ACCOUNT_REF} } }
+            delegations(where: ${where}, orderBy: ${delegationOrder(sort)}, limit: $limit, offset: $offset) { id conviction balance votes block track { id name } who { ${ACCOUNT_REF} } }
             conn: delegationsConnection(where: ${where}, orderBy: id_ASC) { totalCount }
             all: delegationsConnection(where: {${target}}, orderBy: id_ASC) { totalCount }
             ${counts.join('\n            ')}

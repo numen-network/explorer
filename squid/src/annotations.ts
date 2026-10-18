@@ -3,7 +3,7 @@ import {In} from 'typeorm'
 import {Store} from '@subsquid/typeorm-store'
 import {Account, Delegation, Judgement, PrimeState, ProxyRelation, Registrar, Track} from './model'
 import {BatchData} from './batch'
-import {convictionVotes} from './conviction'
+import {convictionLevel, convictionVotes} from './conviction'
 import {events, storage} from './types'
 import {decodeUtf8} from './utf8'
 
@@ -370,6 +370,7 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
                         target: new Account({id: v.value.target}),
                         track: new Track({id: String(cls)}),
                         conviction: v.value.conviction.__kind,
+                        convictionLevel: convictionLevel(v.value.conviction.__kind),
                         balance: v.value.balance,
                         votes: convictionVotes(v.value.conviction.__kind, v.value.balance),
                         block: height,

@@ -7,7 +7,7 @@ import {FilterSelect} from '@/components/pills'
 import {Card} from '@/components/ui/card'
 import {fmtInt, trackLabel} from '@/lib/format'
 import {weigh} from '@/lib/conviction'
-import {loadSearch} from '@/lib/actionFilters'
+import {DELEGATION_SORTS, loadDelegationSort, loadSearch} from '@/lib/actionFilters'
 import {accountSearch, delegateTally, delegationsInPage, trackList, type AccountSummary} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {DelegationsTable} from './DelegationsTable'
@@ -32,8 +32,14 @@ async function Delegators({hex, addr, chain, sp, tracks}: TabCtx & {tracks: Trac
     const trackIds = tracks.map(t => t.id)
     const track = trackIds.includes(String(sp.dtrack)) ? String(sp.dtrack) : ''
     const q = loadSearch(sp).q.trim()
-    const dIn = await delegationsInPage(hex, trackIds, track, accountSearch(q, chain.ss58), pg.size, pg.offset)
-    const href = (dtrack: string) => tabHref(addr, 'received', {rtab: 'delegators', dtrack, q})
+    const {sort: by, order: dir} = loadDelegationSort(sp)
+    const dIn = await delegationsInPage(hex, trackIds, track, accountSearch(q, chain.ss58), {by, dir}, pg.size, pg.offset)
+    // the default order stays out of the url, and a new order starts over at the first page
+    const sorted = (s: typeof by, o: typeof dir): Record<string, string> => (s === 'capital' && o === 'desc' ? {sort: '', order: ''} : {sort: s, order: o})
+    const href = (dtrack: string) => tabHref(addr, 'received', {rtab: 'delegators', dtrack, q, ...sorted(by, dir)})
+    const hrefs = Object.fromEntries(
+        DELEGATION_SORTS.map(s => [s, tabHref(addr, 'received', {rtab: 'delegators', dtrack: track, q, ...sorted(s, s === by && dir === 'desc' ? 'asc' : 'desc')})])
+    ) as Record<typeof by, string>
     const trackName = (id: string) => trackLabel(tracks.find(t => t.id === id)!.name)
     return (
         <>
@@ -42,7 +48,7 @@ async function Delegators({hex, addr, chain, sp, tracks}: TabCtx & {tracks: Trac
                 <SearchBox className="w-full sm:w-90" />
             </div>
             <Card size="flush">
-                <DelegationsTable label="Delegated from" rows={dIn.rows} chain={chain} filtered={track !== '' || q !== ''} />
+                <DelegationsTable label="Delegated from" rows={dIn.rows} chain={chain} filtered={track !== '' || q !== ''} sort={{by, dir, hrefs}} />
             </Card>
             <Pager paging={pg} total={dIn.total} href={href(track)} />
         </>

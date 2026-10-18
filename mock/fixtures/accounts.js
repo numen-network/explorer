@@ -151,14 +151,18 @@ export const accountExtrinsics = count =>
         return accountExtrinsic(h, i % 4, {pallet, method, leafCalls: LEAVES[method] ?? null, success: i % 5 !== 3, error: i % 5 === 3 ? FAILED : null})
     })
 
-const delegation = (i, traits = {}) => ({
-    id: `delegation-${i}`,
-    conviction: CONVICTIONS[i % CONVICTIONS.length],
-    balance: numn(1_000 * (i + 1) + 0.25 * i),
-    block: HEAD - 1_000 * (i + 1),
-    track: TRACKS[i % TRACKS.length],
-    ...traits,
-})
+// votes is what the index stores beside the balance, a tenth of it for None and N times it for LockedNx
+const weighed = d => ({...d, votes: (d.conviction === 'None' ? BigInt(d.balance) / 10n : BigInt(d.balance) * BigInt(d.conviction.slice(6, -1))).toString()})
+
+const delegation = (i, traits = {}) =>
+    weighed({
+        id: `delegation-${i}`,
+        conviction: CONVICTIONS[i % CONVICTIONS.length],
+        balance: numn(1_000 * (i + 1) + 0.25 * i),
+        block: HEAD - 1_000 * (i + 1),
+        track: TRACKS[i % TRACKS.length],
+        ...traits,
+    })
 
 export const delegatingTo = count => Array.from({length: count}, (_, i) => delegation(i, {target: person(i)}))
 

@@ -22,3 +22,18 @@ export const actionFilters = {
 export const loadActionFilters = createLoader(actionFilters)
 
 export const actionFiltersUrl = createSerializer(actionFilters)
+
+export const DELEGATION_SORTS = ['conviction', 'capital', 'votes', 'since'] as const
+export type DelegationSortBy = (typeof DELEGATION_SORTS)[number]
+export interface DelegationSort {
+    by: DelegationSortBy
+    dir: 'asc' | 'desc'
+}
+
+// how the delegator list is sorted, capital biggest first unless the url says otherwise
+export const delegationSortFilter = {
+    sort: parseAsStringLiteral(DELEGATION_SORTS).withDefault('capital'),
+    order: parseAsStringLiteral(['asc', 'desc'] as const).withDefault('desc'),
+}
+
+export const loadDelegationSort = createLoader(delegationSortFilter)

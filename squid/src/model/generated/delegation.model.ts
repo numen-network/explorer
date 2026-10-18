@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, IntColumn as IntColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
 import {Track} from "./track.model"
 
@@ -28,6 +28,12 @@ export class Delegation {
      */
     @StringColumn_({nullable: false})
     conviction!: string
+
+    /**
+     * the N of LockedNx, 0 for None
+     */
+    @IntColumn_({nullable: false})
+    convictionLevel!: number
 
     @BigIntColumn_({nullable: false})
     balance!: bigint
