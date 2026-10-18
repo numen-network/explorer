@@ -26,6 +26,22 @@ export function StatusBadge({phase, className}: {phase: Phase; className?: strin
     return <Badge className={cn('shrink-0 rounded-md px-3 py-1.5 text-xs leading-none font-semibold', PHASE_BG[phase], className)}>{camelLabel(phase)}</Badge>
 }
 
+const PHASE_TONE: Record<Phase, 'primary' | 'pos' | 'neg' | 'idle'> = {
+    Submitted: 'idle',
+    Deciding: 'primary',
+    Confirming: 'pos',
+    Approved: 'pos',
+    Rejected: 'neg',
+    TimedOut: 'idle',
+    Cancelled: 'idle',
+    Killed: 'neg',
+}
+
+// the soft form a table row shows, in the tones PHASE_BG gives the cards
+export function StatusTag({phase}: {phase: Phase}) {
+    return <Badge variant={PHASE_TONE[phase]}>{camelLabel(phase)}</Badge>
+}
+
 export function ReferendumByline({r, chain, className}: {r: ReferendumRow; chain: ChainProps; className?: string}) {
     return (
         <div className={cn('flex flex-wrap items-center gap-2 text-xs', className)}>

@@ -10,7 +10,7 @@ import {VotesTable} from './VotesTable'
 
 export default async function Votes({hex, addr, chain, sp, firstSeenBlock, locked}: TabCtx & {firstSeenBlock: number; locked: string}) {
     const pg = paging(sp)
-    const [{votes, conn}, sum] = await Promise.all([votesFor(hex, pg.size, pg.offset), votesSummary(hex, firstSeenBlock)])
+    const [page, sum] = await Promise.all([votesFor(hex, pg.size, pg.offset), votesSummary(hex, firstSeenBlock)])
     return (
         <>
             <StatTile
@@ -25,9 +25,9 @@ export default async function Votes({hex, addr, chain, sp, firstSeenBlock, locke
                 className="mb-3"
             />
             <Card size="flush">
-                <VotesTable rows={votes} chain={chain} />
+                <VotesTable rows={page.votes} delegated={page.delegated} chain={chain} />
             </Card>
-            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'votes')} />
+            <Pager paging={pg} total={page.total} href={tabHref(addr, 'votes')} />
         </>
     )
 }

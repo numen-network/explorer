@@ -1,5 +1,5 @@
 import type {ActionKind, ActionMove, DelegationSort, DelegationSortBy} from './actionFilters'
-import type {VoteShape} from './conviction'
+import {weigh, type VoteShape} from './conviction'
 import {isH256} from './evm'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
 import {ss58TryDecode} from './ss58'
@@ -579,14 +579,36 @@ export async function evmCounts(address: string) {
     return {transfers: transfers.totalCount, holdings: holdings.totalCount, contracts: contracts.totalCount, tokens: tokens.totalCount}
 }
 
-export function votesFor(idHex: string, limit: number, offset: number) {
-    return gql<{votes: VoteRow[]; conn: {totalCount: number}}>(
+export interface AccountVoteRow extends VoteRow {
+    referendum: {index: number; title: string | null; status: string; decidingSince: number | null; confirmingSince: number | null; endedAt: number | null}
+}
+
+// the account's votes on one page and the delegated votes each referendum on
+// the page counts through the account's standard vote there
+export async function votesFor(idHex: string, limit: number, offset: number) {
+    const raw = await gql<{votes: AccountVoteRow[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            votes(where: {voter: {id_eq: $id}}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index status endedAt } }
+            votes(where: {voter: {id_eq: $id}}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index title status decidingSince confirmingSince endedAt } }
             conn: votesConnection(where: {voter: {id_eq: $id}}, orderBy: id_ASC) { totalCount }
         }`,
         {id: idHex, limit, offset}
     )
+    return {votes: raw.votes, total: raw.conn.totalCount, delegated: await delegatedVotesOn(idHex, raw.votes.map(v => v.referendum.index))}
+}
+
+async function delegatedVotesOn(idHex: string, indexes: number[]): Promise<Map<number, bigint>> {
+    const totals = new Map<number, bigint>()
+    if (indexes.length === 0) return totals
+    const rows = await sweep(page =>
+        gql<{delegatedVotes: {conviction: string; balance: string; referendum: {index: number}}[]}>(
+            `query ($id: String!, $indexes: [Int!], $limit: Int!, $offset: Int!) {
+                delegatedVotes(where: {voter: {id_eq: $id}, referendum: {index_in: $indexes}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { conviction balance referendum { index } }
+            }`,
+            {id: idHex, indexes, ...page}
+        ).then(r => r.delegatedVotes)
+    )
+    for (const d of rows) totals.set(d.referendum.index, (totals.get(d.referendum.index) ?? 0n) + weigh(d.balance, d.conviction))
+    return totals
 }
 
 // open counts the referenda still taking votes once the account showed up

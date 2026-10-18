@@ -8,6 +8,7 @@ import {
     accountTransferCases,
     accountTransfers,
     delegatedFrom,
+    delegatedVote,
     delegatedOnTracks,
     delegatingTo,
     delegationAction,
@@ -32,6 +33,7 @@ import {
     proxyDelegates,
     proxyDelays,
     proxyFor,
+    poll,
     pureCreatedBy,
     reservedOf,
     SIGNATORIES,
@@ -894,7 +896,7 @@ export const MultisigLastPage = story({multisigOps: manyOps}, {tab: 'multisig', 
 
 export const VotesOne = story({account: voting(numn(1_000)), votes: [vote(0)]}, {tab: 'votes'})
 
-const manyVotes = [...voteRows(), ...Array.from({length: 35}, (_, i) => vote(i + 10, {referendum: {index: 47 - i, status: 'Ongoing', endedAt: null}}))]
+const manyVotes = [...voteRows(), ...Array.from({length: 35}, (_, i) => vote(i + 10, {referendum: poll(47 - i, 'Ongoing', null)}))]
 
 export const VotesMany = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'votes'})
 
@@ -904,8 +906,8 @@ export const VotesLastPage = story({account: voting(numn(250_000)), votes: manyV
 
 // votes cast in one block list the newest referendum first, #10 between #11 and #9
 export const VotesInOneBlock: StoryObj = {
-    ...story({account: voting(numn(3_000)), votes: [11, 10, 9].map((index, i) => vote(i, {block: HEAD - 500, referendum: {index, status: 'Ongoing', endedAt: null}}))}, {tab: 'votes'}),
-    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Referendum')).toEqual(['#11', '#10', '#9']),
+    ...story({account: voting(numn(3_000)), votes: [11, 10, 9].map((index, i) => vote(i, {block: HEAD - 500, referendum: poll(index, 'Ongoing', null)}))}, {tab: 'votes'}),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Referendum').map(t => t!.split(' · ')[0])).toEqual(['#11', '#10', '#9']),
 }
 
 // nine standing votes over 14 referenda open since the account showed up, #6 and #9 still deciding and the removed #8 left out
@@ -915,9 +917,15 @@ export const VotesSummary: StoryObj = {
         expect(summaries(canvasElement)).toEqual([{'All votes': '9', Active: '2', 'Participation rate': '64.28%', 'Total locked': '250K NUMN'}]),
 }
 
+// the delegated votes a referendum counts reach the account's standard vote there
+export const VotesDelegated: StoryObj = {
+    ...story({account: voting(numn(250_000)), votes: voteRows(), delegatedVotes: [delegatedVote(6, 'Locked3x', 1_500)]}, {tab: 'votes'}),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Votes')[0]).toBe('5,500 NUMN1,000 + 4,500 delegated'),
+}
+
 // every vote taken off and no referendum open since, so there is no rate to give
 export const VotesSummaryNoReferenda: StoryObj = {
-    ...story({account: voting('0'), votes: [vote(0, {removed: true, referendum: {index: 6, status: 'Rejected', endedAt: HEAD - 100}})], counts: {referenda: 0}}, {tab: 'votes'}),
+    ...story({account: voting('0'), votes: [vote(0, {removed: true, referendum: poll(6, 'Rejected', HEAD - 100)})], counts: {referenda: 0}}, {tab: 'votes'}),
     play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', Active: '0', 'Participation rate': '—', 'Total locked': '0 NUMN'}]),
 }
 

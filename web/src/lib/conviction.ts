@@ -45,6 +45,19 @@ export const capitalOf = (v: VoteShape) => BigInt(v.balance ?? 0) + BigInt(v.aye
 /** What the vote itself puts on the tally, a split counts each part at a tenth. */
 export const votesOf = (v: VoteShape) => (v.kind === 'Standard' ? weigh(v.balance ?? '0', v.conviction) : capitalOf(v) / 10n)
 
+export type VoteSide = 'aye' | 'nay' | 'abstain'
+
+/**
+ * Each side a vote takes, with the capital it puts there and the votes that
+ * come of it. A split has no conviction of its own and counts at None.
+ */
+export function voteParts(v: VoteShape): {side: VoteSide; capital: bigint; votes: bigint}[] {
+    const part = (side: VoteSide, amount: string | null, conviction: string | null) => ({side, capital: BigInt(amount ?? 0), votes: weigh(amount ?? '0', conviction)})
+    if (v.kind === 'Standard') return [part(v.aye ? 'aye' : 'nay', v.balance, v.conviction)]
+    const parts = [part('aye', v.ayeAmount, 'None'), part('nay', v.nayAmount, 'None')]
+    return v.kind === 'SplitAbstain' ? [...parts, part('abstain', v.abstainAmount, 'None')] : parts
+}
+
 /** The side a vote list files a vote under. */
 export const decisionOf = (v: {kind: string; aye: boolean | null}) => (v.kind === 'Standard' ? (v.aye ? 'aye' : 'nay') : v.kind === 'Split' ? 'split' : 'abstain')
 

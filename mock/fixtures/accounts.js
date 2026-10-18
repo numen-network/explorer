@@ -225,27 +225,32 @@ export const vote = (i, traits = {}) => ({
     abstainAmount: null,
     block: HEAD - 500 * (i + 1),
     removed: false,
-    referendum: {index: 6, status: 'Ongoing', endedAt: null},
+    referendum: poll(6, 'Ongoing', null),
     ...traits,
 })
 
-const poll = (index, status, endedAt) => ({index, status, endedAt})
+export function poll(index, status, endedAt, traits = {}) {
+    return {index, title: `Referendum ${index} title`, status, decidingSince: status === 'Ongoing' ? HEAD - 20_000 : null, confirmingSince: null, endedAt, ...traits}
+}
 
 // one row per way a vote list files a vote and frees its balance
 const VOTE_CASES = [
-    {aye: true, conviction: 'Locked1x', referendum: poll(6, 'Ongoing', null)},
-    {kind: 'Split', aye: null, conviction: null, balance: null, ayeAmount: numn(4_000), nayAmount: numn(1_500), referendum: poll(9, 'Ongoing', null)},
+    {aye: true, conviction: 'Locked1x', referendum: poll(6, 'Ongoing', null, {title: 'Fund the Q4 explorer roadmap'})},
+    {kind: 'Split', aye: null, conviction: null, balance: null, ayeAmount: numn(4_000), nayAmount: numn(1_500), referendum: poll(9, 'Ongoing', null, {confirmingSince: HEAD - 2_000})},
     {aye: true, conviction: 'Locked3x', referendum: poll(10, 'Approved', 698_640)},
-    {aye: false, conviction: 'Locked6x', balance: numn(250_000), referendum: poll(1, 'Rejected', 543_360)},
+    {aye: false, conviction: 'Locked6x', balance: numn(250_000), referendum: poll(1, 'Rejected', 543_360, {title: 'Treasury spend for community events across Asia, Europe and the Americas'})},
     {aye: false, conviction: 'None', referendum: poll(0, 'Approved', 588_640)},
     {kind: 'SplitAbstain', aye: null, conviction: null, balance: null, ayeAmount: numn(100), nayAmount: numn(100), abstainAmount: numn(9_800), referendum: poll(11, 'TimedOut', 520_960)},
-    {aye: false, conviction: 'Locked2x', referendum: poll(2, 'Cancelled', 652_000)},
+    {aye: false, conviction: 'Locked2x', referendum: poll(2, 'Cancelled', 652_000, {title: null})},
     {aye: true, conviction: 'Locked4x', referendum: poll(3, 'TimedOut', 820_960)},
     {aye: false, conviction: 'Locked5x', referendum: poll(4, 'Killed', 790_000)},
-    {aye: true, conviction: 'Locked1x', removed: true, referendum: poll(8, 'Ongoing', null)},
+    {aye: true, conviction: 'Locked1x', removed: true, referendum: poll(8, 'Ongoing', null, {decidingSince: null})},
 ]
 
 export const voteRows = () => VOTE_CASES.map((c, i) => vote(i, c))
+
+// a delegation a referendum counts through the account's standard vote there
+export const delegatedVote = (index, conviction, units) => ({conviction, balance: numn(units), referendum: {index}})
 
 // a vote the account cast or took off, newest first. delegatedVotes is what its
 // casting record held as the block ended
@@ -518,6 +523,7 @@ export function accountPage({
     multisigOps = [],
     votes = [],
     voteActions = [],
+    delegatedVotes = [],
     delegationActions = [],
     govDeposits = [],
     bountyDeposits = [],
@@ -578,6 +584,7 @@ export function accountPage({
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
         votesConnection: ({where}) => count(where.removed_eq === false ? (where.referendum ? standing.filter(v => v.referendum.status === 'Ongoing') : standing).length : votes.length),
+        delegatedVotes,
         referendumsConnection: count(counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size),
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,
         votes: paged(votes),
