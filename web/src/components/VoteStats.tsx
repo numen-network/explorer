@@ -4,6 +4,7 @@ import EmptyList from '@/components/EmptyList'
 import {RingChart, StackChart} from '@/components/charts'
 import {Card} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
+import {levelLabel} from '@/lib/conviction'
 import {fmtApprox, fmtCompact, fmtInt, fmtPct} from '@/lib/format'
 import type {BallotDelegation, BallotVote, VoteList} from '@/lib/gql'
 import {ballotsOf, rangeOf, VOTE_JOINTS, type Ballot} from '@/lib/voteStats'
@@ -102,7 +103,7 @@ export default function VoteStats({votes, delegations, decimals, symbol}: Props)
     // split votes are rare, they only earn a colour when the referendum has any
     const lists = LISTS.filter(([list]) => list !== 'split' || ballots.some(b => b.list === 'split'))
     const sum = (pick: (b: Ballot) => bigint) => ballots.reduce((n, b) => n + pick(b), 0n)
-    const levels: Group[] = LEVELS.map(n => ({label: `${n}x`, has: b => b.level === n}))
+    const levels: Group[] = LEVELS.map(n => ({label: levelLabel(n), has: b => b.level === n}))
     const ranges: Group[] = [...VOTE_JOINTS, null].map((joint, i) => ({
         label: joint == null ? `>${fmtCompact(VOTE_JOINTS[i - 1])}` : `${i === 0 ? '0' : fmtCompact(VOTE_JOINTS[i - 1])}-${fmtCompact(joint)}`,
         has: b => rangeOf(b.votes, decimals) === i,
@@ -144,7 +145,7 @@ export default function VoteStats({votes, delegations, decimals, symbol}: Props)
                                 {LEVELS.map(n => (
                                     <li key={n} className="col-span-3 grid grid-cols-subgrid items-center">
                                         <Swatch color={LEVEL_COLOR[n]} />
-                                        <span>{n}x</span>
+                                        <span>{levelLabel(n)}</span>
                                         <span className="text-right text-muted-foreground tabular-nums">{fmtPct(atLevel[n], ballots.length)}</span>
                                     </li>
                                 ))}
@@ -152,7 +153,7 @@ export default function VoteStats({votes, delegations, decimals, symbol}: Props)
                             <RingChart
                                 total={fmtInt(ballots.length)}
                                 unit="Accounts"
-                                slices={LEVELS.map(n => ({label: `${n}x`, value: atLevel[n], color: LEVEL_COLOR[n], tip: `${fmtInt(atLevel[n])} · ${fmtPct(atLevel[n], ballots.length)}`}))}
+                                slices={LEVELS.map(n => ({label: levelLabel(n), value: atLevel[n], color: LEVEL_COLOR[n], tip: `${fmtInt(atLevel[n])} · ${fmtPct(atLevel[n], ballots.length)}`}))}
                             />
                         </div>
                     </div>

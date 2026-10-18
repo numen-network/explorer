@@ -792,9 +792,9 @@ const statistics = async (root: HTMLElement) => {
 }
 
 const WAYS = ['Delegated', 'Direct']
-const LEVELS = ['0x', '1x', '2x', '3x', '4x', '5x', '6x']
+const LEVELS = ['0.1x', '1x', '2x', '3x', '4x', '5x', '6x']
 const RANGES = ['0-10K', '10K-500K', '500K-1M', '1M-5M', '>5M']
-const shares = (pcts: string[]) => pcts.map((pct, n) => `${n}x${pct}`)
+const shares = (pcts: string[]) => pcts.map((pct, n) => `${LEVELS[n]}${pct}`)
 
 export const StatisticsEmpty = withPlay(curatedCase(7, 'statistics'), async ({canvas}) => {
     await expect(await canvas.findByText('No votes yet.')).toBeInTheDocument()

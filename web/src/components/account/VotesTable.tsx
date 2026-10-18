@@ -6,7 +6,7 @@ import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {capitalOf, convictionLabel, decisionOf, unlockAt} from '@/lib/conviction'
+import {capitalOf, convictionLabel, decisionOf, levelLabel, unlockAt} from '@/lib/conviction'
 import {fmtBalance} from '@/lib/format'
 import type {VoteRow} from '@/lib/gql'
 import {NONE} from '@/components/Detail'
@@ -37,7 +37,7 @@ export function VotesTable({rows, chain}: {rows: VoteRow[]; chain: ChainProps}) 
                         return <Badge variant={decision === 'aye' ? 'pos' : decision === 'nay' ? 'neg' : 'idle'}>{decision}</Badge>
                     },
                 }),
-                col.display({id: 'conviction', header: 'Conviction', meta: {cellClassName: 'font-mono'}, cell: ({row}) => (row.original.kind === 'Standard' ? convictionLabel(row.original.conviction) : '—')}),
+                col.display({id: 'conviction', header: 'Conviction', meta: {cellClassName: 'font-mono'}, cell: ({row}) => (row.original.kind === 'Standard' ? convictionLabel(row.original.conviction) : levelLabel(0))}),
                 col.display({id: 'amount', header: 'Amount', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtBalance(capitalOf(row.original), chain.decimals, chain.symbol)}),
                 col.display({id: 'block', header: 'Block', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.block} />}),
                 col.display({

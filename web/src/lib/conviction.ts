@@ -1,8 +1,10 @@
 // Conviction variant names, None counts a tenth and LockedNx counts N times over
 export const convictionLevel = (name: string | null) => (name == null || name === 'None' ? 0 : Number(name.slice(6, -1)))
 
-/** The short form a vote list shows, 0x for None and Nx for LockedNx. */
-export const convictionLabel = (name: string | null) => `${convictionLevel(name)}x`
+/** The short form of a conviction level, 0.1x for None and Nx for LockedNx. */
+export const levelLabel = (level: number) => (level === 0 ? '0.1x' : `${level}x`)
+
+export const convictionLabel = (name: string | null) => levelLabel(convictionLevel(name))
 
 /** What an amount puts on the tally under a conviction. */
 export function weigh(amount: string | bigint, conviction: string | null): bigint {

@@ -7,7 +7,7 @@ import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import type {ChainProps} from '@/lib/chain'
-import {capitalOf, convictionLabel, decisionOf, votesOf} from '@/lib/conviction'
+import {capitalOf, convictionLabel, decisionOf, levelLabel, votesOf} from '@/lib/conviction'
 import {fmtBalance} from '@/lib/format'
 import type {VoteHistoryRow} from '@/lib/gql'
 
@@ -27,7 +27,7 @@ export function VoteHistoryTable({rows, chain}: {rows: VoteHistoryRow[]; chain: 
                     ),
                 }),
                 col.display({id: 'action', header: 'Action', meta: {className: 'w-full'}, cell: ({row}) => <VoteMove removed={row.original.method === 'VoteRemoved'} decision={decisionOf(row.original)} />}),
-                col.display({id: 'conviction', header: 'Conviction', meta: {cellClassName: 'font-mono'}, cell: ({row}) => (row.original.kind === 'Standard' ? convictionLabel(row.original.conviction) : '—')}),
+                col.display({id: 'conviction', header: 'Conviction', meta: {cellClassName: 'font-mono'}, cell: ({row}) => (row.original.kind === 'Standard' ? convictionLabel(row.original.conviction) : levelLabel(0))}),
                 col.display({id: 'amount', header: 'Amount', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtBalance(capitalOf(row.original), chain.decimals, chain.symbol)}),
                 col.display({
                     id: 'votes',

@@ -1,5 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
+import {levelLabel} from '@/lib/conviction'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
@@ -12,8 +13,7 @@ const meta = {title: 'Components/VoteLists'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-const level = (conviction: string) => Number(conviction.replace('x', ''))
-const weigh = (capital: string, conviction: string) => String(level(conviction) === 0 ? BigInt(capital) / 10n : BigInt(capital) * BigInt(level(conviction)))
+const weigh = (capital: string, conviction: string) => String(conviction === '0.1x' ? BigInt(capital) / 10n : BigInt(capital) * BigInt(conviction.replace('x', '')))
 const addr = (id: string) => ss58Encode(id, CHAIN.ss58)
 
 const delegator = (acc: IdentityRef & {id: string}, conviction: string, capital: number): Delegator => ({addr: addr(acc.id), acc, conviction, capital: numn(capital), votes: weigh(numn(capital), conviction)})
@@ -55,10 +55,10 @@ const expand = (label: string): Story['play'] => async ({canvas, userEvent}) => 
     await userEvent.click(within(row).getByRole('button', {name: 'expand'}))
 }
 
-const few = [delegator(person(4), '1x', 40_000), delegator(person(5), '0x', 25_000), delegator(person(8), '6x', 10_000)]
-const many = Array.from({length: 10}, (_, i) => delegator(i === 2 ? person(7) : anon(500 + i), `${(i * 3) % 7}x`, 90_000 - i * 7_000))
+const few = [delegator(person(4), '1x', 40_000), delegator(person(5), '0.1x', 25_000), delegator(person(8), '6x', 10_000)]
+const many = Array.from({length: 10}, (_, i) => delegator(i === 2 ? person(7) : anon(500 + i), levelLabel((i * 3) % 7), 90_000 - i * 7_000))
 
-const ayes = [vote(3, '0x', 500_000), vote(0, '2x', 400_000, many, 13), vote(1, '1x', 300_000, few)]
+const ayes = [vote(3, '0.1x', 500_000), vote(0, '2x', 400_000, many, 13), vote(1, '1x', 300_000, few)]
 const every = groups('Aye', 3, 2, 1, 1)
 
 export const NoVotes = lists(groups('Aye', 0, 0, 0), standard([]))
@@ -93,7 +93,7 @@ export const ExpandedOneOverInlineLimit = {...lists(every, standard([ayes[0], vo
 
 export const ExtremeNumbers = lists(
     groups('Aye', 3, 0, 0),
-    standard([vote(0, '6x', 1_000_000_000_000, [delegator(anon(1), '6x', 999_999_999_999)]), vote(1, '1x', 0.000_001), vote(2, '0x', 0)])
+    standard([vote(0, '6x', 1_000_000_000_000, [delegator(anon(1), '6x', 999_999_999_999)]), vote(1, '1x', 0.000_001), vote(2, '0.1x', 0)])
 )
 
 export const ExtremeSplitParts = lists(groups('Split', 0, 0, 0, 3), splits(['Aye', 'Nay'], [splitVote(0, 1_000_000_000_000, 999_999_999_999), splitVote(1, 0.000_001, 0), splitVote(2, 0, 0.000_001)]))
