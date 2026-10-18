@@ -6,6 +6,9 @@ export function convictionLevel(conviction: string): number {
     return Number(level[1])
 }
 
+// how many vote locking periods a winning vote stays locked, doubling with each level
+export const lockPeriods = (level: number) => (level === 0 ? 0 : 2 ** (level - 1))
+
 // what a balance puts on a tally under a Conviction variant, a tenth of it for
 // None and N times it for LockedNx
 export function convictionVotes(conviction: string, balance: bigint): bigint {

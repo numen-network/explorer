@@ -13,8 +13,8 @@ import {StatusTag} from '@/components/referenda'
 import {Badge} from '@/components/ui/badge'
 import {VoteDetail, type VoteEntry} from '@/components/votes'
 import type {ChainProps} from '@/lib/chain'
-import {convictionLabel, levelLabel, unlockAt, voteParts, type VoteSide} from '@/lib/conviction'
-import {fmtBalance} from '@/lib/format'
+import {convictionLabel, levelLabel, voteParts, type VoteSide} from '@/lib/conviction'
+import {fmtBalance, fmtSpan} from '@/lib/format'
 import type {AccountVoteRow} from '@/lib/gql'
 import {phaseOf} from '@/lib/referendum'
 
@@ -35,7 +35,7 @@ function Lines({items, end}: {items: ReactNode[]; end?: boolean}) {
     )
 }
 
-export function VotesTable({rows, details, moreHref, chain}: {rows: AccountVoteRow[]; details: Map<string, VoteEntry>; moreHref: string; chain: ChainProps}) {
+export function VotesTable({rows, details, moreHref, head, chain}: {rows: AccountVoteRow[]; details: Map<string, VoteEntry>; moreHref: string; head: number; chain: ChainProps}) {
     const columns = useMemo(
         () =>
             col.columns([
@@ -96,15 +96,20 @@ export function VotesTable({rows, details, moreHref, chain}: {rows: AccountVoteR
                 col.display({
                     id: 'unlocks',
                     header: 'Unlocks',
-                    meta: {cellClassName: 'text-muted-foreground'},
+                    meta: {cellClassName: 'text-muted-foreground whitespace-nowrap'},
                     cell: ({row}) => {
-                        const free = unlockAt(row.original, row.original.referendum, chain.voteLockingPeriod)
-                        return free != null ? <BlockLink height={free} /> : NONE
+                        const {lockedUntil: free, unlockedAt} = row.original
+                        if (free == null) return NONE
+                        return (
+                            <>
+                                <BlockLink height={unlockedAt ?? free} /> · {unlockedAt != null ? 'Unlocked' : free > head ? `in ${fmtSpan((free - head) * chain.blockTime)}` : <span className="text-dim">Unlockable</span>}
+                            </>
+                        )
                     },
                 }),
                 expander(col),
             ]),
-        [chain, details]
+        [chain, details, head]
     )
     return (
         <DataTable

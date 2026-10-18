@@ -225,6 +225,8 @@ export const vote = (i, traits = {}) => ({
     abstainAmount: null,
     block: HEAD - 500 * (i + 1),
     removed: false,
+    lockedUntil: null,
+    unlockedAt: null,
     referendum: poll(6, 'Ongoing', null),
     ...traits,
 })
@@ -233,18 +235,19 @@ export function poll(index, status, endedAt, traits = {}) {
     return {index, title: `Referendum ${index} title`, status, decidingSince: status === 'Ongoing' ? HEAD - 20_000 : null, confirmingSince: null, endedAt, ...traits}
 }
 
-// one row per way a vote list files a vote and frees its balance
+// one row per way a vote list files a vote and frees its balance, the won 3x
+// and 6x votes still locked past their end, the removed one freed by an unlock
 const VOTE_CASES = [
     {aye: true, conviction: 'Locked1x', referendum: poll(6, 'Ongoing', null, {title: 'Fund the Q4 explorer roadmap'})},
     {kind: 'Split', aye: null, conviction: null, balance: null, ayeAmount: numn(4_000), nayAmount: numn(1_500), referendum: poll(9, 'Ongoing', null, {confirmingSince: HEAD - 2_000})},
-    {aye: true, conviction: 'Locked3x', referendum: poll(10, 'Approved', 698_640)},
-    {aye: false, conviction: 'Locked6x', balance: numn(250_000), referendum: poll(1, 'Rejected', 543_360, {title: 'Treasury spend for community events across Asia, Europe and the Americas'})},
-    {aye: false, conviction: 'None', referendum: poll(0, 'Approved', 588_640)},
-    {kind: 'SplitAbstain', aye: null, conviction: null, balance: null, ayeAmount: numn(100), nayAmount: numn(100), abstainAmount: numn(9_800), referendum: poll(11, 'TimedOut', 520_960)},
-    {aye: false, conviction: 'Locked2x', referendum: poll(2, 'Cancelled', 652_000, {title: null})},
-    {aye: true, conviction: 'Locked4x', referendum: poll(3, 'TimedOut', 820_960)},
-    {aye: false, conviction: 'Locked5x', referendum: poll(4, 'Killed', 790_000)},
-    {aye: true, conviction: 'Locked1x', removed: true, referendum: poll(8, 'Ongoing', null, {decidingSince: null})},
+    {aye: true, conviction: 'Locked3x', lockedUntil: 940_560, referendum: poll(10, 'Approved', 698_640)},
+    {aye: false, conviction: 'Locked6x', balance: numn(250_000), lockedUntil: 2_478_720, referendum: poll(1, 'Rejected', 543_360, {title: 'Treasury spend for community events across Asia, Europe and the Americas'})},
+    {aye: false, conviction: 'None', lockedUntil: 588_640, referendum: poll(0, 'Approved', 588_640)},
+    {kind: 'SplitAbstain', aye: null, conviction: null, balance: null, ayeAmount: numn(100), nayAmount: numn(100), abstainAmount: numn(9_800), lockedUntil: 520_960, referendum: poll(11, 'TimedOut', 520_960)},
+    {aye: false, conviction: 'Locked2x', lockedUntil: 652_000, referendum: poll(2, 'Cancelled', 652_000, {title: null})},
+    {aye: true, conviction: 'Locked4x', lockedUntil: 820_960, referendum: poll(3, 'TimedOut', 820_960)},
+    {aye: false, conviction: 'Locked5x', lockedUntil: 790_000, referendum: poll(4, 'Killed', 790_000)},
+    {aye: true, conviction: 'Locked1x', removed: true, lockedUntil: HEAD - 5_000, unlockedAt: HEAD - 4_000, referendum: poll(8, 'Ongoing', null, {decidingSince: null})},
 ]
 
 export const voteRows = () => VOTE_CASES.map((c, i) => vote(i, c))

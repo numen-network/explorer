@@ -1576,11 +1576,13 @@ export interface VoteRow extends VoteShape {
     id: string
     block: number
     removed: boolean
+    lockedUntil: number | null
+    unlockedAt: number | null
     voter?: AccountRef
     referendum: {index: number; status?: string; endedAt?: number | null}
 }
 
-const VOTE_FIELDS = `id kind aye conviction balance ayeAmount nayAmount abstainAmount block removed`
+const VOTE_FIELDS = `id kind aye conviction balance ayeAmount nayAmount abstainAmount block removed lockedUntil unlockedAt`
 
 export interface TallySnapshotRow {
     block: number

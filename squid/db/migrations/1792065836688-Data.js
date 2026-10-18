@@ -108,7 +108,7 @@ module.exports = class Data1792065836688 {
         await db.query(`CREATE INDEX "idx_referendum_status_24792806" ON "referendum" ("status") `)
         await db.query(`CREATE INDEX "idx_referendum_submission_depositor_4bdb4f96" ON "referendum" ("submission_depositor") `)
         await db.query(`CREATE INDEX "idx_referendum_decision_depositor_a79f8b72" ON "referendum" ("decision_depositor") `)
-        await db.query(`CREATE TABLE "vote" ("id" character varying NOT NULL, "kind" text NOT NULL, "aye" boolean, "conviction" text, "balance" numeric, "aye_amount" numeric, "nay_amount" numeric, "abstain_amount" numeric, "block" integer NOT NULL, "removed" boolean NOT NULL, "referendum_id" character varying, "voter_id" character varying, CONSTRAINT "PK_2d5932d46afe39c8176f9d4be72" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "vote" ("id" character varying NOT NULL, "kind" text NOT NULL, "aye" boolean, "conviction" text, "balance" numeric, "aye_amount" numeric, "nay_amount" numeric, "abstain_amount" numeric, "block" integer NOT NULL, "removed" boolean NOT NULL, "locked_until" integer, "unlocked_at" integer, "referendum_id" character varying, "voter_id" character varying, CONSTRAINT "PK_2d5932d46afe39c8176f9d4be72" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_vote_referendum_0f9860c6" ON "vote" ("referendum_id") `)
         await db.query(`CREATE INDEX "idx_vote_voter_f6a67bf9" ON "vote" ("voter_id") `)
         await db.query(`CREATE INDEX "idx_vote_kind_e7675916" ON "vote" ("kind") `)

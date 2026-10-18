@@ -4,11 +4,12 @@ import {RpcClient} from '@subsquid/rpc-client'
 import {Src} from '@subsquid/scale-codec'
 import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
-import {In} from 'typeorm'
+import {In, IsNull} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
 import {Account, Delegate, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
-import {storage} from './types'
-import type {Deposit, ReferendumInfo} from './types/v100'
+import {lockPeriods} from './conviction'
+import {constants, storage} from './types'
+import type {AccountVote, Deposit, ReferendumInfo} from './types/v100'
 
 const GOV_PALLETS = new Set(['Referenda', 'ConvictionVoting', 'Treasury', 'Scheduler'])
 
@@ -35,7 +36,11 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         await loadTouchedReferenda(ctx, batch)
         await loadEnactments(ctx, batch)
         await loadTouchedSpends(ctx, batch)
-        for (const ev of batch.govEvents) applyGovEvent(batch, ev)
+        const locks = await loadVoteLocks(ctx, batch)
+        for (const ev of batch.govEvents) {
+            applyGovEvent(batch, ev)
+            stampVoteLock(batch, locks, ev)
+        }
         await applyProposals(batch, rpc)
         matchEnactedSpends(batch)
         await applyMetadata(batch, rpc)
@@ -683,6 +688,122 @@ function applyVoteEvent(batch: BatchData, method: string, ev: GovEvent): void {
             removed: method === 'VoteRemoved',
         })
     )
+}
+
+interface PollEnd {
+    height: number
+    status: string
+}
+
+interface VoteLocks {
+    // the referenda that end in this batch, filled in as their end events go by
+    ends: Map<number, PollEnd>
+    // stored votes still standing on a referendum that ends in this batch
+    standing: Map<string, Vote>
+    // stored votes not yet freed, of the accounts that unlock in this batch
+    held: Map<string, Vote>
+    // the polls each unlock left on the account's voting record for its track,
+    // null where the lock it set no longer matches that record
+    kept: Map<string, Set<number> | null>
+}
+
+const END_STATUS: Record<string, string> = {Confirmed: 'Approved', Rejected: 'Rejected', TimedOut: 'TimedOut', Cancelled: 'Cancelled', Killed: 'Killed'}
+
+async function loadVoteLocks(ctx: {store: any}, batch: BatchData): Promise<VoteLocks> {
+    const ending = batch.govEvents.filter(e => e.name.startsWith('Referenda.') && END_STATUS[e.name.slice(10)] != null).map(e => String(e.args.index))
+    const unlocks = batch.govEvents.filter(e => e.name === 'ConvictionVoting.VoteUnlocked')
+    const unlocking = [...new Set(unlocks.map(e => e.args.who))]
+    const [standing, held]: Vote[][] = await Promise.all([
+        ending.length > 0 ? ctx.store.find(Vote, {where: {referendum: {id: In(ending)}, removed: false}, relations: {referendum: {track: true}, voter: true}}) : [],
+        unlocking.length > 0 ? ctx.store.find(Vote, {where: {voter: {id: In(unlocking)}, unlockedAt: IsNull()}, relations: {referendum: {track: true}, voter: true}}) : [],
+    ])
+    const kept = new Map(await Promise.all(unlocks.map(async e => [e.id, await castPolls(e)] as const)))
+    return {ends: new Map(), standing: new Map(standing.map(v => [v.id, v])), held: new Map(held.map(v => [v.id, v])), kept}
+}
+
+// remove_vote raises no event once the referendum is over, so what an unlock
+// frees is read off the voting record the block left behind. only the unlock
+// rewrites the track's lock, and a remove_vote later in the block leaves it
+// above what the record still asks for, those votes wait for the next unlock
+async function castPolls(ev: GovEvent): Promise<Set<number> | null> {
+    const voting = storage.convictionVoting.votingFor.v100
+    const classLocks = storage.convictionVoting.classLocksFor.v100
+    if (!voting.is(ev.header) || !classLocks.is(ev.header)) throw new Error(`unhandled spec version for voting at block ${ev.height}`)
+    const [record, locks] = await Promise.all([voting.get(ev.header, ev.args.who, ev.args.class), classLocks.get(ev.header, ev.args.who)])
+    const locked = locks?.find(([track]) => track === ev.args.class)?.[1] ?? 0n
+    const prior = record == null || ev.height >= record.value.prior[0] ? 0n : record.value.prior[1]
+    const votes = record?.__kind === 'Casting' ? record.value.votes : []
+    const held = record?.__kind === 'Delegating' ? record.value.balance : 0n
+    const asks = votes.reduce((m, [, v]) => (voteBalance(v) > m ? voteBalance(v) : m), prior > held ? prior : held)
+    return locked === asks ? new Set(votes.map(([poll]) => poll)) : null
+}
+
+// what a vote holds on the voter's balance, the whole of a split counts
+function voteBalance(v: AccountVote): bigint {
+    switch (v.__kind) {
+        case 'Standard':
+            return v.balance
+        case 'Split':
+            return v.aye + v.nay
+        case 'SplitAbstain':
+            return v.aye + v.nay + v.abstain
+    }
+}
+
+// conviction is only charged to the side that won, a cancelled, timed out or
+// killed referendum charges nobody
+function lockEnd(v: AccountVoteFields, end: PollEnd, header: any): number {
+    const won = v.kind === 'Standard' && ((end.status === 'Approved' && v.aye === true) || (end.status === 'Rejected' && v.aye === false))
+    if (!won) return end.height
+    const period = constants.convictionVoting.voteLockingPeriod.v100
+    if (!period.is(header)) throw new Error(`unhandled spec version for the vote locking period at block ${header.height}`)
+    const level = v.conviction === 'None' ? 0 : Number(v.conviction!.slice(6, -1))
+    return end.height + period.get(header) * lockPeriods(level)
+}
+
+const pollOf = (v: Vote) => Number(v.referendum.id)
+
+// the vote locks follow the events in order, a vote taken off before its
+// referendum ends frees its balance there and then, one taken off after keeps
+// the lock its result charged, and an unlock frees each vote that has run out
+// and is gone from the account's voting record
+function stampVoteLock(batch: BatchData, locks: VoteLocks, ev: GovEvent): void {
+    const [pallet, method] = ev.name.split('.')
+    if (pallet === 'Referenda' && END_STATUS[method] != null) {
+        const end = {height: ev.height, status: END_STATUS[method]}
+        locks.ends.set(ev.args.index, end)
+        const votes = new Map(locks.standing)
+        for (const v of batch.votes.values()) votes.set(v.id, v)
+        for (const v of votes.values()) {
+            if (pollOf(v) !== ev.args.index || v.removed) continue
+            v.lockedUntil = lockEnd(voteFields(v), end, ev.header)
+            batch.votes.set(v.id, v)
+        }
+        return
+    }
+    if (pallet !== 'ConvictionVoting') return
+    if (method === 'Voted' || method === 'VoteRemoved') {
+        const v = batch.votes.get(`${ev.args.pollIndex}-${ev.args.who}`)
+        if (v == null) return
+        const r = batch.referenda.get(ev.args.pollIndex)
+        const end = locks.ends.get(ev.args.pollIndex) ?? (r != null && r.status !== ReferendumStatus.Ongoing ? {height: r.endedAt!, status: r.status} : undefined)
+        v.lockedUntil = method === 'Voted' ? null : end ? lockEnd(voteFields(v), end, ev.header) : ev.height
+        v.unlockedAt = null
+        return
+    }
+    if (method === 'VoteUnlocked') {
+        const track = String(ev.args.class)
+        const kept = locks.kept.get(ev.id)
+        if (kept == null) return
+        const votes = new Map([...locks.held].filter(([, v]) => v.voter.id === ev.args.who))
+        for (const v of batch.votes.values()) if (v.voter.id === ev.args.who) votes.set(v.id, v)
+        for (const v of votes.values()) {
+            const trackOf = batch.referenda.get(pollOf(v))?.track.id ?? v.referendum.track.id
+            if (v.unlockedAt != null || v.lockedUntil == null || v.lockedUntil > ev.height || trackOf !== track || kept.has(pollOf(v))) continue
+            v.unlockedAt = ev.height
+            batch.votes.set(v.id, v)
+        }
+    }
 }
 
 interface AccountVoteFields {

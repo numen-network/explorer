@@ -65,4 +65,22 @@ export class Vote {
 
     @BooleanColumn_({nullable: false})
     removed!: boolean
+
+    /**
+     * the block the vote stops holding its balance, the end of a referendum it lost or
+     * did not carry conviction into, the end plus the conviction periods on one it
+     * won, or the block it came off an ongoing referendum. null while the referendum
+     * is still ongoing and the vote stands
+     */
+    @IntColumn_({nullable: true})
+    lockedUntil!: number | undefined | null
+
+    /**
+     * the block a VoteUnlocked on the vote's track freed it, its lock run out, the vote
+     * gone from the account's voting record and the track's lock set to what that
+     * record still asks for. remove_vote raises no event once the referendum is over,
+     * and removed keeps saying whether the vote left the tally
+     */
+    @IntColumn_({nullable: true})
+    unlockedAt!: number | undefined | null
 }

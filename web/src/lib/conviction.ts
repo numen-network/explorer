@@ -23,12 +23,6 @@ export function votesPower(balance: string, delegations: {balance: string; convi
     return {votesPower: weigh(balance, 'Locked6x') + maxDelegations, maxDelegations}
 }
 
-/** How many conviction periods a vote pays, doubling with each level. */
-export function lockPeriods(conviction: string | null): number {
-    const level = convictionLevel(conviction)
-    return level === 0 ? 0 : 2 ** (level - 1)
-}
-
 export interface VoteShape {
     kind: string
     aye: boolean | null
@@ -62,17 +56,3 @@ export function voteParts(v: VoteShape): {side: VoteSide; capital: bigint; votes
 export type Decision = 'aye' | 'nay' | 'split' | 'abstain'
 
 export const decisionOf = (v: {kind: string; aye: boolean | null}): Decision => (v.kind === 'Standard' ? (v.aye ? 'aye' : 'nay') : v.kind === 'Split' ? 'split' : 'abstain')
-
-/**
- * The block a vote lets go of its balance. Conviction is only charged to the
- * winning side, so everything else comes free the moment the referendum ends.
- */
-export function unlockAt(
-    vote: {kind: string; aye: boolean | null; conviction: string | null},
-    poll: {status?: string; endedAt?: number | null},
-    period: number
-): number | null {
-    if (poll.endedAt == null) return null
-    const won = vote.kind === 'Standard' && ((poll.status === 'Approved' && vote.aye === true) || (poll.status === 'Rejected' && vote.aye === false))
-    return poll.endedAt + (won ? period * lockPeriods(vote.conviction) : 0)
-}

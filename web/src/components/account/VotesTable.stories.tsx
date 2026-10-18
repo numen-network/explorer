@@ -3,7 +3,7 @@ import {expect, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import type {AccountVoteRow} from '@/lib/gql'
 import {voteEntry, type CountedDelegation} from '@/lib/voteEntry'
-import {account, numn, PEOPLE, person} from '../../../../mock/fixtures.js'
+import {account, HEAD, numn, PEOPLE, person} from '../../../../mock/fixtures.js'
 import {CHAIN, SUBJECT, vote, voteRows} from '../../../../mock/fixtures/accounts.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {VotesTable} from './VotesTable'
@@ -26,7 +26,7 @@ const table = (rows: AccountVoteRow[], delegations: Record<number, CountedDelega
     const details = new Map(rows.filter(v => v.kind === 'Standard').map(v => [v.id, voteEntry(v, {id: SUBJECT}, delegations[v.referendum.index] ?? [], REFS, CHAIN.ss58)]))
     return (
         <Card size="flush">
-            <VotesTable rows={rows} details={details} moreHref={MORE} chain={CHAIN} />
+            <VotesTable rows={rows} details={details} moreHref={MORE} head={HEAD} chain={CHAIN} />
         </Card>
     )
 }
@@ -84,6 +84,19 @@ export const EveryKind: Story = {
             '11K NUMN',
             '15K NUMN',
             '3,250 NUMN',
+        ])
+        // an ongoing vote has no unlock yet, #1's 6x lock runs months past the head, the removed #8 is freed and the rest wait for an unlock
+        expect(columnTexts(canvasElement, 'Unlocks')).toEqual([
+            '—',
+            '—',
+            '#940,560 · Unlockable',
+            '#2,478,720 · in 5mo 21d',
+            '#588,640 · Unlockable',
+            '#520,960 · Unlockable',
+            '#652,000 · Unlockable',
+            '#820,960 · Unlockable',
+            '#790,000 · Unlockable',
+            '#996,000 · Unlocked',
         ])
     },
 }
