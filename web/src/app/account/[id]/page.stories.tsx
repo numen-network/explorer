@@ -75,7 +75,10 @@ const build = accountPage as (spec: Spec) => Record<string, unknown>
 
 const story = (spec: Spec, searchParams: Record<string, string> = {}) => pageStory(build(spec), {params: {id: spec.account?.id ?? SUBJECT}, searchParams})
 
-const rowValue = (root: HTMLElement, label: string) => within(root).getByText(label, {selector: 'div'}).nextElementSibling!.textContent
+const rowValue = (root: HTMLElement, label: string) => {
+    const text = within(root).getByText(label, {selector: '[data-slot=amount-label] > span:first-child, div:not([data-slot=amount-label])'})
+    return (text.closest('[data-slot=amount-label]') ?? text).nextElementSibling!.textContent
+}
 
 // the index stopped at head while the chain ran on to best
 const behind = (spec: Spec, head: {height: number; timestamp: string}, best: number, searchParams: Record<string, string> = {}) =>
@@ -139,28 +142,73 @@ export const SubFiledUnderAHash: StoryObj = {
 
 export const SubWithOwnIdentity = story({account: named({...identity('Aurora Payouts'), ...subUnder(PEOPLE[0], 'payouts')}), transfers: accountTransfers(3)})
 
-export const BalanceZero = story({account: subject({...funds('0'), nonce: 4}), transfers: accountTransfers(4)})
+// the bar's colours in order, a grey track when there is nothing to split
+const barParts = (root: HTMLElement) =>
+    [...root.querySelector('[data-slot=balance-bar]')!.children].map(c => ['bg-good', 'bg-dim', 'bg-border'].find(bg => c.classList.contains(bg)))
 
-export const BalanceExtremes = story({
-    account: subject({
-        ...funds(MAX_U128, numn(0.000001), MAX_U128),
-        nonce: 2_147_483_647,
-        firstSeenBlock: 0,
-        firstSeenTimestamp: null,
-        lastActiveBlock: HEAD,
-        locksJson: [lock('democrac', MAX_U128)],
-    }),
-    transfers: accountTransferCases(HEAD - 3),
-})
+const shares = (root: HTMLElement) => [...root.querySelectorAll('[data-slot=share]')].map(e => e.textContent)
+
+// every amount ends at the same x, which is what lines the decimal points up
+const expectAligned = (root: HTMLElement) => {
+    const rights = [...root.querySelectorAll('[data-slot=amount-label] + div > span:first-child')].map(e => Math.round(e.getBoundingClientRect().right))
+    expect(rights.length).toBe(8)
+    expect(new Set(rights).size).toBe(1)
+    const nonce = within(root).getByText('Nonce', {selector: 'div'}).getBoundingClientRect()
+    for (const label of root.querySelectorAll('[data-slot=amount-label]')) {
+        expect(Math.round(label.getBoundingClientRect().left)).toBe(Math.round(nonce.left))
+        expect(label.firstElementChild!.getClientRects()).toHaveLength(1)
+    }
+}
 
 const expectSplit = (root: HTMLElement, balance: string, transferable: string, locked: string) =>
     expect([rowValue(root, 'Balance'), rowValue(root, 'Transferable *'), rowValue(root, 'Locked *')]).toEqual([balance, transferable, locked].map(v => `${v} NUMN`))
 
-export const BalanceReserveOverLocks: StoryObj = {
-    ...story({account: subject(funds('98512014386512943379', '5870000000000000000')), transfers: accountTransfers(3)}),
-    play: ({canvasElement}) => expectSplit(canvasElement, '104.382014386512943379', '98.512014386512943379', '5.870000000000000000'),
+export const BalanceZero: StoryObj = {
+    ...story({account: subject({...funds('0'), nonce: 4}), transfers: accountTransfers(4)}),
+    play: ({canvasElement}) => {
+        expect(barParts(canvasElement)).toEqual(['bg-border'])
+        expect(shares(canvasElement)).toEqual([])
+        expectAligned(canvasElement)
+    },
 }
 
+export const BalanceAllTransferable: StoryObj = {
+    ...story({account: subject(funds(numn(1250.5))), transfers: accountTransfers(3)}),
+    play: ({canvasElement}) => {
+        expect(barParts(canvasElement)).toEqual(['bg-good'])
+        expect(shares(canvasElement)).toEqual(['100.00%', '0.00%'])
+    },
+}
+
+export const BalanceExtremes: StoryObj = {
+    ...story({
+        account: subject({
+            ...funds(MAX_U128, numn(0.000001), MAX_U128),
+            nonce: 2_147_483_647,
+            firstSeenBlock: 0,
+            firstSeenTimestamp: null,
+            lastActiveBlock: HEAD,
+            locksJson: [lock('democrac', MAX_U128)],
+        }),
+        transfers: accountTransferCases(HEAD - 3),
+    }),
+    play: ({canvasElement}) => {
+        expect(barParts(canvasElement)).toEqual(['bg-good', 'bg-dim'])
+        expectAligned(canvasElement)
+    },
+}
+
+export const BalanceReserveOverLocks: StoryObj = {
+    ...story({account: subject(funds('98512014386512943379', '5870000000000000000')), transfers: accountTransfers(3)}),
+    play: ({canvasElement}) => {
+        expectSplit(canvasElement, '104.382014386512943379', '98.512014386512943379', '5.870000000000000000')
+        expect(barParts(canvasElement)).toEqual(['bg-good', 'bg-dim'])
+        expect(shares(canvasElement)).toEqual(['94.37%', '5.62%'])
+        expectAligned(canvasElement)
+    },
+}
+
+// the transferable slice is a hundred-millionth of the bar and still shows
 export const BalanceLocksOverReserve: StoryObj = {
     ...story({
         account: subject({
@@ -169,7 +217,13 @@ export const BalanceLocksOverReserve: StoryObj = {
         }),
         transfers: accountTransfers(3),
     }),
-    play: ({canvasElement}) => expectSplit(canvasElement, '2,124,000.258102383578190096', '0.258102383578190096', '2,124,000.000000000000000000'),
+    play: ({canvasElement}) => {
+        expectSplit(canvasElement, '2,124,000.258102383578190096', '0.258102383578190096', '2,124,000.000000000000000000')
+        expect(shares(canvasElement)).toEqual(['<0.01%', '99.99%'])
+        const sliver = canvasElement.querySelector('[data-slot=balance-bar] > .bg-good')!
+        expect(sliver.getBoundingClientRect().width).toBeGreaterThanOrEqual(4)
+        expectAligned(canvasElement)
+    },
 }
 
 // the H160 leaves its note little room on the line, which wraps it between

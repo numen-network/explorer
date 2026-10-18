@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import Balance from '@/components/Balance'
-import {DetailCard, DetailRow} from '@/components/Detail'
+import {AmountGroup, AmountRow, AmountRows, DetailCard, DetailRow} from '@/components/Detail'
 import {TabBar, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {BlockLink} from '@/components/links'
+import BalanceBar from '@/components/account/BalanceBar'
 import Delegations from '@/components/account/Delegations'
 import DelegationHistory from '@/components/account/DelegationHistory'
 import Extrinsics from '@/components/account/Extrinsics'
@@ -28,7 +29,7 @@ import {controlRefIds, controlRoles, lockRows, multisigRole, schedules, tabHref,
 import {chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
 import {votesPower} from '@/lib/conviction'
-import {fmtInt} from '@/lib/format'
+import {fmtInt, fmtPct} from '@/lib/format'
 import {accountRefs, accountSummary, blockTime, evmCounts, type AccountRef} from '@/lib/gql'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {PRIME, TREASURY} from '@/lib/wellKnown'
@@ -85,6 +86,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const ed = frozen === 0n && reserved === 0n ? 0n : BigInt(chain.existentialDeposit)
     const transferable = sat(free - bigMax(ed, frozen - reserved))
     const locked = BigInt(a.balance) - transferable
+    const share = (part: bigint) => (a.balance === '0' ? undefined : fmtPct(part, a.balance))
 
     const power = votesPower(a.balance, s.delegationsIn)
 
@@ -138,30 +140,35 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
             <div className={`mt-4 grid items-start gap-4 ${hasIdentity ? 'lg:grid-cols-2' : ''}`}>
                 <div>
                     <DetailCard>
-                        <DetailRow label="Balance">
-                            <Balance planck={a.balance} chain={chain} />
-                        </DetailRow>
-                        <DetailRow label="Transferable *">
-                            <Balance planck={transferable} chain={chain} />
-                        </DetailRow>
-                        <DetailRow label="Locked *">
-                            <Balance planck={locked} chain={chain} />
-                        </DetailRow>
-                        <DetailRow label="Free">
-                            <Balance planck={free} chain={chain} />
-                        </DetailRow>
-                        <DetailRow label="Reserved">
-                            <Balance planck={reserved} chain={chain} />
-                        </DetailRow>
-                        <DetailRow label="Frozen">
-                            <Balance planck={frozen} chain={chain} />
-                        </DetailRow>
-                        <DetailRow label="Votes power **">
-                            <Balance planck={power.votesPower} chain={chain} />
-                        </DetailRow>
-                        <DetailRow label="Max delegations">
-                            <Balance planck={power.maxDelegations} chain={chain} />
-                        </DetailRow>
+                        <AmountRows>
+                            <AmountGroup>
+                                <AmountRow label="Balance">
+                                    <Balance planck={a.balance} chain={chain} />
+                                    <BalanceBar transferable={transferable} locked={locked} />
+                                </AmountRow>
+                                <AmountRow label="Transferable *" mark="good" share={share(transferable)}>
+                                    <Balance planck={transferable} chain={chain} />
+                                </AmountRow>
+                                <AmountRow label="Locked *" mark="dim" share={share(locked)}>
+                                    <Balance planck={locked} chain={chain} />
+                                </AmountRow>
+                            </AmountGroup>
+                            <AmountRow label="Free">
+                                <Balance planck={free} chain={chain} />
+                            </AmountRow>
+                            <AmountRow label="Reserved">
+                                <Balance planck={reserved} chain={chain} />
+                            </AmountRow>
+                            <AmountRow label="Frozen">
+                                <Balance planck={frozen} chain={chain} />
+                            </AmountRow>
+                            <AmountRow label="Votes power **">
+                                <Balance planck={power.votesPower} chain={chain} />
+                            </AmountRow>
+                            <AmountRow label="Max delegations">
+                                <Balance planck={power.maxDelegations} chain={chain} />
+                            </AmountRow>
+                        </AmountRows>
                         <DetailRow label="Nonce">{fmtInt(a.nonce)}</DetailRow>
                         <DetailRow label="First seen">
                             <BlockLink height={a.firstSeenBlock} />
