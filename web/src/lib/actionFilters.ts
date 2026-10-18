@@ -6,10 +6,15 @@ export const ACTION_MOVES = ['approval-up', 'approval-down', 'support-up', 'supp
 export type ActionKind = (typeof ACTION_KINDS)[number]
 export type ActionMove = (typeof ACTION_MOVES)[number]
 
+// the text of a search box, read by the server the same way the box writes it
+export const searchFilter = {q: parseAsString.withDefault('')}
+
+export const loadSearch = createLoader(searchFilter)
+
 // the filters of a referendum's action list as the url carries them, read by
 // the server the same way the list writes them
 export const actionFilters = {
-    q: parseAsString.withDefault(''),
+    ...searchFilter,
     action: parseAsStringLiteral(ACTION_KINDS),
     impact: parseAsStringLiteral(ACTION_MOVES),
 }

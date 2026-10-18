@@ -8,6 +8,7 @@ import Approx from '@/components/Approx'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import Dropdown from '@/components/Dropdown'
 import Pager from '@/components/Pager'
+import {PAUSE_MS} from '@/components/SearchBox'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
@@ -100,9 +101,6 @@ function Delta({label, value: [part, whole]}: {label: string; value: [part: bigi
         </div>
     )
 }
-
-// a search goes out once typing pauses this long, a cleared box at once
-const PAUSE_MS = 300
 
 // the pager's keys ride along so that a new filter starts over at the first
 // page of the default size

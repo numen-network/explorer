@@ -1,6 +1,8 @@
 import type {ActionKind, ActionMove} from './actionFilters'
 import type {VoteShape} from './conviction'
+import {isH256} from './evm'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
+import {ss58TryDecode} from './ss58'
 
 const GQL = process.env.GQL_HTTP ?? 'http://127.0.0.1:4350/graphql'
 
@@ -1655,12 +1657,21 @@ export function tallySnapshots(index: number) {
 const ACTION_METHOD: Record<ActionKind, string> = {vote: 'Voted', remove: 'VoteRemoved', delegate: 'Delegated', undelegate: 'Undelegated'}
 const MOVE_WHERE: Record<ActionMove, string> = {'approval-up': 'approvalPart_gt', 'approval-down': 'approvalPart_lt', 'support-up': 'supportPart_gt', 'support-down': 'supportPart_lt'}
 
-export interface ActionFilter {
-    kind?: ActionKind
-    move?: ActionMove
-    // an address finds the one account, any other text its names
+// an address finds the one account, any other text its names
+export interface AccountSearch {
     account?: string
     name?: string
+}
+
+export function accountSearch(q: string, ss58: number): AccountSearch {
+    if (!q) return {}
+    const account = ss58TryDecode(q, ss58) ?? (isH256(q) ? q.toLowerCase() : null)
+    return account != null ? {account} : {name: q}
+}
+
+export interface ActionFilter extends AccountSearch {
+    kind?: ActionKind
+    move?: ActionMove
 }
 
 // an account matches by the names the search page matches it by
@@ -1707,19 +1718,21 @@ export function trackList() {
 
 const DELEGATION_ORDER = '[balance_DESC, who_id_ASC, track_index_ASC, id_ASC]'
 
-// track ids are the pallet class numbers, safe to splice into aliases
-export async function delegationsInPage(id: string, tracks: string[], track: string, limit: number, offset: number) {
-    const target = `target: {id_eq: $id}`
+// track ids are the pallet class numbers, safe to splice into aliases. the
+// track counts follow the search so each option says what picking it shows
+export async function delegationsInPage(id: string, tracks: string[], track: string, {account, name}: AccountSearch, limit: number, offset: number) {
+    const target = [`target: {id_eq: $id}`, account != null && 'who: {id_eq: $account}', name != null && `who: ${nameMatch('$name')}`].filter(Boolean).join(', ')
     const where = track ? `{${target}, track: {id_eq: "${track}"}}` : `{${target}}`
     const counts = tracks.map(t => `t${t}: delegationsConnection(where: {${target}, track: {id_eq: "${t}"}}, orderBy: id_ASC) { totalCount }`)
+    const vars = [account != null && '$account: String!', name != null && '$name: String!'].filter(Boolean).join(', ')
     const raw = await gql<{delegations: DelegationRow[]; conn: {totalCount: number}; all: {totalCount: number}} & Record<string, {totalCount: number}>>(
-        `query ($id: String!, $limit: Int!, $offset: Int!) {
+        `query ($id: String!, ${vars ? `${vars}, ` : ''}$limit: Int!, $offset: Int!) {
             delegations(where: ${where}, orderBy: ${DELEGATION_ORDER}, limit: $limit, offset: $offset) { id conviction balance block track { id name } who { ${ACCOUNT_REF} } }
             conn: delegationsConnection(where: ${where}, orderBy: id_ASC) { totalCount }
             all: delegationsConnection(where: {${target}}, orderBy: id_ASC) { totalCount }
             ${counts.join('\n            ')}
         }`,
-        {id, limit, offset}
+        {id, ...(account != null && {account}), ...(name != null && {name}), limit, offset}
     )
     return {
         rows: raw.delegations,

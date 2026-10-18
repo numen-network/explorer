@@ -695,6 +695,51 @@ export const ReceivedDelegators: StoryObj = {
     },
 }
 
+interface WhoClause {
+    id_eq?: string
+    OR?: {identityDisplay_containsInsensitive?: string}[]
+}
+
+// the delegator list answering the who clause a search sends, an address by id and any other text by display name
+const searched = (q: string) =>
+    pageStory(
+        {
+            ...build({delegationsIn: rootAndUpgrade}),
+            delegations: ({where}: {where: {who?: WhoClause}}) =>
+                rootAndUpgrade.filter(d => {
+                    const who = where.who
+                    if (who == null) return true
+                    if (who.id_eq != null) return d.who.id === who.id_eq
+                    return (d.who.identityDisplay ?? '').toLowerCase().includes(who.OR![0].identityDisplay_containsInsensitive!.toLowerCase())
+                }),
+        },
+        {params: {id: SUBJECT}, searchParams: {tab: 'received', rtab: 'delegators', q}}
+    )
+
+const delegatorsShown = (root: HTMLElement) => columnTexts(within(root).getByRole('columnheader', {name: 'Delegated from'}).closest('table')!, 'Delegated from')
+
+// a whole address finds the one delegator, its single Root delegation
+export const ReceivedSearchAddress: StoryObj = {
+    ...searched(ss58Encode(PEOPLE[2].id, chainInfo.ss58)),
+    play: async ({canvasElement}) => {
+        expect(within(canvasElement).getByPlaceholderText('Search address or identity')).toHaveValue(ss58Encode(PEOPLE[2].id, chainInfo.ss58))
+        expect(delegatorsShown(canvasElement)).toHaveLength(1)
+        expect(columnTexts(canvasElement, 'Capital')).toEqual(['500 NUMN'])
+    },
+}
+
+// any other text matches identity names, Orbit Labs on both its tracks
+export const ReceivedSearchName: StoryObj = {
+    ...searched('orbit'),
+    play: async ({canvasElement}) => expect(delegatorsShown(canvasElement)).toEqual(['Orbit Labs', 'Orbit Labs']),
+}
+
+// a search nobody answers says so rather than showing an empty table
+export const ReceivedSearchNoMatch: StoryObj = {
+    ...searched('nobody'),
+    play: async ({canvas}) => expect(canvas.getByText('No matching delegations.')).toBeInTheDocument(),
+}
+
 const SPENDERS = TRACKS.filter(t => t.name.endsWith('_spender'))
 
 export const Received = story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'received', rtab: 'delegators'})

@@ -2,18 +2,9 @@ import ActionList, {type ActionImpact, type ActionRow} from '@/components/action
 import {actionFiltersUrl, loadActionFilters} from '@/lib/actionFilters'
 import type {ChainProps} from '@/lib/chain'
 import {decisionOf, votesOf} from '@/lib/conviction'
-import {isH256} from '@/lib/evm'
-import {referendumActions, type ActionFilter, type VotingActionRow} from '@/lib/gql'
+import {accountSearch, referendumActions, type VotingActionRow} from '@/lib/gql'
 import type {Paging} from '@/lib/paging'
-import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
-
-// a whole address finds the one account, any other text searches names the
-// way the search page does
-function searchFor(q: string, ss58: number): ActionFilter {
-    if (!q) return {}
-    const account = ss58TryDecode(q, ss58) ?? (isH256(q) ? q.toLowerCase() : null)
-    return account != null ? {account} : {name: q}
-}
+import {ss58Encode} from '@/lib/ss58'
 
 function rowOf(a: VotingActionRow, ss58: number): ActionRow {
     const own = votesOf(a)
@@ -45,7 +36,7 @@ export async function actionsPanel({index, sp, pg, chain}: Props) {
     const q = filters.q.trim()
     const kind = filters.action ?? undefined
     const move = filters.impact ?? undefined
-    const {actions, conn} = await referendumActions(index, {kind, move, ...searchFor(q, chain.ss58)}, {limit: pg.size, offset: pg.offset})
+    const {actions, conn} = await referendumActions(index, {kind, move, ...accountSearch(q, chain.ss58)}, {limit: pg.size, offset: pg.offset})
     return (
         <ActionList
             rows={actions.map(a => rowOf(a, chain.ss58))}
