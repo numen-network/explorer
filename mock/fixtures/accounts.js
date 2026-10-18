@@ -188,6 +188,35 @@ export const EVERY_REFUND = [
     proposal(1, 'Approved', [proposalDeposit('Decision', 'Refunded', HEAD - 20_000)], {track: {name: 'big_spender'}}),
 ]
 
+// a payment this account received, keyed by the event that moved it
+export const payout = (i, source, role, units, link = {}) => ({
+    id: `${String(HEAD - 1_000 * (i + 1)).padStart(10, '0')}-0a1b2-${String(i).padStart(6, '0')}`,
+    source,
+    role,
+    amount: numn(units),
+    block: HEAD - 1_000 * (i + 1),
+    spend: null,
+    bounty: null,
+    childBounty: null,
+    ...link,
+})
+
+const paidSpend = (id, index) => ({spend: {id, referendum: index == null ? null : {index, status: 'Approved'}}})
+const paidBounty = (index, description) => ({bounty: {index, description, referendum: {index: 12, status: 'Approved'}}})
+
+// one row per source and role, a spend_local nobody voted on and a bounty without a description among them
+export const EVERY_PAYOUT = [
+    payout(0, 'Spend', 'Beneficiary', 20_000, paidSpend('spend-4', 28)),
+    payout(1, 'ChildBounty', 'Beneficiary', 500, {childBounty: {childIndex: 1, description: 'Audit report review', parent: {index: 3}}}),
+    payout(2, 'Bounty', 'Beneficiary', 4_500, paidBounty(3, 'Wallet audit')),
+    payout(3, 'Bounty', 'Curator', 380, paidBounty(3, 'Wallet audit')),
+    payout(4, 'ChildBounty', 'Curator', 25, {childBounty: {childIndex: 2, description: null, parent: {index: 3}}}),
+    payout(5, 'Bounty', 'Beneficiary', 1_200, paidBounty(2, null)),
+    payout(6, 'Spend', 'Beneficiary', 2_000, paidSpend('local-1', null)),
+]
+
+export const payouts = count => Array.from({length: count}, (_, i) => payout(i, 'Spend', 'Beneficiary', 100 + i, paidSpend(`spend-${count - i}`, count - i)))
+
 export const proposals = count => Array.from({length: count}, (_, i) => proposal(count - i, 'Ongoing', [proposalDeposit('Submission')]))
 
 export const delegatingTo = count => Array.from({length: count}, (_, i) => delegation(i, {target: person(i)}))
@@ -557,6 +586,7 @@ export function accountPage({
     delegationActions = [],
     govDeposits = [],
     proposed = [],
+    payouts = [],
     bountyDeposits = [],
     childBountyDeposits = [],
     deploys = 0,
@@ -617,6 +647,8 @@ export function accountPage({
         referendums: ({where}) =>
             where?.deposits_some ? proposed : (referenda ?? Array.from({length: Math.max(-1, ...votes.map(v => v.referendum.index)) + 1}, (_, index) => ({index, title: `Referendum ${index} title`}))),
         referendumDeposits: govDeposits,
+        treasuryPayoutsConnection: ({where}) => count(payouts.filter(p => (where.source_eq ?? p.source) === p.source && (where.role_eq ?? p.role) === p.role).length),
+        treasuryPayouts: args => paged(payouts.filter(p => (args.where.source_eq ?? p.source) === p.source))(args),
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
         votesConnection: ({where}) => count(where.removed_eq === false ? (where.referendum ? standing.filter(v => v.referendum.status === 'Ongoing') : standing).length : where.kind_eq ? ofType(where).length : votes.length),

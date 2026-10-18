@@ -6,7 +6,7 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In, IsNull} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, Delegate, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
+import {Account, Delegate, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
 import {lockPeriods} from './conviction'
 import {constants, storage} from './types'
 import type {AccountVote} from './types/v100'
@@ -990,6 +990,7 @@ function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): voi
         if (s == null) throw new Error(`Treasury.${method} names spend ${id}, which was never approved`)
         s.status = method
         if (method === 'Paid') s.paidAt = ev.height
+        if (method === 'Paid' || method === 'Awarded') batch.payouts.push(spendPayout(s, method === 'Awarded' ? BigInt(args.award) : s.amount, ev))
         return
     }
     batch.spendsAtHeight.set(ev.height, [...(batch.spendsAtHeight.get(ev.height) ?? []), id])
@@ -1009,6 +1010,18 @@ function applyTreasuryEvent(batch: BatchData, method: string, ev: GovEvent): voi
             proposalCall: null,
         })
     )
+}
+
+function spendPayout(s: TreasurySpend, amount: bigint, ev: GovEvent): TreasuryPayout {
+    return new TreasuryPayout({
+        id: ev.id,
+        account: s.beneficiary,
+        source: TreasuryPayoutSource.Spend,
+        role: TreasuryPayoutRole.Beneficiary,
+        spend: s,
+        amount,
+        block: ev.height,
+    })
 }
 
 // status is the ReferendumInfoFor variant, an ended one stores the block it

@@ -23,6 +23,7 @@ import Subs from '@/components/account/Subs'
 import Timeline from '@/components/account/Timeline'
 import TokenTransfers from '@/components/account/TokenTransfers'
 import Transfers from '@/components/account/Transfers'
+import Treasury from '@/components/account/Treasury'
 import Validator from '@/components/account/Validator'
 import Vesting from '@/components/account/Vesting'
 import Votes from '@/components/account/Votes'
@@ -100,6 +101,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (registrar) roles.push({text: `Registrar #${registrar.index}`, tone: 'primary'})
     if (evm.tokens > 0) roles.push({text: evm.tokens > 1 ? `Token issuer · ${fmtInt(evm.tokens)}` : 'Token issuer', tone: 'primary'})
     if (evm.contracts > evm.tokens) roles.push({text: 'Contract deployer', tone: 'idle'})
+    if (s.nTreasuryBeneficiary.totalCount > 0) roles.push({text: 'Treasury beneficiary', tone: 'idle'})
     if (s.curated.totalCount + s.childCurated.totalCount > 0) roles.push({text: 'Bounty curator', tone: 'idle'})
     if (s.nDelegIn.totalCount > 0) roles.push({text: 'Delegate', tone: 'idle'})
     if (s.nMultisigSelf.totalCount > 0) roles.push(multisigRole(s, refs, chain))
@@ -128,6 +130,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nVoteHistory.totalCount > 0)
         tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
     if (s.nProposed.totalCount > 0) tabs.push({slug: 'proposed', label: 'Proposed', group: 'Governance', count: s.nProposed.totalCount, body: () => <Proposed {...ctx} />})
+    if (s.nTreasury.totalCount > 0) tabs.push({slug: 'treasury', label: 'Treasury', group: 'Governance', count: s.nTreasury.totalCount, body: () => <Treasury {...ctx} />})
     if (s.nDelegOut.totalCount > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount, body: () => <Delegations {...ctx} />})
     if (s.nDelegIn.totalCount > 0)
         tabs.push({slug: 'received', label: 'Received', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Received {...ctx} delegations={s.delegationsIn} total={s.nDelegIn.totalCount} maxDelegations={power.maxDelegations} />})

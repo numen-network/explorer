@@ -630,6 +630,31 @@ type TreasurySpend @entity {
   proposalCall: Int
 }
 
+enum TreasuryPayoutSource {
+  Spend
+  Bounty
+  ChildBounty
+}
+
+enum TreasuryPayoutRole {
+  Beneficiary
+  Curator
+}
+
+"one row per treasury, bounty or child bounty payment an account received"
+type TreasuryPayout @entity @index(fields: ["account", "id"]) {
+  "id of the event that moved the money"
+  id: ID!
+  account: Account!
+  source: TreasuryPayoutSource!
+  role: TreasuryPayoutRole!
+  spend: TreasurySpend
+  bounty: Bounty
+  childBounty: ChildBounty
+  amount: BigInt!
+  block: Int!
+}
+
 type Bounty @entity {
   id: ID!
   index: Int! @index @unique

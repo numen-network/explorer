@@ -480,6 +480,8 @@ export interface AccountSummary {
     childBountyDeposits: ChildBountyDepositRow[]
     nVotes: {totalCount: number}
     nProposed: {totalCount: number}
+    nTreasury: {totalCount: number}
+    nTreasuryBeneficiary: {totalCount: number}
     nVoteHistory: {totalCount: number}
     nDelegHistory: {totalCount: number}
     /** The proxies this account granted, the accounts that can act for it. */
@@ -550,6 +552,8 @@ export function accountSummary(idHex: string) {
             }
             nVotes: votesConnection(orderBy: id_ASC, where: {voter: ${self}}) { totalCount }
             nProposed: referendumsConnection(orderBy: index_ASC, where: {deposits_some: {who: ${self}}}) { totalCount }
+            nTreasury: treasuryPayoutsConnection(orderBy: id_ASC, where: {account: ${self}}) { totalCount }
+            nTreasuryBeneficiary: treasuryPayoutsConnection(orderBy: id_ASC, where: {account: ${self}, role_eq: Beneficiary}) { totalCount }
             nVoteHistory: votingActionsConnection(orderBy: id_ASC, where: ${OWN_VOTE_ACTIONS}) { totalCount }
             nDelegHistory: delegationActionsConnection(orderBy: id_ASC, where: ${delegationSide('')}) { totalCount }
             proxiesOut: proxyRelations(where: {delegator: ${self}}, orderBy: [delegatee_id_ASC, proxyType_ASC, delay_ASC], limit: 100) { id proxyType delay delegatee { ${ACCOUNT_REF} } }
@@ -683,6 +687,59 @@ export async function proposedFor(idHex: string, limit: number, offset: number) 
         {id: idHex, limit, offset}
     )
     return {rows: referendums, total: conn.totalCount}
+}
+
+export const TREASURY_SOURCES = ['Spend', 'Bounty', 'ChildBounty'] as const
+export type TreasurySource = (typeof TREASURY_SOURCES)[number]
+
+export interface TreasuryPayoutRow {
+    id: string
+    source: TreasurySource
+    role: 'Beneficiary' | 'Curator'
+    amount: string
+    block: number
+    spend: {id: string; referendum: {index: number; status: string} | null} | null
+    bounty: {index: number; description: string | null; referendum: {index: number; status: string} | null} | null
+    childBounty: {childIndex: number; description: string | null; parent: {index: number}} | null
+}
+
+// the treasury payments this account received, newest first
+export async function treasuryPayoutsFor(idHex: string, source: TreasurySource | '', limit: number, offset: number) {
+    const own = 'account: {id_eq: $id}'
+    const where = source ? `{${own}, source_eq: ${source}}` : `{${own}}`
+    const counts = TREASURY_SOURCES.map(t => `${t}: treasuryPayoutsConnection(where: {${own}, source_eq: ${t}}, orderBy: id_ASC) { totalCount }`)
+    const raw = await gql<{treasuryPayouts: TreasuryPayoutRow[]; conn: {totalCount: number}; all: {totalCount: number}} & Record<TreasurySource, {totalCount: number}>>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            treasuryPayouts(where: ${where}, orderBy: id_DESC, limit: $limit, offset: $offset) {
+                id source role amount block
+                spend { id referendum { index status } }
+                bounty { index description referendum { index status } }
+                childBounty { childIndex description parent { index } }
+            }
+            conn: treasuryPayoutsConnection(where: ${where}, orderBy: id_ASC) { totalCount }
+            all: treasuryPayoutsConnection(where: {${own}}, orderBy: id_ASC) { totalCount }
+            ${counts.join('\n            ')}
+        }`,
+        {id: idHex, limit, offset}
+    )
+    return {
+        rows: raw.treasuryPayouts,
+        total: raw.conn.totalCount,
+        all: raw.all.totalCount,
+        counts: Object.fromEntries(TREASURY_SOURCES.map(t => [t, raw[t].totalCount])) as Record<TreasurySource, number>,
+    }
+}
+
+// every payment this account received, for the totals by source
+export function treasuryPayoutAmounts(idHex: string) {
+    return sweep(page =>
+        gql<{treasuryPayouts: Pick<TreasuryPayoutRow, 'source' | 'role' | 'amount'>[]}>(
+            `query ($id: String!, $limit: Int!, $offset: Int!) {
+                treasuryPayouts(where: {account: {id_eq: $id}}, orderBy: id_ASC, limit: $limit, offset: $offset) { source role amount }
+            }`,
+            {id: idHex, ...page}
+        ).then(r => r.treasuryPayouts)
+    )
 }
 
 export interface VoteHistoryRow extends VoteShape {

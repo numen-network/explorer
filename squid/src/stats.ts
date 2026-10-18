@@ -35,6 +35,12 @@ export function treasuryAccount(block: RuntimeCtx): string {
     return ('0x' + TYPE_ID + palletId.get(block).slice(2)).padEnd(66, '0')
 }
 
+// into_sub_account_truncating puts the SCALE encoded sub value between the
+// pallet id and the trailing zeros, cut to 32 bytes
+export function treasurySubAccount(block: RuntimeCtx, sub: Buffer): string {
+    return (treasuryAccount(block).slice(0, 26) + sub.toString('hex')).padEnd(66, '0').slice(0, 66)
+}
+
 export function accumulateDay(batch: BatchData, block: Block, at: Date, header: RuntimeCtx, delta: Omit<DayDelta, 'tsFirst' | 'tsLast' | 'difficultyClose' | 'blocks' | 'rewards' | 'header'>): void {
     const day = at.toISOString().slice(0, 10)
     let d = batch.dayDeltas.get(day)

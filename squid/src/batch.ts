@@ -31,6 +31,7 @@ import {
     TokenHolder,
     TokenTransfer,
     Transfer,
+    TreasuryPayout,
     TreasurySpend,
     Username,
     UsernameAuthority,
@@ -108,6 +109,7 @@ export class BatchData {
     metadataActions: MetadataAction[] = []
     tallySnapshots = new Map<string, ReferendumTallySnapshot>()
     spends = new Map<string, TreasurySpend>()
+    payouts: TreasuryPayout[] = []
     // scheduler task id to referendum index, and the spends still waiting for
     // the dispatch event that names their referendum
     enactments = new Map<string, number>()

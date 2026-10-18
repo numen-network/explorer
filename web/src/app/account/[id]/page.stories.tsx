@@ -14,6 +14,7 @@ import {
     delegationAction,
     delegationActionRows,
     delegationActionsOf,
+    EVERY_PAYOUT,
     EVERY_REFUND,
     FULL_FIELDS,
     funds,
@@ -35,6 +36,8 @@ import {
     proxyDelegates,
     proxyDelays,
     proxyFor,
+    payout,
+    payouts,
     poll,
     pureCreatedBy,
     reservedOf,
@@ -246,6 +249,7 @@ export const EveryRole: StoryObj = {
         multisigOps: [multisigOp(0, {multisig: ME, depositor: PEOPLE[1], signatories: SIGNATORIES, threshold: 3})],
         proxiesIn: proxyFor(2),
         transfers: accountTransfers(4),
+        payouts: EVERY_PAYOUT,
     }),
     play: async ({canvas}) => expectWholeWords(await canvas.findByText('mapped account of this H160')),
 }
@@ -911,6 +915,40 @@ export const ProposedMany = story({account: voting(numn(1_000)), proposed: manyP
 
 export const ProposedLastPage = story({account: voting(numn(1_000)), proposed: manyProposed}, {tab: 'proposed', page: lastPage(manyProposed.length)})
 
+// totals by source, a chip per source, and the beneficiary role in the header
+export const TreasuryEverySource: StoryObj = {
+    ...story({account: voting(numn(1_000)), payouts: EVERY_PAYOUT}, {tab: 'treasury'}),
+    play: async ({canvasElement}) => {
+        expect(tabCount(canvasElement, 'treasury')).toBe('7')
+        expect(summaries(canvasElement)).toEqual([{'Total received': '≈28.6K NUMN', Spends: '22K NUMN', Bounties: '5,700 NUMN', 'Child bounties': '500 NUMN', 'Curator fees': '405 NUMN'}])
+        expect(filterChips(canvasElement, 'Source')).toEqual(['[All 7]', 'Spends 2', 'Bounties 3', 'Child bounties 2'])
+        expect(roles(canvasElement)).toContain('Treasury beneficiary')
+    },
+}
+
+export const TreasuryBounties: StoryObj = {
+    ...story({account: voting(numn(1_000)), payouts: EVERY_PAYOUT}, {tab: 'treasury', source: 'Bounty'}),
+    play: async ({canvasElement}) => {
+        expect(filterChips(canvasElement, 'Source')).toEqual(['All 7', 'Spends 2', '[Bounties 3]', 'Child bounties 2'])
+        expect(columnTexts(canvasElement, 'Source')).toEqual(['Bounty #3 · Wallet audit', 'Bounty #3 · Wallet audit', 'Bounty #2'])
+    },
+}
+
+// curator fees alone earn the tab but not the beneficiary role
+export const TreasuryCuratorOnly: StoryObj = {
+    ...story({account: voting(numn(1_000)), payouts: [payout(0, 'Bounty', 'Curator', 380, {bounty: {index: 3, description: 'Wallet audit', referendum: null}})]}, {tab: 'treasury'}),
+    play: async ({canvasElement}) => {
+        expect(tabCount(canvasElement, 'treasury')).toBe('1')
+        expect(roles(canvasElement)).not.toContain('Treasury beneficiary')
+    },
+}
+
+const manyPayouts = payouts(25)
+
+export const TreasuryMany = story({account: voting(numn(1_000)), payouts: manyPayouts}, {tab: 'treasury'})
+
+export const TreasuryLastPage = story({account: voting(numn(1_000)), payouts: manyPayouts}, {tab: 'treasury', page: lastPage(manyPayouts.length)})
+
 export const VotesOne = story({account: voting(numn(1_000)), votes: [vote(0)]}, {tab: 'votes'})
 
 const manyVotes = [...voteRows(), ...Array.from({length: 35}, (_, i) => vote(i + 10, {referendum: poll(47 - i, 'Ongoing', null)}))]
@@ -986,18 +1024,18 @@ export const VotesSummaryNoReferenda: StoryObj = {
     play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', Active: '0', 'Participation rate': '—', 'Total locked': '0 NUMN'}]),
 }
 
-// the six governance lists share one group
+// the seven governance lists share one group
 export const GovernanceTabs: StoryObj = {
     ...story(
-        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND},
+        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND, payouts: EVERY_PAYOUT},
         {tab: 'vote-history'}
     ),
     play: async ({canvas}) => {
         expect(within(canvas.getByRole('navigation', {name: 'Account'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Governance/)
         const nav = canvas.getByRole('navigation', {name: 'Governance'})
         const slugs = within(nav).getAllByRole('link').map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!)
-        expect(slugs).toEqual(['votes', 'vote-history', 'proposed', 'delegations', 'received', 'delegation-history'])
-        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '7', '5', '3', '2', '5'])
+        expect(slugs).toEqual(['votes', 'vote-history', 'proposed', 'treasury', 'delegations', 'received', 'delegation-history'])
+        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '7', '5', '7', '3', '2', '5'])
     },
 }
 

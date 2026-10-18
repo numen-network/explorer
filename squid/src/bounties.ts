@@ -1,7 +1,8 @@
 import {In} from 'typeorm'
 import {Store} from '@subsquid/typeorm-store'
-import {Account, Bounty, ChildBounty, Referendum} from './model'
+import {Account, Bounty, ChildBounty, Referendum, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource} from './model'
 import {BatchData} from './batch'
+import {treasurySubAccount} from './stats'
 import {storage} from './types'
 import {decodeUtf8} from './utf8'
 
@@ -15,7 +16,9 @@ export interface BountyEvent {
     args: any
     height: number
     at: Date
+    header: any
     signer?: string
+    extrinsic?: string
 }
 
 // the chain drops the entry once a bounty ends, the event that dropped it is
@@ -23,13 +26,13 @@ export interface BountyEvent {
 const TERMINAL = new Set(['BountyClaimed', 'BountyRejected', 'BountyCanceled'])
 const CHILD_TERMINAL = new Set(['Claimed', 'Canceled'])
 
-export function collectBountyEvent(batch: BatchData, id: string, name: string, args: any, height: number, at: Date, signer?: string): void {
+export function collectBountyEvent(batch: BatchData, id: string, name: string, args: any, height: number, at: Date, header: any, signer?: string, extrinsic?: string): void {
     const pallet = name.split('.')[0]
     if (pallet !== 'Bounties' && pallet !== 'ChildBounties') return
     for (const key of ['curator', 'beneficiary']) {
         if (typeof args?.[key] === 'string') batch.touch(args[key], height)
     }
-    batch.bountyEvents.push({id, name, args, height, at, signer})
+    batch.bountyEvents.push({id, name, args, height, at, header, signer, extrinsic})
 }
 
 // child bounty curator management emits no events at all
@@ -149,6 +152,7 @@ function applyBountyEvent(batch: BatchData, ev: BountyEvent): void {
             b.status = method
             b.payout = BigInt(args.payout)
             b.beneficiary = new Account({id: args.beneficiary})
+            batch.payouts.push(...claimPayouts(batch, ev, bountyPot(ev.header, b.index), {source: TreasuryPayoutSource.Bounty, bounty: b}))
             break
         case 'BountyRejected':
         case 'BountyCanceled':
@@ -192,12 +196,45 @@ function applyChildEvent(batch: BatchData, ev: BountyEvent): void {
             c.status = 'Claimed'
             c.payout = BigInt(args.payout)
             c.beneficiary = new Account({id: args.beneficiary})
+            batch.payouts.push(...claimPayouts(batch, ev, childPot(ev.header, args.index, args.childIndex), {source: TreasuryPayoutSource.ChildBounty, childBounty: c}))
             break
         case 'ChildBounties.Canceled':
             c.status = 'Canceled'
             break
     }
     if (CHILD_TERMINAL.has(c.status)) c.curatorDeposit = null
+}
+
+const u32 = (n: number) => {
+    const b = Buffer.alloc(4)
+    b.writeUInt32LE(n)
+    return b
+}
+
+// the pallets key each pot by a ("bt", index) or ("cb", parent, child) tuple,
+// and a str encodes with its compact length in front
+const bountyPot = (header: any, index: number) => treasurySubAccount(header, Buffer.concat([Buffer.from('\x08bt', 'latin1'), u32(index)]))
+const childPot = (header: any, parent: number, child: number) => treasurySubAccount(header, Buffer.concat([Buffer.from('\x08cb', 'latin1'), u32(parent), u32(child)]))
+
+// a claim moves the curator fee out of the pot, then the payout, and skips
+// either transfer when its amount is zero
+function claimPayouts(batch: BatchData, ev: BountyEvent, pot: string, link: Partial<TreasuryPayout>): TreasuryPayout[] {
+    const payout = BigInt(ev.args.payout)
+    const paid = batch.transfers.filter(t => t.extrinsic?.id === ev.extrinsic && t.id < ev.id && t.from.id === pot)
+    const last = paid[paid.length - 1]
+    if (payout > 0n && (last?.to.id !== ev.args.beneficiary || last.amount !== payout)) throw new Error(`${ev.name} ${ev.id} has no transfer of its payout out of ${pot}`)
+    if (paid.length > (payout > 0n ? 2 : 1)) throw new Error(`${ev.name} ${ev.id} follows ${paid.length} transfers out of ${pot}`)
+    return paid.map(
+        t =>
+            new TreasuryPayout({
+                ...link,
+                id: t.id,
+                account: t.to,
+                role: payout > 0n && t === last ? TreasuryPayoutRole.Beneficiary : TreasuryPayoutRole.Curator,
+                amount: t.amount,
+                block: ev.height,
+            })
+    )
 }
 
 async function refreshFromStorage(batch: BatchData, lastHeader: any): Promise<void> {

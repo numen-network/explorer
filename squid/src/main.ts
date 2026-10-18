@@ -507,7 +507,7 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
     collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, at, ev)
     collectUsernameEvent(batch, name, ev.args, block.height, at, ev.block)
     collectMultisigEvent(batch, name, ev.args, block.height, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined)
-    collectBountyEvent(batch, ev.id, name, ev.args, block.height, at, signerOf(ev.extrinsic))
+    collectBountyEvent(batch, ev.id, name, ev.args, block.height, at, ev.block, signerOf(ev.extrinsic), ev.extrinsic?.id)
 }
 
 // a runtime upgrade can bump the scan protocol, so each block reads the one
@@ -697,6 +697,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     if (batch.proxyRemovals.length > 0) await ctx.store.remove(ProxyRelation, batch.proxyRemovals)
     await ctx.store.upsert([...batch.bounties.values()])
     await ctx.store.upsert([...batch.childBounties.values()])
+    await ctx.store.insert(batch.payouts)
     await persistUsernames(ctx.store, batch)
 }
 
