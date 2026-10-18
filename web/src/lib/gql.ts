@@ -503,14 +503,11 @@ export interface ChildBountyDepositRow {
     curatorDeposit: string | null
 }
 
-/** Referenda whose submission or decision deposit this account still has reserved. */
+/** A submission or decision deposit this account still has reserved. */
 export interface GovDepositRow {
-    index: number
-    status: string
-    submissionDepositor: string | null
-    submissionDeposit: string | null
-    decisionDepositor: string | null
-    decisionDeposit: string | null
+    kind: 'Submission' | 'Decision'
+    amount: string
+    referendum: {index: number; status: string}
 }
 
 // everything the header and the tab strip need and nothing else, the rows a tab
@@ -540,8 +537,8 @@ export function accountSummary(idHex: string) {
             nMultisig: multisigOpsConnection(orderBy: id_ASC, where: {OR: [{multisig: ${self}}, {depositor: ${self}}]}) { totalCount }
             nMultisigSelf: multisigOpsConnection(orderBy: id_ASC, where: {multisig: ${self}}) { totalCount }
             msigPending: multisigOps(where: {depositor: ${self}, status_in: ["NewMultisig", "MultisigApproval"]}, orderBy: id_ASC) { threshold deposit }
-            govDeposits: referendums(where: {OR: [{submissionDepositor_eq: $id}, {decisionDepositor_eq: $id}]}, orderBy: index_ASC) {
-                index status submissionDepositor submissionDeposit decisionDepositor decisionDeposit
+            govDeposits: referendumDeposits(where: {who: ${self}, state_eq: Held}, orderBy: [referendum_index_ASC, id_DESC]) {
+                kind amount referendum { index status }
             }
             bountyDeposits: bounties(where: {OR: [{proposer: ${self}}, {curator: ${self}}]}, orderBy: index_ASC) {
                 index bond curatorDeposit proposer { id } curator { id }
@@ -1379,15 +1376,19 @@ export interface ReferendumRow {
     support: string
     timeline: unknown
     submitter: AccountRef | null
-    submissionDepositor: string | null
-    submissionDeposit: string | null
-    decisionDepositor: string | null
-    decisionDeposit: string | null
     track: TrackRow
+}
+
+export interface ReferendumDepositRow {
+    kind: 'Submission' | 'Decision'
+    who: AccountRef | null
+    amount: string
+    state: 'Held' | 'Refunded' | 'Slashed'
 }
 
 export interface ReferendumDetailRow extends ReferendumRow {
     proposalCalls: ProposalNode[] | null
+    deposits: ReferendumDepositRow[]
 }
 
 /** A spend an enactment created, tied back to the proposal call it came from. */
@@ -1402,7 +1403,7 @@ export interface ReferendumSpendRow {
 }
 
 const TRACK_FIELDS = `id name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
-const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } submissionDepositor submissionDeposit decisionDepositor decisionDeposit track { ${TRACK_FIELDS} }`
+const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } track { ${TRACK_FIELDS} }`
 
 export interface TreasurySpendRow {
     id: string
@@ -1659,7 +1660,7 @@ export function referendumDetail(index: number, page: Slice) {
         splitCount: {totalCount: number}
     }>(
         `query ($index: Int!, $limit: Int!, $offset: Int!) {
-            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalCalls }
+            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalCalls deposits(orderBy: id_ASC) { kind who { ${ACCOUNT_REF} } amount state } }
             spends: treasurySpends(where: {referendum: {index_eq: $index}}, orderBy: [block_ASC, indexInBlock_ASC], limit: 500) { id kind status validFrom expireAt paidAt proposalCall }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }

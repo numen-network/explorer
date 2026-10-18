@@ -199,7 +199,7 @@ const tallyAt = (r, block) => {
 function stepArgs(r, method, s, slash) {
     const index = r.index
     const proposal = {__kind: 'Lookup', hash: r.proposalHash, len: 41}
-    const decider = r.decisionDepositor ?? person(index + 1).id
+    const decider = r.deposits?.find(d => d.kind === 'Decision')?.who.id ?? person(index + 1).id
     switch (method) {
         case 'Submitted':
             return {index, track: Number(r.track.id), proposal}

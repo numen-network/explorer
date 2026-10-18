@@ -1,7 +1,8 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, JSONColumn as JSONColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, JSONColumn as JSONColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Track} from "./track.model"
 import {Account} from "./account.model"
 import {ReferendumStatus} from "./_referendumStatus"
+import {ReferendumDeposit} from "./referendumDeposit.model"
 
 @Entity_()
 export class Referendum {
@@ -80,6 +81,9 @@ export class Referendum {
     @IntColumn_({nullable: true})
     proposalBountyIndex!: number | undefined | null
 
+    /**
+     * the origin the submit dispatched under, which pays the submission deposit
+     */
     @Index_("idx_referendum_submitter_3fca5094")
     @ManyToOne_(() => Account, {nullable: true})
     submitter!: Relation_<Account> | undefined | null
@@ -122,20 +126,6 @@ export class Referendum {
     @JSONColumn_({nullable: false})
     timeline!: unknown
 
-    /**
-     * plain reserves the chain records no reason for, cleared once refunded or slashed
-     */
-    @Index_("idx_referendum_submission_depositor_4bdb4f96")
-    @StringColumn_({nullable: true})
-    submissionDepositor!: string | undefined | null
-
-    @BigIntColumn_({nullable: true})
-    submissionDeposit!: bigint | undefined | null
-
-    @Index_("idx_referendum_decision_depositor_a79f8b72")
-    @StringColumn_({nullable: true})
-    decisionDepositor!: string | undefined | null
-
-    @BigIntColumn_({nullable: true})
-    decisionDeposit!: bigint | undefined | null
+    @OneToMany_(() => ReferendumDeposit, e => e.referendum)
+    deposits!: Relation_<ReferendumDeposit[]>
 }

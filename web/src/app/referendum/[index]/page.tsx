@@ -19,11 +19,11 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
 import {withProposalViews} from '@/lib/args'
-import {chainDbHead, chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps, type ChainProps} from '@/lib/chain'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
-import {accountRefs, bountiesByIndex, eventsByIds, referendumDetail, specVersionAt, tallySnapshots, type TimelineEventRow} from '@/lib/gql'
+import {accountRefs, bountiesByIndex, eventsByIds, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
 import {ss58Encode} from '@/lib/ss58'
@@ -109,6 +109,21 @@ function Slot({value, label, className = ''}: {value: string; label: string; cla
     )
 }
 
+function HeldDeposit({d, chain}: {d: ReferendumDepositRow | undefined; chain: ChainProps}) {
+    if (d == null) return '—'
+    return (
+        <>
+            {fmtBalance(d.amount, chain.decimals, chain.symbol)}
+            {d.who && (
+                <>
+                    {' '}
+                    <span className="text-dim">·</span> <AccountLink addr={ss58Encode(d.who.id, chain.ss58)} acc={d.who} />
+                </>
+            )}
+        </>
+    )
+}
+
 export default async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
     const {index: rawIndex} = await props.params
     const sp = await props.searchParams
@@ -126,7 +141,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const trail = rawSteps(r.timeline)
     const nodes = r.proposalCalls ?? []
-    const partyIds = [...new Set([...requestAccounts(nodes), r.submissionDepositor, r.decisionDepositor].filter((id): id is string => id != null))]
+    const submission = r.deposits.find(d => d.kind === 'Submission')
+    const held = (kind: ReferendumDepositRow['kind']) => r.deposits.find(d => d.kind === kind && d.state === 'Held')
+    const partyIds = [...new Set(requestAccounts(nodes))]
     const bountyIds = nodes.flatMap(node => (node.bounty != null ? [node.bounty] : []))
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
     const [refs, evs, textEvs, votes, actions, stats, spec, bounties] = await Promise.all([
@@ -365,24 +382,10 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             <DetailRow label="Confirming since">{r.confirmingSince !== null ? <BlockLink height={r.confirmingSince} /> : '—'}</DetailRow>
             <DetailRow label="Ended at">{r.endedAt !== null ? <BlockLink height={r.endedAt} /> : '—'}</DetailRow>
             <DetailRow label="Submission deposit">
-                {r.submissionDeposit != null && r.submissionDepositor != null ? (
-                    <>
-                        {fmtBalance(r.submissionDeposit, chain.decimals, chain.symbol)} <span className="text-dim">·</span>{' '}
-                        <AccountLink addr={ss58Encode(r.submissionDepositor, chain.ss58)} acc={party.get(r.submissionDepositor)} />
-                    </>
-                ) : (
-                    '—'
-                )}
+                <HeldDeposit d={held('Submission')} chain={chain} />
             </DetailRow>
             <DetailRow label="Decision deposit">
-                {r.decisionDeposit != null && r.decisionDepositor != null ? (
-                    <>
-                        {fmtBalance(r.decisionDeposit, chain.decimals, chain.symbol)} <span className="text-dim">·</span>{' '}
-                        <AccountLink addr={ss58Encode(r.decisionDepositor, chain.ss58)} acc={party.get(r.decisionDepositor)} />
-                    </>
-                ) : (
-                    '—'
-                )}
+                <HeldDeposit d={held('Decision')} chain={chain} />
             </DetailRow>
         </DetailCard>
     )
@@ -449,7 +452,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 // referendum record fills the step in
                 if (s.name === 'Referenda.Submitted') {
                     if (r.submitter) rows.unshift(['Who', <AccountLink key="s" addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} />])
-                    if (r.submissionDeposit != null) rows.push(['Submission deposit', fmtBalance(r.submissionDeposit, chain.decimals, chain.symbol)])
+                    if (submission) rows.push(['Submission deposit', fmtBalance(submission.amount, chain.decimals, chain.symbol)])
                 }
                 if (failed) rows.push(['Error', <ErrorName key="error" name={error} />])
                 return (

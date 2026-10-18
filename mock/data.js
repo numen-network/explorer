@@ -57,10 +57,10 @@ function referendum({index, track, origin, submitter, steps, decidingSince = nul
         nays: numn(nays),
         support: numn(support),
         timeline: steps,
-        submissionDepositor: deposits ? account(submitter) : null,
-        submissionDeposit: deposits ? SUBMISSION_DEPOSIT : null,
-        decisionDepositor: deposits === 'both' ? account(submitter) : null,
-        decisionDeposit: deposits === 'both' ? t.decisionDeposit : null,
+        deposits: [
+            {kind: 'Submission', who: {id: account(submitter)}, amount: SUBMISSION_DEPOSIT, state: deposits ? 'Held' : rest.status === 'Killed' ? 'Slashed' : 'Refunded'},
+            ...(deposits === 'both' ? [{kind: 'Decision', who: {id: account(submitter)}, amount: t.decisionDeposit, state: 'Held'}] : []),
+        ],
         snapshots: history.map(([block, a, n, s]) => ({
             block,
             ayes: numn(a),

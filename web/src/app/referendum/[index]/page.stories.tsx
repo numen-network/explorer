@@ -37,6 +37,7 @@ export default {title: 'Pages/Referendum', ...pageMeta(ReferendumPage)}
 interface Referendum {
     index: number
     snapshots: object[]
+    deposits: object[]
     [field: string]: unknown
 }
 type Text = ReturnType<typeof metadataAction>
@@ -212,7 +213,7 @@ export const MetadataEveryField = withPlay(curatedCase(6, 'metadata'), async con
 })
 
 export const MetadataEmptyFields = story(
-    {...curated(7), id: '16', index: 16, origin: null, proposalHash: null, submitter: null, submissionDepositor: null, submissionDeposit: null},
+    {...curated(7), id: '16', index: 16, origin: null, proposalHash: null, submitter: null, deposits: []},
     'metadata'
 )
 
@@ -369,10 +370,7 @@ const secondAttempt = {
     ayes: numn(6_500_000),
     nays: numn(1_900_000),
     support: numn(5_200_000),
-    submissionDepositor: null,
-    submissionDeposit: null,
-    decisionDepositor: null,
-    decisionDeposit: null,
+    deposits: curated(0).deposits.map(d => ({...d, state: 'Refunded'})),
     timeline: [
         step('Referenda.Submitted', 700_000, 3),
         step('Referenda.DecisionDepositPlaced', 700_050, 4),

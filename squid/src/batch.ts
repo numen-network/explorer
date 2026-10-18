@@ -24,6 +24,7 @@ import {
     Judgement,
     ProxyRelation,
     Referendum,
+    ReferendumDeposit,
     ReferendumTallySnapshot,
     Registrar,
     Token,
@@ -50,7 +51,8 @@ export interface GovEvent {
     height: number
     // storage reads at the action block need the header
     header: any
-    signer?: string
+    // the origin the raising call dispatched under
+    origin?: string
     callArgs?: any
     extrinsic?: string
 }
@@ -98,6 +100,7 @@ export class BatchData {
     evmAddresses = new Map<string, EvmAddress>()
     govEvents: GovEvent[] = []
     referenda = new Map<number, Referendum>()
+    deposits = new Map<string, ReferendumDeposit>()
     votes = new Map<string, Vote>()
     delegatedVotes = new Map<string, DelegatedVote>()
     votingActions: VotingAction[] = []

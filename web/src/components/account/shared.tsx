@@ -162,18 +162,13 @@ function identityRows(a: AccountRow, addr: string, retired: {index: number}[]): 
 // or a cancellation and a decision deposit after any ending, a kill leaves none
 const SUBMISSION_REFUNDED = new Set(['Approved', 'Cancelled'])
 
-function govRows(deposits: GovDepositRow[], self: string): LockRow[] {
-    const rows: LockRow[] = []
-    const row = (d: GovDepositRow, what: string, amount: string, refunded: boolean) =>
-        reserved(`Referendum #${d.index} ${what} deposit`, BigInt(amount), {
-            href: `/referendum/${d.index}`,
-            ...(d.status === 'Ongoing' ? {freedBy: 'until claimed back after the referendum ends'} : {refund: refunded ? 'now' : 'never'}),
+function govRows(deposits: GovDepositRow[]): LockRow[] {
+    return deposits.map(({kind, amount, referendum: {index, status}}) =>
+        reserved(`Referendum #${index} ${kind.toLowerCase()} deposit`, BigInt(amount), {
+            href: `/referendum/${index}`,
+            ...(status === 'Ongoing' ? {freedBy: 'until claimed back after the referendum ends'} : {refund: kind === 'Decision' || SUBMISSION_REFUNDED.has(status) ? 'now' : 'never'}),
         })
-    for (const d of deposits) {
-        if (d.submissionDepositor === self && d.submissionDeposit != null) rows.push(row(d, 'submission', d.submissionDeposit, SUBMISSION_REFUNDED.has(d.status)))
-        if (d.decisionDepositor === self && d.decisionDeposit != null) rows.push(row(d, 'decision', d.decisionDeposit, true))
-    }
-    return rows
+    )
 }
 
 function bountyRows(bounties: BountyDepositRow[], children: ChildBountyDepositRow[], self: string): LockRow[] {
@@ -226,7 +221,7 @@ export function lockRows(a: AccountRow, addr: string, validator: ValidatorRow | 
         }),
         ...identityRows(a, addr, s.retiredRegistrars),
         ...depositRows(a, addr, s),
-        ...govRows(s.govDeposits, a.id),
+        ...govRows(s.govDeposits),
         ...bountyRows(s.bountyDeposits, s.childBountyDeposits, a.id),
         ...msigRows(s.msigPending, addr),
     ]

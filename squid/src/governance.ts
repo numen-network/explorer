@@ -6,10 +6,10 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In, IsNull} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, Delegate, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
+import {Account, Delegate, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasurySpend, Vote, VotingAction} from './model'
 import {lockPeriods} from './conviction'
 import {constants, storage} from './types'
-import type {AccountVote, Deposit, ReferendumInfo} from './types/v100'
+import type {AccountVote} from './types/v100'
 
 const GOV_PALLETS = new Set(['Referenda', 'ConvictionVoting', 'Treasury', 'Scheduler'])
 
@@ -27,8 +27,8 @@ const MAX_PROPOSAL_DEPTH = 4
 
 const stampOf = (ev: GovEvent) => new Date(ev.header.timestamp)
 
-export function collectGovEvent(batch: BatchData, id: string, indexInBlock: number, name: string, args: any, height: number, header: any, signer?: string, callArgs?: any, extrinsic?: string): void {
-    if (GOV_PALLETS.has(name.split('.')[0])) batch.govEvents.push({id, indexInBlock, name, args, height, header, signer, callArgs, extrinsic})
+export function collectGovEvent(batch: BatchData, id: string, indexInBlock: number, name: string, args: any, height: number, header: any, origin?: string, callArgs?: any, extrinsic?: string): void {
+    if (GOV_PALLETS.has(name.split('.')[0])) batch.govEvents.push({id, indexInBlock, name, args, height, header, origin, callArgs, extrinsic})
 }
 
 export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, lastHeader: any, rpc: RpcClient): Promise<void> {
@@ -577,6 +577,11 @@ async function loadTouchedReferenda(ctx: {store: any}, batch: BatchData): Promis
         relations: {track: true},
     })
     for (const r of rows) batch.referenda.set(r.index, r)
+    const deposits: ReferendumDeposit[] = await ctx.store.find(ReferendumDeposit, {
+        where: {referendum: {index: In([...indices])}},
+        relations: {referendum: true},
+    })
+    for (const d of deposits) batch.deposits.set(d.id, d)
 }
 
 // a named dispatch carries its task id, only approved referenda can own one
@@ -621,7 +626,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
             track: new Track({id: String(args.track)}),
             origin: toJSON(ev.callArgs?.proposalOrigin),
             proposalHash: proposalHash(args.proposal),
-            submitter: ev.signer ? batch.touch(ev.signer, ev.height) : undefined,
+            submitter: ev.origin ? batch.touch(ev.origin, ev.height) : undefined,
             submittedAt: ev.height,
             submittedTimestamp: stampOf(ev),
             status: ReferendumStatus.Ongoing,
@@ -632,6 +637,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
         })
         pushTimeline(r, ev)
         batch.referenda.set(r.index, r)
+        placeDeposit(batch, r, ReferendumDepositKind.Submission, ev.origin, submissionDeposit(ev.header), ev.height)
         return
     }
     const kill = `${ev.height}-${ev.extrinsic ?? ''}`
@@ -651,18 +657,54 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
         case 'ConfirmAborted':
             r.confirmingSince = null
             break
+        case 'DecisionDepositPlaced':
+            placeDeposit(batch, r, ReferendumDepositKind.Decision, args.who, BigInt(args.amount), ev.height)
+            break
+        case 'SubmissionDepositRefunded':
+            endDeposit(batch, r, ReferendumDepositKind.Submission, ReferendumDepositState.Refunded, ev.height)
+            break
+        case 'DecisionDepositRefunded':
+            endDeposit(batch, r, ReferendumDepositKind.Decision, ReferendumDepositState.Refunded, ev.height)
+            break
         // the pallet schedules the enactment as it confirms
         case 'Confirmed':
             batch.enactments.set(enactmentId(args.index), args.index)
             setTally(r, args.tally)
             break
+        // a kill slashes whatever the referendum still holds
+        case 'Killed':
+            for (const kind of [ReferendumDepositKind.Submission, ReferendumDepositKind.Decision]) endDeposit(batch, r, kind, ReferendumDepositState.Slashed, ev.height)
+            setTally(r, args.tally)
+            break
         case 'Rejected':
         case 'TimedOut':
         case 'Cancelled':
-        case 'Killed':
             setTally(r, args.tally)
             break
     }
+}
+
+const depositId = (r: Referendum, kind: ReferendumDepositKind) => `${r.index}-${kind.toLowerCase()}`
+
+function submissionDeposit(header: any): bigint {
+    const c = constants.referenda.submissionDeposit.v100
+    if (!c.is(header)) throw new Error(`unhandled spec version for submission deposit at block ${header.height}`)
+    return c.get(header)
+}
+
+function placeDeposit(batch: BatchData, r: Referendum, kind: ReferendumDepositKind, who: string | undefined, amount: bigint, height: number): void {
+    const id = depositId(r, kind)
+    batch.deposits.set(
+        id,
+        new ReferendumDeposit({id, referendum: r, kind, who: who ? batch.touch(who, height) : null, amount, placedAt: height, state: ReferendumDepositState.Held, endedAt: null})
+    )
+}
+
+function endDeposit(batch: BatchData, r: Referendum, kind: ReferendumDepositKind, state: ReferendumDepositState, height: number): void {
+    const d = batch.deposits.get(depositId(r, kind))
+    if (d == null || d.state !== ReferendumDepositState.Held) return
+    d.state = state
+    d.endedAt = height
 }
 
 function proposalHash(proposal: any): string | undefined {
@@ -994,24 +1036,6 @@ async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: a
             r.status = ReferendumStatus[info.__kind]
             r.endedAt = info.__kind === 'Killed' ? info.value : info.value[0]
         }
-        const [submission, decision] = heldDeposits(info)
-        r.submissionDepositor = submission?.who ?? null
-        r.submissionDeposit = submission?.amount ?? null
-        r.decisionDepositor = decision?.who ?? null
-        r.decisionDeposit = decision?.amount ?? null
         batch.referenda.set(idx, r)
     })
-}
-
-// a deposit outlives the referendum until the depositor claims it back, a kill
-// slashes both
-function heldDeposits(info: ReferendumInfo): [Deposit | undefined, Deposit | undefined] {
-    switch (info.__kind) {
-        case 'Ongoing':
-            return [info.value.submissionDeposit, info.value.decisionDeposit]
-        case 'Killed':
-            return [undefined, undefined]
-        default:
-            return [info.value[1], info.value[2]]
-    }
 }

@@ -395,6 +395,7 @@ type Referendum @entity {
   proposalBeneficiary: String
   "bounty this referendum moves to approve, taken from the proposal call"
   proposalBountyIndex: Int @index
+  "the origin the submit dispatched under, which pays the submission deposit"
   submitter: Account @index
   submittedAt: Int!
   submittedTimestamp: DateTime! @index
@@ -408,11 +409,34 @@ type Referendum @entity {
   support: BigInt!
   "one step per lifecycle event, its id, qualified name, block and timestamp, an enactment step adds the error its dispatch failed with or null"
   timeline: JSON!
-  "plain reserves the chain records no reason for, cleared once refunded or slashed"
-  submissionDepositor: String @index
-  submissionDeposit: BigInt
-  decisionDepositor: String @index
-  decisionDeposit: BigInt
+  deposits: [ReferendumDeposit!]! @derivedFrom(field: "referendum")
+}
+
+"the two deposits pallet_referenda takes"
+enum ReferendumDepositKind {
+  Submission
+  Decision
+}
+
+enum ReferendumDepositState {
+  Held
+  Refunded
+  Slashed
+}
+
+"a plain reserve the chain records no reason for, kept after it is refunded or slashed"
+type ReferendumDeposit @entity {
+  "the referendum index and the kind in lowercase"
+  id: ID!
+  referendum: Referendum! @index
+  kind: ReferendumDepositKind!
+  "null when the submit dispatched under an origin the indexer cannot resolve"
+  who: Account @index
+  amount: BigInt!
+  placedAt: Int!
+  state: ReferendumDepositState! @index
+  "block of the refund or of the kill that slashed it"
+  endedAt: Int
 }
 
 type Vote @entity {
