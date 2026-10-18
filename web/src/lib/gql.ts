@@ -586,6 +586,18 @@ export function votesFor(idHex: string, limit: number, offset: number) {
     )
 }
 
+// open counts the referenda still taking votes once the account showed up
+export function votesSummary(idHex: string, firstSeenBlock: number) {
+    return gql<Record<'all' | 'active' | 'open', {totalCount: number}>>(
+        `query ($id: String!, $from: Int!) {
+            all: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { totalCount }
+            active: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false, referendum: {status_eq: Ongoing}}, orderBy: id_ASC) { totalCount }
+            open: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: $from}]}, orderBy: index_ASC) { totalCount }
+        }`,
+        {id: idHex, from: firstSeenBlock}
+    )
+}
+
 export interface VoteHistoryRow extends VoteShape {
     id: string
     method: string
@@ -1715,6 +1727,16 @@ export async function delegationsInPage(id: string, tracks: string[], track: str
         all: raw.all.totalCount,
         perTrack: Object.fromEntries(tracks.map(t => [t, raw[`t${t}`].totalCount])),
     }
+}
+
+export interface DelegateTally {
+    delegators: number
+    tracks: number
+    delegated: string
+}
+
+export function delegateTally(id: string) {
+    return gql<{delegateById: DelegateTally | null}>(`query ($id: String!) { delegateById(id: $id) { delegators tracks delegated } }`, {id})
 }
 
 export interface CountedDelegationRow {

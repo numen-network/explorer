@@ -142,3 +142,18 @@ export const Even: Story = {
         }
     }),
 }
+
+// four figures share one line from sm up and sit two to a line below it
+export const Pairs: Story = {
+    args: {label: 'All votes', value: '12', beside: [{label: 'Active', value: '2'}, {label: 'Participation rate', value: '63.15%'}, {label: 'Total locked', value: '250,000 NUMN'}], pairs: true},
+    decorators: [
+        Story => (
+            <div className="col-span-full">
+                <Story />
+            </div>
+        ),
+    ],
+    play: all(cardsFit, async ({canvasElement}) => {
+        expect(new Set(figureTops(canvasElement)).size).toBe(matchMedia('(min-width: 40rem)').matches ? 1 : 2)
+    }),
+}

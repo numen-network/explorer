@@ -596,6 +596,12 @@ const governanceTabs = (root: HTMLElement) =>
             .map(a => [new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!, a.getAttribute('aria-current') === 'page'])
     )
 
+// each summary tile above a list, its figures by label
+const summaries = (root: HTMLElement) =>
+    [...root.querySelectorAll('[data-slot=card-header]')]
+        .filter(h => h.querySelector('[data-slot=card-description]'))
+        .map(h => Object.fromEntries([...h.querySelectorAll('[data-slot=card-description]')].map(d => [d.textContent, d.nextElementSibling!.textContent])))
+
 // nobody delegates to this account, so there is no Received tab
 export const DelegationsOut: StoryObj = {
     ...story({account: voting(numn(3_000.5)), delegationsOut: delegatingTo(3)}, {tab: 'delegations'}),
@@ -603,6 +609,12 @@ export const DelegationsOut: StoryObj = {
         await expect(canvas.getByText('Delegating to')).toBeInTheDocument()
         expect(governanceTabs(canvasElement)).toEqual({delegations: true})
     },
+}
+
+// three tracks at 1,000, 2,000.25 and 3,000.5, the largest is what the account put up
+export const DelegationsOutSummary: StoryObj = {
+    ...story({account: voting(numn(3_000.5)), delegationsOut: delegatingTo(3)}, {tab: 'delegations'}),
+    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{Tracks: '3', Delegated: '3,000.5 NUMN'}]),
 }
 
 // Delegating to rows go by track id, two-digit ids after the single digits, and the incoming side waits on its own tab
@@ -614,7 +626,15 @@ export const DelegationsBoth: StoryObj = {
         expect(governanceTabs(canvasElement)).toEqual({delegations: true, received: false})
         const nav = canvas.getByRole('navigation', {name: 'Governance'})
         expect([tabCount(nav, 'delegations'), tabCount(nav, 'received')]).toEqual(['7', '5'])
+        expect(summaries(canvasElement)).toHaveLength(1)
     },
+}
+
+// two delegators over two tracks, Root carrying 1,500 at 3x for the most on one track
+export const ReceivedSummary: StoryObj = {
+    ...story({delegationsIn: [...delegatedOnTracks(PEOPLE[1], TRACKS.slice(0, 2), numn(1_000)), ...delegatedOnTracks(PEOPLE[2], TRACKS.slice(0, 1), numn(500))]}, {tab: 'received'}),
+    play: async ({canvasElement}) =>
+        expect(summaries(canvasElement)).toEqual([{Tracks: '2', Delegators: '2', Capital: '1,500 NUMN', 'Max delegations': '4,500 NUMN'}]),
 }
 
 const SPENDERS = TRACKS.filter(t => t.name.endsWith('_spender'))
@@ -710,6 +730,19 @@ export const VotesLastPage = story({account: voting(numn(250_000)), votes: manyV
 export const VotesInOneBlock: StoryObj = {
     ...story({account: voting(numn(3_000)), votes: [11, 10, 9].map((index, i) => vote(i, {block: HEAD - 500, referendum: {index, status: 'Ongoing', endedAt: null}}))}, {tab: 'votes'}),
     play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Referendum')).toEqual(['#11', '#10', '#9']),
+}
+
+// nine standing votes over 14 referenda open since the account showed up, #6 and #9 still deciding and the removed #8 left out
+export const VotesSummary: StoryObj = {
+    ...story({account: voting(numn(250_000)), votes: voteRows(), counts: {referenda: 14}}, {tab: 'votes'}),
+    play: async ({canvasElement}) =>
+        expect(summaries(canvasElement)).toEqual([{'All votes': '9', Active: '2', 'Participation rate': '64.28%', 'Total locked': '250K NUMN'}]),
+}
+
+// every vote taken off and no referendum open since, so there is no rate to give
+export const VotesSummaryNoReferenda: StoryObj = {
+    ...story({account: voting('0'), votes: [vote(0, {removed: true, referendum: {index: 6, status: 'Rejected', endedAt: HEAD - 100}})], counts: {referenda: 0}}, {tab: 'votes'}),
+    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', Active: '0', 'Participation rate': '—', 'Total locked': '0 NUMN'}]),
 }
 
 // the five governance lists share one group, each pairing what stands now with its log

@@ -479,6 +479,13 @@ const OPEN = ['NewMultisig', 'MultisigApproval']
 
 const count = n => ({totalCount: n})
 
+// what the index keeps for an account delegations point to, each delegator counted once at its largest balance
+const delegate = delegations => {
+    const most = new Map()
+    for (const d of delegations) most.set(d.who.id, BigInt(d.balance) > BigInt(most.get(d.who.id) ?? 0) ? d.balance : most.get(d.who.id))
+    return {delegators: most.size, tracks: new Set(delegations.map(d => d.track.id)).size, delegated: sum([...most.values()])}
+}
+
 /**
  * Every root field the account page and its tabs read, answered for the
  * account given. Lists are what the open tab shows, counts default to their
@@ -528,6 +535,7 @@ export function accountPage({
     const allIn = counts.tracks ? Object.values(counts.tracks).reduce((a, b) => a + b, 0) : delegationsIn.length
     // the index keeps rows for tokens the account doesn't hold, only a query asking for a balance above zero leaves them out
     const delegationsSide = where => delegationActions.filter(a => (where.who ? a.who : a.target).id === self)
+    const standing = votes.filter(v => !v.removed)
     const holderRows = where => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
     return {
         accountById: account,
@@ -565,7 +573,9 @@ export function accountPage({
         referendums: govDeposits,
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
-        votesConnection: count(votes.length),
+        votesConnection: ({where}) => count(where.removed_eq === false ? (where.referendum ? standing.filter(v => v.referendum.status === 'Ongoing') : standing).length : votes.length),
+        referendumsConnection: count(counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size),
+        delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,
         votes: paged(votes),
         votingActionsConnection: count(counts.voteActions ?? voteActions.length),
         votingActions: paged(voteActions),

@@ -18,9 +18,9 @@ interface Stat {
     href?: string
 }
 
-function StatFigure({label, value, href}: Stat) {
+function StatFigure({label, value, href, className}: Stat & {className?: string}) {
     return (
-        <div className="grid min-w-0 gap-1.5">
+        <div className={cn('grid min-w-0 gap-1.5', className)}>
             <CardDescription className="text-xs">
                 {href ? (
                     <Link href={href} className="hover:text-primary">
@@ -35,21 +35,23 @@ function StatFigure({label, value, href}: Stat) {
     )
 }
 
-// stats beside the main one move to a line of their own rather than squeeze it
+// stats beside the main one move to a line of their own rather than squeeze it.
+// even shares the width out from sm up, pairs also keeps two to a line below it
 export default function StatTile({
     label,
     value,
     href,
     beside = [],
     even,
+    pairs,
     chips,
     className,
-}: Stat & {beside?: Stat[]; even?: boolean; chips?: StatChip[]; className?: string}) {
+}: Stat & {beside?: Stat[]; even?: boolean; pairs?: boolean; chips?: StatChip[]; className?: string}) {
     return (
         <Card className={cn('gap-1 py-3.5 sm:py-4 sm:[--card-spacing:--spacing(5)]', className)}>
-            <CardHeader className={cn('gap-x-10 gap-y-2', even ? 'flex flex-col sm:flex-row sm:*:flex-1 sm:*:basis-0' : 'flex flex-wrap')}>
+            <CardHeader className={cn('gap-x-10 gap-y-2', pairs ? 'grid grid-cols-2 gap-y-3 sm:grid-flow-col sm:grid-cols-none sm:grid-rows-[auto_auto] sm:auto-cols-fr' : even ? 'flex flex-col sm:flex-row sm:*:flex-1 sm:*:basis-0' : 'flex flex-wrap')}>
                 {[{label, value, href}, ...beside].map(s => (
-                    <StatFigure key={s.label} {...s} />
+                    <StatFigure key={s.label} {...s} className={pairs ? 'row-span-2 grid-rows-subgrid' : undefined} />
                 ))}
             </CardHeader>
             {chips && (
