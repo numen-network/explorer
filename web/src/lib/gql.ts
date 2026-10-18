@@ -483,6 +483,7 @@ export interface AccountSummary {
     nTreasury: {totalCount: number}
     nTreasuryBeneficiary: {totalCount: number}
     nVoteHistory: {totalCount: number}
+    nReceivedHistory: {totalCount: number}
     nDelegHistory: {totalCount: number}
     /** The proxies this account granted, the accounts that can act for it. */
     proxiesOut: ProxyRow[]
@@ -555,7 +556,8 @@ export function accountSummary(idHex: string) {
             nTreasury: treasuryPayoutsConnection(orderBy: id_ASC, where: {account: ${self}}) { totalCount }
             nTreasuryBeneficiary: treasuryPayoutsConnection(orderBy: id_ASC, where: {account: ${self}, role_eq: Beneficiary}) { totalCount }
             nVoteHistory: votingActionsConnection(orderBy: id_ASC, where: ${OWN_VOTE_ACTIONS}) { totalCount }
-            nDelegHistory: delegationActionsConnection(orderBy: id_ASC, where: ${delegationSide('')}) { totalCount }
+            nReceivedHistory: delegationActionsConnection(orderBy: id_ASC, where: ${delegationSide('in')}) { totalCount }
+            nDelegHistory: delegationActionsConnection(orderBy: id_ASC, where: ${delegationSide('out')}) { totalCount }
             proxiesOut: proxyRelations(where: {delegator: ${self}}, orderBy: [delegatee_id_ASC, proxyType_ASC, delay_ASC], limit: 100) { id proxyType delay delegatee { ${ACCOUNT_REF} } }
             msigSet: multisigOps(where: {multisig: ${self}, signatories_isNull: false}, orderBy: [updatedBlock_DESC, id_DESC], limit: 1) { threshold signatories }
             pureCreated: events(where: {pallet_eq: "Proxy", method_eq: "PureCreated", args_jsonContains: {pure: "${idHex}"}}, orderBy: id_ASC, limit: 1) { args block { height } }
@@ -767,8 +769,7 @@ export interface DelegationActionRow {
 // target whose vote the delegation moved
 const OWN_VOTE_ACTIONS = `{voter: {id_eq: $id}, delegator_isNull: true}`
 
-const delegationSide = (dir: 'in' | 'out' | '') =>
-    dir === 'out' ? '{who: {id_eq: $id}}' : dir === 'in' ? '{target: {id_eq: $id}}' : '{OR: [{who: {id_eq: $id}}, {target: {id_eq: $id}}]}'
+const delegationSide = (dir: 'in' | 'out') => (dir === 'out' ? '{who: {id_eq: $id}}' : '{target: {id_eq: $id}}')
 
 export function voteHistoryFor(idHex: string, limit: number, offset: number) {
     return gql<{actions: VoteHistoryRow[]; conn: {totalCount: number}}>(
@@ -780,7 +781,7 @@ export function voteHistoryFor(idHex: string, limit: number, offset: number) {
     )
 }
 
-export function delegationHistoryFor(idHex: string, dir: 'in' | 'out' | '', limit: number, offset: number) {
+export function delegationHistoryFor(idHex: string, dir: 'in' | 'out', limit: number, offset: number) {
     const side = delegationSide(dir)
     return gql<{actions: DelegationActionRow[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {

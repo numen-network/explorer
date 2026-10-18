@@ -20,7 +20,7 @@ const VERB: Record<string, {out: string; in: string}> = {
     Undelegated: {out: 'Undelegated from', in: 'Undelegated by'},
 }
 
-export function DelegationHistoryTable({rows, hex, chain, filtered}: {rows: DelegationActionRow[]; hex: string; chain: ChainProps; filtered?: boolean}) {
+export function DelegationHistoryTable({rows, hex, chain}: {rows: DelegationActionRow[]; hex: string; chain: ChainProps}) {
     const columns = useMemo(
         () =>
             col.columns([
@@ -51,5 +51,5 @@ export function DelegationHistoryTable({rows, hex, chain, filtered}: {rows: Dele
             ]),
         [hex, chain]
     )
-    return <DataTable columns={columns} rows={rows} empty={emptyText('delegation actions', filtered)} emptyClassName="py-5" getRowId={a => a.id} />
+    return <DataTable columns={columns} rows={rows} empty={emptyText('delegation actions')} emptyClassName="py-5" getRowId={a => a.id} />
 }

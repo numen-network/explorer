@@ -1024,7 +1024,7 @@ export const VotesSummaryNoReferenda: StoryObj = {
     play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', Active: '0', 'Participation rate': '—', 'Total locked': '0 NUMN'}]),
 }
 
-// the seven governance lists share one group
+// the eight governance lists share one group
 export const GovernanceTabs: StoryObj = {
     ...story(
         {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND, payouts: EVERY_PAYOUT},
@@ -1034,8 +1034,8 @@ export const GovernanceTabs: StoryObj = {
         expect(within(canvas.getByRole('navigation', {name: 'Account'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Governance/)
         const nav = canvas.getByRole('navigation', {name: 'Governance'})
         const slugs = within(nav).getAllByRole('link').map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!)
-        expect(slugs).toEqual(['votes', 'vote-history', 'proposed', 'treasury', 'delegations', 'received', 'delegation-history'])
-        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '7', '5', '7', '3', '2', '5'])
+        expect(slugs).toEqual(['votes', 'vote-history', 'proposed', 'treasury', 'received', 'received-history', 'delegations', 'delegations-history'])
+        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '7', '5', '7', '2', '3', '3', '2'])
     },
 }
 
@@ -1044,7 +1044,7 @@ export const GovernanceDelegatorOnly: StoryObj = {
     ...story({account: voting(numn(1_000.5)), delegationsOut: delegatingTo(1), delegationActions: [delegationAction(0)]}, {tab: 'delegations'}),
     play: async ({canvas}) => {
         const sub = within(canvas.getByRole('navigation', {name: 'Governance'})).getAllByRole('link')
-        expect(sub.map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab'))).toEqual(['delegations', 'delegation-history'])
+        expect(sub.map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab'))).toEqual(['delegations', 'delegations-history'])
     },
 }
 
@@ -1066,35 +1066,46 @@ export const VoteHistoryMany = story({account: voting(numn(250_000)), votes: [vo
 
 export const VoteHistoryPage2 = story({account: voting(numn(250_000)), votes: [vote(0)], voteActions: manyVoteActions}, {tab: 'vote-history', page: '2'})
 
-export const DelegationHistoryOne = story({account: voting(numn(1_000.5)), delegationActions: [delegationAction(0)]}, {tab: 'delegation-history'})
+export const DelegationsHistoryOne = story({account: voting(numn(1_000.5)), delegationActions: [delegationAction(0)]}, {tab: 'delegations-history'})
 
-// both directions, both methods, and a delegation its own block undid
-export const DelegationHistoryEveryCase: StoryObj = {
-    ...story({account: voting(numn(3_000.5)), delegationActions: delegationActionRows()}, {tab: 'delegation-history'}),
+// both methods out of the account, and nothing that came in
+export const DelegationsHistoryEveryCase: StoryObj = {
+    ...story({account: voting(numn(3_000.5)), delegationActions: delegationActionRows()}, {tab: 'delegations-history'}),
     play: async ({canvasElement}) => {
         const verbs = columnTexts(canvasElement, 'Action').map(t => t!.match(/^(Delegated|Undelegated) (to|from|by)/)![0])
-        expect(verbs).toEqual(['Delegated by', 'Undelegated from', 'Undelegated by', 'Delegated to', 'Delegated by'])
+        expect(verbs).toEqual(['Undelegated from', 'Delegated to'])
+    },
+}
+
+// both methods into the account, and a delegation its own block undid
+export const ReceivedHistoryEveryCase: StoryObj = {
+    ...story({account: voting(numn(3_000.5)), delegationActions: delegationActionRows()}, {tab: 'received-history'}),
+    play: async ({canvasElement}) => {
+        const verbs = columnTexts(canvasElement, 'Action').map(t => t!.match(/^(Delegated|Undelegated) (to|from|by)/)![0])
+        expect(verbs).toEqual(['Delegated by', 'Undelegated by', 'Delegated by'])
         expect(columnTexts(canvasElement, 'Amount').at(-1)).toBe('—')
         expect(columnTexts(canvasElement, 'Conviction').at(-1)).toBe('—')
-        expect(filterChips(canvasElement, 'Direction')).toEqual(['[All]', 'Out', 'In'])
     },
 }
 
 const bothSides = [...delegationActionsOf(12, 'out'), ...delegationActionsOf(30, 'in')]
 
-export const DelegationHistoryOut: StoryObj = {
-    ...story({account: voting(numn(3_000.5)), delegationActions: bothSides}, {tab: 'delegation-history', dir: 'out'}),
+export const DelegationsHistoryMany: StoryObj = {
+    ...story({account: voting(numn(3_000.5)), delegationActions: bothSides}, {tab: 'delegations-history'}),
     play: async ({canvasElement}) => {
         expect(columnTexts(canvasElement, 'Action').every(t => t!.startsWith('Delegated to'))).toBe(true)
-        expect(filterChips(canvasElement, 'Direction')).toEqual(['All', '[Out]', 'In'])
+        const nav = canvasElement.querySelector('nav[aria-label="Governance"]')!
+        expect(tabCount(nav, 'delegations-history')).toBe('12')
+        expect(tabCount(nav, 'received-history')).toBe('30')
     },
 }
 
-export const DelegationHistoryIn = story({account: voting(numn(3_000.5)), delegationActions: bothSides}, {tab: 'delegation-history', dir: 'in'})
+export const ReceivedHistoryMany = story({account: voting(numn(3_000.5)), delegationActions: bothSides}, {tab: 'received-history'})
 
-export const DelegationHistoryInPage2 = story({account: voting(numn(3_000.5)), delegationActions: bothSides}, {tab: 'delegation-history', dir: 'in', page: '2'})
+export const ReceivedHistoryPage2 = story({account: voting(numn(3_000.5)), delegationActions: bothSides}, {tab: 'received-history', page: '2'})
 
-export const DelegationHistoryFilteredEmpty: StoryObj = {
-    ...story({account: voting(numn(1_000.5)), delegationActions: delegationActionsOf(3, 'out')}, {tab: 'delegation-history', dir: 'in'}),
-    play: async ({canvas}) => expect(canvas.getByText('No matching delegation actions.')).toBeInTheDocument(),
+// an account that only ever delegated out has no Received history
+export const ReceivedHistoryNone: StoryObj = {
+    ...story({account: voting(numn(1_000.5)), delegationActions: delegationActionsOf(3, 'out')}, {tab: 'delegations-history'}),
+    play: async ({canvasElement}) => expect(tabCount(canvasElement.querySelector('nav[aria-label="Governance"]')!, 'received-history')).toBeNull(),
 }

@@ -131,11 +131,13 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
         tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
     if (s.nProposed.totalCount > 0) tabs.push({slug: 'proposed', label: 'Proposed', group: 'Governance', count: s.nProposed.totalCount, body: () => <Proposed {...ctx} />})
     if (s.nTreasury.totalCount > 0) tabs.push({slug: 'treasury', label: 'Treasury', group: 'Governance', count: s.nTreasury.totalCount, body: () => <Treasury {...ctx} />})
-    if (s.nDelegOut.totalCount > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount, body: () => <Delegations {...ctx} />})
     if (s.nDelegIn.totalCount > 0)
         tabs.push({slug: 'received', label: 'Received', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Received {...ctx} delegations={s.delegationsIn} total={s.nDelegIn.totalCount} maxDelegations={power.maxDelegations} />})
+    if (s.nReceivedHistory.totalCount > 0)
+        tabs.push({slug: 'received-history', label: 'Received history', group: 'Governance', count: s.nReceivedHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="in" slug="received-history" />})
+    if (s.nDelegOut.totalCount > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount, body: () => <Delegations {...ctx} />})
     if (s.nDelegHistory.totalCount > 0)
-        tabs.push({slug: 'delegation-history', label: 'Delegation history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} />})
+        tabs.push({slug: 'delegations-history', label: 'Delegations history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="out" slug="delegations-history" />})
 
     // dtrack filters Received, so a delegations link carrying one opens there
     const slug = sp.tab === 'delegations' && sp.dtrack != null ? 'received' : sp.tab
