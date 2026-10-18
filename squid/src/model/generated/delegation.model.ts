@@ -32,6 +32,12 @@ export class Delegation {
     @BigIntColumn_({nullable: false})
     balance!: bigint
 
+    /**
+     * the balance weighted by its conviction, a tenth of it for None and N times it for LockedNx
+     */
+    @BigIntColumn_({nullable: false})
+    votes!: bigint
+
     @IntColumn_({nullable: false})
     block!: number
 }

@@ -532,6 +532,8 @@ type Delegation @entity {
   "the Conviction variant name"
   conviction: String!
   balance: BigInt!
+  "the balance weighted by its conviction, a tenth of it for None and N times it for LockedNx"
+  votes: BigInt!
   block: Int!
 }
 
