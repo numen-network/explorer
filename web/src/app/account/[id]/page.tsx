@@ -37,8 +37,6 @@ export const dynamic = 'force-dynamic'
 
 const sat = (v: bigint) => (v > 0n ? v : 0n)
 const bigMax = (a: bigint, b: bigint) => (a > b ? a : b)
-// a lock this size means everything is locked, polkadot.js leaves it out of the total
-const MAX_U128 = (1n << 128n) - 1n
 
 export async function generateMetadata(props: PageProps<'/account/[id]'>) {
     const {id} = await props.params
@@ -86,11 +84,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const frozen = BigInt(a.frozen)
     const ed = frozen === 0n && reserved === 0n ? 0n : BigInt(chain.existentialDeposit)
     const transferable = sat(free - bigMax(ed, frozen - reserved))
-    // the biggest lock rather than the frozen field, which also answers to freezes
-    const locked = (a.locksJson ?? []).reduce((m, l) => {
-        const v = BigInt(l.amount)
-        return v !== MAX_U128 && v > m ? v : m
-    }, 0n)
+    const locked = BigInt(a.balance) - transferable
 
     const power = votesPower(a.balance, s.delegationsIn)
 

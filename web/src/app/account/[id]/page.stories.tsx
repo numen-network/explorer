@@ -153,6 +153,25 @@ export const BalanceExtremes = story({
     transfers: accountTransferCases(HEAD - 3),
 })
 
+const expectSplit = (root: HTMLElement, balance: string, transferable: string, locked: string) =>
+    expect([rowValue(root, 'Balance'), rowValue(root, 'Transferable *'), rowValue(root, 'Locked *')]).toEqual([balance, transferable, locked].map(v => `${v} NUMN`))
+
+export const BalanceReserveOverLocks: StoryObj = {
+    ...story({account: subject(funds('98512014386512943379', '5870000000000000000')), transfers: accountTransfers(3)}),
+    play: ({canvasElement}) => expectSplit(canvasElement, '104.382014386512943379', '98.512014386512943379', '5.870000000000000000'),
+}
+
+export const BalanceLocksOverReserve: StoryObj = {
+    ...story({
+        account: subject({
+            ...funds('2122000258102383578190096', numn(2000), numn(2_124_000)),
+            locksJson: [lock('vesting', '2068174533895410780646470'), lock('pyconvot', numn(2_124_000))],
+        }),
+        transfers: accountTransfers(3),
+    }),
+    play: ({canvasElement}) => expectSplit(canvasElement, '2,124,000.258102383578190096', '0.258102383578190096', '2,124,000.000000000000000000'),
+}
+
 // the H160 leaves its note little room on the line, which wraps it between
 // whole words
 export const EveryRole: StoryObj = {
