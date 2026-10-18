@@ -17,6 +17,7 @@ import Locks from '@/components/account/Locks'
 import Mining from '@/components/account/Mining'
 import Multisig from '@/components/account/Multisig'
 import Proxies from '@/components/account/Proxies'
+import Received from '@/components/account/Received'
 import Subs from '@/components/account/Subs'
 import Timeline from '@/components/account/Timeline'
 import TokenTransfers from '@/components/account/TokenTransfers'
@@ -125,12 +126,15 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nVotes.totalCount > 0) tabs.push({slug: 'votes', label: 'Votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} />})
     if (s.nVoteHistory.totalCount > 0)
         tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
-    if (s.nDelegOut.totalCount + s.nDelegIn.totalCount > 0)
-        tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount + s.nDelegIn.totalCount, body: () => <Delegations {...ctx} />})
+    if (s.nDelegOut.totalCount > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount, body: () => <Delegations {...ctx} />})
+    if (s.nDelegIn.totalCount > 0)
+        tabs.push({slug: 'received', label: 'Received', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Received {...ctx} />})
     if (s.nDelegHistory.totalCount > 0)
         tabs.push({slug: 'delegation-history', label: 'Delegation history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} />})
 
-    const active = tabs.find(t => t.slug === sp.tab) ?? tabs[0]
+    // dtrack filters Received, so a delegations link carrying one opens there
+    const slug = sp.tab === 'delegations' && sp.dtrack != null ? 'received' : sp.tab
+    const active = tabs.find(t => t.slug === slug) ?? tabs[0]
     const groups = [...new Set(tabs.map(t => t.group ?? t.label))]
 
     return (

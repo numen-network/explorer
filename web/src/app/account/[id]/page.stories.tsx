@@ -589,43 +589,68 @@ export const MiningBeyondChart = story({minerDays: minedDays(60), mined: minedBl
 
 const voting = (amount: string) => subject({...funds(numn(1250.5), '0', amount), locksJson: [lock('pyconvot', amount)]})
 
-// nobody delegates to this account, so the Delegated from list and its filter don't show
+const governanceTabs = (root: HTMLElement) =>
+    Object.fromEntries(
+        within(within(root).getByRole('navigation', {name: 'Governance'}))
+            .getAllByRole('link')
+            .map(a => [new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!, a.getAttribute('aria-current') === 'page'])
+    )
+
+// nobody delegates to this account, so there is no Received tab
 export const DelegationsOut: StoryObj = {
     ...story({account: voting(numn(3_000.5)), delegationsOut: delegatingTo(3)}, {tab: 'delegations'}),
-    play: async ({canvas}) => {
+    play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('Delegating to')).toBeInTheDocument()
+        expect(governanceTabs(canvasElement)).toEqual({delegations: true})
+    },
+}
+
+// Delegating to rows go by track id, two-digit ids after the single digits, and the incoming side waits on its own tab
+export const DelegationsBoth: StoryObj = {
+    ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'delegations'}),
+    play: async ({canvas, canvasElement}) => {
+        await expect(columnTexts(canvasElement, 'Track')).toEqual(['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender'])
         await expect(canvas.queryByText('Delegated from')).toBeNull()
+        expect(governanceTabs(canvasElement)).toEqual({delegations: true, received: false})
+        const nav = canvas.getByRole('navigation', {name: 'Governance'})
+        expect([tabCount(nav, 'delegations'), tabCount(nav, 'received')]).toEqual(['7', '5'])
     },
 }
 
 const SPENDERS = TRACKS.filter(t => t.name.endsWith('_spender'))
 
-export const DelegationsIn = story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'delegations'})
+export const Received = story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'received'})
 
-export const DelegationsTrackFilter = story({delegationsIn: delegatedFrom(20, SPENDERS.slice(0, 1)), counts: {tracks: {30: 26, 31: 15, 32: 12}}}, {tab: 'delegations', dtrack: '30'})
+export const ReceivedTrackFilter = story({delegationsIn: delegatedFrom(20, SPENDERS.slice(0, 1)), counts: {tracks: {30: 26, 31: 15, 32: 12}}}, {tab: 'received', dtrack: '30'})
+
+// a delegations link carrying a Track filter opens Received on that track
+export const ReceivedFromDelegationsLink: StoryObj = {
+    ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(20, SPENDERS.slice(0, 1)), counts: {tracks: {30: 26, 31: 15, 32: 12}}}, {tab: 'delegations', dtrack: '30'}),
+    play: async ({canvas, canvasElement}) => {
+        expect(governanceTabs(canvasElement)).toEqual({delegations: false, received: true})
+        await expect(canvas.getByText('Delegated from')).toBeInTheDocument()
+    },
+}
 
 // a link to a track nobody delegates on any more picks that track at 0
-export const DelegationsTrackFilterEmpty: StoryObj = {
-    ...story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'delegations', dtrack: '0'}),
+export const ReceivedTrackFilterEmpty: StoryObj = {
+    ...story({delegationsIn: delegatedFrom(20, SPENDERS), counts: {tracks: {30: 18, 31: 15, 32: 12}}}, {tab: 'received', dtrack: '0'}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No matching delegations.')).toBeInTheDocument()
         expect(await filterOptions(canvasElement, 'Track')).toEqual(['All 45', '[Root 0]', 'Runtime Upgrade 0', 'Wish For Change 0', 'Identity Admin 0', 'Referendum Canceller 0', 'Referendum Killer 0', 'Small Spender 18', 'Medium Spender 15', 'Big Spender 12'])
     },
 }
 
-// Delegating to rows and Track options go by track id, two-digit ids after the single digits
-export const DelegationsBoth: StoryObj = {
-    ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'delegations'}),
-    play: async ({canvas, canvasElement}) => {
-        const out = canvas.getByRole('columnheader', {name: 'Delegating to'}).closest('table')!
-        await expect(columnTexts(out, 'Track')).toEqual(['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender'])
-        await expect(await filterOptions(canvasElement, 'Track')).toEqual(['[All 5]', 'Root 1', 'Runtime Upgrade 1', 'Wish For Change 1', 'Identity Admin 1', 'Referendum Canceller 1', 'Referendum Killer 0', 'Small Spender 0', 'Medium Spender 0', 'Big Spender 0'])
-    },
+// Track options go by track id, two-digit ids after the single digits
+export const ReceivedTrackOptions: StoryObj = {
+    ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'received'}),
+    play: async ({canvasElement}) =>
+        expect(await filterOptions(canvasElement, 'Track')).toEqual(['[All 5]', 'Root 1', 'Runtime Upgrade 1', 'Wish For Change 1', 'Identity Admin 1', 'Referendum Canceller 1', 'Referendum Killer 0', 'Small Spender 0', 'Medium Spender 0', 'Big Spender 0']),
 }
 
 // one account delegating the same balance on every track, its rows in track order with two-digit ids after the single digits
-export const DelegationsInEveryTrack: StoryObj = {
-    ...story({delegationsIn: delegatedOnTracks(person(1), TRACKS, numn(5_000))}, {tab: 'delegations'}),
+export const ReceivedEveryTrack: StoryObj = {
+    ...story({delegationsIn: delegatedOnTracks(person(1), TRACKS, numn(5_000))}, {tab: 'received'}),
     play: async ({canvasElement}) =>
         expect(columnTexts(canvasElement, 'Track')).toEqual(['Root', 'Runtime Upgrade', 'Wish For Change', 'Identity Admin', 'Referendum Canceller', 'Referendum Killer', 'Small Spender', 'Medium Spender', 'Big Spender']),
 }
@@ -687,15 +712,18 @@ export const VotesInOneBlock: StoryObj = {
     play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Referendum')).toEqual(['#11', '#10', '#9']),
 }
 
-// the four governance lists share one group, each pairing what stands now with its log
+// the five governance lists share one group, each pairing what stands now with its log
 export const GovernanceTabs: StoryObj = {
-    ...story({account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegationsOut: delegatingTo(3), delegationActions: delegationActionRows()}, {tab: 'vote-history'}),
+    ...story(
+        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows()},
+        {tab: 'vote-history'}
+    ),
     play: async ({canvas}) => {
         expect(within(canvas.getByRole('navigation', {name: 'Account'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Governance/)
         const nav = canvas.getByRole('navigation', {name: 'Governance'})
         const slugs = within(nav).getAllByRole('link').map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!)
-        expect(slugs).toEqual(['votes', 'vote-history', 'delegations', 'delegation-history'])
-        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '7', '3', '5'])
+        expect(slugs).toEqual(['votes', 'vote-history', 'delegations', 'received', 'delegation-history'])
+        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '7', '3', '2', '5'])
     },
 }
 
