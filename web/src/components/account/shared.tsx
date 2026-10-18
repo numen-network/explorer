@@ -85,22 +85,35 @@ const HOLD_FREED: Record<string, string> = {
 export interface LockRow {
     kind: 'Frozen' | 'Reserved'
     source: string
+    /** The referendum, bounty or account tab the deposit pays for. */
+    href?: string
     amount: bigint
     until: number | null
     /** What frees it, where that is a thing that happens rather than a block. */
     freedBy?: string
+    /** Whether an ended referendum gives the deposit back. */
+    refund?: 'now' | 'never'
     unattributed?: true
 }
 
+type DepositOf = Pick<LockRow, 'href' | 'freedBy' | 'refund'>
+
 // every deposit below is the amount the pallet itself filed next to the state it
 // paid for, so nothing here recomputes one from the runtime constants
-const reserved = (source: string, amount: bigint, freedBy?: string): LockRow => ({kind: 'Reserved', source, amount, until: null, freedBy})
+const reserved = (source: string, amount: bigint, of: DepositOf = {}): LockRow => ({kind: 'Reserved', source, amount, until: null, ...of})
 
 const DEPOSIT_LABEL: Record<string, string> = {
     subs: 'Sub identity deposits',
     proxy: 'Proxy deposit',
     announcement: 'Announcement deposit',
     username: 'Username deposits',
+}
+
+const DEPOSIT_TAB: Record<string, string> = {
+    subs: 'subs',
+    proxy: 'proxies',
+    announcement: 'proxies',
+    username: 'timeline',
 }
 
 const DEPOSIT_FREED: Record<string, string> = {
@@ -112,45 +125,53 @@ const DEPOSIT_FREED: Record<string, string> = {
 
 const CURATOR_FREED = 'until the curator hands the job back'
 
-function depositRows(a: AccountRow, s: AccountSummary): LockRow[] {
+function depositRows(a: AccountRow, addr: string, s: AccountSummary): LockRow[] {
     const counted: Record<string, number> = {subs: s.nSubs.totalCount, proxy: s.nProxyOut.totalCount}
     return (a.depositsJson ?? []).map(d => {
         const label = DEPOSIT_LABEL[d.id] ?? d.id
         const n = counted[d.id]
-        return reserved(n != null ? `${label} (${n})` : label, BigInt(d.amount), DEPOSIT_FREED[d.id])
+        const tab = DEPOSIT_TAB[d.id]
+        return reserved(n != null ? `${label} (${n})` : label, BigInt(d.amount), {href: tab && tabHref(addr, tab), freedBy: DEPOSIT_FREED[d.id]})
     })
 }
 
 // asking a registrar for judgement puts their fee aside until they answer
-function identityRows(a: AccountRow, retired: {index: number}[]): LockRow[] {
+function identityRows(a: AccountRow, addr: string, retired: {index: number}[]): LockRow[] {
     const info = a.identityJson as {deposit?: string; judgements?: [number, {__kind: string; value?: string}][]} | null
     if (info == null) return []
+    const href = tabHref(addr, 'timeline')
     const rows: LockRow[] = []
     if (info.deposit != null && BigInt(info.deposit) > 0n) {
-        rows.push(reserved('Identity deposit', BigInt(info.deposit), 'until the identity is cleared'))
+        rows.push(reserved('Identity deposit', BigInt(info.deposit), {href, freedBy: 'until the identity is cleared'}))
     }
     for (const [index, j] of info.judgements ?? []) {
         if (j.__kind === 'FeePaid' && j.value != null) {
             const amount = BigInt(j.value)
             rows.push(
                 retired.some(r => r.index === index)
-                    ? reserved(`Retired registrar #${index} judgement fee`, amount, 'until the request is withdrawn')
-                    : reserved(`Registrar #${index} judgement fee`, amount, 'until the registrar answers or the request is withdrawn')
+                    ? reserved(`Retired registrar #${index} judgement fee`, amount, {href, freedBy: 'until the request is withdrawn'})
+                    : reserved(`Registrar #${index} judgement fee`, amount, {href, freedBy: 'until the registrar answers or the request is withdrawn'})
             )
         }
     }
     return rows
 }
 
-// the money outlives the referendum, so a row stands until the depositor claims
-// it back
+// the money outlives the referendum, so a row stands until someone claims it
+// back. pallet_referenda gives a submission deposit back only after an approval
+// or a cancellation and a decision deposit after any ending, a kill leaves none
+const SUBMISSION_REFUNDED = new Set(['Approved', 'Cancelled'])
+
 function govRows(deposits: GovDepositRow[], self: string): LockRow[] {
     const rows: LockRow[] = []
-    const row = (index: number, what: string, amount: string) =>
-        reserved(`Referendum #${index} ${what} deposit`, BigInt(amount), 'until claimed back after the referendum ends')
+    const row = (d: GovDepositRow, what: string, amount: string, refunded: boolean) =>
+        reserved(`Referendum #${d.index} ${what} deposit`, BigInt(amount), {
+            href: `/referendum/${d.index}`,
+            ...(d.status === 'Ongoing' ? {freedBy: 'until claimed back after the referendum ends'} : {refund: refunded ? 'now' : 'never'}),
+        })
     for (const d of deposits) {
-        if (d.submissionDepositor === self && d.submissionDeposit != null) rows.push(row(d.index, 'submission', d.submissionDeposit))
-        if (d.decisionDepositor === self && d.decisionDeposit != null) rows.push(row(d.index, 'decision', d.decisionDeposit))
+        if (d.submissionDepositor === self && d.submissionDeposit != null) rows.push(row(d, 'submission', d.submissionDeposit, SUBMISSION_REFUNDED.has(d.status)))
+        if (d.decisionDepositor === self && d.decisionDeposit != null) rows.push(row(d, 'decision', d.decisionDeposit, true))
     }
     return rows
 }
@@ -159,31 +180,36 @@ function bountyRows(bounties: BountyDepositRow[], children: ChildBountyDepositRo
     const rows: LockRow[] = []
     for (const b of bounties) {
         if (b.proposer?.id === self && b.bond != null && BigInt(b.bond) > 0n) {
-            rows.push(reserved(`Bounty #${b.index} proposal deposit`, BigInt(b.bond), 'until the bounty is funded or rejected'))
+            rows.push(reserved(`Bounty #${b.index} proposal deposit`, BigInt(b.bond), {href: `/bounty/${b.index}`, freedBy: 'until the bounty is funded or rejected'}))
         }
         if (b.curator?.id === self && b.curatorDeposit != null && BigInt(b.curatorDeposit) > 0n) {
-            rows.push(reserved(`Bounty #${b.index} curator deposit`, BigInt(b.curatorDeposit), CURATOR_FREED))
+            rows.push(reserved(`Bounty #${b.index} curator deposit`, BigInt(b.curatorDeposit), {href: `/bounty/${b.index}`, freedBy: CURATOR_FREED}))
         }
     }
     for (const c of children) {
         if (c.curatorDeposit != null && BigInt(c.curatorDeposit) > 0n) {
-            rows.push(reserved(`Child bounty #${c.parent.index}-${c.childIndex} curator deposit`, BigInt(c.curatorDeposit), CURATOR_FREED))
+            rows.push(
+                reserved(`Child bounty #${c.parent.index}-${c.childIndex} curator deposit`, BigInt(c.curatorDeposit), {
+                    href: `/bounty/${c.parent.index}?tab=children`,
+                    freedBy: CURATOR_FREED,
+                })
+            )
         }
     }
     return rows
 }
 
-function msigRows(pending: {deposit: string | null}[]): LockRow[] {
+function msigRows(pending: {deposit: string | null}[], addr: string): LockRow[] {
     const total = pending.reduce((n, p) => n + BigInt(p.deposit ?? 0), 0n)
     if (total === 0n) return []
     const freedBy =
         pending.length === 1 ? 'until that call runs or is called off' : `until those ${fmtCount(pending.length, 'call')} run or are called off`
-    return [reserved('Multisig deposit', total, freedBy)]
+    return [reserved('Multisig deposit', total, {href: tabHref(addr, 'multisig'), freedBy})]
 }
 
 // the tab strip needs the count before the tab renders, so the rows are data
 // here and the block links go on in the component
-export function lockRows(a: AccountRow, validator: ValidatorRow | undefined, s: AccountSummary): LockRow[] {
+export function lockRows(a: AccountRow, addr: string, validator: ValidatorRow | undefined, s: AccountSummary): LockRow[] {
     const vest = schedules(a.vestingJson)
     const vestEnd = vest.length > 0 ? Math.max(...vest.map(v => v.end)) : null
     const frozen: LockRow[] = (a.locksJson ?? []).map(l => ({
@@ -196,13 +222,13 @@ export function lockRows(a: AccountRow, validator: ValidatorRow | undefined, s: 
     const named: LockRow[] = [
         ...(a.holdsJson ?? []).map(h => {
             const pallet = variantName(h.reason) ?? 'Unknown'
-            return reserved(`${pallet} hold`, BigInt(h.amount), HOLD_FREED[pallet])
+            return reserved(`${pallet} hold`, BigInt(h.amount), {freedBy: HOLD_FREED[pallet]})
         }),
-        ...identityRows(a, s.retiredRegistrars),
-        ...depositRows(a, s),
+        ...identityRows(a, addr, s.retiredRegistrars),
+        ...depositRows(a, addr, s),
         ...govRows(s.govDeposits, a.id),
         ...bountyRows(s.bountyDeposits, s.childBountyDeposits, a.id),
-        ...msigRows(s.msigPending),
+        ...msigRows(s.msigPending, addr),
     ]
     const rest = BigInt(a.reserved) - named.reduce((n, r) => n + r.amount, 0n)
     return [

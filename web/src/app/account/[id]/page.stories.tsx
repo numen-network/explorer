@@ -432,8 +432,9 @@ const PAYMENTS = {
         {id: 'username', amount: numn(7)},
     ],
     gov: [
-        {index: 9, submissionDepositor: SUBJECT, submissionDeposit: numn(5), decisionDepositor: SUBJECT, decisionDeposit: numn(1_000)},
-        {index: 8, submissionDepositor: SUBJECT, submissionDeposit: numn(5), decisionDepositor: person(13).id, decisionDeposit: numn(200)},
+        {index: 9, status: 'Ongoing', submissionDepositor: SUBJECT, submissionDeposit: numn(5), decisionDepositor: SUBJECT, decisionDeposit: numn(1_000)},
+        {index: 8, status: 'Approved', submissionDepositor: SUBJECT, submissionDeposit: numn(5), decisionDepositor: person(13).id, decisionDeposit: numn(200)},
+        {index: 7, status: 'Rejected', submissionDepositor: SUBJECT, submissionDeposit: numn(5), decisionDepositor: person(13).id, decisionDeposit: numn(200)},
     ],
     bounties: [
         {index: 2, bond: numn(12.4), curatorDeposit: numn(30), proposer: ME, curator: {id: person(4).id}},
@@ -450,6 +451,7 @@ const RESERVED = reservedOf(
     FEE_PAID,
     numn(5),
     numn(1_000),
+    numn(5),
     numn(5),
     numn(12.4),
     numn(250),

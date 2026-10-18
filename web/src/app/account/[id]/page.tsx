@@ -72,7 +72,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const ctx: TabCtx = {hex, addr, chain, sp}
     const validator = s.validators[0]
     const minedBlocks = s.nMined.totalCount
-    const locks = lockRows(a, validator, s)
+    const locks = lockRows(a, addr, validator, s)
     const vest = schedules(a.vestingJson)
     const registrar = s.registrar[0]
     const hasIdentity = a.identityJson != null || a.identitySuper != null || a.username != null

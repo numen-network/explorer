@@ -503,6 +503,7 @@ export interface ChildBountyDepositRow {
 /** Referenda whose submission or decision deposit this account still has reserved. */
 export interface GovDepositRow {
     index: number
+    status: string
     submissionDepositor: string | null
     submissionDeposit: string | null
     decisionDepositor: string | null
@@ -537,7 +538,7 @@ export function accountSummary(idHex: string) {
             nMultisigSelf: multisigOpsConnection(orderBy: id_ASC, where: {multisig: ${self}}) { totalCount }
             msigPending: multisigOps(where: {depositor: ${self}, status_in: ["NewMultisig", "MultisigApproval"]}, orderBy: id_ASC) { threshold deposit }
             govDeposits: referendums(where: {OR: [{submissionDepositor_eq: $id}, {decisionDepositor_eq: $id}]}, orderBy: index_ASC) {
-                index submissionDepositor submissionDeposit decisionDepositor decisionDeposit
+                index status submissionDepositor submissionDeposit decisionDepositor decisionDeposit
             }
             bountyDeposits: bounties(where: {OR: [{proposer: ${self}}, {curator: ${self}}]}, orderBy: index_ASC) {
                 index bond curatorDeposit proposer { id } curator { id }
