@@ -1,6 +1,7 @@
 import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
 import {expect, userEvent, waitFor, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
+import {fmtSpan} from '@/lib/format'
 import {ss58Encode} from '@/lib/ss58'
 import {
     accountExtrinsics,
@@ -883,7 +884,7 @@ export const ProxiesSameDelegateTwoDelays: StoryObj = {
     play: async ({canvasElement}) => {
         await expect(columnTexts(canvasElement, 'Delegates to')).toEqual(['Orbit Labs', 'Orbit Labs'])
         await expect(columnTexts(canvasElement, 'Type')).toEqual(['Any', 'Any'])
-        await expect(columnTexts(canvasElement, 'Delay')).toEqual(['—', '14,400'])
+        await expect(columnTexts(canvasElement, 'Delay')).toEqual(['—', `14,400 blocks ≈ ${fmtSpan(14_400 * chainInfo.blockTime)}`])
     },
 }
 
