@@ -7,6 +7,7 @@ import {Item} from '@/components/ui/item'
 import {chainProps} from '@/lib/chain'
 import {isH160, isH256} from '@/lib/evm'
 import AddressText from '@/components/AddressText'
+import HashText from '@/components/HashText'
 import IdentityName from '@/components/IdentityName'
 import Pager from '@/components/Pager'
 import {TabPanels} from '@/components/Tabs'
@@ -112,7 +113,7 @@ export default async function SearchPage(props: PageProps<'/search'>) {
                 {t.symbol && <span className="text-xs text-muted-foreground">{t.symbol}</span>}
                 <PairBadge token={t} />
                 <span className="ml-auto font-mono text-xs text-muted-foreground">
-                    <AddressText addr={t.id} />
+                    <HashText hash={t.id} />
                 </span>
             </Link>
         </Item>

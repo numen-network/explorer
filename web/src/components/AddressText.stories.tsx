@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
 import {expect, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
-import {SUBJECT, SUBJECT_EVM} from '../../../mock/fixtures/accounts.js'
+import {SUBJECT} from '../../../mock/fixtures/accounts.js'
 import {chainInfo} from '../../../mock/fixtures.js'
 import {expectFits, expectHalves} from '../../.storybook/fit'
 import AddressText, {shortAddr} from './AddressText'
@@ -25,27 +25,17 @@ function Case({label, children}: {label: string; children: ReactNode}) {
 
 export const Short: Story = {
     render: () => (
-        <>
-            <Case label="ss58">
-                <AddressText addr={SS58} />
-            </Case>
-            <Case label="H160">
-                <AddressText addr={SUBJECT_EVM} />
-            </Case>
-        </>
+        <Case label="ss58">
+            <AddressText addr={SS58} />
+        </Case>
     ),
 }
 
 export const Full: Story = {
     render: () => (
-        <>
-            <Case label="ss58">
-                <AddressText full addr={SS58} />
-            </Case>
-            <Case label="H160">
-                <AddressText full addr={SUBJECT_EVM} />
-            </Case>
-        </>
+        <Case label="ss58">
+            <AddressText full addr={SS58} />
+        </Case>
     ),
 }
 
@@ -55,36 +45,29 @@ export const Full: Story = {
 export const FullInLineAndCell: Story = {
     render: () => (
         <div className="max-w-72 space-y-3 font-mono text-sm">
-            {[SS58, SUBJECT_EVM].map(addr => (
-                <div key={addr}>
-                    <AddressText full addr={addr} />
-                </div>
-            ))}
+            <div>
+                <AddressText full addr={SS58} />
+            </div>
             <Table>
                 <TableBody>
-                    {[SS58, SUBJECT_EVM].map(addr => (
-                        <TableRow key={addr}>
-                            <TableCell>
-                                <AddressText full addr={addr} />
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    <TableRow>
+                        <TableCell>
+                            <AddressText full addr={SS58} />
+                        </TableCell>
+                    </TableRow>
                 </TableBody>
             </Table>
         </div>
     ),
     play: async ({canvas}) => {
-        const narrow = matchMedia('(width < 40rem)').matches
-        for (const addr of [SS58, SUBJECT_EVM]) {
-            const [line, cell] = canvas.getAllByText(addr)
-            await expect(line).toBeVisible()
-            expectFits(line.parentElement!)
-            if (!narrow) {
-                expectHalves(cell)
-                continue
-            }
-            await expect(cell).not.toBeVisible()
-            await expect(within(cell.closest('td')!).getByText(shortAddr(addr))).toBeVisible()
+        const [line, cell] = canvas.getAllByText(SS58)
+        await expect(line).toBeVisible()
+        expectFits(line.parentElement!)
+        if (!matchMedia('(width < 40rem)').matches) {
+            expectHalves(cell)
+            return
         }
+        await expect(cell).not.toBeVisible()
+        await expect(within(cell.closest('td')!).getByText(shortAddr(SS58))).toBeVisible()
     },
 }

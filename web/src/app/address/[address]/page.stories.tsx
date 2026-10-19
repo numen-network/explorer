@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import type {RequestHandler} from 'msw'
 import {expect, within} from 'storybook/test'
-import {shortAddr} from '@/components/AddressText'
+import {shortHash} from '@/lib/format'
 import {paged, rows} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, EVERY_HOLDING, evmAddress, evmTx, exit, EXIT, holding, holdings, NOT_HELD, NUMN, pair, SELECTOR, token, UINT256_MAX, units, WTMR} from '../../../../../mock/fixtures/evm.js'
 import {LONG, NOT_VERIFIED, NST, NST_PARTIAL, PROXIED, UNSUPPORTED_CHAIN, VAULT, VAULT_FILES, VYPER} from '../../../../../mock/fixtures/sourcify.js'
@@ -84,7 +84,7 @@ export const EoaHoldings: StoryObj = {
             'Polaris Governance',
             'Spectral Shard',
             'Wrapped WTMR',
-            shortAddr(token(2).id),
+            shortHash(token(2).id),
         ]),
 }
 

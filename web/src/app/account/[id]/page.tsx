@@ -44,9 +44,14 @@ export const dynamic = 'force-dynamic'
 const sat = (v: bigint) => (v > 0n ? v : 0n)
 const bigMax = (a: bigint, b: bigint) => (a > b ? a : b)
 
+// a url names the account by its ss58 address or its 32 byte hex id
+const accountHex = (raw: string, ss58: number) => (/^0x[0-9a-fA-F]{64}$/.test(raw) ? raw.toLowerCase() : ss58TryDecode(raw, ss58))
+
 export async function generateMetadata(props: PageProps<'/account/[id]'>) {
     const {id} = await props.params
-    return {title: `Account ${shortAddr(id)}`}
+    const {ss58} = await chainProps()
+    const hex = accountHex(id, ss58)
+    return {title: `Account ${shortAddr(hex ? ss58Encode(hex, ss58) : id)}`}
 }
 
 // a tab is only built when the reader is on it, so the page runs one tab query
@@ -58,7 +63,7 @@ interface Tab extends Panel {
 export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const {id: raw} = await props.params
     const chain = await chainProps()
-    const hex = /^0x[0-9a-fA-F]{64}$/.test(raw) ? raw.toLowerCase() : ss58TryDecode(raw, chain.ss58)
+    const hex = accountHex(raw, chain.ss58)
     if (!hex) notFound()
     const addr = ss58Encode(hex, chain.ss58)
 

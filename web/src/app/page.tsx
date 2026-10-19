@@ -1,11 +1,11 @@
 import Link from 'next/link'
-import AddressText from '@/components/AddressText'
 import Approx from '@/components/Approx'
 import BlocksRail, {type BlockCard} from '@/components/BlocksRail'
 import CopyBtn from '@/components/CopyBtn'
 import DotRow from '@/components/DotRow'
 import EmptyList from '@/components/EmptyList'
 import {DetailRow} from '@/components/Detail'
+import HashText from '@/components/HashText'
 import Refresh from '@/components/Refresh'
 import Section from '@/components/Section'
 import StatTile, {type StatChip} from '@/components/StatTile'
@@ -337,7 +337,7 @@ export default async function Home() {
                     </dl>
                     <div className="mt-1 border-t pt-1">
                         <DetailRow label="Native ERC20">
-                            <AddressText addr={props.nativeErc20} full />
+                            <HashText hash={props.nativeErc20} full />
                             <CopyBtn text={props.nativeErc20} />
                         </DetailRow>
                         <DetailRow label="Genesis hash">

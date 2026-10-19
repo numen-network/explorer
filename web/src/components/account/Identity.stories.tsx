@@ -1,6 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, screen, userEvent, within} from 'storybook/test'
 import {expectOneLine} from '../../../.storybook/fit'
+import {shortHash} from '@/lib/format'
 import type {AccountRow} from '@/lib/gql'
 import {CHAIN, FULL_FIELDS, RETIRED, subject, subUnder, VERDICTS} from '../../../../mock/fixtures/accounts.js'
 import {hashOf, identity, PEOPLE} from '../../../../mock/fixtures.js'
@@ -103,7 +104,7 @@ export const WithoutDisplay: Story = {
 
 export const SubFiledUnderAHash: Story = {
     render: () => card({...polarisSub, identitySubName: null, identitySubData: {__kind: 'BlakeTwo256', value: hashOf('sub', 1)}}),
-    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Display')).toBe(`Polaris Guild/BlakeTwo256 ${hashOf('sub', 1)}`),
+    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Display')).toBe(`Polaris Guild/BlakeTwo256 ${shortHash(hashOf('sub', 1))}`),
 }
 
 export const SubWithoutAName: Story = {render: () => card({...polarisSub, identitySubName: null, identitySubData: {__kind: 'None'}})}

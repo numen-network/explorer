@@ -8,6 +8,7 @@ import {acct, chainInfo, hashOf, identity, PEOPLE, subOf} from '../../../mock/fi
 import {expectFits} from '../../.storybook/fit'
 import AccountLink from './AccountLink'
 import {shortAddr} from './AddressText'
+import {shortHash} from '@/lib/format'
 import {WellKnownProvider} from './wellKnown'
 
 const wellKnown: Decorator = Story => (
@@ -87,7 +88,7 @@ export const EveryIdentity: Story = {
             ['Mixed Signals', 'lucide-circle-x'],
             ['Polaris Guild/payouts', 'lucide-circle-check'],
             ['Polaris Payouts', 'lucide-circle-question-mark'],
-            [`Polaris Guild/BlakeTwo256 ${hashOf('sub', 1)}`, 'lucide-circle-check'],
+            [`Polaris Guild/BlakeTwo256 ${shortHash(hashOf('sub', 1))}`, 'lucide-circle-check'],
             [short(anon), 'lucide-circle-check'],
             [short(anonSpam), 'lucide-circle-x'],
             ['anon.numen', 'lucide-circle-check'],

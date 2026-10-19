@@ -9,7 +9,7 @@ import {FilterSelect} from '@/components/pills'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {COUNTERPARTY_SORTS, loadCounterparty, type CounterpartySort} from '@/lib/actionFilters'
 import {ACCENT, GRAY, tint} from '@/lib/chartColors'
-import {fmtApprox, fmtInt, fmtPct} from '@/lib/format'
+import {fmtApprox, fmtInt, fmtPct, shortHash} from '@/lib/format'
 import {counterpartyTokens, RING_TOP, tokenTransferPairsFor, transferPairsFor, type AccountRef, type Counterparties as Pairs, type CounterpartyRow} from '@/lib/gql'
 import {identityLabel} from '@/lib/identity'
 import {paging} from '@/lib/paging'
@@ -44,7 +44,7 @@ function slicesOf(top: CounterpartyRow[], count: number, total: bigint, amountOf
 
 function RingCard({title, slices, count, total, self, ss58, asset}: {title: string; slices: Slice[]; count: number; total: bigint; self: string; ss58: number; asset: CounterpartyAsset}) {
     const others = count - slices.filter(s => s.party != null).length
-    const label = (s: Slice) => (s.party == null ? `Others (${fmtInt(others)})` : typeof s.party === 'string' ? shortAddr(s.party) : (identityLabel(s.party) ?? shortAddr(ss58Encode(s.party.id, ss58))))
+    const label = (s: Slice) => (s.party == null ? `Others (${fmtInt(others)})` : typeof s.party === 'string' ? shortHash(s.party) : (identityLabel(s.party) ?? shortAddr(ss58Encode(s.party.id, ss58))))
     const share = (s: Slice) => fmtPct(s.share, total > 0n ? 10000n : 0n)
     return (
         <Card className="min-w-0 gap-3 py-4 [--card-spacing:--spacing(5)]">
@@ -83,7 +83,7 @@ export default async function Counterparties({hex, addr, chain, sp, evm, native}
     const token = tokens.find(t => t.id === wanted) ?? (native ? null : tokens[0])
     const pg = paging(sp)
     const pairs: Pairs = token ? await tokenTransferPairsFor(evm!, token.id, sort, pg.size, pg.offset) : await transferPairsFor(hex, sort, pg.size, pg.offset)
-    const asset: CounterpartyAsset = token ? {decimals: token.decimals ?? 0, symbol: token.symbol ?? shortAddr(token.id)} : {decimals: chain.decimals, symbol: chain.symbol}
+    const asset: CounterpartyAsset = token ? {decimals: token.decimals ?? 0, symbol: token.symbol ?? shortHash(token.id)} : {decimals: chain.decimals, symbol: chain.symbol}
     const self = token ? evm! : hex
     // the default sort and the native token stay out of the url
     const href = (t: string, s: CounterpartySort) => tabHref(addr, 'counterparties', {token: t, sort: s === 'in-volume' ? '' : s})
@@ -94,7 +94,7 @@ export default async function Counterparties({hex, addr, chain, sp, evm, native}
     return (
         <div className="flex flex-col gap-4">
             {tokens.length > 0 && (
-                <FilterSelect label="Token" all={false} values={[...(native ? [''] : []), ...tokens.map(t => t.id)]} labelOf={id => (id ? (tokens.find(t => t.id === id)!.symbol ?? shortAddr(id)) : chain.symbol)} iconOf={id => (id ? <TokenIcon addr={id} /> : <img src={logo.src} alt="" />)} noteOf={id => (tokens.find(t => t.id === id)?.symbol != null ? shortAddr(id) : undefined)} value={picked} href={t => href(t, sort)} />
+                <FilterSelect label="Token" all={false} values={[...(native ? [''] : []), ...tokens.map(t => t.id)]} labelOf={id => (id ? (tokens.find(t => t.id === id)!.symbol ?? shortHash(id)) : chain.symbol)} iconOf={id => (id ? <TokenIcon addr={id} /> : <img src={logo.src} alt="" />)} noteOf={id => (tokens.find(t => t.id === id)?.symbol != null ? shortHash(id) : undefined)} value={picked} href={t => href(t, sort)} />
             )}
             <div className="grid gap-4 lg:grid-cols-2">
                 <RingCard title={`${asset.symbol} Transfer-in Accounts`} slices={slicesOf(pairs.ins, pairs.nIn, volumeIn, r => BigInt(r.amountIn))} count={pairs.nIn} total={volumeIn} self={self} ss58={chain.ss58} asset={asset} />

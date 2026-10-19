@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import {shortAddr} from '@/components/AddressText'
+import {shortHash} from '@/lib/format'
 import {evmMappedAccount} from '@/lib/evm'
 import {HEAD, paged, transfer} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, erc20Transfer, evmAddress, evmLog, evmTx, exit, EXIT, SELECTOR, token, TOPIC, topicOf, UINT256_MAX, units, word, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
@@ -126,7 +126,7 @@ export const SwapEveryTab = txPage(swap, {logs: swapLogs, transfers: [wrap.trans
 // in log order, the wrap ahead of the payout
 export const SwapTokenTransfers: StoryObj = {
     ...txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, {tab: 'transfers'}),
-    play: async ({canvasElement}) => expect(tokenLabels(canvasElement)).toEqual([shortAddr(wrapped.id), shortAddr(ore.id)]),
+    play: async ({canvasElement}) => expect(tokenLabels(canvasElement)).toEqual([shortHash(wrapped.id), shortHash(ore.id)]),
 }
 
 // from, to and every log address keep their full form and wrap inside their

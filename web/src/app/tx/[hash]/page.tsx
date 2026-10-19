@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import AccountLink from '@/components/AccountLink'
-import AddressText from '@/components/AddressText'
+import HashText from '@/components/HashText'
 import BytesToggle from '@/components/BytesToggle'
 import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow} from '@/components/Detail'
@@ -97,7 +97,7 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
                         <span className="font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
                         <Link href={`/token/${t.token.id}`} className="font-mono text-xs text-primary hover:underline">
                             <TokenIcon addr={t.token.id} />
-                            <AddressText addr={t.token.id} />
+                            <HashText hash={t.token.id} />
                         </Link>
                     </SplitRow>
                 ))}

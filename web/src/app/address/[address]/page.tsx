@@ -14,8 +14,8 @@ import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {contractData} from '@/lib/contract'
 import {evmMappedAccount, isH160} from '@/lib/evm'
-import {shortAddr} from '@/components/AddressText'
 import {evmAddressData} from '@/lib/gql'
+import {shortHash} from '@/lib/format'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {EvmTxsTable} from './tables'
@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(props: PageProps<'/address/[address]'>) {
     const {address} = await props.params
-    return {title: `EVM ${shortAddr(address)}`}
+    return {title: `EVM ${shortHash(address)}`}
 }
 
 export default async function EvmAddressPage(props: PageProps<'/address/[address]'>) {

@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import {shortAddr} from '@/components/AddressText'
+import {shortHash} from '@/lib/format'
 import {NUMN, pair, token, UINT256_MAX, units, WTMR} from '../../../../mock/fixtures/evm.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
@@ -38,7 +38,7 @@ export const LpTab: StoryObj = {
     ...list([pair(10, NUMN, {address: TEST, symbol: 'TEST'}), pair(11, {address: NDEX, symbol: 'NDEX'}, {address: TEST, symbol: 'TEST'}), pair(12, NUMN, {address: NDEX, symbol: null})], 5, 3, 'lp'),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^LP/)
-        await expect(badges(canvasElement)).toEqual(['LP NUMN/TEST', 'LP NDEX/TEST', `LP NUMN/${shortAddr(NDEX)}`])
+        await expect(badges(canvasElement)).toEqual(['LP NUMN/TEST', 'LP NDEX/TEST', `LP NUMN/${shortHash(NDEX)}`])
     },
 }
 

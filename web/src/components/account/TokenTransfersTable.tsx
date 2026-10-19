@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import {useMemo} from 'react'
-import AddressText from '@/components/AddressText'
 import {columnsFor, DataTable} from '@/components/DataTable'
+import HashText from '@/components/HashText'
 import {EvmAddrLink, EvmTxLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import TokenIcon from '@/components/TokenIcon'
@@ -27,7 +27,7 @@ export function TokenTransfersTable({rows, evm}: {rows: TokenTransferRow[]; evm:
                 cell: ({row}) => (
                     <Link href={`/token/${row.original.token.id}`} className="text-primary hover:underline">
                         <TokenIcon addr={row.original.token.id} />
-                        {row.original.token.symbol ?? <AddressText addr={row.original.token.id} />}
+                        {row.original.token.symbol ?? <HashText hash={row.original.token.id} />}
                     </Link>
                 ),
             }),

@@ -20,7 +20,7 @@ export function SubsTable({rows, chain}: {rows: SubRow[]; chain: ChainProps}) {
     const columns = useMemo(
         () =>
             col.columns([
-                // a Raw name holds 32 bytes at most, a hash filed in its place truncates there
+                // a Raw name holds 32 bytes at most
                 col.display({id: 'name', header: 'Sub identity', cell: ({row}) => <span className="block max-w-[32ch] truncate">{subName(row.original) ?? NONE}</span>}),
                 col.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink full addr={ss58Encode(row.original.id, chain.ss58)} />}),
             ]),

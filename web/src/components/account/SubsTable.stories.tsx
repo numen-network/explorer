@@ -19,11 +19,12 @@ export const Empty: Story = {render: () => table([])}
 
 export const One: Story = {render: () => table(subRows(1))}
 
-// the last sub is filed under a hash, which truncates at the width of a 32 byte name
+// the last sub is filed under a hash, which shows its kind and the 0x4…4 split whole
 export const Many: Story = {
     render: () => table(subRows(20)),
     play: async ({canvas}) => {
-        const hashed = canvas.getByText(`BlakeTwo256 ${hashOf('sub', 1)}`)
-        expect(hashed.scrollWidth).toBeGreaterThan(hashed.clientWidth)
+        const hash = hashOf('sub', 1)
+        const hashed = canvas.getByText(`BlakeTwo256 ${hash.slice(0, 6)}…${hash.slice(-4)}`)
+        expect(hashed.scrollWidth).toBeLessThanOrEqual(hashed.clientWidth)
     },
 }

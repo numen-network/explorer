@@ -16,8 +16,8 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {contractData} from '@/lib/contract'
 import {isH160} from '@/lib/evm'
-import AddressText, {shortAddr} from '@/components/AddressText'
-import {fmtBalance, fmtInt} from '@/lib/format'
+import HashText from '@/components/HashText'
+import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmActivity, tokenDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {HoldersTable} from './tables'
@@ -39,7 +39,7 @@ const upgradeable = (kind: string) => (kind === 'Eip1167' ? 'fixed' : 'upgradeab
 
 export async function generateMetadata(props: PageProps<'/token/[address]'>) {
     const {address} = await props.params
-    return {title: `Token ${shortAddr(address)}`}
+    return {title: `Token ${shortHash(address)}`}
 }
 
 export default async function TokenPage(props: PageProps<'/token/[address]'>) {
@@ -85,7 +85,7 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                                 <BlockLink height={t.block.height} />
                                 <EvmTxLink hash={t.transaction.id} />
                                 <span className="font-mono text-xs text-muted-foreground">
-                                    <AddressText addr={t.from} /> → <AddressText addr={t.to} />
+                                    <HashText hash={t.from} /> → <HashText hash={t.to} />
                                 </span>
                             </>
                         }

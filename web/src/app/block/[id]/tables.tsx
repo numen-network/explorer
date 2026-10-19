@@ -2,6 +2,7 @@
 
 import {useMemo} from 'react'
 import {columnsFor, DataTable} from '@/components/DataTable'
+import HashText from '@/components/HashText'
 import {Tip} from '@/components/Tip'
 import type {DigestLog} from '@/lib/digest'
 
@@ -20,7 +21,9 @@ export function DigestTable({rows}: {rows: DigestLog[]}) {
                     meta: {className: 'w-full', cellClassName: 'font-mono text-[13px]'},
                     cell: ({row}) => (
                         <Tip text={<span className="max-w-lg break-all">{row.original.data}</span>}>
-                            <span className="block max-w-[48ch] truncate">{row.original.data}</span>
+                            <span>
+                                <HashText hash={row.original.data} />
+                            </span>
                         </Tip>
                     ),
                 }),

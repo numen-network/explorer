@@ -2,7 +2,7 @@ import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
 import * as echarts from 'echarts'
 import {expect, userEvent, waitFor, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
-import {fmtSpan} from '@/lib/format'
+import {fmtSpan, shortHash} from '@/lib/format'
 import {ss58Encode} from '@/lib/ss58'
 import {
     accountDayRows,
@@ -166,7 +166,7 @@ export const SubFiledUnderAHash: StoryObj = {
         account: subject({...subUnder(PEOPLE[0], 'payouts'), identitySubName: null, identitySubData: {__kind: 'BlakeTwo256', value: hashOf('sub', 1)}}),
         transfers: accountTransfers(3),
     }),
-    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Display')).toBe(`Polaris Guild/BlakeTwo256 ${hashOf('sub', 1)}`),
+    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Display')).toBe(`Polaris Guild/BlakeTwo256 ${shortHash(hashOf('sub', 1))}`),
 }
 
 export const SubWithOwnIdentity = story({account: named({...identity('Aurora Payouts'), ...subUnder(PEOPLE[0], 'payouts')}), transfers: accountTransfers(3)})
@@ -430,7 +430,7 @@ export const HoldingsMany: StoryObj = {
             'Orbit Credits',
             ...Array.from({length: 16}, (_, i) => `Token ${String(i + 1).padStart(2, '0')}`),
             'Wrapped Tumor',
-            '0xe2e2e…e2e2',
+            '0xe2e2…e2e2',
         ]),
 }
 
@@ -725,10 +725,10 @@ export const CounterpartiesToken: StoryObj = {
     ...counterparties({account: mapped(), holdings: holdingRows(4), counterparties: TOKEN_PAIRS}, {token: WTMR_ID}),
     play: async ({canvasElement}) => {
         // listed in the order the holder rows come back in, each contract by its address too, which a nameless one already shows
-        expect(await filterOptions(canvasElement, 'Token')).toEqual(['NUMN', 'LONGNAME 0xe3e3e…e3e3', 'ORB 0xe1e1e…e1e1', '[WTMR 0xa1795…a2e9]', '0xe2e2e…e2e2'])
+        expect(await filterOptions(canvasElement, 'Token')).toEqual(['NUMN', 'LONGNAME 0xe3e3…e3e3', 'ORB 0xe1e1…e1e1', '[WTMR 0xa179…a2e9]', '0xe2e2…e2e2'])
         // the native token wears the chain logo, a listed token its own, the rest an empty square
         const trigger = within(canvasElement).getByRole('combobox', {name: 'Token'})
-        expect(trigger).toHaveTextContent(/^WTMR0xa1795…a2e9$/)
+        expect(trigger).toHaveTextContent(/^WTMR0xa179…a2e9$/)
         expect(trigger.querySelector('img')).not.toBeNull()
         await userEvent.click(trigger)
         const list = await within(document.body).findByRole('listbox')
@@ -744,8 +744,8 @@ export const CounterpartiesToken: StoryObj = {
 export const CounterpartiesTokenOnly: StoryObj = {
     ...counterparties({account: mapped(), transfers: [], tokenTransfers: tokenTransferRows(2), holdings: [HOLDING], counterparties: TOKEN_PAIRS}),
     play: async ({canvasElement}) => {
-        expect(await filterOptions(canvasElement, 'Token')).toEqual(['[WTMR 0xa1795…a2e9]'])
-        expect(within(canvasElement).getByRole('combobox', {name: 'Token'})).toHaveTextContent(/^WTMR0xa1795…a2e9$/)
+        expect(await filterOptions(canvasElement, 'Token')).toEqual(['[WTMR 0xa179…a2e9]'])
+        expect(within(canvasElement).getByRole('combobox', {name: 'Token'})).toHaveTextContent(/^WTMR0xa179…a2e9$/)
         expect(within(canvasElement).getByRole('list', {name: 'WTMR Transfer-in Accounts'})).toBeInTheDocument()
     },
 }

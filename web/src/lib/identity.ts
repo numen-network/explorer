@@ -1,4 +1,5 @@
 import {hexToBytes} from '@noble/hashes/utils.js'
+import {shortHash} from './format'
 
 export interface IdentityRef {
     identityDisplay?: string | null
@@ -51,7 +52,7 @@ export function dataText(d: unknown): string | null {
     const value = (d as {value?: string})?.value
     if (!kind || kind === 'None') return null
     if (kind.startsWith('Raw')) return value ? hexText(value) : null
-    return value ? `${kind} ${value}` : kind
+    return value ? `${kind} ${shortHash(value)}` : kind
 }
 
 // every identity field is bare utf-8 bytes, so an empty one reads as 0x
