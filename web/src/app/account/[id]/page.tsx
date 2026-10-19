@@ -37,7 +37,7 @@ import {votesPower} from '@/lib/conviction'
 import {fmtInt, fmtPct} from '@/lib/format'
 import {accountRefs, accountSummary, blockTime, evmCounts, type AccountRef} from '@/lib/gql'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
-import {PRIME, TREASURY} from '@/lib/wellKnown'
+import {CONFIG, datedOrGenesis} from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,8 +101,8 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const power = votesPower(a.balance, s.delegationsIn)
 
     const roles: Role[] = []
-    if (hex === chain.treasuryAccount) roles.push({text: TREASURY.label, tone: 'primary'})
-    if (s.prime.length > 0) roles.push({text: PRIME.label, tone: 'warn'})
+    if (hex === chain.treasuryAccount) roles.push({text: CONFIG.wellKnown.treasury.label, tone: 'primary'})
+    if (s.prime.length > 0) roles.push({text: CONFIG.wellKnown.prime.label, tone: 'warn'})
     if (validator) roles.push({text: validator.active ? 'Active validator' : 'Validator', tone: validator.active ? 'pos' : 'idle'})
     if (minedBlocks > 0) roles.push({text: 'Miner', tone: 'primary'})
     if (registrar) roles.push({text: `Registrar #${registrar.index}`, tone: 'primary'})
@@ -197,7 +197,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                         <DetailRow label="First seen">
                             <BlockLink height={a.firstSeenBlock} />
                             <span className="ml-3 text-muted-foreground">
-                                <TimeCell iso={a.firstSeenTimestamp} cycle />
+                                <TimeCell iso={datedOrGenesis(a.firstSeenTimestamp, a.firstSeenBlock, chain.evmChainId)} cycle />
                             </span>
                         </DetailRow>
                         {a.lastActiveBlock != null && (

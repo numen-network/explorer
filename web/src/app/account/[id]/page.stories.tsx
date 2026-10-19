@@ -348,7 +348,7 @@ export const QrCode: StoryObj = {
     },
 }
 
-// born at genesis, which carries no timestamp, so its active age has no figure
+// born at genesis, which the config dates, and never active since
 export const Treasury: StoryObj = {
     ...story({
         account: subject({id: TREASURY.id, ...funds(issuance.treasuryPot), nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: null, lastActiveBlock: null}),
@@ -356,7 +356,7 @@ export const Treasury: StoryObj = {
         counts: {transfers: 312},
     }),
     play: async ({canvas, canvasElement}) => {
-        expect(rowValue(canvasElement, 'First seen')).toBe('#0—')
+        expect(rowValue(canvasElement, 'First seen')).toContain('| 2026-09-14 01:00:00 (UTC)')
         expect(canvas.queryByText('Last active')).toBeNull()
     },
 }
@@ -370,6 +370,24 @@ export const TransfersEmpty: StoryObj = {
 }
 
 export const TransfersOne = story({transfers: accountTransfers(1)})
+
+const BORN_AT_GENESIS = subject({firstSeenBlock: 0, firstSeenTimestamp: null})
+const firstSeen = (root: HTMLElement) => within(root).getByText('First seen').nextElementSibling!.textContent
+
+// an account genesis endowed is dated by the network's genesis time from the config
+export const FirstSeenAtGenesis: StoryObj = {
+    ...story({account: BORN_AT_GENESIS, transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => {
+        expect(firstSeen(canvasElement)).toMatch(/^#0/)
+        expect(firstSeen(canvasElement)).toContain('| 2026-09-14 01:00:00 (UTC)')
+    },
+}
+
+// a network the config has no genesis time for, like the testnet, leaves the empty mark
+export const FirstSeenAtGenesisUnconfigured: StoryObj = {
+    ...pageStory({...build({account: BORN_AT_GENESIS, transfers: accountTransfers(3)}), chainInfos: [{...chainInfo, evmChainId: 320261}]}, {params: {id: SUBJECT}}),
+    play: async ({canvasElement}) => expect(firstSeen(canvasElement)).toBe('#0—'),
+}
 
 export const TransfersMany = story({transfers: [...accountTransfers(14), ...accountTransferCases(HEAD - 100)], counts: {transfers: 137}})
 

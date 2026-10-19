@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import {HEAD, hashOf, person} from '../../../../../mock/fixtures.js'
+import {chainInfo, HEAD, hashOf, person} from '../../../../../mock/fixtures.js'
 import {busy, DIGEST, GENESIS, heartbeat, mined, minedObject, sessionStart, timestampSet, topology, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
 import {drawnCanvases, drawnFaces, expectInContentBox, expectNamedNavs, expectShortHashes} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
@@ -46,11 +46,18 @@ function detail(b: Mined, {tab = '', page = 1, protocols = ['poscan-v1']} = {}) 
     return pageStory(data, {params: {id: String(b.block.height)}, searchParams: {...(tab && {tab}), ...(page > 1 && {page: String(page)})}})
 }
 
-// genesis carries no timestamp inherent, so its timestamp row shows the empty mark
+// genesis carries no timestamp inherent, so its timestamp row shows the
+// network's genesis time from the explorer's config
 const genesis = (tab = ''): StoryObj => ({
     ...pageStory({blocks: [GENESIS]}, {params: {id: '0'}, searchParams: tab ? {tab} : {}}),
-    play: async ({canvas}) => expect(canvas.getByText('Timestamp').nextElementSibling!.textContent).toBe('—'),
+    play: async ({canvas}) => expect(canvas.getByText('Timestamp').nextElementSibling!.textContent).toContain('| 2026-09-14 01:00:00 (UTC)'),
 })
+
+// a network the config has no genesis time for, like the testnet, leaves the empty mark
+export const GenesisUnconfigured: StoryObj = {
+    ...pageStory({blocks: [GENESIS], chainInfos: [{...chainInfo, evmChainId: 320261}]}, {params: {id: '0'}}),
+    play: async ({canvas}) => expect(canvas.getByText('Timestamp').nextElementSibling!.textContent).toBe('—'),
+}
 
 // the object keeps to its card, clear of the padding, under its shortened hash
 export const Extrinsics: StoryObj = {

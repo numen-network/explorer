@@ -16,6 +16,7 @@ import {Card} from '@/components/ui/card'
 import {Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious} from '@/components/ui/pagination'
 import {withEventViews} from '@/lib/args'
 import {chainProps} from '@/lib/chain'
+import {datedOrGenesis} from '@/lib/config'
 import {parseDigest} from '@/lib/digest'
 import {isH256} from '@/lib/evm'
 import {fmtBalance, fmtCount, fmtInt, shortHash} from '@/lib/format'
@@ -130,7 +131,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                         )}
                     </DetailRow>
                     <DetailRow label="Timestamp">
-                        <TimeCell iso={block.timestamp} cycle />
+                        <TimeCell iso={datedOrGenesis(block.timestamp, block.height, chain.evmChainId)} cycle />
                     </DetailRow>
                     <DetailRow label="Miner">
                         {block.author ? <AccountLink full addr={ss58Encode(block.author.id, chain.ss58)} acc={block.author} /> : '—'}

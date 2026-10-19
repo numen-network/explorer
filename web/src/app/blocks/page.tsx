@@ -2,6 +2,7 @@ import Pager from '@/components/Pager'
 import Refresh from '@/components/Refresh'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
+import {datedOrGenesis} from '@/lib/config'
 import {paging} from '@/lib/paging'
 import {blocksPage} from '@/lib/gql'
 import {BlocksTable} from './table'
@@ -22,7 +23,7 @@ export default async function BlocksPage(props: PageProps<'/blocks'>) {
                 <h1 className="text-lg font-semibold">Blocks</h1>
             </div>
             <Card size="flush" className="mt-3">
-                <BlocksTable rows={blocks} chain={chain} />
+                <BlocksTable rows={blocks.map(b => ({...b, timestamp: datedOrGenesis(b.timestamp, b.height, chain.evmChainId)}))} chain={chain} />
             </Card>
             <Pager paging={pg} total={conn.totalCount} href="/blocks" />
         </div>
