@@ -68,10 +68,11 @@ function Caption({item, variant}: {item: TabItem; variant: TabVariant}) {
     )
 }
 
-// a tab is a link, so the strip is the url and only the page being read is built
+// a tab is a link, so the strip is the url and only the page being read is built.
+// a tab switches the view in place, so the page keeps its scroll
 export function TabBar({items, variant = 'line', className, 'aria-label': label}: {items: TabItem[]; variant?: TabVariant; className?: string; 'aria-label': string}) {
     const links = items.map(t => (
-        <Link key={t.href} href={t.href} aria-current={t.active ? 'page' : undefined} data-active={t.active} className={cn(LINK, STYLE[variant].link)}>
+        <Link key={t.href} href={t.href} scroll={false} aria-current={t.active ? 'page' : undefined} data-active={t.active} className={cn(LINK, STYLE[variant].link)}>
             <Caption item={t} variant={variant} />
         </Link>
     ))
