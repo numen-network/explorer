@@ -496,6 +496,7 @@ export interface AccountSummary {
     prime: {id: string}[]
     minerDays: {day: string; blocks: number}[]
     nMined: {totalCount: number}
+    nAccountDays: {totalCount: number}
     curated: {totalCount: number}
     childCurated: {totalCount: number}
     nTransfers: {totalCount: number}
@@ -564,6 +565,7 @@ export function accountSummary(idHex: string) {
             prime: primeStates(where: {account: ${self}}, limit: 1) { id }
             minerDays: minerDayStats(where: {account: ${self}}, orderBy: day_DESC, limit: 60) { day blocks }
             nMined: blocksConnection(orderBy: id_ASC, where: {author: ${self}}) { totalCount }
+            nAccountDays: accountDaysConnection(orderBy: id_ASC, where: {account: ${self}}) { totalCount }
             curated: bountiesConnection(orderBy: index_ASC, where: {curator: ${self}}) { totalCount }
             childCurated: childBountiesConnection(orderBy: id_ASC, where: {curator: ${self}}) { totalCount }
             nTransfers: transfersConnection(orderBy: id_ASC, where: {OR: [{from: ${self}}, {to: ${self}}]}) { totalCount }
@@ -2071,6 +2073,33 @@ export function minerDays(sinceDay: string | null): Promise<MinerDayRow[]> {
             }`,
             {since: sinceDay, ...page}
         ).then(r => r.minerDayStats)
+    )
+}
+
+export interface AccountDayRow {
+    day: string
+    free: string
+    reserved: string
+    frozen: string
+    extrinsics: number
+    transfersIn: number
+    transfersOut: number
+    feeTreasury: string
+    feeMiner: string
+    tip: string
+}
+
+const ACCOUNT_DAY_FIELDS = 'day free reserved frozen extrinsics transfersIn transfersOut feeTreasury feeMiner tip'
+
+// the days from since to until, and the last one before since, whose close
+// the window opens on. an empty since reaches back to the first day
+export function accountDays(idHex: string, since: string, until: string) {
+    return gql<{days: AccountDayRow[]; prior: AccountDayRow[]}>(
+        `query ($id: String!, $since: String!, $until: String!) {
+            days: accountDays(where: {account: {id_eq: $id}, day_gte: $since, day_lte: $until}, orderBy: day_ASC) { ${ACCOUNT_DAY_FIELDS} }
+            prior: accountDays(where: {account: {id_eq: $id}, day_lt: $since}, orderBy: day_DESC, limit: 1) { ${ACCOUNT_DAY_FIELDS} }
+        }`,
+        {id: idHex, since, until}
     )
 }
 

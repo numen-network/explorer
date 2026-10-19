@@ -6,6 +6,7 @@ import {TabBar, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {BlockLink} from '@/components/links'
 import BalanceBar from '@/components/account/BalanceBar'
+import Charts from '@/components/account/Charts'
 import Delegations from '@/components/account/Delegations'
 import DelegationHistory from '@/components/account/DelegationHistory'
 import Extrinsics from '@/components/account/Extrinsics'
@@ -141,6 +142,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nDelegOut.totalCount > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount, body: () => <Delegations {...ctx} />})
     if (s.nDelegHistory.totalCount > 0)
         tabs.push({slug: 'delegations-history', label: 'Delegations history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="out" slug="delegations-history" />})
+    if (s.nAccountDays.totalCount > 0) tabs.push({slug: 'charts', label: 'Charts', body: () => <Charts {...ctx} />})
 
     // dtrack filters Received, so a delegations link carrying one opens there,
     // and multisig opens the signatory side of an account that is no multisig

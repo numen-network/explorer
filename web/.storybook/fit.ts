@@ -52,6 +52,14 @@ function axisLabels(chart: echarts.ECharts) {
     return [...axes.values()]
 }
 
+// where each chart's plot starts, in pixels from its left edge, read off the
+// first two categories, whose bands share a width and meet at the plot edge
+export const plotLefts = (root: Element) =>
+    chartsIn(root).map(chart => {
+        const [a, b] = [0, 1].map(i => chart.convertToPixel({xAxisIndex: 0}, i))
+        return a - (b - a) / 2
+    })
+
 const chartsIn = (root: Element) => [...root.querySelectorAll<HTMLElement>('[_echarts_instance_]')].map(el => echarts.getInstanceByDom(el)!)
 
 // how full each progress bar under root is drawn, in percent
@@ -126,14 +134,15 @@ export const barWidthsIn = (root: Element) => [
     ...new Set(chartsIn(root).flatMap(chart => chart.getZr().storage.getDisplayList(true).flatMap(el => (el instanceof echarts.graphic.Rect ? [Math.round(el.shape.width * 100) / 100] : [])))),
 ]
 
-type Series = {type: string; data: number[]; itemStyle: {color: string}}
+type Series = {type: string; name?: string; data: number[]; itemStyle: {color: string}}
 
 // a line needs two values for a segment, so each line under root that holds
 // a single value paints a dot of its colour on that value
 export function expectLonePointsPainted(root: Element) {
     const lone = chartsIn(root)
         .flatMap(chart => (chart.getOption().series as Series[]).map((series, seriesIndex) => ({chart, series, seriesIndex})))
-        .filter(({series}) => series.type === 'line' && series.data.length === 1)
+        // a series the legend leaves out paints nothing
+        .filter(({chart, series}) => series.type === 'line' && series.data.length === 1 && (chart.getOption().legend as {selected?: Record<string, boolean>}[] | undefined)?.[0]?.selected?.[series.name ?? ''] !== false)
     expect(lone.length).toBeGreaterThan(0)
     for (const {chart, series, seriesIndex} of lone) {
         const [x, y] = chart.convertToPixel({seriesIndex}, [0, series.data[0]]).map(v => Math.round(v * chart.getDevicePixelRatio()))

@@ -29,7 +29,7 @@ import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from '
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig, refreshMultisigs} from './multisig'
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
-import {accumulateDay, finalizeStats, treasuryAccount} from './stats'
+import {accountDay, accumulateDay, finalizeAccountDays, finalizeStats, treasuryAccount} from './stats'
 import {readBatchTracks} from './tracks'
 import {collectUsernameEvent, finalizeUsernames, persistUsernames} from './usernames'
 
@@ -83,6 +83,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     await refreshPrime(batch, lastHeader, ctx.store)
     await finalizeAccounts(ctx, batch, lastHeader)
     await finalizeStats(ctx, batch)
+    await finalizeAccountDays(ctx, batch)
     await finalizeAnnotations(batch, lastHeader, ctx.store)
     await persist(ctx, batch)
     await markFinalized(ctx, finalizedHeight)
@@ -158,6 +159,13 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
             x.minerFee = shares.miner
             x.treasuryFee = shares.treasury
         }
+        const payer = batch.feePayers.get(x.id)
+        if (payer != null) {
+            const d = accountDay(batch, timestamp, payer)
+            d.feeTreasury += x.treasuryFee
+            d.feeMiner += x.minerFee
+            d.tip += tip
+        }
         block.minerFees += x.minerFee + tip
         block.treasuryFees += x.treasuryFee
         fees += x.minerFee + x.treasuryFee + tip
@@ -228,6 +236,7 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
         // miner whole like a substrate one
         extrinsic.fee = gasUsed * baseFee
         extrinsic.tip = gasUsed * (decoded.gasPrice - baseFee)
+        batch.feePayers.set(extrinsic.id, evmMappedAccount(decoded.from))
         // canonical home of the tx payload is EvmTransaction, keep the call row lean
         batch.callById.get(ext.call!.id)!.args = null
         batch.act(evmMappedAccount(decoded.from), h.height).evmAddress = decoded.from
@@ -402,6 +411,7 @@ function mapExtrinsic(batch: BatchData, block: Block, ext: ExtrinsicData<Fields>
     })
     batch.extrinsics.push(e)
     batch.extrinsicById.set(e.id, e)
+    if (signer) accountDay(batch, block.timestamp!, signer).extrinsics += 1
 }
 
 interface CallCount {
@@ -489,9 +499,17 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
                 timestamp: at,
             })
         )
+        accountDay(batch, at, t.from).transfersOut += 1
+        accountDay(batch, at, t.to).transfersIn += 1
     }
     // every change to an account's balance data raises a Balances event naming it
-    if (pallet === 'Balances') for (const key of BALANCE_EVENT_ACCOUNTS) if (typeof ev.args?.[key] === 'string') batch.touch(ev.args[key], block.height)
+    if (pallet === 'Balances') {
+        for (const key of BALANCE_EVENT_ACCOUNTS) {
+            if (typeof ev.args?.[key] !== 'string') continue
+            batch.touch(ev.args[key], block.height)
+            accountDay(batch, at, ev.args[key])
+        }
+    }
     if (events.balances.deposit.v100.is(ev)) {
         const d = events.balances.deposit.v100.decode(ev)
         // the reward is minted on finalization, after every extrinsic has run
@@ -500,6 +518,7 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
     if (ev.name === 'TransactionPayment.TransactionFeePaid' && extrinsic) {
         extrinsic.tip = BigInt(ev.args.tip)
         extrinsic.fee = BigInt(ev.args.actualFee) - extrinsic.tip
+        batch.feePayers.set(extrinsic.id, ev.args.who)
     }
     const name = ev.name ?? ''
     collectGovEvent(batch, ev.id, ev.index, name, ev.args, block.height, ev.block, ev.call ? originOf(ev.call) : undefined, ev.call?.args, ev.extrinsic?.id)
@@ -685,6 +704,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert(batch.days)
     await ctx.store.upsert(batch.hours)
     await ctx.store.upsert(batch.minerDays)
+    await ctx.store.upsert(batch.accountDays)
     if (batch.prime != null) await ctx.store.upsert(batch.prime)
     const delegates = await movedDelegates(ctx, batch)
     await ctx.store.upsert(batch.delegations)

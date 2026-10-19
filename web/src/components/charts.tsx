@@ -1,4 +1,5 @@
 'use client'
+import {ACCENT, ACCENT_SOFT, GRAY, GREEN, SUPPORT} from '@/lib/chartColors'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
 import {fmtInt, fmtPct, fmtSpan, fmtTick, pctToNum, type Share} from '@/lib/format'
 import {GRID_LEGEND, type GridCell, type GridVote} from '@/lib/voteGrid'
@@ -8,11 +9,6 @@ import {useEffect, useRef, useState} from 'react'
 
 const SUB = '#7c828e'
 const EDGE = '#e8eaef'
-const ACCENT = '#0891b2'
-const ACCENT_SOFT = '#c4e5ed'
-const GRAY = '#9aa1ad'
-const GREEN = '#4caf50'
-const SUPPORT = '#7c3aed'
 const GREEN_FILL = 'rgba(76,175,80,.11)'
 const SUB_FILL = 'rgba(124,130,142,.08)'
 const LABEL_FONT = '11px sans-serif'
@@ -260,7 +256,7 @@ export function CurvesChart({
         name,
         type: 'line' as const,
         symbol: 'none',
-        step: 'end' as const,
+        step: 'middle' as const,
         lineStyle: {width: 2, color, type: 'dashed' as const},
         itemStyle: {color},
         data,
@@ -411,6 +407,26 @@ export function CurvesChart({
     return <div ref={ref} style={{height}} />
 }
 
+// the slider under a full chart, its shadow traced from the data
+function zoomRail(shadow: boolean) {
+    return {
+        type: 'slider' as const,
+        bottom: 12,
+        height: 22,
+        borderColor: 'transparent',
+        backgroundColor: '#f7f8fa',
+        fillerColor: 'rgba(8,145,178,.08)',
+        handleSize: 16,
+        handleStyle: {color: '#fff', borderColor: GRAY},
+        moveHandleSize: 0,
+        showDetail: false,
+        brushSelect: false,
+        // a lone value has no outline for the rail to shadow
+        showDataShadow: shadow,
+        labelFormatter: (_: number, s: string) => s,
+    }
+}
+
 // the full page chart behind /charts, one series with a zoom rail under it.
 // tips are formatted server side so the registry stays the only place that
 // knows about decimals and symbols
@@ -439,25 +455,7 @@ export function SeriesChart({
             },
         },
         grid: plotGrid({left: room, right: room, top: 20, bottom: 58}),
-        dataZoom: [
-            {type: 'inside'},
-            {
-                type: 'slider',
-                bottom: 12,
-                height: 22,
-                borderColor: 'transparent',
-                backgroundColor: '#f7f8fa',
-                fillerColor: 'rgba(8,145,178,.08)',
-                handleSize: 16,
-                handleStyle: {color: '#fff', borderColor: GRAY},
-                moveHandleSize: 0,
-                showDetail: false,
-                brushSelect: false,
-                // a lone value has no outline for the rail to shadow
-                showDataShadow: values.length > 1,
-                labelFormatter: (_: number, s: string) => s,
-            },
-        ],
+        dataZoom: [{type: 'inside'}, zoomRail(values.length > 1)],
         xAxis: catAxis(labels),
         yAxis: valAxis(kind === 'line') as never,
         series: [
@@ -476,6 +474,106 @@ export function SeriesChart({
         ],
     })
     return <div ref={ref} style={{height}} />
+}
+
+export interface ComboSeries {
+    name: string
+    type: 'line' | 'bar'
+    color: string
+    values: number[]
+    // what the tooltip prints for each value
+    tips: string[]
+    // bars sharing a stack pile up, lines never stack
+    stack?: string
+    // left out until the reader picks it in the legend
+    hidden?: boolean
+    area?: boolean
+}
+
+// a line steps, each label holding its own value across its band rather than
+// sloping into the next.
+// total names a figure the tooltip leads with, one per label
+// where the plot starts, in pixels from the chart's left edge. echarts keeps
+// the grid rect to itself, so this walks in from the first category's centre
+// until the point leaves the grid
+function plotLeft(chart: echarts.ECharts): number {
+    const [x0, y0] = chart.convertToPixel({gridIndex: 0}, [0, 0])
+    let [out, inside] = [0, x0]
+    while (inside - out > 0.25) {
+        const x = (out + inside) / 2
+        if (chart.containPixel({gridIndex: 0}, [x, y0 - 1])) inside = x
+        else out = x
+    }
+    return inside
+}
+
+export function ComboChart({labels, series, total, note, height = 380}: {labels: string[]; series: ComboSeries[]; total?: {name: string; tips: string[]}; note: string; height?: number}) {
+    // unknown until the first frame lays the plot out
+    const [indent, setIndent] = useState<number | null>(null)
+    const room = catRoom(labels)
+    const ref = useChart({
+        tooltip: {
+            ...TOOLTIP,
+            formatter: (params: unknown) => {
+                const list = params as {dataIndex: number; axisValueLabel: string; seriesIndex: number}[]
+                const i = list[0].dataIndex
+                const head = total ? `<div>${total.name}: <b>${total.tips[i]}</b></div>` : ''
+                return `<div style="margin-bottom:4px">${list[0].axisValueLabel} (UTC)</div>${head}${list.map(p => tipRow(series[p.seriesIndex].color, series[p.seriesIndex].name, series[p.seriesIndex].tips[i])).join('')}`
+            },
+        },
+        legend: {
+            bottom: 44,
+            icon: 'circle',
+            itemWidth: 8,
+            itemHeight: 8,
+            textStyle: {color: SUB, fontSize: 11},
+            selected: Object.fromEntries(series.map(s => [s.name, !s.hidden])),
+        },
+        grid: plotGrid({left: room, right: room, top: 12, bottom: 84}),
+        dataZoom: [{type: 'inside'}, zoomRail(labels.length > 1)],
+        xAxis: catAxis(labels),
+        yAxis: valAxis() as never,
+        series: series.map(s =>
+            s.type === 'line'
+                ? {
+                      name: s.name,
+                      type: 'line' as const,
+                      step: 'middle' as const,
+                      ...lineSymbol(s.values),
+                      lineStyle: {width: 2, color: s.color},
+                      itemStyle: {color: s.color},
+                      areaStyle: s.area ? {opacity: 0.07, color: s.color} : undefined,
+                      data: s.values,
+                  }
+                : {
+                      name: s.name,
+                      type: 'bar' as const,
+                      stack: s.stack,
+                      barMaxWidth: 14,
+                      itemStyle: {color: s.color},
+                      data: s.values,
+                  }
+        ),
+    })
+    // the note lines up with the plot, which moves with the widest value axis
+    // label, so it reads the plot's place on every frame
+    useEffect(() => {
+        const chart = echarts.getInstanceByDom(ref.current!)!
+        const align = () => setIndent(plotLeft(chart))
+        chart.on('rendered', align)
+        // useChart disposes the instance first when both unmount
+        return () => {
+            if (!chart.isDisposed()) chart.off('rendered', align)
+        }
+    }, [ref])
+    return (
+        <>
+            <div ref={ref} style={{height}} />
+            <div className="mt-2 text-xs text-dim" style={{paddingLeft: indent ?? 0, visibility: indent == null ? 'hidden' : undefined}}>
+                {note}
+            </div>
+        </>
+    )
 }
 
 export interface LineSeries {

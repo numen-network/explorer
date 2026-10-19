@@ -1,9 +1,11 @@
 import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
+import * as echarts from 'echarts'
 import {expect, userEvent, waitFor, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {fmtSpan} from '@/lib/format'
 import {ss58Encode} from '@/lib/ss58'
 import {
+    accountDayRows,
     accountExtrinsics,
     accountPage,
     accountTransferCases,
@@ -66,7 +68,7 @@ import {
 } from '../../../../../mock/fixtures/accounts.js'
 import {batchAll} from '../../../../../mock/fixtures/blocks.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, filterOptions, tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {all, axesLegible, categoriesIn, columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, filterOptions, lastTooltipLines, lonePointsPainted, tabCount, tokenLabels, tooltipsInView, plotLefts} from '../../../../.storybook/fit'
 import {AVATAR_HOST, avatars} from '../../../../.storybook/avatar'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
@@ -607,6 +609,107 @@ export const MiningOneDay = story({minerDays: minedDays(1), mined: minedBlockRow
 export const MiningMany = story({minerDays: minedDays(60), mined: minedBlockRows(20)}, {tab: 'mining'})
 
 export const MiningBeyondChart = story({minerDays: minedDays(60), mined: minedBlockRows(20), counts: {mined: 48_213}}, {tab: 'mining'})
+
+const DAYS = accountDayRows(30)
+const charted = (spec = {}, searchParams: Record<string, string> = {}) => story({accountDays: DAYS, ...spec}, {tab: 'charts', ...searchParams})
+const chartSeries = (root: HTMLElement) => {
+    const chart = [...root.querySelectorAll<HTMLElement>('[_echarts_instance_]')].map(el => echarts.getInstanceByDom(el)!)[0]
+    return chart.getOption() as {series: {name: string; data: number[]}[]; legend: {selected: Record<string, boolean>}[]; yAxis: unknown[]}
+}
+// the note under a chart starts where its plot does
+const noteAligned = async (root: HTMLElement, note: string) => {
+    const text = within(root).getByText(note)
+    expect(text.closest('[data-slot=card]')).not.toBeNull()
+    const chart = root.querySelector<HTMLElement>('[_echarts_instance_]')!
+    await waitFor(() => expect(text.getBoundingClientRect().left + parseFloat(getComputedStyle(text).paddingLeft) - chart.getBoundingClientRect().left).toBeCloseTo(plotLefts(root)[0], 0))
+}
+const chartViews = (root: HTMLElement) => within(within(root).getByRole('navigation', {name: 'Chart'})).getAllByRole('link')
+
+export const ChartsNone: StoryObj = {
+    ...story({transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => {
+        await within(canvasElement).findByRole('navigation', {name: 'Account'})
+        expect(within(within(canvasElement).getByRole('navigation', {name: 'Account'})).queryByRole('link', {name: /Charts/})).toBeNull()
+    },
+}
+
+export const ChartsBalance: StoryObj = {
+    ...charted(),
+    play: all(axesLegible, tooltipsInView, async ({canvasElement}) => {
+        expect(chartViews(canvasElement).map(l => [l.textContent, l.dataset.active])).toEqual([
+            ['Balance', 'true'],
+            ['Activity', 'false'],
+            ['Fees', 'false'],
+        ])
+        // the quiet days between the rows are filled in, up to the head day
+        const [days] = categoriesIn(canvasElement)
+        expect(days).toHaveLength(30)
+        expect(days[0]).toBe(DAYS[0].day)
+        expect(days.at(-1)).toBe(DAYS.at(-1)!.day)
+        const {series, legend, yAxis} = chartSeries(canvasElement)
+        expect(series.map(s => s.name)).toEqual(['Balance', 'Free', 'Reserved', 'Frozen'])
+        expect(legend[0].selected).toEqual({Balance: true, Free: false, Reserved: false, Frozen: false})
+        await noteAligned(canvasElement, 'at the last block of each UTC day')
+        expect(yAxis).toHaveLength(1)
+        // a quiet day holds the close before it
+        const quiet = days.findIndex(d => !DAYS.some(r => r.day === d))
+        expect(series[0].data[quiet]).toBe(series[0].data[quiet - 1])
+        expect(lastTooltipLines(canvasElement)[0][0]).toBe(`${DAYS.at(-1)!.day} (UTC)`)
+    }),
+}
+
+// a view the strip does not offer opens the default one
+export const ChartsUnknownView: StoryObj = {
+    ...charted({}, {chart: 'flow'}),
+    play: async ({canvasElement}) => {
+        await waitFor(() => expect(chartViews(canvasElement).find(l => l.dataset.active === 'true')?.textContent).toBe('Balance'))
+    },
+}
+
+export const ChartsActivity: StoryObj = {
+    ...charted({}, {chart: 'activity'}),
+    play: all(axesLegible, tooltipsInView, async ({canvasElement}) => {
+        const {series} = chartSeries(canvasElement)
+        expect(series.map(s => s.name)).toEqual(['Extrinsics', 'Transfer-in', 'Transfer-out'])
+        const [days] = categoriesIn(canvasElement)
+        const quiet = days.findIndex(d => !DAYS.some(r => r.day === d))
+        expect(series.map(s => s.data[quiet])).toEqual([0, 0, 0])
+        await noteAligned(canvasElement, 'summed over each UTC day')
+        expect(within(canvasElement).queryByText(/at the last block/)).toBeNull()
+    }),
+}
+
+export const ChartsFees: StoryObj = {
+    ...charted({}, {chart: 'fees'}),
+    play: all(axesLegible, tooltipsInView, async ({canvasElement}) => {
+        expect(chartSeries(canvasElement).series.map(s => s.name)).toEqual(['To treasury', 'To miner', 'Tip'])
+        const [lines] = lastTooltipLines(canvasElement)
+        expect(lines.slice(0, 2)).toEqual([`${DAYS.at(-1)!.day} (UTC)`, 'Fees: 0.55 NUMN'])
+        await noteAligned(canvasElement, 'summed over each UTC day')
+        expect(within(canvasElement).queryByText(/at the last block/)).toBeNull()
+    }),
+}
+
+// a single day the account was ever touched draws as a dot
+export const ChartsOneDay: StoryObj = {...charted({accountDays: DAYS.slice(-1)}), play: lonePointsPainted}
+
+// nothing happened in the window, so the close before it runs flat across all of it
+export const ChartsQuietWindow: StoryObj = {
+    ...charted({accountDays: [], priorDay: {...DAYS[0], day: '2020-01-01'}}, {r: '30'}),
+    play: async ({canvasElement}) => {
+        await waitFor(() => expect(categoriesIn(canvasElement)).toHaveLength(1))
+        const [days] = categoriesIn(canvasElement)
+        expect(days).toHaveLength(31)
+        expect(new Set(chartSeries(canvasElement).series[0].data).size).toBe(1)
+    },
+}
+
+export const ChartsEmptyRange: StoryObj = {
+    ...charted({accountDays: [], counts: {accountDays: 30}}, {after: '2020-01-01', before: '2020-01-31'}),
+    play: async ({canvasElement}) => {
+        await within(canvasElement).findByText('No data in this range.')
+    },
+}
 
 const voting = (amount: string) => subject({...funds(numn(1250.5), '0', amount), locksJson: [lock('pyconvot', amount)]})
 

@@ -1,6 +1,6 @@
 import {In, LessThan} from 'typeorm'
-import {BatchData, DayDelta, HourDelta} from './batch'
-import {Account, Block, DailyStat, HourlyStat, MinerDayStat} from './model'
+import {AccountDayDelta, BatchData, DayDelta, HourDelta} from './batch'
+import {Account, AccountDay, Block, DailyStat, HourlyStat, MinerDayStat} from './model'
 import {constants, storage, v100} from './types'
 import type {RuntimeCtx} from './types/support'
 
@@ -39,6 +39,17 @@ export function treasuryAccount(block: RuntimeCtx): string {
 // pallet id and the trailing zeros, cut to 32 bytes
 export function treasurySubAccount(block: RuntimeCtx, sub: Buffer): string {
     return (treasuryAccount(block).slice(0, 26) + sub.toString('hex')).padEnd(66, '0').slice(0, 66)
+}
+
+export function accountDay(batch: BatchData, at: Date, account: string): AccountDayDelta {
+    const day = at.toISOString().slice(0, 10)
+    const id = `${day}-${account}`
+    let d = batch.accountDayDeltas.get(id)
+    if (d == null) {
+        d = {day, account, extrinsics: 0, transfersIn: 0, transfersOut: 0, feeTreasury: 0n, feeMiner: 0n, tip: 0n}
+        batch.accountDayDeltas.set(id, d)
+    }
+    return d
 }
 
 export function accumulateDay(batch: BatchData, block: Block, at: Date, header: RuntimeCtx, delta: Omit<DayDelta, 'tsFirst' | 'tsLast' | 'difficultyClose' | 'blocks' | 'rewards' | 'header'>): void {
@@ -230,4 +241,47 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promis
         row.rewards += delta.rewards
         batch.minerDays.push(row)
     }
+}
+
+// a day row closes on the balance at the last block of that day this batch
+// holds, which a later batch reaching further into the day overwrites
+export async function finalizeAccountDays(ctx: {store: any}, batch: BatchData): Promise<void> {
+    bookGenesisAccounts(batch)
+    if (batch.accountDayDeltas.size === 0) return
+    const ids = [...batch.accountDayDeltas.keys()]
+    const existing = new Map<string, AccountDay>((await ctx.store.find(AccountDay, {where: {id: In(ids)}})).map((r: AccountDay) => [r.id, r]))
+    const byDay = new Map<string, string[]>()
+    for (const [id, d] of batch.accountDayDeltas) byDay.set(d.day, [...(byDay.get(d.day) ?? []), id])
+    const accountStore = storage.system.account.v100
+    for (const [day, dayIds] of byDay) {
+        const at = batch.dayDeltas.get(day)!.header
+        if (!accountStore.is(at)) throw new Error(`unhandled spec version for system accounts at block ${at.height}`)
+        const infos = await accountStore.getMany(at, dayIds.map(id => batch.accountDayDeltas.get(id)!.account))
+        dayIds.forEach((id, i) => {
+            const d = batch.accountDayDeltas.get(id)!
+            const {free, reserved, frozen} = (infos[i] ?? accountStore.getDefault(at)).data
+            const row =
+                existing.get(id) ??
+                new AccountDay({id, day, account: new Account({id: d.account}), extrinsics: 0, transfersIn: 0, transfersOut: 0, feeTreasury: 0n, feeMiner: 0n, tip: 0n})
+            row.free = free
+            row.reserved = reserved
+            row.frozen = frozen
+            row.extrinsics += d.extrinsics
+            row.transfersIn += d.transfersIn
+            row.transfersOut += d.transfersOut
+            row.feeTreasury += d.feeTreasury
+            row.feeMiner += d.feeMiner
+            row.tip += d.tip
+            batch.accountDays.push(row)
+        })
+    }
+}
+
+// genesis endows accounts without a single event, so each one opens on the
+// first dated day the way the account total counts it
+function bookGenesisAccounts(batch: BatchData): void {
+    if (batch.blocks[0]?.height !== 0) return
+    const first = batch.blocks.find(b => b.timestamp != null)
+    if (first == null) throw new Error('the genesis batch holds no dated block')
+    for (const a of batch.accounts.values()) if (a.firstSeenBlock === 0) accountDay(batch, first.timestamp!, a.id)
 }

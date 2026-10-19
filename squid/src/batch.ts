@@ -1,5 +1,6 @@
 import {
     Account,
+    AccountDay,
     Block,
     Call,
     CallKind,
@@ -72,6 +73,17 @@ export interface DayDelta {
     difficultyClose: bigint
     // the last block of the day this batch holds, storage reads for the day land there
     header: any
+}
+
+export interface AccountDayDelta {
+    day: string
+    account: string
+    extrinsics: number
+    transfersIn: number
+    transfersOut: number
+    feeTreasury: bigint
+    feeMiner: bigint
+    tip: bigint
 }
 
 export interface HourDelta {
@@ -169,6 +181,11 @@ export class BatchData {
     hours: HourlyStat[] = []
     minerDayDeltas = new Map<string, {day: string; account: string; blocks: number; rewards: bigint}>()
     minerDays: MinerDayStat[] = []
+    accountDayDeltas = new Map<string, AccountDayDelta>()
+    accountDays: AccountDay[] = []
+    // who paid each extrinsic's fee, the fee event names a substrate payer and
+    // an EVM call is paid by its sender's mapped account
+    feePayers = new Map<string, string>()
 
     // block mapping touches in chain order but the finalize steps touch at their
     // own event heights afterwards, so the earliest height wins

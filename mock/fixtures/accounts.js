@@ -502,6 +502,29 @@ export const validatorRow = (traits = {}) => ({
 export const minedDays = count =>
     Array.from({length: count}, (_, i) => ({day: new Date(HEAD_TIME - i * 86_400_000).toISOString().slice(0, 10), blocks: 12 + ((i * 37) % 90)}))
 
+const dayBefore = days => new Date(HEAD_TIME - days * 86_400_000).toISOString().slice(0, 10)
+
+// the subject's day rows oldest first, the head day last. every fourth day is
+// quiet and writes no row, so the charts carry the close across it
+export const accountDayRows = (count, {quiet = true} = {}) =>
+    Array.from({length: count}, (_, i) => count - 1 - i)
+        .filter(back => !quiet || back === 0 || back % 4 !== 3)
+        .map(back => {
+            const k = count - back
+            return {
+                day: dayBefore(back),
+                free: numn(1_000 + ((k * 137) % 900) + k * 11.5),
+                reserved: numn(k > count / 2 ? 250 : 0),
+                frozen: numn(k > count / 3 ? 400 : 0),
+                extrinsics: (k * 7) % 5,
+                transfersIn: (k * 3) % 4,
+                transfersOut: (k * 5) % 6,
+                feeTreasury: numn(0.4 * ((k % 5) + 1)),
+                feeMiner: numn(0.1 * ((k % 5) + 1)),
+                tip: numn(k % 3 === 0 ? 0.05 : 0),
+            }
+        })
+
 // blocks the subject mined, newest first, some carrying fees on top of the mint
 export const minedBlockRows = count => rows(count, (h, i) => block(h, {author: ME, minerFees: i % 2 ? numn(0.0021) : '0'}))
 
@@ -605,6 +628,8 @@ export function accountPage({
     prime = false,
     minerDays = [],
     mined = [],
+    accountDays = [],
+    priorDay = null,
     curated = 0,
     childCurated = 0,
     transfers = [],
@@ -668,6 +693,9 @@ export function accountPage({
             where?.account ? (registrar == null ? [] : [{index: registrar}]) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
         primeStates: prime ? [{id: 'prime'}] : [],
         minerDayStats: minerDays,
+        // the window query and the close before it differ only in day_lt
+        accountDays: ({where}) => (where.day_lt != null ? (priorDay ? [priorDay] : []) : accountDays),
+        accountDaysConnection: count(counts.accountDays ?? accountDays.length + (priorDay ? 1 : 0)),
         blocks: args => (args.where?.author ? mined : args.where?.height_eq != null ? [{height: account.lastActiveBlock, timestamp: at(account.lastActiveBlock)}] : base.blocks(args)),
         blocksConnection: count(counts.mined ?? minerDays.reduce((n, d) => n + d.blocks, 0)),
         bountiesConnection: count(curated),

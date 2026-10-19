@@ -815,6 +815,25 @@ type MinerDayStat @entity @index(fields: ["day", "blocks"]) {
   rewards: BigInt!
 }
 
+"one account's day, written only for a day a block touched it"
+type AccountDay @entity @index(fields: ["account", "day"]) {
+  id: ID!
+  day: String!
+  account: Account!
+  "balance data at the day's last block"
+  free: BigInt!
+  reserved: BigInt!
+  frozen: BigInt!
+  "signed extrinsics"
+  extrinsics: Int!
+  transfersIn: Int!
+  transfersOut: Int!
+  "fees this account paid, split the way the chain deposited them"
+  feeTreasury: BigInt!
+  feeMiner: BigInt!
+  tip: BigInt!
+}
+
 type Transfer @entity @index(fields: ["from", "timestamp"]) @index(fields: ["to", "timestamp"]) {
   id: ID!
   block: Block!

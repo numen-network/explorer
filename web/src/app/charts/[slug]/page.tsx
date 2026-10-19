@@ -1,24 +1,14 @@
 import {notFound} from 'next/navigation'
-import ApplyButton from '@/components/ApplyButton'
 import ChartList from '@/components/ChartList'
-import DateRange from '@/components/DateRange'
-import {TabBar} from '@/components/Tabs'
+import ChartRange, {chartWindow} from '@/components/ChartRange'
 import {SeriesChart} from '@/components/charts'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Empty, EmptyDescription} from '@/components/ui/empty'
-import {chainDbHead, chainProps, windowStart} from '@/lib/chain'
+import {chainDbHead, chainProps} from '@/lib/chain'
 import {CHARTS, chartBySlug, highlight, type ChartInput} from '@/lib/charts'
-import {isDay} from '@/lib/day'
 import {chartSeries} from '@/lib/gql'
 
 export const dynamic = 'force-dynamic'
-
-const RANGES: [key: string, label: string, days: number][] = [
-    ['30', '30D', 30],
-    ['90', '90D', 90],
-    ['365', '365D', 365],
-    ['all', 'ALL', 0],
-]
 
 export async function generateMetadata(props: PageProps<'/charts/[slug]'>) {
     const {slug} = await props.params
@@ -33,17 +23,9 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
     const {slug} = await props.params
     const def = chartBySlug(slug)
     if (!def) notFound()
-    const sp = await props.searchParams
-    const str = (v: string | string[] | undefined) => (typeof v === 'string' ? v : '')
-
-    const after = isDay(str(sp.after)) ? str(sp.after) : ''
-    const before = isDay(str(sp.before)) ? str(sp.before) : ''
-    const custom = Boolean(after || before)
-    const range = custom ? '' : (RANGES.find(([k]) => k === str(sp.r))?.[0] ?? '365')
-    const days = RANGES.find(([k]) => k === range)?.[2] ?? 0
     const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
-    const since = custom ? after : days ? (windowStart(head, days)?.slice(0, 10) ?? '') : ''
-    const data = await chartSeries(since, before)
+    const win = chartWindow(await props.searchParams, head)
+    const data = await chartSeries(win.since, win.before)
 
     const input: ChartInput = {
         days: data.dailyStats,
@@ -65,13 +47,7 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
             <Card className="order-1 min-w-0 gap-3 py-4 [--card-spacing:--spacing(5)] lg:order-2">
                 <CardHeader className="flex flex-wrap items-center justify-between gap-3">
                     <CardTitle className="text-[17px] leading-normal font-semibold">{def.title}</CardTitle>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <form className="flex flex-wrap items-center gap-2 text-xs" action={`/charts/${slug}`}>
-                            <DateRange key={`${after}|${before}`} after={after} before={before} lastDay={head.timestamp?.slice(0, 10) ?? null} active={custom} />
-                            <ApplyButton />
-                        </form>
-                        <TabBar aria-label="Range" variant="pill" items={RANGES.map(([k, label]) => ({label, href: `/charts/${slug}${k === '365' ? '' : `?r=${k}`}`, active: k === range}))} />
-                    </div>
+                    <ChartRange win={win} head={head} action={`/charts/${slug}`} href={r => `/charts/${slug}${r ? `?r=${r}` : ''}`} />
                 </CardHeader>
                 <CardContent>
                     {input.days.length === 0 ? (
