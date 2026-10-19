@@ -765,13 +765,27 @@ type Validator @entity {
   active: Boolean! @index
   lockedAmount: BigInt!
   lockExpiry: Int
+  "ImOnline.SomeOffline events naming it"
   offlineSessions: Int!
+  "Validator.EquivocationReported events naming it"
   equivocations: Int!
   "the reason ValidatorKicked carried, whole"
   kicked: JSON
   firstSeenBlock: Int!
   "the last session it was active in, null if it never was"
   lastActiveSession: Int
+  offences: [ValidatorOffence!]! @derivedFrom(field: "validator")
+}
+
+"one row per validator an ImOnline.SomeOffline names and one per Validator.EquivocationReported"
+type ValidatorOffence @entity {
+  "the event id, with the validator after it on an Offline row"
+  id: ID!
+  validator: Validator! @index
+  "Offline or Equivocation"
+  kind: String!
+  block: Int!
+  timestamp: DateTime! @index
 }
 
 type DailyStat @entity {

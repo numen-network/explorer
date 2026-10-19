@@ -7,14 +7,15 @@ import {BlockLink} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtInt} from '@/lib/format'
-import type {ValidatorRow} from '@/lib/gql'
+import type {ValidatorListRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {variantName} from '@/lib/variant'
 
-const col = columnsFor<ValidatorRow>()
+const col = columnsFor<ValidatorListRow>()
 const num = {align: 'right', cellClassName: 'font-mono'} as const
+const tally = (v: ValidatorListRow, kind: string) => v.offences.filter(o => o.kind === kind).length
 
-export function ValidatorsTable({rows, chain}: {rows: ValidatorRow[]; chain: ChainProps}) {
+export function ValidatorsTable({rows, chain}: {rows: ValidatorListRow[]; chain: ChainProps}) {
     const columns = useMemo(
         () =>
             col.columns([
@@ -33,8 +34,8 @@ export function ValidatorsTable({rows, chain}: {rows: ValidatorRow[]; chain: Cha
                 }),
                 col.display({id: 'locked', header: 'Locked', meta: num, cell: ({row}) => fmtBalance(row.original.lockedAmount, chain.decimals, chain.symbol)}),
                 col.display({id: 'expiry', header: 'Lock expiry', meta: num, cell: ({row}) => (row.original.lockExpiry ? fmtInt(row.original.lockExpiry) : '—')}),
-                col.display({id: 'offline', header: 'Offline sessions', meta: num, cell: ({row}) => fmtInt(row.original.offlineSessions)}),
-                col.display({id: 'equivocations', header: 'Equivocations', meta: num, cell: ({row}) => fmtInt(row.original.equivocations)}),
+                col.display({id: 'offline', header: 'Offline (30d)', meta: num, cell: ({row}) => fmtInt(tally(row.original, 'Offline'))}),
+                col.display({id: 'equivocations', header: 'Equivocations (30d)', meta: num, cell: ({row}) => fmtInt(tally(row.original, 'Equivocation'))}),
                 col.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.firstSeenBlock} />}),
                 col.display({id: 'session', header: 'Last session', meta: num, cell: ({row}) => (row.original.lastActiveSession != null ? `#${fmtInt(row.original.lastActiveSession)}` : '—')}),
             ]),

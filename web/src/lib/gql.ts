@@ -2123,14 +2123,18 @@ export interface ValidatorRow {
 
 const VALIDATOR_FIELDS = `id active lockedAmount lockExpiry offlineSessions equivocations kicked firstSeenBlock lastActiveSession account { ${ACCOUNT_REF} }`
 
-export function validatorsPage(limit: number, offset: number) {
-    return gql<{validators: ValidatorRow[]; all: {totalCount: number}; active: {totalCount: number}}>(
-        `query ($limit: Int!, $offset: Int!) {
-            validators(orderBy: [lastActiveSession_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} }
+export interface ValidatorListRow extends ValidatorRow {
+    offences: {kind: string}[]
+}
+
+export function validatorsPage(since: string | null, limit: number, offset: number) {
+    return gql<{validators: ValidatorListRow[]; all: {totalCount: number}; active: {totalCount: number}}>(
+        `query ($since: DateTime, $limit: Int!, $offset: Int!) {
+            validators(orderBy: [lastActiveSession_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} offences(where: {timestamp_gt: $since}) { kind } }
             all: validatorsConnection(orderBy: id_ASC) { totalCount }
             active: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
         }`,
-        {limit, offset}
+        {since, limit, offset}
     )
 }
 

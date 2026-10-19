@@ -1,5 +1,6 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, BooleanColumn as BooleanColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, JSONColumn as JSONColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, BooleanColumn as BooleanColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, JSONColumn as JSONColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
+import {ValidatorOffence} from "./validatorOffence.model"
 
 @Entity_()
 export class Validator {
@@ -25,9 +26,15 @@ export class Validator {
     @IntColumn_({nullable: true})
     lockExpiry!: number | undefined | null
 
+    /**
+     * ImOnline.SomeOffline events naming it
+     */
     @IntColumn_({nullable: false})
     offlineSessions!: number
 
+    /**
+     * Validator.EquivocationReported events naming it
+     */
     @IntColumn_({nullable: false})
     equivocations!: number
 
@@ -45,4 +52,7 @@ export class Validator {
      */
     @IntColumn_({nullable: true})
     lastActiveSession!: number | undefined | null
+
+    @OneToMany_(() => ValidatorOffence, e => e.validator)
+    offences!: Relation_<ValidatorOffence[]>
 }

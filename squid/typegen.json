@@ -33,7 +33,6 @@
     "ConvictionVoting.VotingFor",
     "ConvictionVoting.ClassLocksFor",
     "Session.Validators",
-    "Validator.OfflineSessionCount",
     "Balances.Locks",
     "Balances.Holds",
     "Balances.TotalIssuance",

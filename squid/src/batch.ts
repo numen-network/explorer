@@ -39,6 +39,7 @@ import {
     Username,
     UsernameAuthority,
     Validator,
+    ValidatorOffence,
     Vote,
     VotingAction,
 } from './model'
@@ -146,7 +147,8 @@ export class BatchData {
     // slashes that follow it name only the depositor
     kills = new Map<string, number>()
     validators = new Map<string, Validator>()
-    validatorEvents: {name: string; args: any; height: number; header: any}[] = []
+    validatorEvents: {id: string; name: string; args: any; height: number; at: Date; header: any}[] = []
+    validatorOffences: ValidatorOffence[] = []
     registrarsDirty = false
     registrarAdded = new Map<number, number>()
     seatMoves: {header: any; index: number}[] = []

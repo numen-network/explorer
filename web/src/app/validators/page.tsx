@@ -1,6 +1,6 @@
 import Pager from '@/components/Pager'
 import {Card} from '@/components/ui/card'
-import {chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps, windowStart} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
 import {validatorsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -11,7 +11,8 @@ export const metadata = {title: 'Validators'}
 
 export default async function ValidatorsPage(props: PageProps<'/validators'>) {
     const pg = paging(await props.searchParams)
-    const [chain, data] = await Promise.all([chainProps(), validatorsPage(pg.size, pg.offset)])
+    const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
+    const data = await validatorsPage(windowStart(head, 30), pg.size, pg.offset)
 
     return (
         <div>

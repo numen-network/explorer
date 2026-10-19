@@ -527,7 +527,7 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
     }
     const name = ev.name ?? ''
     collectGovEvent(batch, ev.id, ev.index, name, ev.args, block.height, ev.block, ev.call ? originOf(ev.call) : undefined, ev.call?.args, ev.extrinsic?.id)
-    collectValidatorEvent(batch, name, ev.args, block.height, ev.block)
+    collectValidatorEvent(batch, ev.id, name, ev.args, block.height, at, ev.block)
     collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, at, ev)
     collectUsernameEvent(batch, name, ev.args, block.height, at, ev.block)
     collectMultisigEvent(batch, ev.id, name, ev.args, block.height, at, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined, ev.call)
@@ -708,6 +708,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert([...batch.tallySnapshots.values()])
     await ctx.store.upsert([...batch.spends.values()])
     await ctx.store.upsert([...batch.validators.values()])
+    await ctx.store.insert(batch.validatorOffences)
     await ctx.store.upsert(batch.days)
     await ctx.store.upsert(batch.hours)
     await ctx.store.upsert(batch.minerDays)
