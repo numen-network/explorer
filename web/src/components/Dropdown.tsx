@@ -28,14 +28,18 @@ function IconSlot({icon}: {icon: ReactNode}) {
     return <span className="inline-flex size-4 shrink-0 items-center justify-center [&_img]:m-0 [&_img]:size-4">{icon}</span>
 }
 
-// the note after the picked label, its hidden sizes drawn the same way
-const NOTE = 'ml-2 font-mono text-xs text-dim'
+// what trails a label, drawn alike in the trigger, its hidden sizes and the list
+const TAIL = {note: 'font-mono text-xs text-dim', count: 'text-xs text-dim tabular-nums'}
 
-// every label with its note, and every label in fit, sits hidden in the
+const tailOf = (o: {note?: string; count?: number}) => (o.note != null ? {text: o.note, cls: TAIL.note} : o.count != null ? {text: fmtInt(o.count), cls: TAIL.count} : null)
+
+// every label with what trails it, and every label in fit, sits hidden in the
 // trigger's one grid cell as generated content, so the trigger keeps the width
-// of the longest whichever is picked while its text stays the picked one alone
+// of the widest row whichever is picked while its text stays the picked one
+// alone. a list row spends the same room around its text as the trigger, so
+// the open list is exactly as wide
 export default function Dropdown<V extends string>({value, options, onChange, label, fit = [], className}: Props<V>) {
-    const sizes = new Map([...options, ...fit.map(f => ({label: f, note: undefined}))].map(o => [`${o.label}|${o.note ?? ''}`, o]))
+    const sizes = new Map([...options, ...fit.map(f => ({label: f, note: undefined}))].map(o => [`${o.label}|${tailOf(o)?.text ?? ''}`, {label: o.label, tail: tailOf(o)}]))
     const iconed = options.some(o => o.icon != null)
     const picked = options.find(o => o.value === value)
     return (
@@ -48,27 +52,35 @@ export default function Dropdown<V extends string>({value, options, onChange, la
                             <span
                                 key={key}
                                 data-fit={o.label}
-                                data-note={o.note}
+                                data-tail={o.tail?.text}
                                 aria-hidden
-                                className={cn('invisible col-start-1 row-start-1 truncate before:content-[attr(data-fit)]', o.note != null && 'after:ml-2 after:font-mono after:text-xs after:content-[attr(data-note)]')}
+                                className={cn(
+                                    'invisible col-start-1 row-start-1 truncate before:content-[attr(data-fit)]',
+                                    o.tail && 'after:ml-2 after:text-xs after:content-[attr(data-tail)]',
+                                    o.tail?.cls === TAIL.count && 'after:tabular-nums'
+                                )}
                             />
                         ))}
                         <span className="col-start-1 row-start-1 truncate">
                             {picked?.label}
-                            {picked?.note != null && <span className={NOTE}>{picked.note}</span>}
+                            {picked?.note != null && <span className={cn('ml-2', TAIL.note)}>{picked.note}</span>}
                         </span>
                     </span>
                 </SelectValue>
             </SelectTrigger>
-            <SelectContent align="start" className="border shadow-lg ring-0">
-                {options.map(o => (
-                    <SelectItem key={o.value} value={o.value} textValue={o.label} className="gap-3 py-1.5 pl-3 *:[span]:last:grow [&_svg]:text-primary">
-                        {iconed && <IconSlot icon={o.icon} />}
-                        {o.label}
-                        {o.note != null && <span className="ml-auto pl-5 font-mono text-xs text-dim">{o.note}</span>}
-                        {o.count != null && <span className="ml-auto pl-5 text-xs text-dim tabular-nums">{fmtInt(o.count)}</span>}
-                    </SelectItem>
-                ))}
+            <SelectContent align="start" className="min-w-0 border shadow-lg ring-0">
+                {options.map(o => {
+                    const tail = tailOf(o)
+                    return (
+                        <SelectItem key={o.value} value={o.value} textValue={o.label} className="gap-3 py-1.5 pl-3 *:[span]:last:grow *:[span]:last:gap-1.5 [&_svg]:text-primary">
+                            {iconed && <IconSlot icon={o.icon} />}
+                            <span className="flex grow items-center">
+                                {o.label}
+                                {tail && <span className={cn('ml-auto pl-2', tail.cls)}>{tail.text}</span>}
+                            </span>
+                        </SelectItem>
+                    )
+                })}
             </SelectContent>
         </Select>
     )

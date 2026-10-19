@@ -483,7 +483,7 @@ export function filterChips(root: Element, label: string) {
 }
 
 // the options of the filter select named label, each read as its label and
-// count, the picked one in brackets, or null when no such select shows. the
+// the count or contract after it, the picked one in brackets, or null when no such select shows. the
 // list opens to be read and closes again
 export async function filterOptions(root: HTMLElement, label: string) {
     const trigger = within(root).queryByRole('combobox', {name: label})
@@ -493,7 +493,7 @@ export async function filterOptions(root: HTMLElement, label: string) {
     const options = within(list)
         .getAllByRole('option')
         .map(option => {
-            const text = [...option.lastElementChild!.childNodes].map(node => node.textContent).filter(Boolean).join(' ')
+            const text = [...option.lastElementChild!.lastElementChild!.childNodes].map(node => node.textContent).join(' ')
             return option.getAttribute('aria-selected') === 'true' ? `[${text}]` : text
         })
     await userEvent.keyboard('{Escape}')

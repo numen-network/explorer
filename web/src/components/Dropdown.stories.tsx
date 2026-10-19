@@ -20,22 +20,34 @@ const ACTIONS = [
     {value: 'undelegate', label: 'Undelegate'},
 ]
 
+// the open list spends the same room around its text as the trigger, and the
+// trigger holds the widest row, counts and notes too, so the two match
+async function listAsWide(trigger: HTMLElement, userEvent: {click: (el: Element) => Promise<void>; keyboard: (keys: string) => Promise<void>}) {
+    const width = trigger.getBoundingClientRect().width
+    await userEvent.click(trigger)
+    const list = await screen.findByRole('listbox')
+    await waitFor(() => expect(Math.abs(list.closest('[data-slot=select-content]')!.getBoundingClientRect().width - width)).toBeLessThan(1))
+    await userEvent.keyboard('{Escape}')
+}
+
 export const Plain: Story = {
     render: () => <Demo options={ACTIONS} initial="all" />,
+    play: ({canvas, userEvent}) => listAsWide(canvas.getByRole('combobox', {name: 'Pick'}), userEvent),
 }
 
 export const WithCounts: Story = {
     render: () => (
         <Demo
             options={[
-                {value: '', label: 'All', count: 152_131},
+                {value: 'all', label: 'All', count: 152_131},
                 {value: 'Balances', label: 'Balances', count: 599},
                 {value: 'Identity', label: 'Identity', count: 0},
                 {value: 'Timestamp', label: 'Timestamp', count: 137_749},
             ]}
-            initial=""
+            initial="all"
         />
     ),
+    play: ({canvas, userEvent}) => listAsWide(canvas.getByRole('combobox', {name: 'Pick'}), userEvent),
 }
 
 export const SingleOption: Story = {
@@ -93,5 +105,6 @@ export const WithNotes: Story = {
         await userEvent.click(await screen.findByRole('option', {name: /^LONGNAME/}))
         await expect(trigger).toHaveTextContent(/^LONGNAME0xe3e3…e3e3$/)
         await expect(trigger.getBoundingClientRect().width).toBe(width)
+        await listAsWide(trigger, userEvent)
     },
 }
