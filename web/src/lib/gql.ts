@@ -1201,7 +1201,7 @@ export function tokenTransferPairsFor(address: string, token: string, sort: Coun
     return counterparties('tokenTransferPairs', 'address_eq: $a, token: {id_eq: $t}', 'counterparty', 'tokenHolderById(id: $h)', {a: address, t: token, h: `${token}-${address}`}, sort, limit, offset)
 }
 
-export interface CounterpartyToken {
+export interface TokenRef {
     id: string
     symbol: string | null
     decimals: number | null
@@ -1210,7 +1210,7 @@ export interface CounterpartyToken {
 // every token the address ever moved, since each transfer leaves a holder row
 // on both sides
 export async function counterpartyTokens(address: string) {
-    const {holders} = await gql<{holders: {token: CounterpartyToken}[]}>(
+    const {holders} = await gql<{holders: {token: TokenRef}[]}>(
         `query ($a: String!) {
             holders: tokenHolders(where: {address_eq: $a}, orderBy: [token_symbol_ASC, token_id_ASC], limit: 1000) { token { id symbol decimals } }
         }`,

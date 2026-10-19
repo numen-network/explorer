@@ -1,11 +1,9 @@
-import logo from '@/app/icon.svg'
 import Approx from '@/components/Approx'
 import {shortAddr} from '@/components/AddressText'
 import {RingChart} from '@/components/charts'
 import Pager from '@/components/Pager'
 import Swatch from '@/components/Swatch'
-import TokenIcon from '@/components/TokenIcon'
-import {FilterSelect} from '@/components/pills'
+import TokenSelect from '@/components/TokenSelect'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {COUNTERPARTY_SORTS, loadCounterparty, type CounterpartySort} from '@/lib/actionFilters'
 import {ACCENT, GRAY, tint} from '@/lib/chartColors'
@@ -94,7 +92,7 @@ export default async function Counterparties({hex, addr, chain, sp, evm, native}
     return (
         <div className="flex flex-col gap-4">
             {tokens.length > 0 && (
-                <FilterSelect label="Token" all={false} values={[...(native ? [''] : []), ...tokens.map(t => t.id)]} labelOf={id => (id ? (tokens.find(t => t.id === id)!.symbol ?? shortHash(id)) : chain.symbol)} iconOf={id => (id ? <TokenIcon addr={id} /> : <img src={logo.src} alt="" />)} noteOf={id => (tokens.find(t => t.id === id)?.symbol != null ? shortHash(id) : undefined)} value={picked} href={t => href(t, sort)} />
+                <TokenSelect tokens={tokens} native={native ? chain.symbol : undefined} value={picked} href={t => href(t, sort)} />
             )}
             <div className="grid gap-4 lg:grid-cols-2">
                 <RingCard title={`${asset.symbol} Transfer-in Accounts`} slices={slicesOf(pairs.ins, pairs.nIn, volumeIn, r => BigInt(r.amountIn))} count={pairs.nIn} total={volumeIn} self={self} ss58={chain.ss58} asset={asset} />
