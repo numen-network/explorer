@@ -1,5 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
+import {expect} from 'storybook/test'
 import {HEAD, hashOf, squidId} from '../../../mock/fixtures.js'
 import {evmTxHash} from '../../../mock/fixtures/blocks.js'
 import {BlockLink, EventLink, EvmAddrLink, EvmTxLink, ExtrinsicLink, Jump} from './links'
@@ -64,6 +65,10 @@ export const EventLinks: Story = {
     ),
 }
 
+const SHORT_ADDRESS = `${ADDRESS.slice(0, 6)}…${ADDRESS.slice(-4)}`
+
+// an EVM address shortens like any hex, 0x4…4, and a full one in a table cell
+// falls back to that on a phone
 export const EvmAddressLinks: Story = {
     render: () => (
         <>
@@ -73,21 +78,65 @@ export const EvmAddressLinks: Story = {
             <Case label="full">
                 <EvmAddrLink addr={ADDRESS} full />
             </Case>
+            <Case label="full in a table cell">
+                <table>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <EvmAddrLink addr={ADDRESS} full />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </Case>
         </>
     ),
+    play: async ({canvas, canvasElement}) => {
+        const [short, full, cell] = canvas.getAllByRole('link')
+        await expect(short).toHaveTextContent(SHORT_ADDRESS)
+        await expect(full.textContent).toContain(ADDRESS)
+        const phone = window.matchMedia('(max-width: 639px)').matches
+        const shown = [...cell.querySelectorAll('span')].filter(s => s.offsetParent != null && s.childElementCount <= 1).map(s => s.textContent)
+        await expect(shown).toContain(phone ? SHORT_ADDRESS : ADDRESS)
+        expect(canvasElement.textContent).not.toContain(`${ADDRESS.slice(0, 7)}…`)
+    },
 }
 
+const TX = evmTxHash(HEAD)
+const SHORT_TX = `${TX.slice(0, 6)}…${TX.slice(-4)}`
+
+// a tx hash shows the way an EVM address does, 0x4…4 short, and a full one in
+// a table cell falls back to that on a phone
 export const EvmTxLinks: Story = {
     render: () => (
         <>
             <Case label="short">
-                <EvmTxLink hash={evmTxHash(HEAD)} />
+                <EvmTxLink hash={TX} />
             </Case>
             <Case label="full">
-                <EvmTxLink hash={evmTxHash(HEAD)} full />
+                <EvmTxLink hash={TX} full />
+            </Case>
+            <Case label="full in a table cell">
+                <table>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <EvmTxLink hash={TX} full />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </Case>
         </>
     ),
+    play: async ({canvas}) => {
+        const [short, full, cell] = canvas.getAllByRole('link')
+        await expect(short).toHaveTextContent(SHORT_TX)
+        await expect(full.textContent).toContain(TX)
+        const phone = window.matchMedia('(max-width: 639px)').matches
+        const shown = [...cell.querySelectorAll('span')].filter(s => s.offsetParent != null && s.childElementCount <= 1).map(s => s.textContent)
+        await expect(shown).toContain(phone ? SHORT_TX : TX)
+    },
 }
 
 export const JumpMark: Story = {

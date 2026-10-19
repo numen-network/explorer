@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import {ArrowUpRight} from 'lucide-react'
 import {AddrMark} from '@/components/addrHot'
-import AddressText from '@/components/AddressText'
+import HashText from '@/components/HashText'
 import {Tip} from '@/components/Tip'
-import {extrinsicPath, fmtInt, shortHash} from '@/lib/format'
+import {extrinsicPath, fmtInt} from '@/lib/format'
 
 // marks a link that leaves for somewhere else, sized to whatever text it sits in
 export function Jump() {
@@ -49,7 +49,7 @@ export function EvmAddrLink({addr, full = false}: {addr: string; full?: boolean}
         <AddrMark addr={addr}>
             <Tip text={full ? undefined : addr}>
                 <Link href={`/address/${addr}`} className="font-mono text-primary hover:underline">
-                    <AddressText addr={addr} full={full} />
+                    <HashText hash={addr} full={full} />
                 </Link>
             </Tip>
         </AddrMark>
@@ -60,7 +60,7 @@ export function EvmTxLink({hash, full = false}: {hash: string; full?: boolean}) 
     return (
         <Tip text={full ? undefined : hash}>
             <Link href={`/tx/${hash}`} className="font-mono text-primary hover:underline">
-                {full ? hash : shortHash(hash)}
+                <HashText hash={hash} full={full} />
             </Link>
         </Tip>
     )

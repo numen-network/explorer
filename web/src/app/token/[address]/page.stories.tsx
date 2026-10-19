@@ -1,7 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import type {RequestHandler} from 'msw'
 import {expect, within} from 'storybook/test'
-import {shortAddr} from '@/components/AddressText'
 import {fmtInt, shortHash} from '@/lib/format'
 import type {EvmActivity, TokenRow} from '@/lib/gql'
 import {HEAD, rows} from '../../../../../mock/fixtures.js'
@@ -78,7 +77,7 @@ const chips = (canvas: HTMLElement, label: string) => [...within(canvas).getByTe
 // the create tx names who deployed the token and where
 export const Deployed: StoryObj = {
     ...tokenPage(orbit, {holders: holders(orbit, 5)}),
-    play: async ({canvasElement}) => expect(chips(canvasElement, 'Deployed at')).toEqual([`${shortAddr(orbit.deployTx!.from)} · creator`, `${shortHash(orbit.deployTx!.id)} · tx`]),
+    play: async ({canvasElement}) => expect(chips(canvasElement, 'Deployed at')).toEqual([`${shortHash(orbit.deployTx!.from)} · creator`, `${shortHash(orbit.deployTx!.id)} · tx`]),
 }
 
 // a factory built token or one older than the index has no create tx, only the block it first moved in
@@ -96,7 +95,7 @@ export const ProxyUpgradeable: StoryObj = {
     ...proxied('Eip1967Direct', evmAddress(40)),
     play: async ({canvas, canvasElement}) => {
         expect(canvas.getByRole('heading', {level: 1}).querySelector('[data-slot=badge]')).toHaveTextContent('Proxy')
-        expect(canvas.getByText(shortAddr(evmAddress(40)))).toBeVisible()
+        expect(canvas.getByText(shortHash(evmAddress(40)))).toBeVisible()
         expect(chips(canvasElement, 'Implementation')).toEqual(['EIP-1967 · upgradeable'])
         expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
     },

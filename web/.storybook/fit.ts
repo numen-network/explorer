@@ -351,15 +351,18 @@ export function expectShortHashes(...texts: string[]) {
     for (const text of texts) expect(text).toMatch(/(^|\s)0x[0-9a-fA-F]{4}…[0-9a-fA-F]{4}$/)
 }
 
-// every address a link shows reads in one whole form, its 7…4 split in a table
-// cell narrower than sm and the full address anywhere else, and no box inside
-// the link cuts it off
+// every address a link shows reads in one whole form, its short split in a
+// table cell narrower than sm, nu5…4 for an account and 0x4…4 for an EVM
+// address, and the full address anywhere else, and no box inside the link cuts
+// it off
 export function expectAddressForm(root: Element) {
     const links = [...root.querySelectorAll<HTMLElement>('a[href^="/account/"], a[href^="/address/"]')].filter(a => /^(nu|0x)[\w…]+$/.test(a.innerText.trim()))
     expect(links.length).toBeGreaterThan(0)
     const narrow = matchMedia('(width < 40rem)').matches
     for (const link of links) {
-        expect(link.innerText.trim()).toMatch(narrow && link.closest('td') ? /^\w{7}…\w{4}$/ : /^\w{42,}$/)
+        const text = link.innerText.trim()
+        const short = text.startsWith('0x') ? /^0x[0-9a-fA-F]{4}…[0-9a-fA-F]{4}$/ : /^nu\w{5}…\w{4}$/
+        expect(text).toMatch(narrow && link.closest('td') ? short : /^\w{42,}$/)
         expectFits(link, ...link.querySelectorAll('span'))
     }
 }

@@ -734,8 +734,8 @@ export const CounterpartiesToken: StoryObj = {
         const list = await within(document.body).findByRole('listbox')
         expect(within(list).getAllByRole('option').map(o => o.querySelector('img') != null)).toEqual([true, false, false, true, false])
         await userEvent.keyboard('{Escape}')
-        expect(ring(canvasElement, 'WTMR Transfer-in Accounts')).toEqual([['0x00000…0000', '≈255.01K WTMR', '100.00%']])
-        expect(columnTexts(canvasElement, 'Account')).toEqual(['0x00000…0000', '0xacc96…adad'])
+        expect(ring(canvasElement, 'WTMR Transfer-in Accounts')).toEqual([['0x0000…0000', '≈255.01K WTMR', '100.00%']])
+        expect(columnTexts(canvasElement, 'Account')).toEqual(['0x0000…0000', '0xacc9…adad'])
         expect(columnTexts(canvasElement, 'Transfer-in Volume')).toEqual(['≈255.01K WTMR', '0 WTMR'])
     },
 }
