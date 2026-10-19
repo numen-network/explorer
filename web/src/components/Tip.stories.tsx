@@ -1,5 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect, screen} from 'storybook/test'
+import Link from 'next/link'
+import {expect, screen, waitFor} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {account, chainInfo} from '../../../mock/fixtures.js'
 import {Tip} from './Tip'
@@ -89,5 +90,54 @@ export const NoText: Story = {
     play: async ({canvas, userEvent}) => {
         await userEvent.hover(canvas.getByText('hover me'))
         await expect(screen.queryByRole('tooltip')).toBeNull()
+    },
+}
+
+// a screen with no hover, the way a phone answers the media query the tip reads
+const touchScreen = () => {
+    const real = window.matchMedia
+    window.matchMedia = (query: string) =>
+        query === '(hover: none)'
+            ? ({matches: true, media: query, onchange: null, addEventListener: () => {}, removeEventListener: () => {}, addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false} as MediaQueryList)
+            : real.call(window, query)
+    return () => {
+        window.matchMedia = real
+    }
+}
+
+// on a touch screen a tap opens the text, and a tap anywhere else closes it
+export const TapOnTouch: Story = {
+    beforeEach: touchScreen,
+    render: () => (
+        <Stage>
+            <Tip text={HASH}>
+                <span>tap me</span>
+            </Tip>
+        </Stage>
+    ),
+    play: async ({canvas, userEvent}) => {
+        await userEvent.click(canvas.getByText('tap me'))
+        await expect(await screen.findByRole('dialog')).toHaveTextContent(HASH)
+        await userEvent.click(document.body)
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    },
+}
+
+// a link keeps its tap for where it goes
+export const TapOnTouchLink: Story = {
+    beforeEach: touchScreen,
+    render: () => (
+        <Stage>
+            <Tip text={HASH}>
+                <Link href="/blocks" className="text-primary underline">
+                    tap me
+                </Link>
+            </Tip>
+        </Stage>
+    ),
+    play: async ({canvas, userEvent}) => {
+        await userEvent.click(canvas.getByText('tap me'))
+        await new Promise(r => setTimeout(r, 300))
+        await expect(screen.queryByRole('dialog')).toBeNull()
     },
 }
