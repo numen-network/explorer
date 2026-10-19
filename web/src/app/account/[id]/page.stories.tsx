@@ -30,6 +30,7 @@ import {
     MULTISIG_ENDS,
     membership,
     memberships,
+    multisigCall,
     multisigOp,
     multisigOps,
     NOT_HELD,
@@ -62,6 +63,7 @@ import {
     voteActionRows,
     voteRows,
 } from '../../../../../mock/fixtures/accounts.js'
+import {batchAll} from '../../../../../mock/fixtures/blocks.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
 import {columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, filterOptions, tabCount, tokenLabels} from '../../../../.storybook/fit'
 import {AVATAR_HOST, avatars} from '../../../../.storybook/avatar'
@@ -261,7 +263,7 @@ export const EveryRole: StoryObj = {
         tokens: 3,
         curated: 1,
         delegationsIn: delegatedFrom(3),
-        multisigOps: [multisigOp(0, {multisig: ME, depositor: PEOPLE[1], signatories: SIGNATORIES, threshold: 3})],
+        multisigOps: [multisigOp(0, {multisig: ME, approvals: SIGNATORIES.slice(1, 3), signatories: SIGNATORIES, threshold: 3})],
         proxiesIn: proxyFor(2),
         transfers: accountTransfers(4),
         payouts: EVERY_PAYOUT,
@@ -308,7 +310,7 @@ export const ProxiesDelayed: StoryObj = {
 }
 
 const multisigSelf = (threshold: number, signatories: string[]): StoryObj => ({
-    ...story({multisigOps: [multisigOp(0, {multisig: ME, depositor: PEOPLE[1], signatories, threshold})], refs: PEOPLE.slice(0, 3), transfers: accountTransfers(3)}),
+    ...story({multisigOps: [multisigOp(0, {multisig: ME, approvals: signatories.slice(1, 3), signatories, threshold})], refs: PEOPLE.slice(0, 3), transfers: accountTransfers(3)}),
     play: async ({canvasElement}) => expect(tones(canvasElement)).toEqual({[`Multisig ${threshold}/${signatories.length}`]: threshold === 1 || threshold === signatories.length ? 'warn' : 'idle'}),
 })
 
@@ -899,7 +901,13 @@ const strip = (root: HTMLElement, name: string, param: string) =>
         .getAllByRole('link')
         .map(a => [new URL(a.getAttribute('href')!, 'http://x').searchParams.get(param), a.querySelector('[data-slot=badge]')!.textContent, a.getAttribute('aria-current')])
 
-const asAddress = (count: number) => MULTISIG_ENDS.map((end, i) => multisigOp(i, {threshold: 3, ...end, multisig: ME, depositor: person(i), signatories: SIGNATORIES})).slice(0, count)
+// the subject as the multisig, each operation approved by a run of its signatories
+const addressOp = (i: number) => {
+    const end = MULTISIG_ENDS[i % MULTISIG_ENDS.length]
+    return multisigOp(i, {threshold: 3, ...end, approvals: SIGNATORIES.slice(i % 3, (i % 3) + (end.approvals?.length ?? 2)), multisig: ME, signatories: SIGNATORIES})
+}
+
+const asAddress = (count: number) => Array.from({length: count}, (_, i) => addressOp(i))
 
 // a multisig link opens the signatory side of an account that is no multisig
 export const MultisigSignatoryOnly: StoryObj = {
@@ -935,6 +943,20 @@ export const MultisigAccount: StoryObj = {
     play: async ({canvasElement}) => expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([['multisig', String(MULTISIG_ENDS.length), 'page']]),
 }
 
+const ran = multisigCall(ME, batchAll)
+
+// an expanded operation loads its call tree and its signatories with the page
+export const MultisigOperationCall: StoryObj = {
+    ...story({multisigOps: [{...addressOp(2), call: ran.call}], multisigCalls: ran.calls, refs: PEOPLE}, {tab: 'multisig'}),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await userEvent.click(await canvas.findByRole('button', {name: 'expand'}))
+        expect(canvas.getByRole('heading', {name: 'Approvals'})).toBeVisible()
+        expect(canvas.getAllByText('Utility.batch_all')).toHaveLength(2)
+        expect(canvas.getAllByText('Balances.transfer_keep_alive')).toHaveLength(ran.calls.length - 1)
+    },
+}
+
 // each signatory's approvals and openings over the six operations, the tile above them
 export const MultisigSignatories: StoryObj = {
     ...story({multisigOps: asAddress(MULTISIG_ENDS.length), refs: PEOPLE}, {tab: 'multisig', mtab: 'signatories'}),
@@ -945,8 +967,8 @@ export const MultisigSignatories: StoryObj = {
         ])
         expect(summaries(canvasElement)).toEqual([{Threshold: `3 of ${SIGNATORIES.length}`, Pending: '3', Operations: String(MULTISIG_ENDS.length)}])
         const cells = (i: number) => [...canvasElement.querySelectorAll('tbody tr')].map(tr => tr.children[i].textContent)
-        expect(cells(1)).toEqual(['4', '2', '0', '0', '0'])
-        expect(cells(2)).toEqual(['1', '1', '1', '1', '1'])
+        expect(cells(1)).toEqual(['2', '3', '3', '1', '0'])
+        expect(cells(2)).toEqual(['2', '2', '2', '0', '0'])
     },
 }
 
@@ -960,7 +982,7 @@ export const MultisigBothSides: StoryObj = {
         ]),
 }
 
-const manyOps = Array.from({length: 45}, (_, i) => multisigOp(i, {threshold: 3, ...MULTISIG_ENDS[i % MULTISIG_ENDS.length], multisig: ME, depositor: person(i), signatories: SIGNATORIES}))
+const manyOps = asAddress(45)
 
 export const MultisigMany = story({multisigOps: manyOps}, {tab: 'multisig'})
 

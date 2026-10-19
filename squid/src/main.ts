@@ -506,7 +506,7 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
     collectValidatorEvent(batch, name, ev.args, block.height, ev.block)
     collectAnnotationEvent(batch, ev.id, name, ev.args, block.height, at, ev)
     collectUsernameEvent(batch, name, ev.args, block.height, at, ev.block)
-    collectMultisigEvent(batch, name, ev.args, block.height, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined)
+    collectMultisigEvent(batch, ev.id, name, ev.args, block.height, at, extrinsic != null ? {id: extrinsic.id, indexInBlock: extrinsic.indexInBlock} : undefined, ev.call)
     collectBountyEvent(batch, ev.id, name, ev.args, block.height, at, ev.block, signerOf(ev.extrinsic), ev.extrinsic?.id)
 }
 

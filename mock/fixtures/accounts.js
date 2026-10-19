@@ -1,5 +1,6 @@
 import data from '../data.js'
 import {account, acct, at, base, block, chainInfo, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer} from '../fixtures.js'
+import {mined, pick, timestampSet} from './blocks.js'
 
 // the account every account page story is about, and the H160 it maps from
 export const SUBJECT = account(77)
@@ -239,21 +240,45 @@ export const proxyFor = count => Array.from({length: count}, (_, i) => proxy(i +
 // one delegate of one type held several times over, apart only in the delay, shortest first
 export const proxyDelays = (delegatee, proxyType, delays) => delays.map((delay, i) => proxy(i, {delegatee, proxyType, delay}))
 
-export const multisigOp = (i, traits = {}) => ({
-    id: `multisig-${i}`,
-    callHash: hashOf('call', i),
-    approvals: [account(1), account(2)],
-    threshold: 2,
-    signatories: [account(1), account(2), SUBJECT],
-    status: 'MultisigExecuted',
-    result: {__kind: 'Ok'},
-    deposit: numn(20.088),
-    createdBlock: HEAD - 4_000 - i * 700,
-    updatedBlock: HEAD - 3_000 - i * 700,
-    multisig: person(i + 2),
-    depositor: ME,
-    ...traits,
-})
+const refOf = id => (id === SUBJECT ? ME : (PEOPLE.find(p => p.id === id) ?? {id, identityDisplay: null}))
+
+// the events the approvals and the status leave behind, the first approver
+// opening the operation and a cancel coming from that same depositor
+function timelineOf(op) {
+    const steps = op.approvals.map((who, k) => ({name: k === 0 ? 'Multisig.NewMultisig' : 'Multisig.MultisigApproval', account: who, block: op.createdBlock + k * 40}))
+    if (op.status === 'MultisigExecuted') steps.at(-1).name = 'Multisig.MultisigExecuted'
+    if (op.status === 'MultisigCancelled') steps.push({name: 'Multisig.MultisigCancelled', account: op.approvals[0], block: op.updatedBlock})
+    return steps.map(s => ({...s, event: squidId(s.block, 3), timestamp: at(s.block), extrinsic: squidId(s.block, 1)}))
+}
+
+export const multisigOp = (i, traits = {}) => {
+    const op = {
+        id: `multisig-${i}`,
+        callHash: hashOf('call', i),
+        approvals: [account(1), account(2)],
+        threshold: 2,
+        signatories: [account(1), account(2), SUBJECT],
+        status: 'MultisigExecuted',
+        result: {__kind: 'Ok'},
+        deposit: numn(20.088),
+        createdBlock: HEAD - 4_000 - i * 700,
+        updatedBlock: HEAD - 3_000 - i * 700,
+        multisig: person(i + 2),
+        call: null,
+        ...traits,
+    }
+    return {depositor: refOf(op.approvals[0]), timeline: timelineOf(op), ...op}
+}
+
+// the call an operation runs and the tree under it, dispatched as the multisig
+export function multisigCall(multisig, spec, height = HEAD - 120) {
+    const {calls} = pick(mined(height, [timestampSet, spec]), 1)
+    const [root] = calls
+    return {
+        call: {id: root.id, pallet: root.pallet, method: root.method, extrinsic: {id: root.id}},
+        calls: calls.map(c => ({...c, origin: multisig})),
+    }
+}
 
 // every way an operation can stand, the open ones first
 export const MULTISIG_ENDS = [
@@ -262,7 +287,7 @@ export const MULTISIG_ENDS = [
     {status: 'MultisigExecuted', result: {__kind: 'Ok'}},
     {status: 'MultisigExecuted', result: {__kind: 'Err', value: FAILED}},
     {status: 'MultisigCancelled', approvals: [account(1)], result: null},
-    {status: 'NewMultisig', approvals: [account(3)], result: null, depositor: person(2)},
+    {status: 'NewMultisig', approvals: [account(3)], result: null},
 ]
 
 export const multisigOps = () => MULTISIG_ENDS.map((end, i) => multisigOp(i, end))
@@ -593,6 +618,7 @@ export function accountPage({
     proxiesOut = [],
     proxiesIn = [],
     multisigOps = [],
+    multisigCalls = [],
     memberships = [],
     votes = [],
     voteActions = [],
@@ -666,6 +692,8 @@ export function accountPage({
         multisigById: asMultisig[0]
             ? {threshold: asMultisig[0].threshold, signatories: asMultisig[0].signatories, pending: asMultisig.filter(o => OPEN.includes(o.status)).length, operations: asMultisig.length}
             : null,
+        calls: ({where}) => multisigCalls.filter(c => c.id.startsWith(where.id_startsWith)),
+        callsConnection: ({where}) => count(multisigCalls.filter(c => c.id.startsWith(where.id_startsWith)).length),
         multisigsConnection: count(counts.memberships ?? memberships.length),
         multisigs: paged(memberships),
         // the vote record lists every referendum, one through the highest the account voted on unless set

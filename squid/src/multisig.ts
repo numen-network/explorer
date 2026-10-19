@@ -17,10 +17,13 @@ import {storage} from './types'
 const OPEN = new Set(['NewMultisig', 'MultisigApproval'])
 
 export interface MsigEvent {
+    id: string
     name: string
     args: any
     height: number
+    at: Date
     extrinsic?: {id: string; indexInBlock: number}
+    call?: {id: string; name: string}
 }
 
 export function collectMultisigCall(batch: BatchData, name: string, args: any, extrinsicId: string): void {
@@ -52,7 +55,7 @@ function openingCall(batch: BatchData, ev: MsigEvent): {threshold: number; signa
     throw new Error(`NewMultisig ${ev.args.multisig} at block ${ev.height} has no call that derives it`)
 }
 
-export function collectMultisigEvent(batch: BatchData, name: string, args: any, height: number, extrinsic?: {id: string; indexInBlock: number}): void {
+export function collectMultisigEvent(batch: BatchData, id: string, name: string, args: any, height: number, at: Date, extrinsic?: {id: string; indexInBlock: number}, call?: {id: string; name: string}): void {
     if (!name.startsWith('Multisig.')) return
     // a poke names neither the multisig account nor the timepoint, so the
     // operation is found by depositor and call hash and reread with the rest
@@ -63,7 +66,7 @@ export function collectMultisigEvent(batch: BatchData, name: string, args: any, 
     }
     batch.touch(args.approving ?? args.cancelling, height)
     batch.touch(args.multisig, height)
-    batch.msigEvents.push({name, args, height, extrinsic})
+    batch.msigEvents.push({id, name, args, height, at, extrinsic, call})
 }
 
 export async function finalizeMultisig(batch: BatchData, lastHeader: any, store: Store): Promise<void> {
@@ -78,7 +81,7 @@ export async function finalizeMultisig(batch: BatchData, lastHeader: any, store:
         // back whole and a relation nobody loaded writes its column away
         const rows = await store.find(MultisigOp, {
             where: {id: In([...wanted])},
-            relations: {multisig: true, depositor: true},
+            relations: {multisig: true, depositor: true, call: true},
         })
         for (const op of rows) batch.msigOps.set(op.id, op)
     }
@@ -91,7 +94,7 @@ async function loadPoked(batch: BatchData, store: Store): Promise<void> {
     if (batch.msigPokes.length === 0) return
     const rows = await store.find(MultisigOp, {
         where: batch.msigPokes.map(p => ({depositor: {id: p.depositor}, callHash: p.callHash, status: In([...OPEN])})),
-        relations: {multisig: true, depositor: true},
+        relations: {multisig: true, depositor: true, call: true},
     })
     for (const op of rows) if (!batch.msigOps.has(op.id)) batch.msigOps.set(op.id, op)
 }
@@ -142,14 +145,17 @@ function applyMsigEvent(batch: BatchData, ev: MsigEvent): void {
                 threshold,
                 signatories,
                 status: 'NewMultisig',
+                timeline: [],
                 createdBlock: ev.height,
                 updatedBlock: ev.height,
             })
         )
+        record(batch, batch.msigOps.get(id)!, ev)
         return
     }
     const op = batch.msigOps.get(id)
     if (op == null) return
+    record(batch, op, ev)
     op.updatedBlock = ev.height
     op.status = ev.name.split('.')[1]
     switch (ev.name) {
@@ -161,6 +167,17 @@ function applyMsigEvent(batch: BatchData, ev: MsigEvent): void {
             op.result = toJSON(args.result)
             break
     }
+}
+
+// as_multi carries the call in full and squid files it as the first subcall,
+// the one an executing as_multi dispatched being the last word on it
+function record(batch: BatchData, op: MultisigOp, ev: MsigEvent): void {
+    const step = {event: ev.id, name: ev.name, account: ev.args.approving ?? ev.args.cancelling, block: ev.height, timestamp: ev.at.toISOString(), extrinsic: ev.extrinsic?.id ?? null}
+    op.timeline = [...(op.timeline as any[]), step]
+    if (ev.call?.name !== 'Multisig.as_multi') return
+    const inner = `${ev.call.id}-000000`
+    op.call = batch.callById.get(inner) ?? null
+    if (op.call == null) throw new Error(`${ev.name} ${ev.id} has no call under its as_multi`)
 }
 
 // the counts are read back from the stored operations, so a batch that sees

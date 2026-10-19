@@ -3,9 +3,12 @@ import StatTile from '@/components/StatTile'
 import {TabBar} from '@/components/Tabs'
 import {Card} from '@/components/ui/card'
 import {fmtInt} from '@/lib/format'
-import {membershipsFor, multisigOpsFor, signatoriesOf, type MultisigSet} from '@/lib/gql'
+import {markArgs} from '@/lib/argMarks'
+import {withCallViews} from '@/lib/args'
+import {accountRefs, membershipsFor, multisigCalls, multisigOpsFor, signatoriesOf, type MultisigOpRow, type MultisigSet} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {MembershipTable} from './MembershipTable'
+import type {MultisigCall} from './MultisigDetail'
 import {MultisigTable} from './MultisigTable'
 import {SignatoryTable} from './SignatoryTable'
 import {tabHref, type TabCtx} from './shared'
@@ -29,13 +32,27 @@ export async function MultisigAddress({hex, addr, chain, sp, set}: TabCtx & {set
     )
 }
 
+// what the expanded rows of a page show, loaded with the page
+async function details(ops: MultisigOpRow[]) {
+    const ids = ops.flatMap(op => (op.call ? [op.call.id] : []))
+    const people = [...new Set(ops.flatMap(op => [...op.signatories, ...op.timeline.map(s => s.account)]))]
+    const [trees, refs] = await Promise.all([multisigCalls(ids), accountRefs(people)])
+    const views = trees.map(t => ({calls: withCallViews(t.calls), total: t.total}))
+    await markArgs(views.flatMap(t => t.calls.map(c => c.view)))
+    return {
+        calls: Object.fromEntries(ids.map((id, i) => [id, views[i]])) as Record<string, MultisigCall>,
+        accounts: Object.fromEntries(refs.accounts.map(a => [a.id, a])),
+    }
+}
+
 async function AddressOperations({hex, addr, chain, sp}: TabCtx) {
     const pg = paging(sp)
     const {multisigOps, conn} = await multisigOpsFor(hex, 'address', pg.size, pg.offset)
+    const {calls, accounts} = await details(multisigOps)
     return (
         <>
             <Card size="flush">
-                <MultisigTable rows={multisigOps} side="address" hex={hex} chain={chain} />
+                <MultisigTable rows={multisigOps} side="address" hex={hex} calls={calls} accounts={accounts} chain={chain} />
             </Card>
             <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, ADDRESS, {mtab: 'operations'})} />
         </>
@@ -82,10 +99,11 @@ export async function MultisigSignatory({hex, addr, chain, sp, operations, membe
 async function SignatoryOperations({hex, addr, chain, sp}: TabCtx) {
     const pg = paging(sp)
     const {multisigOps, conn} = await multisigOpsFor(hex, 'signatory', pg.size, pg.offset)
+    const {calls, accounts} = await details(multisigOps)
     return (
         <>
             <Card size="flush">
-                <MultisigTable rows={multisigOps} side="signatory" hex={hex} chain={chain} />
+                <MultisigTable rows={multisigOps} side="signatory" hex={hex} calls={calls} accounts={accounts} chain={chain} />
             </Card>
             <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, SIGNATORY, {mtab: 'operations'})} />
         </>

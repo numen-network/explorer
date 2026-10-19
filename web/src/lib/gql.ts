@@ -300,6 +300,7 @@ export interface EventRow {
 }
 
 const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method leafCalls success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp }`
+const CALL_FIELDS = `id address pallet method args success origin { ${ACCOUNT_REF} } events(orderBy: indexInBlock_ASC) { pallet method } block { specVersion } subcalls(limit: 1) { id }`
 const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id } block { height timestamp specVersion }`
 
 // newest first by chain position. event indices run across the whole
@@ -382,7 +383,7 @@ export function extrinsicDetail(height: number, index: number, page: Slice) {
     }>(
         `query ($height: Int!, $index: Int!, $limit: Int!, $offset: Int!) {
             extrinsics(where: {block: {height_eq: $height}, indexInBlock_eq: $index}, limit: 1) { ${EXTRINSIC_FIELDS} }
-            calls(where: ${of}, orderBy: id_ASC, limit: $limit, offset: $offset) { id address pallet method args success origin { ${ACCOUNT_REF} } events(orderBy: indexInBlock_ASC) { pallet method } block { specVersion } subcalls(limit: 1) { id } }
+            calls(where: ${of}, orderBy: id_ASC, limit: $limit, offset: $offset) { ${CALL_FIELDS} }
             callCount: callsConnection(where: ${of}, orderBy: id_ASC) { totalCount }
             events(where: ${of}, orderBy: indexInBlock_ASC, limit: $limit, offset: $offset) { ${EVENT_FIELDS} }
             eventCount: eventsConnection(where: ${of}, orderBy: id_ASC) { totalCount }
@@ -438,6 +439,17 @@ export interface ProxyRow {
     delegatee?: AccountRef
 }
 
+/** One lifecycle event of a multisig operation, as the indexer files it. */
+export interface MultisigStep {
+    event: string
+    name: string
+    account: string
+    block: number
+    timestamp: string
+    /** Null for a step a dispatch outside any extrinsic took, a scheduled call say. */
+    extrinsic: string | null
+}
+
 export interface MultisigOpRow {
     id: string
     callHash: string
@@ -449,6 +461,8 @@ export interface MultisigOpRow {
     createdBlock: number
     multisig: AccountRef
     depositor: AccountRef
+    call: {id: string; pallet: string; method: string; extrinsic: {id: string}} | null
+    timeline: MultisigStep[]
 }
 
 export interface MembershipRow {
@@ -846,13 +860,28 @@ export function multisigOpsFor(idHex: string, side: MultisigSide, limit: number,
     return gql<{multisigOps: MultisigOpRow[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
             multisigOps(where: ${where}, orderBy: [createdBlock_DESC, id_DESC], limit: $limit, offset: $offset) {
-                id callHash approvals threshold signatories status result createdBlock
-                multisig { ${ACCOUNT_REF} } depositor { ${ACCOUNT_REF} }
+                id callHash approvals threshold signatories status result createdBlock timeline
+                multisig { ${ACCOUNT_REF} } depositor { ${ACCOUNT_REF} } call { id pallet method extrinsic { id } }
             }
             conn: multisigOpsConnection(where: ${where}, orderBy: id_ASC) { totalCount }
         }`,
         {id: idHex, limit, offset}
     )
+}
+
+// the calls under each operation's call, a batch of thousands showing its
+// first MULTISIG_CALLS and leaving the rest to the extrinsic page
+export const MULTISIG_CALLS = 50
+
+export async function multisigCalls(callIds: string[]): Promise<{calls: CallRow[]; total: number}[]> {
+    if (callIds.length === 0) return []
+    const vars = callIds.map((_, i) => `$p${i}: String!`).join(', ')
+    const parts = callIds.map(
+        (_, i) => `c${i}: calls(where: {id_startsWith: $p${i}}, orderBy: id_ASC, limit: ${MULTISIG_CALLS}) { ${CALL_FIELDS} }
+            n${i}: callsConnection(where: {id_startsWith: $p${i}}, orderBy: id_ASC) { totalCount }`
+    )
+    const data = await gql<Record<string, unknown>>(`query (${vars}) { ${parts.join('\n')} }`, Object.fromEntries(callIds.map((id, i) => [`p${i}`, id])))
+    return callIds.map((_, i) => ({calls: data[`c${i}`] as CallRow[], total: (data[`n${i}`] as {totalCount: number}).totalCount}))
 }
 
 // each signatory's approvals and openings counted in one round trip, the set

@@ -716,6 +716,10 @@ type MultisigOp @entity {
   status: String! @index
   "DispatchResult of an executed operation, whole"
   result: JSON
+  "the call the operation runs, as the as_multi that last carried it in full wraps it, null while every approval named only the hash"
+  call: Call
+  "one step per lifecycle event, its id, qualified name, account, block, timestamp and extrinsic"
+  timeline: JSON!
   createdBlock: Int! @index
   updatedBlock: Int!
 }

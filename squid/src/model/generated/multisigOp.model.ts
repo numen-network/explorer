@@ -1,5 +1,6 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, JSONColumn as JSONColumn_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
+import {Call} from "./call.model"
 
 @Entity_()
 export class MultisigOp {
@@ -55,6 +56,19 @@ export class MultisigOp {
      */
     @JSONColumn_({nullable: true})
     result!: unknown | undefined | null
+
+    /**
+     * the call the operation runs, as the as_multi that last carried it in full wraps it, null while every approval named only the hash
+     */
+    @Index_("idx_multisig_op_call_f7c83487")
+    @ManyToOne_(() => Call, {nullable: true})
+    call!: Relation_<Call> | undefined | null
+
+    /**
+     * one step per lifecycle event, its id, qualified name, account, block, timestamp and extrinsic
+     */
+    @JSONColumn_({nullable: false})
+    timeline!: unknown
 
     @Index_("idx_multisig_op_created_block_51a4e08b")
     @IntColumn_({nullable: false})
