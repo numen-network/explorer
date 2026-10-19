@@ -70,3 +70,28 @@ export const SteadyWidth: Story = {
         await expect(trigger.getBoundingClientRect().width).toBe(width)
     },
 }
+
+const TOKENS = [
+    {value: 'native', label: 'NUMN'},
+    {value: '0xa1795b3c6f74866c7def1df390f9e2e403dca2e9', label: 'WTMR', note: '0xa1795…a2e9'},
+    {value: '0xe3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3e3', label: 'LONGNAME', note: '0xe3e3e…e3e3'},
+]
+
+// the picked option's note rides after its label, and the trigger holds the
+// width of the longest label with its note whichever is picked
+export const WithNotes: Story = {
+    render: () => <Demo options={TOKENS} initial="0xa1795b3c6f74866c7def1df390f9e2e403dca2e9" />,
+    play: async ({canvas, userEvent}) => {
+        const trigger = canvas.getByRole('combobox', {name: 'Pick'})
+        await expect(trigger).toHaveTextContent(/^WTMR0xa1795…a2e9$/)
+        const width = trigger.getBoundingClientRect().width
+        await userEvent.click(trigger)
+        await userEvent.click(await screen.findByRole('option', {name: /^NUMN/}))
+        await expect(trigger).toHaveTextContent(/^NUMN$/)
+        await expect(trigger.getBoundingClientRect().width).toBe(width)
+        await userEvent.click(trigger)
+        await userEvent.click(await screen.findByRole('option', {name: /^LONGNAME/}))
+        await expect(trigger).toHaveTextContent(/^LONGNAME0xe3e3e…e3e3$/)
+        await expect(trigger.getBoundingClientRect().width).toBe(width)
+    },
+}

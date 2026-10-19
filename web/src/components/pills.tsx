@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type {ReactNode} from 'react'
 import {cn} from 'cn'
 import LinkSelect from '@/components/LinkSelect'
 import {Badge} from '@/components/ui/badge'
@@ -44,9 +45,10 @@ export function FilterRow({label, values, value, href, labelOf = v => v, counts,
 
 // the select form of a filter row, for a group holding a filter with many
 // values. every value stays listed, one counting 0 too, and the select also
-// leaves room for the labels in fit
-export function FilterSelect({label, values, value, href, labelOf = v => v, counts, allCount, fit, className, labelClassName}: FilterRowProps & {fit?: string[]}) {
-    const options = [{label: 'All', count: allCount, href: href('')}, ...values.map(v => ({label: labelOf(v), count: counts && (counts[v] ?? 0), href: href(v)}))]
+// leaves room for the labels in fit. a pick that has to land on one value
+// leaves All out
+export function FilterSelect({label, values, value, href, labelOf = v => v, iconOf, noteOf, counts, allCount, fit, className, labelClassName, all = true}: FilterRowProps & {fit?: string[]; all?: boolean; iconOf?: (value: string) => ReactNode; noteOf?: (value: string) => string | undefined}) {
+    const options = [...(all ? [{label: 'All', count: allCount, href: href('')}] : []), ...values.map(v => ({label: labelOf(v), count: counts && (counts[v] ?? 0), href: href(v), icon: iconOf?.(v), note: noteOf?.(v)}))]
     return (
         <div className={cn('flex min-w-0 items-center gap-2', className)}>
             <span className={cn('mr-1 shrink-0 text-xs text-muted-foreground', labelClassName)}>{label}</span>

@@ -30,6 +30,7 @@ import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, fina
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig, refreshMultisigs} from './multisig'
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
 import {accountDay, accumulateDay, finalizeAccountDays, finalizeStats, treasuryAccount} from './stats'
+import {bookPair, finalizeTokenTransferPairs, finalizeTransferPairs} from './pairs'
 import {readBatchTracks} from './tracks'
 import {collectUsernameEvent, finalizeUsernames, persistUsernames} from './usernames'
 
@@ -73,6 +74,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     }
     await fetchObjects(ctx, batch)
     await finalizeTokens(ctx, batch, lastHeader)
+    await finalizeTokenTransferPairs(ctx, batch)
     await finalizeEvmAddresses(ctx, batch)
     await finalizeGovernance(ctx, batch, lastHeader, rpc)
     await finalizeMultisig(batch, lastHeader, ctx.store)
@@ -82,6 +84,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     await finalizeUsernames(batch, lastHeader, ctx.store)
     await refreshPrime(batch, lastHeader, ctx.store)
     await finalizeAccounts(ctx, batch, lastHeader)
+    await finalizeTransferPairs(ctx, batch)
     await finalizeStats(ctx, batch)
     await finalizeAccountDays(ctx, batch)
     await finalizeAnnotations(batch, lastHeader, ctx.store)
@@ -282,6 +285,7 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
             const t = asErc20Transfer(log, nativeFacade)
             if (t != null) {
                 batch.erc20Queue.push({...t, id: logId, logIndex: blockLogIndex, tx: evmTx, block, timestamp: at})
+                bookPair(batch.tokenPairDeltas, `${t.token}-`, t.from, t.to, t.amount, h.height)
                 for (const addr of [t.from, t.to]) if (addr !== ZERO_ADDRESS) batch.touchEvm(addr, h.height, 0)
             }
             blockLogIndex++
@@ -352,7 +356,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
             limit(async () => {
                 const [tokenId, addr] = id.split('-')
                 const token = tokens.get(tokenId)!
-                const holder = holders.get(id) ?? new TokenHolder({id, token, address: addr})
+                const holder = holders.get(id) ?? new TokenHolder({id, token, address: addr, transferInVolume: 0n, transferOutVolume: 0n})
                 const before = holder.balance ?? 0n
                 holder.balance = await fetchErc20Balance(rpc, tokenId, addr, at)
                 const after = holder.balance ?? 0n
@@ -501,6 +505,7 @@ function mapEvent(batch: BatchData, block: Block, at: Date, ev: EventData<Fields
         )
         accountDay(batch, at, t.from).transfersOut += 1
         accountDay(batch, at, t.to).transfersIn += 1
+        bookPair(batch.transferPairDeltas, '', t.from, t.to, t.amount, block.height)
     }
     // every change to an account's balance data raises a Balances event naming it
     if (pallet === 'Balances') {
@@ -684,12 +689,14 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.insert(batch.events)
     await ctx.store.upsert([...batch.eventKinds.values()])
     await ctx.store.insert(batch.transfers)
+    await ctx.store.upsert(batch.transferPairs)
     await ctx.store.insert(batch.objects)
     await ctx.store.insert(batch.evmTxs)
     await ctx.store.insert(batch.evmLogs)
     await ctx.store.upsert(batch.tokens)
     await ctx.store.insert(batch.tokenTransfers)
     await ctx.store.upsert(batch.holders)
+    await ctx.store.upsert(batch.tokenTransferPairs)
     await ctx.store.upsert([...batch.evmAddresses.values()])
     await ctx.store.upsert([...batch.referenda.values()])
     await ctx.store.upsert([...batch.deposits.values()])

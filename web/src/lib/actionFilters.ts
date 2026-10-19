@@ -37,3 +37,15 @@ export const delegationSortFilter = {
 }
 
 export const loadDelegationSort = createLoader(delegationSortFilter)
+
+export const COUNTERPARTY_SORTS = ['in-volume', 'in-count', 'out-volume', 'out-count'] as const
+export type CounterpartySort = (typeof COUNTERPARTY_SORTS)[number]
+
+// whose transfers the counterparty list sums, the native token unless the url
+// names a token contract, and the column it runs down, biggest first
+export const counterpartyFilter = {
+    token: parseAsString.withDefault(''),
+    sort: parseAsStringLiteral(COUNTERPARTY_SORTS).withDefault('in-volume'),
+}
+
+export const loadCounterparty = createLoader(counterpartyFilter)

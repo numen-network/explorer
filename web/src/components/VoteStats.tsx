@@ -1,9 +1,11 @@
 import type {ReactNode} from 'react'
 import Approx from '@/components/Approx'
 import EmptyList from '@/components/EmptyList'
+import Swatch from '@/components/Swatch'
 import {RingChart, StackChart} from '@/components/charts'
 import {Card} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
+import {ACCENT, tint} from '@/lib/chartColors'
 import {levelLabel} from '@/lib/conviction'
 import {fmtApprox, fmtCompact, fmtInt, fmtPct} from '@/lib/format'
 import type {BallotDelegation, BallotVote, VoteList} from '@/lib/gql'
@@ -16,15 +18,12 @@ const LISTS: [VoteList, string][] = [
     ['split', 'Split'],
 ]
 
-// a token colour mixed into white, solid so grid lines stay behind the bars
-const tint = (hex: string, share: number) => `#${[1, 3, 5].map(i => Math.round(255 - (255 - parseInt(hex.slice(i, i + 2), 16)) * share).toString(16).padStart(2, '0')).join('')}`
-
 // --good, --destructive, --dim and --warn at 40%
 const LIST_COLOR: Record<VoteList, string> = {aye: tint('#4caf50', 0.4), nay: tint('#f44336', 0.4), abstain: tint('#aab0bb', 0.4), split: tint('#ef930b', 0.4)}
 
 // None through Locked6x, each a deeper shade of --primary
 const LEVELS = [0, 1, 2, 3, 4, 5, 6]
-const LEVEL_COLOR = [0.16, 0.28, 0.4, 0.53, 0.67, 0.83, 1].map(share => tint('#0891b2', share))
+const LEVEL_COLOR = [0.16, 0.28, 0.4, 0.53, 0.67, 0.83, 1].map(share => tint(ACCENT, share))
 
 interface Group {
     label: string
@@ -58,10 +57,6 @@ function Bars({ballots, lists, groups, measure, ...chart}: {ballots: Ballot[]; l
         return {name, color: LIST_COLOR[list], values: cells.map(measure.value), tips: cells.map(measure.tip)}
     })
     return <StackChart labels={groups.map(g => g.label)} series={series} totals={groups.map(g => measure.total(ballots.filter(g.has)))} {...chart} />
-}
-
-function Swatch({color}: {color: string}) {
-    return <span className="inline-block size-2.5 shrink-0 rounded-[2px]" style={{background: color}} />
 }
 
 function Total({label, value, children}: {label: string; value: ReactNode; children: ReactNode}) {

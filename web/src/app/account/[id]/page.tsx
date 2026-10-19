@@ -7,6 +7,7 @@ import {TimeCell} from '@/components/TimeCell'
 import {BlockLink} from '@/components/links'
 import BalanceBar from '@/components/account/BalanceBar'
 import Charts from '@/components/account/Charts'
+import Counterparties from '@/components/account/Counterparties'
 import Delegations from '@/components/account/Delegations'
 import DelegationHistory from '@/components/account/DelegationHistory'
 import Extrinsics from '@/components/account/Extrinsics'
@@ -111,6 +112,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
 
     const tabs: Tab[] = [{slug: 'transfers', label: 'Native', group: 'Transfers', count: s.nTransfers.totalCount, body: () => <Transfers {...ctx} />}]
     if (a.evmAddress) tabs.push({slug: 'tokens', label: 'Tokens', group: 'Transfers', count: evm.transfers, body: () => <TokenTransfers {...ctx} evm={a.evmAddress!} />})
+    if (s.nTransfers.totalCount + evm.transfers > 0) tabs.push({slug: 'counterparties', label: 'Counterparties', group: 'Transfers', body: () => <Counterparties {...ctx} evm={a.evmAddress} native={s.nTransfers.totalCount > 0} />})
     if (evm.holdings > 0) tabs.push({slug: 'holdings', label: 'Tokens', count: evm.holdings, body: () => <Holdings {...ctx} evm={a.evmAddress!} />})
     tabs.push({slug: 'extrinsics', label: 'Extrinsics', count: s.nExtrinsics.totalCount, body: () => <Extrinsics {...ctx} />})
     if (locks.length > 0) tabs.push({slug: 'locks', label: 'Locks', count: locks.length, body: () => <Locks rows={locks} chain={chain} />})

@@ -23,4 +23,13 @@ export class TokenHolder {
      */
     @BigIntColumn_({nullable: true})
     balance!: bigint | undefined | null
+
+    /**
+     * transfers of this token in and out, summed since genesis
+     */
+    @BigIntColumn_({nullable: false})
+    transferInVolume!: bigint
+
+    @BigIntColumn_({nullable: false})
+    transferOutVolume!: bigint
 }

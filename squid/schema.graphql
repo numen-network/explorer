@@ -110,6 +110,9 @@ type Account @entity {
   holdsJson: JSON
   "plain reserves the chain records no reason for, each read back from the pallet that took it"
   depositsJson: JSON
+  "native transfers in and out, summed since genesis"
+  transferInVolume: BigInt!
+  transferOutVolume: BigInt!
 }
 
 type Extrinsic @entity {
@@ -249,6 +252,9 @@ type TokenHolder @entity @index(fields: ["token", "balance"]) {
   address: String! @index
   "what the contract answered to balanceOf at the last block that moved this holder, null when it answered nothing"
   balance: BigInt
+  "transfers of this token in and out, summed since genesis"
+  transferInVolume: BigInt!
+  transferOutVolume: BigInt!
 }
 
 "an address that sent, received or created an EVM transaction, or sent or received a token"
@@ -813,6 +819,33 @@ type MinerDayStat @entity @index(fields: ["day", "blocks"]) {
   account: Account! @index
   blocks: Int!
   rewards: BigInt!
+}
+
+"an account's native transfers with one counterparty, summed since genesis"
+type TransferPair @entity @index(fields: ["account", "amountIn"]) @index(fields: ["account", "countIn"]) @index(fields: ["account", "amountOut"]) @index(fields: ["account", "countOut"]) {
+  id: ID!
+  account: Account!
+  counterparty: Account!
+  amountIn: BigInt!
+  countIn: Int!
+  amountOut: BigInt!
+  countOut: Int!
+  firstBlock: Int!
+  lastBlock: Int!
+}
+
+"an address's transfers of one token with one counterparty, summed since genesis"
+type TokenTransferPair @entity @index(fields: ["address", "token", "amountIn"]) @index(fields: ["address", "token", "countIn"]) @index(fields: ["address", "token", "amountOut"]) @index(fields: ["address", "token", "countOut"]) {
+  id: ID!
+  token: Token!
+  address: String!
+  counterparty: String!
+  amountIn: BigInt!
+  countIn: Int!
+  amountOut: BigInt!
+  countOut: Int!
+  firstBlock: Int!
+  lastBlock: Int!
 }
 
 "one account's day, written only for a day a block touched it"

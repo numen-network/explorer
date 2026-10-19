@@ -1,4 +1,4 @@
-import type {ActionKind, ActionMove, DelegationSort, DelegationSortBy} from './actionFilters'
+import type {ActionKind, ActionMove, CounterpartySort, DelegationSort, DelegationSortBy} from './actionFilters'
 import type {VoteShape} from './conviction'
 import type {RefPhaseFields} from './referendum'
 import {isH256} from './evm'
@@ -1128,6 +1128,95 @@ export function tokenHoldingsFor(address: string, limit: number, offset: number)
         }`,
         {a: address, limit, offset}
     )
+}
+
+export interface CounterpartyRow {
+    id: string
+    amountIn: string
+    countIn: number
+    amountOut: string
+    countOut: number
+    firstBlock: number
+    lastBlock: number
+    /** An account for the native token, an EVM address for a contract token. */
+    counterparty: AccountRef | string
+}
+
+export interface Counterparties {
+    rows: CounterpartyRow[]
+    total: number
+    /** The biggest few counterparties each way, by volume. */
+    ins: CounterpartyRow[]
+    outs: CounterpartyRow[]
+    nIn: number
+    nOut: number
+    volumeIn: string
+    volumeOut: string
+}
+
+export const RING_TOP = 5
+
+const COUNTERPARTY_ORDER: Record<CounterpartySort, string> = {
+    'in-volume': '[amountIn_DESC, amountOut_DESC, id_ASC]',
+    'in-count': '[countIn_DESC, amountIn_DESC, id_ASC]',
+    'out-volume': '[amountOut_DESC, amountIn_DESC, id_ASC]',
+    'out-count': '[countOut_DESC, amountOut_DESC, id_ASC]',
+}
+
+const COUNTERPARTY_FIELDS = 'id amountIn countIn amountOut countOut firstBlock lastBlock'
+
+// one page of the list, the rings' top few each way and the totals the rings
+// share out, for the pair entity and owner a caller names
+async function counterparties(entity: 'transferPairs' | 'tokenTransferPairs', own: string, party: string, totals: string, vars: Record<string, string>, sort: CounterpartySort, limit: number, offset: number): Promise<Counterparties> {
+    const fields = `${COUNTERPARTY_FIELDS} ${party}`
+    const raw = await gql<{rows: CounterpartyRow[]; conn: {totalCount: number}; ins: CounterpartyRow[]; outs: CounterpartyRow[]; nIn: {totalCount: number}; nOut: {totalCount: number}; totals: {transferInVolume: string; transferOutVolume: string} | null}>(
+        `query (${Object.keys(vars).map(k => `$${k}: String!`).join(', ')}, $limit: Int!, $offset: Int!) {
+            rows: ${entity}(where: {${own}}, orderBy: ${COUNTERPARTY_ORDER[sort]}, limit: $limit, offset: $offset) { ${fields} }
+            conn: ${entity}Connection(where: {${own}}, orderBy: id_ASC) { totalCount }
+            ins: ${entity}(where: {${own}, countIn_gt: 0}, orderBy: ${COUNTERPARTY_ORDER['in-volume']}, limit: ${RING_TOP}) { ${fields} }
+            outs: ${entity}(where: {${own}, countOut_gt: 0}, orderBy: ${COUNTERPARTY_ORDER['out-volume']}, limit: ${RING_TOP}) { ${fields} }
+            nIn: ${entity}Connection(where: {${own}, countIn_gt: 0}, orderBy: id_ASC) { totalCount }
+            nOut: ${entity}Connection(where: {${own}, countOut_gt: 0}, orderBy: id_ASC) { totalCount }
+            totals: ${totals} { transferInVolume transferOutVolume }
+        }`,
+        {...vars, limit, offset}
+    )
+    return {
+        rows: raw.rows,
+        total: raw.conn.totalCount,
+        ins: raw.ins,
+        outs: raw.outs,
+        nIn: raw.nIn.totalCount,
+        nOut: raw.nOut.totalCount,
+        volumeIn: raw.totals?.transferInVolume ?? '0',
+        volumeOut: raw.totals?.transferOutVolume ?? '0',
+    }
+}
+
+export function transferPairsFor(idHex: string, sort: CounterpartySort, limit: number, offset: number) {
+    return counterparties('transferPairs', 'account: {id_eq: $id}', `counterparty { ${ACCOUNT_REF} }`, 'accountById(id: $id)', {id: idHex}, sort, limit, offset)
+}
+
+export function tokenTransferPairsFor(address: string, token: string, sort: CounterpartySort, limit: number, offset: number) {
+    return counterparties('tokenTransferPairs', 'address_eq: $a, token: {id_eq: $t}', 'counterparty', 'tokenHolderById(id: $h)', {a: address, t: token, h: `${token}-${address}`}, sort, limit, offset)
+}
+
+export interface CounterpartyToken {
+    id: string
+    symbol: string | null
+    decimals: number | null
+}
+
+// every token the address ever moved, since each transfer leaves a holder row
+// on both sides
+export async function counterpartyTokens(address: string) {
+    const {holders} = await gql<{holders: {token: CounterpartyToken}[]}>(
+        `query ($a: String!) {
+            holders: tokenHolders(where: {address_eq: $a}, orderBy: [token_symbol_ASC, token_id_ASC], limit: 1000) { token { id symbol decimals } }
+        }`,
+        {a: address}
+    )
+    return holders.map(h => h.token)
 }
 
 export interface CallKindRow {

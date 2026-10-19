@@ -490,7 +490,7 @@ export async function filterOptions(root: HTMLElement, label: string) {
     const options = within(list)
         .getAllByRole('option')
         .map(option => {
-            const text = [...option.lastElementChild!.childNodes].map(node => node.textContent).join(' ')
+            const text = [...option.lastElementChild!.childNodes].map(node => node.textContent).filter(Boolean).join(' ')
             return option.getAttribute('aria-selected') === 'true' ? `[${text}]` : text
         })
     await userEvent.keyboard('{Escape}')

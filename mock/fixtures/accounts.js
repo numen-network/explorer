@@ -601,6 +601,33 @@ export const tokenTransferCases = (height = HEAD - 3) => [
     tokenTransfer(height - 1, 1, {token: {id: TOKENS[3].id, symbol: TOKENS[3].symbol, decimals: 18}, amount: MAX_U128}),
 ]
 
+// what the subject moved with one counterparty, an account for the native
+// token or an EVM address for a contract token
+export const counterpartyRow = (counterparty, traits = {}) => ({
+    id: `${typeof counterparty === 'string' ? counterparty : counterparty.id}-pair`,
+    amountIn: '0',
+    countIn: 0,
+    amountOut: '0',
+    countOut: 0,
+    firstBlock: HEAD - 9_000,
+    lastBlock: HEAD - 40,
+    counterparty,
+    ...traits,
+})
+
+// the list as given, the rings' rows biggest first each way, and the totals
+// the subject's own row sums them to
+export const counterpartyPage = list => {
+    const big = key => (a, b) => (BigInt(b[key]) > BigInt(a[key]) ? 1 : BigInt(b[key]) < BigInt(a[key]) ? -1 : 0)
+    return {
+        rows: list,
+        ins: list.filter(r => r.countIn > 0).sort(big('amountIn')),
+        outs: list.filter(r => r.countOut > 0).sort(big('amountOut')),
+        volumeIn: sum(list.map(r => r.amountIn)),
+        volumeOut: sum(list.map(r => r.amountOut)),
+    }
+}
+
 // the PureCreated event that spawned the subject, its args the way the index keeps them
 export const pureCreatedBy = (who, height) => ({args: {pure: SUBJECT, who: who.id, proxyType: 'Any', disambiguationIndex: 0}, block: {height}})
 
@@ -662,6 +689,7 @@ export function accountPage({
     notHeld = [],
     pure = null,
     refs = [],
+    counterparties = counterpartyPage([]),
     counts = {},
 }) {
     const self = account.id
@@ -686,8 +714,14 @@ export function accountPage({
         )
     const asMultisig = multisigOps.filter(o => o.multisig.id === self)
     const holderRows = where => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
+    // the page, the rings and their counts differ only in which way the where clause looks
+    const pairWay = where => (where.countIn_gt != null ? 'ins' : where.countOut_gt != null ? 'outs' : 'rows')
+    const pairCount = {rows: 'pairs', ins: 'pairsIn', outs: 'pairsOut'}
+    const pairs = ({where}) => counterparties[pairWay(where)]
+    const pairsConnection = ({where}) => count(counts[pairCount[pairWay(where)]] ?? counterparties[pairWay(where)].length)
+    const volumes = {transferInVolume: counterparties.volumeIn, transferOutVolume: counterparties.volumeOut}
     return {
-        accountById: account,
+        accountById: {...volumes, ...account},
         validators: validator ? [validator] : [],
         registrars: ({where}) =>
             where?.account ? (registrar == null ? [] : [{index: registrar}]) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
@@ -747,5 +781,10 @@ export function accountPage({
         tokenTransfers,
         tokenHoldersConnection: ({where}) => count(counts.holdings ?? holderRows(where).length),
         tokenHolders: ({where}) => holderRows(where),
+        transferPairs: pairs,
+        transferPairsConnection: pairsConnection,
+        tokenTransferPairs: pairs,
+        tokenTransferPairsConnection: pairsConnection,
+        tokenHolderById: volumes,
     }
 }

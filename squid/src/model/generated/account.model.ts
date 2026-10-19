@@ -121,4 +121,13 @@ export class Account {
      */
     @JSONColumn_({nullable: true})
     depositsJson!: unknown | undefined | null
+
+    /**
+     * native transfers in and out, summed since genesis
+     */
+    @BigIntColumn_({nullable: false})
+    transferInVolume!: bigint
+
+    @BigIntColumn_({nullable: false})
+    transferOutVolume!: bigint
 }

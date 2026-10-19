@@ -31,7 +31,9 @@ import {
     Token,
     TokenHolder,
     TokenTransfer,
+    TokenTransferPair,
     Transfer,
+    TransferPair,
     TreasuryPayout,
     TreasurySpend,
     Username,
@@ -84,6 +86,17 @@ export interface AccountDayDelta {
     feeTreasury: bigint
     feeMiner: bigint
     tip: bigint
+}
+
+export interface PairDelta {
+    owner: string
+    counterparty: string
+    amountIn: bigint
+    countIn: number
+    amountOut: bigint
+    countOut: number
+    firstBlock: number
+    lastBlock: number
 }
 
 export interface HourDelta {
@@ -186,13 +199,18 @@ export class BatchData {
     // who paid each extrinsic's fee, the fee event names a substrate payer and
     // an EVM call is paid by its sender's mapped account
     feePayers = new Map<string, string>()
+    // keyed owner-counterparty, a token's keys lead with the token
+    transferPairDeltas = new Map<string, PairDelta>()
+    transferPairs: TransferPair[] = []
+    tokenPairDeltas = new Map<string, PairDelta>()
+    tokenTransferPairs: TokenTransferPair[] = []
 
     // block mapping touches in chain order but the finalize steps touch at their
     // own event heights afterwards, so the earliest height wins
     touch(id: string, height: number): Account {
         let a = this.accounts.get(id)
         if (a == null) {
-            a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: null})
+            a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: null, transferInVolume: 0n, transferOutVolume: 0n})
             this.accounts.set(id, a)
         }
         a.firstSeenBlock = Math.min(a.firstSeenBlock, height)
