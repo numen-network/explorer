@@ -275,21 +275,13 @@ const AVATARS = [
     nameless(125, {}),
 ]
 
-// a picture that loads shows, any other avatar falls back to the first letter of the label
+// a picture that loads shows with the identicon in its badge, any other avatar leaves the identicon alone
 export const IdentitiesAvatars: StoryObj = {
     ...identities(AVATARS),
     play: async ({canvasElement}) => {
         const cards = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card]')].slice(-AVATARS.length)
-        const faces = () => cards.map(c => c.querySelector('img')?.getAttribute('src') ?? c.querySelector('[aria-hidden].rounded-full')?.textContent)
-        await waitFor(() =>
-            expect(faces()).toEqual([
-            `${AVATAR_HOST}/pictured.png`,
-            'D',
-            'P',
-            'N',
-            ss58Encode(AVATARS.at(-1)!.id, chainInfo.ss58)[0].toUpperCase(),
-            ])
-        )
+        const faces = () => cards.map(c => c.querySelector('button img')?.getAttribute('src') ?? (c.querySelector('[aria-hidden] > svg') ? 'identicon' : null))
+        await waitFor(() => expect(faces()).toEqual([`${AVATAR_HOST}/pictured.png`, 'identicon', 'identicon', 'identicon', 'identicon']))
     },
 }
 
@@ -383,13 +375,12 @@ const LANGUAGES = [
     registered(160, '全宽', {bio: '链'.repeat(682)}),
 ]
 
-// the monogram takes the first whole grapheme, a right to left bio runs right to
-// left, and no short bio passes one line or pushes its card wider
+// a right to left bio runs right to left, and no short bio passes one line or
+// pushes its card wider
 export const IdentitiesLanguages: StoryObj = {
     ...identities(LANGUAGES),
     play: async ({canvasElement}) => {
         const cards = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card]')].slice(-LANGUAGES.length)
-        expect(cards.map(c => c.querySelector('[aria-hidden].rounded-full')?.textContent)).toEqual(['数', 'ヌ', '누', 'م', 'מ', 'В', 'นู', 'नू', '🇨🇳', '👩‍💻', '全'])
         const bios = cards.map(c => c.querySelector('p')!)
         expect(bios.map(p => p.matches(':dir(rtl)'))).toEqual(LANGUAGES.map((_, i) => i === 3 || i === 4))
         for (const p of bios) expect(p.getBoundingClientRect().height).toBeLessThanOrEqual(parseFloat(getComputedStyle(p).lineHeight))

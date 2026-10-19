@@ -3,6 +3,7 @@ import {mswLoader} from 'msw-storybook-addon/csf3'
 import {Inter} from 'next/font/google'
 import {NuqsTestingAdapter} from 'nuqs/adapters/testing'
 import {MINIMAL_VIEWPORTS} from 'storybook/viewport'
+import {useFaceOrder} from '../src/components/AccountFace'
 import {TooltipProvider} from '../src/components/ui/tooltip'
 import {WellKnownProvider} from '../src/components/wellKnown'
 import {ss58Encode} from '../src/lib/ss58'
@@ -34,6 +35,8 @@ const preview: Preview = {
     loaders: [mswLoader()],
     beforeEach: () => {
         urlUpdates.mockClear()
+        localStorage.clear()
+        useFaceOrder.setState(useFaceOrder.getInitialState())
     },
     decorators: [
         // the mocked next router never moves the url, so the url state runs on

@@ -1,5 +1,5 @@
 import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
-import {expect, waitFor, within} from 'storybook/test'
+import {expect, userEvent, waitFor, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {
@@ -62,6 +62,7 @@ import {
 } from '../../../../../mock/fixtures/accounts.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
 import {columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, filterOptions, tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {AVATAR_HOST, avatars} from '../../../../.storybook/avatar'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 
@@ -110,6 +111,18 @@ export const IdentityNone: StoryObj = {
 export const IdentityFull: StoryObj = {
     ...story({account: named(identity('Aurora Labs', FULL_FIELDS)), transfers: accountTransfers(3)}),
     play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Aurora Labs'),
+}
+
+const PICTURED = {...AURORA, avatar: `${AVATAR_HOST}/aurora.png`}
+
+// the header leads with the avatar and swaps to the identicon on a click
+export const IdentityAvatar: StoryObj = {
+    ...pageStory(build({account: named(identity('Aurora Labs', PICTURED)), transfers: accountTransfers(3)}), {params: {id: SUBJECT}, msw: [avatars]}),
+    play: async ({canvasElement}) => {
+        const header = within(canvasElement).getByRole('heading', {level: 1}).parentElement!.parentElement!
+        await userEvent.click(await within(header).findByRole('button', {name: 'Show identicon'}))
+        expect(within(header).getByRole('button', {name: 'Show avatar'})).toBeInTheDocument()
+    },
 }
 
 export const IdentityDisplayOnly = story({account: named(identity('Aurora Labs')), transfers: accountTransfers(3)})

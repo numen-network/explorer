@@ -1,6 +1,6 @@
+import AccountFace from '@/components/AccountFace'
 import {AddrMark} from '@/components/addrHot'
 import CopyBtn from '@/components/CopyBtn'
-import Identicon from '@/components/Identicon'
 import {JudgementBadge, verdictOf} from '@/components/JudgementBadge'
 import QrButton from '@/components/QrButton'
 import {Tip} from '@/components/Tip'
@@ -15,7 +15,7 @@ export default function Header({a, addr, roles}: {a: AccountRow; addr: string; r
     const verdict = verdictOf(identityInfoJson(a))
     return (
         <div className="mt-6 flex items-start gap-3.5 sm:gap-4">
-            <Identicon hex={a.id} className="size-12 sm:size-14" />
+            <AccountFace hex={a.id} json={a.identityJson} className="size-12 sm:size-14" />
             <div className="min-w-0 flex-1">
                 <h1 className="flex items-center gap-1.75 text-xl leading-7 font-semibold">
                     {verdict && <JudgementBadge verdict={verdict} />}

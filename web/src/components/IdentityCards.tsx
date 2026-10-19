@@ -5,7 +5,8 @@ import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
 import AddressText from '@/components/AddressText'
 import Approx from '@/components/Approx'
-import BioDialog, {Avatar} from '@/components/BioDialog'
+import AccountFace from '@/components/AccountFace'
+import BioDialog from '@/components/BioDialog'
 import CopyBtn from '@/components/CopyBtn'
 import Socials from '@/components/Socials'
 import {Button} from '@/components/ui/button'
@@ -48,7 +49,7 @@ function IdentityCard({row, chain, wallet}: {row: IdentityRow; chain: ChainProps
         <Card className="row-span-4 mb-4 grid grid-rows-subgrid gap-0 py-0">
             <div className="flex min-w-0 flex-wrap items-center gap-3 px-5 pt-[18px]">
                 <div className="flex min-w-0 flex-auto items-center gap-3">
-                    <Avatar acc={row} addr={addr} />
+                    <AccountFace hex={row.id} json={row.identityJson} className="size-11" />
                     <div className="flex min-w-0 flex-col gap-0.5 text-[15px]">
                         <span className="flex min-w-0 items-center">
                             <AccountLink addr={addr} acc={row} className="min-w-0" />

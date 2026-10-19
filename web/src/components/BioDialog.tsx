@@ -1,8 +1,8 @@
 'use client'
 
-import {useState} from 'react'
 import {Menu, XIcon} from 'lucide-react'
 import {cn} from 'cn'
+import AccountFace from '@/components/AccountFace'
 import AddressText from '@/components/AddressText'
 import IdentityName from '@/components/IdentityName'
 import Markdown from '@/components/Markdown'
@@ -11,37 +11,7 @@ import {Button} from '@/components/ui/button'
 import {Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 import {Separator} from '@/components/ui/separator'
 import type {AccountRef} from '@/lib/gql'
-import {identityLabel, infoField, splitBio} from '@/lib/identity'
-import {https} from '@/lib/url'
-
-const graphemes = new Intl.Segmenter()
-
-const initial = (label: string) => graphemes.segment(label)[Symbol.iterator]().next().value?.segment.toUpperCase()
-
-// an image that failed before hydration never fires onError, so the ref checks it too
-export function Avatar({acc, addr, className}: {acc: AccountRef; addr: string; className?: string}) {
-    const [broken, setBroken] = useState(false)
-    const src = https(infoField(acc.identityJson, 'avatar'))
-    if (src && !broken)
-        return (
-            <img
-                src={src}
-                alt=""
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                ref={img => {
-                    if (img?.complete && img.naturalWidth === 0) setBroken(true)
-                }}
-                onError={() => setBroken(true)}
-                className={cn('size-11 shrink-0 rounded-full bg-muted object-cover', className)}
-            />
-        )
-    return (
-        <span aria-hidden className={cn('grid size-11 shrink-0 place-items-center rounded-full bg-primary-soft text-[17px] font-semibold text-primary', className)}>
-            {initial(identityLabel(acc) ?? addr)}
-        </span>
-    )
-}
+import {splitBio} from '@/lib/identity'
 
 // renders nothing when the bio has no full part
 export default function BioDialog({acc, addr, size = 'icon', className}: {acc: AccountRef; addr: string; size?: 'icon' | 'icon-xs'; className?: string}) {
@@ -64,7 +34,7 @@ export default function BioDialog({acc, addr, size = 'icon', className}: {acc: A
                     </DialogClose>
                 </div>
                 <div className="flex min-w-0 flex-col items-start gap-2.5 [&>span:empty]:hidden">
-                    <Avatar acc={acc} addr={addr} className="size-14 text-[22px]" />
+                    <AccountFace hex={acc.id} json={acc.identityJson} className="size-14" />
                     <span className="flex max-w-full min-w-0 items-center gap-1 text-base">
                         <IdentityName acc={acc} fallback={<AddressText addr={addr} />} />
                     </span>
