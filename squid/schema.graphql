@@ -709,15 +709,29 @@ type MultisigOp @entity {
   deposit: BigInt
   "approver account ids in approval order"
   approvals: [String!]!
-  threshold: Int
-  "full signer set recovered from the opening call when unambiguous"
-  signatories: [String!]
+  threshold: Int!
+  "sorted signer set, the one the multisig account is derived from"
+  signatories: [String!]!
   "method of the last Multisig event the operation raised"
   status: String! @index
   "DispatchResult of an executed operation, whole"
   result: JSON
-  createdBlock: Int!
-  updatedBlock: Int! @index
+  createdBlock: Int! @index
+  updatedBlock: Int!
+}
+
+"a multisig account, one row once it opened an operation"
+type Multisig @entity {
+  "the account id"
+  id: ID!
+  account: Account! @unique
+  threshold: Int!
+  "sorted signer set"
+  signatories: [String!]!
+  "operations still collecting approvals"
+  pending: Int!
+  operations: Int!
+  lastActiveBlock: Int! @index
 }
 
 type ProxyRelation @entity {

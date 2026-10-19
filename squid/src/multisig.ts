@@ -1,7 +1,10 @@
+import {blake2b} from '@noble/hashes/blake2.js'
+import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
+import {ByteSink} from '@subsquid/scale-codec'
 import {toJSON} from '@subsquid/util-internal-json'
 import {In} from 'typeorm'
 import {Store} from '@subsquid/typeorm-store'
-import {MultisigOp} from './model'
+import {Account, Multisig, MultisigOp} from './model'
 import {BatchData} from './batch'
 import {storage} from './types'
 
@@ -20,12 +23,33 @@ export interface MsigEvent {
     extrinsic?: {id: string; indexInBlock: number}
 }
 
-export function collectMultisigCall(batch: BatchData, name: string, args: any, origin: string, extrinsicId: string): void {
+export function collectMultisigCall(batch: BatchData, name: string, args: any, extrinsicId: string): void {
     if (name !== 'Multisig.as_multi' && name !== 'Multisig.approve_as_multi') return
-    const others: string[] = args.otherSignatories ?? []
     const list = batch.msigCalls.get(extrinsicId) ?? []
-    list.push({threshold: args.threshold, signatories: [origin, ...others].sort()})
+    list.push({threshold: args.threshold, others: args.otherSignatories})
     batch.msigCalls.set(extrinsicId, list)
+}
+
+// pallet_multisig::multi_account_id
+const ENTROPY_PREFIX = new TextEncoder().encode('modlpy/utilisuba')
+
+export function multisigAccount(signatories: string[], threshold: number): string {
+    const sink = new ByteSink()
+    sink.bytes(ENTROPY_PREFIX)
+    sink.compact(signatories.length)
+    for (const s of signatories) sink.bytes(hexToBytes(s.slice(2)))
+    sink.u16(threshold)
+    return '0x' + bytesToHex(blake2b(sink.toBytes(), {dkLen: 32}))
+}
+
+// the opening call is the one in the extrinsic whose signer set, completed by
+// the approving account, derives to the multisig the event names
+function openingCall(batch: BatchData, ev: MsigEvent): {threshold: number; signatories: string[]} {
+    for (const c of batch.msigCalls.get(ev.extrinsic!.id) ?? []) {
+        const signatories = [ev.args.approving, ...c.others].sort()
+        if (multisigAccount(signatories, c.threshold) === ev.args.multisig) return {threshold: c.threshold, signatories}
+    }
+    throw new Error(`NewMultisig ${ev.args.multisig} at block ${ev.height} has no call that derives it`)
 }
 
 export function collectMultisigEvent(batch: BatchData, name: string, args: any, height: number, extrinsic?: {id: string; indexInBlock: number}): void {
@@ -106,10 +130,7 @@ function applyMsigEvent(batch: BatchData, ev: MsigEvent): void {
     if (id == null) return
     const args = ev.args
     if (ev.name === 'Multisig.NewMultisig') {
-        const calls = ev.extrinsic != null ? (batch.msigCalls.get(ev.extrinsic.id) ?? []) : []
-        // batched extrinsics can open several operations, attribution is only
-        // safe when exactly one multisig call is present
-        const info = calls.length === 1 ? calls[0] : undefined
+        const {threshold, signatories} = openingCall(batch, ev)
         batch.msigOps.set(
             id,
             new MultisigOp({
@@ -118,8 +139,8 @@ function applyMsigEvent(batch: BatchData, ev: MsigEvent): void {
                 callHash: args.callHash,
                 depositor: batch.touch(args.approving, ev.height),
                 approvals: [args.approving],
-                threshold: info?.threshold,
-                signatories: info?.signatories,
+                threshold,
+                signatories,
                 status: 'NewMultisig',
                 createdBlock: ev.height,
                 updatedBlock: ev.height,
@@ -140,4 +161,26 @@ function applyMsigEvent(batch: BatchData, ev: MsigEvent): void {
             op.result = toJSON(args.result)
             break
     }
+}
+
+// the counts are read back from the stored operations, so a batch that sees
+// only part of a multisig's history still writes all of it
+export async function refreshMultisigs(batch: BatchData, store: Store): Promise<void> {
+    const ids = new Set([...batch.msigOps.values()].map(op => op.multisig.id))
+    const rows = await Promise.all(
+        [...ids].map(async id => {
+            const where = {multisig: {id}}
+            const latest = await store.findOne(MultisigOp, {where, order: {updatedBlock: 'DESC'}})
+            return new Multisig({
+                id,
+                account: new Account({id}),
+                threshold: latest!.threshold,
+                signatories: latest!.signatories,
+                pending: await store.count(MultisigOp, {where: {...where, status: In([...OPEN])}}),
+                operations: await store.count(MultisigOp, {where}),
+                lastActiveBlock: latest!.updatedBlock,
+            })
+        })
+    )
+    await store.upsert(rows)
 }

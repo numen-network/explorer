@@ -34,14 +34,14 @@ export class MultisigOp {
     @StringColumn_({array: true, nullable: false})
     approvals!: (string)[]
 
-    @IntColumn_({nullable: true})
-    threshold!: number | undefined | null
+    @IntColumn_({nullable: false})
+    threshold!: number
 
     /**
-     * full signer set recovered from the opening call when unambiguous
+     * sorted signer set, the one the multisig account is derived from
      */
-    @StringColumn_({array: true, nullable: true})
-    signatories!: (string)[] | undefined | null
+    @StringColumn_({array: true, nullable: false})
+    signatories!: (string)[]
 
     /**
      * method of the last Multisig event the operation raised
@@ -56,10 +56,10 @@ export class MultisigOp {
     @JSONColumn_({nullable: true})
     result!: unknown | undefined | null
 
+    @Index_("idx_multisig_op_created_block_51a4e08b")
     @IntColumn_({nullable: false})
     createdBlock!: number
 
-    @Index_("idx_multisig_op_updated_block_f92f3020")
     @IntColumn_({nullable: false})
     updatedBlock!: number
 }

@@ -15,7 +15,7 @@ import Identity from '@/components/account/Identity'
 import Judgements from '@/components/account/Judgements'
 import Locks from '@/components/account/Locks'
 import Mining from '@/components/account/Mining'
-import Multisig from '@/components/account/Multisig'
+import {MultisigAddress, MultisigSignatory} from '@/components/account/Multisig'
 import Proposed from '@/components/account/Proposed'
 import Proxies from '@/components/account/Proxies'
 import Received from '@/components/account/Received'
@@ -104,7 +104,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nTreasuryBeneficiary.totalCount > 0) roles.push({text: 'Treasury beneficiary', tone: 'idle'})
     if (s.curated.totalCount + s.childCurated.totalCount > 0) roles.push({text: 'Bounty curator', tone: 'idle'})
     if (s.nDelegIn.totalCount > 0) roles.push({text: 'Delegate', tone: 'idle'})
-    if (s.nMultisigSelf.totalCount > 0) roles.push(multisigRole(s, refs, chain))
+    if (s.multisigById) roles.push(multisigRole(s.multisigById, refs, chain))
     if (s.nProxyIn.totalCount > 0) roles.push({text: 'Proxy', tone: 'idle'})
     roles.push(...controlRoles(s, refs, chain))
 
@@ -125,7 +125,10 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (minedBlocks > 0) tabs.push({slug: 'mining', label: 'Mining', count: minedBlocks, body: () => <Mining {...ctx} days={s.minerDays} total={minedBlocks} />})
     if (s.nProxyOut.totalCount + s.nProxyIn.totalCount > 0)
         tabs.push({slug: 'proxies', label: 'Proxies', count: s.nProxyOut.totalCount + s.nProxyIn.totalCount, body: () => <Proxies {...ctx} />})
-    if (s.nMultisig.totalCount > 0) tabs.push({slug: 'multisig', label: 'Multisig', count: s.nMultisig.totalCount, body: () => <Multisig {...ctx} />})
+    const msig = s.multisigById
+    if (msig) tabs.push({slug: 'multisig', label: 'As a multisig address', group: 'Multisig', count: msig.operations, body: () => <MultisigAddress {...ctx} set={msig} />})
+    if (s.nMultisigSigner.totalCount > 0)
+        tabs.push({slug: 'multisig-signatory', label: 'As a multisig signatory', group: 'Multisig', count: s.nMultisigSigner.totalCount, body: () => <MultisigSignatory {...ctx} operations={s.nMultisigSigner.totalCount} memberships={s.nMemberships.totalCount} />})
     if (s.nVotes.totalCount > 0) tabs.push({slug: 'votes', label: 'Votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} firstSeenBlock={a.firstSeenBlock} locked={a.locksJson?.find(l => l.id === 'pyconvot')?.amount ?? '0'} />})
     if (s.nVoteHistory.totalCount > 0)
         tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
@@ -139,8 +142,9 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nDelegHistory.totalCount > 0)
         tabs.push({slug: 'delegations-history', label: 'Delegations history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="out" slug="delegations-history" />})
 
-    // dtrack filters Received, so a delegations link carrying one opens there
-    const slug = sp.tab === 'delegations' && sp.dtrack != null ? 'received' : sp.tab
+    // dtrack filters Received, so a delegations link carrying one opens there,
+    // and multisig opens the signatory side of an account that is no multisig
+    const slug = sp.tab === 'delegations' && sp.dtrack != null ? 'received' : sp.tab === 'multisig' && s.multisigById == null ? 'multisig-signatory' : sp.tab
     const active = tabs.find(t => t.slug === slug) ?? tabs[0]
     const groups = [...new Set(tabs.map(t => t.group ?? t.label))]
 

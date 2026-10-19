@@ -244,7 +244,7 @@ export const multisigOp = (i, traits = {}) => ({
     callHash: hashOf('call', i),
     approvals: [account(1), account(2)],
     threshold: 2,
-    signatories: null,
+    signatories: [account(1), account(2), SUBJECT],
     status: 'MultisigExecuted',
     result: {__kind: 'Ok'},
     deposit: numn(20.088),
@@ -262,12 +262,26 @@ export const MULTISIG_ENDS = [
     {status: 'MultisigExecuted', result: {__kind: 'Ok'}},
     {status: 'MultisigExecuted', result: {__kind: 'Err', value: FAILED}},
     {status: 'MultisigCancelled', approvals: [account(1)], result: null},
-    {status: 'NewMultisig', approvals: [account(3)], threshold: null, result: null, depositor: person(2)},
+    {status: 'NewMultisig', approvals: [account(3)], result: null, depositor: person(2)},
 ]
 
 export const multisigOps = () => MULTISIG_ENDS.map((end, i) => multisigOp(i, end))
 
 export const SIGNATORIES = [account(1), account(2), account(4), account(5), account(6)]
+
+// a multisig the subject signs for, each with an account of its own
+export const membership = (i, traits = {}) => ({
+    id: account(300 + i),
+    threshold: 2,
+    signatories: [account(1), account(2), SUBJECT],
+    pending: 1,
+    operations: 7,
+    lastActiveBlock: HEAD - 3_000 - i * 700,
+    account: {...person(i), id: account(300 + i)},
+    ...traits,
+})
+
+export const memberships = count => Array.from({length: count}, (_, i) => membership(i, {threshold: 2 + (i % 2), pending: i % 3, operations: 1 + i * 3}))
 
 export const vote = (i, traits = {}) => ({
     id: `vote-${i}`,
@@ -579,6 +593,7 @@ export function accountPage({
     proxiesOut = [],
     proxiesIn = [],
     multisigOps = [],
+    memberships = [],
     votes = [],
     voteActions = [],
     delegatedVotes = [],
@@ -609,6 +624,16 @@ export function accountPage({
     const standing = votes.filter(v => !v.removed)
     // a type filter names the kind, and a standard vote's side too
     const ofType = where => votes.filter(v => v.kind === where.kind_eq && (where.aye_eq == null || v.aye === where.aye_eq))
+    // an operation stands on the multisig side or the signatory side of the subject,
+    // and a signatory's counts narrow the multisig side to its approvals or openings
+    const msigSide = where =>
+        multisigOps.filter(
+            o =>
+                (where.multisig ? o.multisig.id === self : o.signatories.includes(self)) &&
+                (where.approvals_containsAny == null || o.approvals.includes(where.approvals_containsAny[0])) &&
+                (where.depositor == null || o.depositor.id === where.depositor.id_eq)
+        )
+    const asMultisig = multisigOps.filter(o => o.multisig.id === self)
     const holderRows = where => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
     return {
         accountById: account,
@@ -636,13 +661,13 @@ export function accountPage({
         tracks: TRACKS,
         proxyRelationsConnection: ({where}) => count((where.delegator ? proxiesOut : proxiesIn).length),
         proxyRelations: args => (args.where.delegator ? proxiesOut : paged(proxiesIn)(args)),
-        multisigOpsConnection: ({where}) => count(where.OR ? multisigOps.length : multisigOps.filter(o => o.multisig.id === self).length),
-        multisigOps: args =>
-            args.where.status_in
-                ? multisigOps.filter(o => o.depositor.id === self && OPEN.includes(o.status))
-                : args.where.signatories_isNull === false
-                  ? multisigOps.filter(o => o.multisig.id === self && o.signatories != null)
-                  : paged(multisigOps)(args),
+        multisigOpsConnection: ({where}) => count(msigSide(where).length),
+        multisigOps: args => (args.where.status_in ? multisigOps.filter(o => o.depositor.id === self && OPEN.includes(o.status)) : paged(msigSide(args.where))(args)),
+        multisigById: asMultisig[0]
+            ? {threshold: asMultisig[0].threshold, signatories: asMultisig[0].signatories, pending: asMultisig.filter(o => OPEN.includes(o.status)).length, operations: asMultisig.length}
+            : null,
+        multisigsConnection: count(counts.memberships ?? memberships.length),
+        multisigs: paged(memberships),
         // the vote record lists every referendum, one through the highest the account voted on unless set
         referendums: ({where}) =>
             where?.deposits_some ? proposed : (referenda ?? Array.from({length: Math.max(-1, ...votes.map(v => v.referendum.index)) + 1}, (_, index) => ({index, title: `Referendum ${index} title`}))),

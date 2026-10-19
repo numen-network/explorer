@@ -143,6 +143,23 @@ export const Even: Story = {
     }),
 }
 
+// a multisig's three short figures share one line at every width
+export const Row: Story = {
+    args: {label: 'Threshold', value: '2 of 3', beside: [{label: 'Pending', value: '1'}, {label: 'Operations', value: '1,024'}], row: true},
+    decorators: [
+        Story => (
+            <div className="col-span-full">
+                <Story />
+            </div>
+        ),
+    ],
+    play: all(cardsFit, async ({canvasElement}) => {
+        expect(new Set(figureTops(canvasElement)).size).toBe(1)
+        const widths = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card-title]')].map(t => t.parentElement!.getBoundingClientRect().width)
+        expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(1)
+    }),
+}
+
 // four figures share one line from sm up and sit two to a line below it
 export const Pairs: Story = {
     args: {label: 'All votes', value: '12', beside: [{label: 'Active', value: '2'}, {label: 'Participation rate', value: '63.15%'}, {label: 'Total locked', value: '250,000 NUMN'}], pairs: true},

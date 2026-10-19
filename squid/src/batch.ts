@@ -151,7 +151,7 @@ export class BatchData {
     delegationRemovals: string[] = []
     msigEvents: MsigEvent[] = []
     msigOps = new Map<string, MultisigOp>()
-    msigCalls = new Map<string, {threshold: number; signatories: string[]}[]>()
+    msigCalls = new Map<string, {threshold: number; others: string[]}[]>()
     msigPokes: {depositor: string; callHash: string}[] = []
     proxyRefresh = new Set<string>()
     proxyRelations: ProxyRelation[] = []

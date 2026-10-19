@@ -442,14 +442,36 @@ export interface MultisigOpRow {
     id: string
     callHash: string
     approvals: string[]
-    threshold: number | null
-    signatories: string[] | null
+    threshold: number
+    signatories: string[]
     status: string
     result: unknown
     createdBlock: number
-    updatedBlock: number
     multisig: AccountRef
     depositor: AccountRef
+}
+
+export interface MembershipRow {
+    id: string
+    threshold: number
+    signatories: string[]
+    pending: number
+    operations: number
+    lastActiveBlock: number
+    account: AccountRef
+}
+
+export interface MultisigSet {
+    threshold: number
+    signatories: string[]
+    pending: number
+    operations: number
+}
+
+export interface SignatoryRow {
+    account: AccountRef
+    approved: number
+    opened: number
 }
 
 export interface AccountSummary {
@@ -471,10 +493,10 @@ export interface AccountSummary {
     nDelegIn: {totalCount: number}
     nProxyOut: {totalCount: number}
     nProxyIn: {totalCount: number}
-    nMultisig: {totalCount: number}
-    nMultisigSelf: {totalCount: number}
+    nMultisigSigner: {totalCount: number}
+    nMemberships: {totalCount: number}
     /** Calls this account opened and nobody has finished, which is what it is holding a deposit for. */
-    msigPending: {threshold: number | null; deposit: string | null}[]
+    msigPending: {deposit: string | null}[]
     govDeposits: GovDepositRow[]
     bountyDeposits: BountyDepositRow[]
     childBountyDeposits: ChildBountyDepositRow[]
@@ -487,8 +509,8 @@ export interface AccountSummary {
     nDelegHistory: {totalCount: number}
     /** The proxies this account granted, the accounts that can act for it. */
     proxiesOut: ProxyRow[]
-    /** The signer set of this account as a multisig, recovered from its latest call that names one. */
-    msigSet: {threshold: number | null; signatories: string[] | null}[]
+    /** This account as a multisig. */
+    multisigById: MultisigSet | null
     pureCreated: {args: {who: string}; block: {height: number}}[]
     delegationsIn: {balance: string; conviction: string; track: {id: string}}[]
 }
@@ -539,9 +561,9 @@ export function accountSummary(idHex: string) {
             nDelegIn: delegationsConnection(orderBy: id_ASC, where: {target: ${self}}) { totalCount }
             nProxyOut: proxyRelationsConnection(orderBy: id_ASC, where: {delegator: ${self}}) { totalCount }
             nProxyIn: proxyRelationsConnection(orderBy: id_ASC, where: {delegatee: ${self}}) { totalCount }
-            nMultisig: multisigOpsConnection(orderBy: id_ASC, where: {OR: [{multisig: ${self}}, {depositor: ${self}}]}) { totalCount }
-            nMultisigSelf: multisigOpsConnection(orderBy: id_ASC, where: {multisig: ${self}}) { totalCount }
-            msigPending: multisigOps(where: {depositor: ${self}, status_in: ["NewMultisig", "MultisigApproval"]}, orderBy: id_ASC) { threshold deposit }
+            nMultisigSigner: multisigOpsConnection(orderBy: id_ASC, where: {signatories_containsAny: [$id]}) { totalCount }
+            nMemberships: multisigsConnection(orderBy: id_ASC, where: {signatories_containsAny: [$id]}) { totalCount }
+            msigPending: multisigOps(where: {depositor: ${self}, status_in: ["NewMultisig", "MultisigApproval"]}, orderBy: id_ASC) { deposit }
             govDeposits: referendumDeposits(where: {who: ${self}, state_eq: Held}, orderBy: [referendum_index_ASC, id_DESC]) {
                 kind amount referendum { index status }
             }
@@ -559,7 +581,7 @@ export function accountSummary(idHex: string) {
             nReceivedHistory: delegationActionsConnection(orderBy: id_ASC, where: ${delegationSide('in')}) { totalCount }
             nDelegHistory: delegationActionsConnection(orderBy: id_ASC, where: ${delegationSide('out')}) { totalCount }
             proxiesOut: proxyRelations(where: {delegator: ${self}}, orderBy: [delegatee_id_ASC, proxyType_ASC, delay_ASC], limit: 100) { id proxyType delay delegatee { ${ACCOUNT_REF} } }
-            msigSet: multisigOps(where: {multisig: ${self}, signatories_isNull: false}, orderBy: [updatedBlock_DESC, id_DESC], limit: 1) { threshold signatories }
+            multisigById(id: $id) { threshold signatories pending operations }
             pureCreated: events(where: {pallet_eq: "Proxy", method_eq: "PureCreated", args_jsonContains: {pure: "${idHex}"}}, orderBy: id_ASC, limit: 1) { args block { height } }
             delegationsIn: delegations(where: {target: ${self}}, orderBy: id_ASC) { balance conviction track { id } }
         }`,
@@ -812,16 +834,57 @@ export function proxiesFor(idHex: string, limit: number, offset: number) {
     )
 }
 
-export function multisigOpsFor(idHex: string, limit: number, offset: number) {
-    const mine = '{OR: [{multisig: {id_eq: $id}}, {depositor: {id_eq: $id}}]}'
-    return gql<{multisigOps: MultisigOpRow[]; conn: {totalCount: number}; signed: {threshold: number | null; signatories: string[] | null}[]}>(
+export type MultisigSide = 'address' | 'signatory'
+
+const MULTISIG_SIDE: Record<MultisigSide, string> = {
+    address: '{multisig: {id_eq: $id}}',
+    signatory: '{signatories_containsAny: [$id]}',
+}
+
+export function multisigOpsFor(idHex: string, side: MultisigSide, limit: number, offset: number) {
+    const where = MULTISIG_SIDE[side]
+    return gql<{multisigOps: MultisigOpRow[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            multisigOps(where: ${mine}, orderBy: [updatedBlock_DESC, id_DESC], limit: $limit, offset: $offset) {
-                id callHash approvals threshold signatories status result createdBlock updatedBlock
+            multisigOps(where: ${where}, orderBy: [createdBlock_DESC, id_DESC], limit: $limit, offset: $offset) {
+                id callHash approvals threshold signatories status result createdBlock
                 multisig { ${ACCOUNT_REF} } depositor { ${ACCOUNT_REF} }
             }
-            conn: multisigOpsConnection(where: ${mine}, orderBy: id_ASC) { totalCount }
-            signed: multisigOps(where: {multisig: {id_eq: $id}, signatories_isNull: false}, orderBy: [updatedBlock_DESC, id_DESC], limit: 1) { threshold signatories }
+            conn: multisigOpsConnection(where: ${where}, orderBy: id_ASC) { totalCount }
+        }`,
+        {id: idHex, limit, offset}
+    )
+}
+
+// each signatory's approvals and openings counted in one round trip, the set
+// tops out at the pallet's MaxSignatories
+export async function signatoriesOf(idHex: string, signatories: string[]): Promise<SignatoryRow[]> {
+    const counts = signatories
+        .map((s, i) => {
+            const on = `multisig: {id_eq: $id}`
+            return `a${i}: multisigOpsConnection(orderBy: id_ASC, where: {${on}, approvals_containsAny: ["${s}"]}) { totalCount }
+            o${i}: multisigOpsConnection(orderBy: id_ASC, where: {${on}, depositor: {id_eq: "${s}"}}) { totalCount }`
+        })
+        .join('\n')
+    const r = await gql<Record<string, unknown>>(
+        `query ($id: String!, $ids: [String!]!) {
+            accounts(where: {id_in: $ids}, orderBy: id_ASC) { ${ACCOUNT_REF} }
+            ${counts}
+        }`,
+        {id: idHex, ids: signatories}
+    )
+    const refs = new Map((r.accounts as AccountRef[]).map(a => [a.id, a]))
+    const n = (key: string) => (r[key] as {totalCount: number}).totalCount
+    // a signatory that never acted on chain has no account row
+    return signatories.map((id, i) => ({account: refs.get(id) ?? {id, identityDisplay: null}, approved: n(`a${i}`), opened: n(`o${i}`)}))
+}
+
+export function membershipsFor(idHex: string, limit: number, offset: number) {
+    return gql<{multisigs: MembershipRow[]; conn: {totalCount: number}}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            multisigs(where: {signatories_containsAny: [$id]}, orderBy: [lastActiveBlock_DESC, id_DESC], limit: $limit, offset: $offset) {
+                id threshold signatories pending operations lastActiveBlock account { ${ACCOUNT_REF} }
+            }
+            conn: multisigsConnection(where: {signatories_containsAny: [$id]}, orderBy: id_ASC) { totalCount }
         }`,
         {id: idHex, limit, offset}
     )

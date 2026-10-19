@@ -28,6 +28,8 @@ import {
     minedBlockRows,
     minedDays,
     MULTISIG_ENDS,
+    membership,
+    memberships,
     multisigOp,
     multisigOps,
     NOT_HELD,
@@ -315,12 +317,6 @@ export const MultisigTwoOfThree = multisigSelf(2, PEOPLE.slice(0, 3).map(p => p.
 export const MultisigOneOfTwo = multisigSelf(1, PEOPLE.slice(0, 2).map(p => p.id))
 
 export const MultisigThreeOfThree = multisigSelf(3, PEOPLE.slice(0, 3).map(p => p.id))
-
-// no call has named the signer set yet
-export const MultisigSignersUnknown: StoryObj = {
-    ...story({multisigOps: [multisigOp(0, {multisig: ME, depositor: PEOPLE[1]})], transfers: accountTransfers(3)}),
-    play: async ({canvasElement}) => expect(tones(canvasElement)).toEqual({Multisig: 'idle'}),
-}
 
 // 1,250.5 at 6x plus the 4,500 votes Root carries, the larger of its two tracks
 export const VotesPower: StoryObj = {
@@ -897,14 +893,72 @@ export const ProxiesInPage2 = story({proxiesIn: proxyFor(45)}, {tab: 'proxies', 
 
 export const ProxiesInLastPage = story({proxiesIn: proxyFor(45)}, {tab: 'proxies', page: lastPage(45)})
 
-export const MultisigOne = story({multisigOps: [multisigOp(0)]}, {tab: 'multisig'})
+// each link of a tab strip as its tab or mtab, its count and whether it is open
+const strip = (root: HTMLElement, name: string, param: string) =>
+    within(within(root).getByRole('navigation', {name}))
+        .getAllByRole('link')
+        .map(a => [new URL(a.getAttribute('href')!, 'http://x').searchParams.get(param), a.querySelector('[data-slot=badge]')!.textContent, a.getAttribute('aria-current')])
 
-export const MultisigMember = story({account: subject({...funds(numn(1250.5), reservedOf(numn(20.088), numn(20.088)))}), multisigOps: multisigOps()}, {tab: 'multisig'})
+const asAddress = (count: number) => MULTISIG_ENDS.map((end, i) => multisigOp(i, {threshold: 3, ...end, multisig: ME, depositor: person(i), signatories: SIGNATORIES})).slice(0, count)
 
-export const MultisigAccount = story(
-    {multisigOps: MULTISIG_ENDS.map((end, i) => multisigOp(i, {threshold: 3, ...end, multisig: ME, depositor: person(i), signatories: SIGNATORIES}))},
-    {tab: 'multisig'}
+// a multisig link opens the signatory side of an account that is no multisig
+export const MultisigSignatoryOnly: StoryObj = {
+    ...story({multisigOps: [multisigOp(0)], memberships: [membership(0)]}, {tab: 'multisig'}),
+    play: async ({canvasElement}) => {
+        expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([['multisig-signatory', '1', 'page']])
+        expect(strip(canvasElement, 'As a multisig signatory', 'mtab')).toEqual([
+            ['operations', '1', 'page'],
+            ['memberships', '1', null],
+        ])
+    },
+}
+
+export const MultisigMember = story(
+    {account: subject({...funds(numn(1250.5), reservedOf(numn(20.088), numn(20.088)))}), multisigOps: multisigOps(), memberships: memberships(3)},
+    {tab: 'multisig-signatory'}
 )
+
+export const MultisigMemberships: StoryObj = {
+    ...story({multisigOps: multisigOps(), memberships: memberships(3)}, {tab: 'multisig-signatory', mtab: 'memberships'}),
+    play: async ({canvasElement}) => {
+        expect(strip(canvasElement, 'As a multisig signatory', 'mtab').map(l => l[2])).toEqual([null, 'page'])
+        expect(within(canvasElement).getByRole('columnheader', {name: 'Pending'})).toBeInTheDocument()
+    },
+}
+
+const manyMemberships = memberships(45)
+
+export const MultisigMembershipsPage2 = story({multisigOps: multisigOps(), memberships: manyMemberships}, {tab: 'multisig-signatory', mtab: 'memberships', page: '2'})
+
+export const MultisigAccount: StoryObj = {
+    ...story({multisigOps: asAddress(MULTISIG_ENDS.length)}, {tab: 'multisig'}),
+    play: async ({canvasElement}) => expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([['multisig', String(MULTISIG_ENDS.length), 'page']]),
+}
+
+// each signatory's approvals and openings over the six operations, the tile above them
+export const MultisigSignatories: StoryObj = {
+    ...story({multisigOps: asAddress(MULTISIG_ENDS.length), refs: PEOPLE}, {tab: 'multisig', mtab: 'signatories'}),
+    play: async ({canvasElement}) => {
+        expect(strip(canvasElement, 'As a multisig address', 'mtab')).toEqual([
+            ['operations', String(MULTISIG_ENDS.length), null],
+            ['signatories', String(SIGNATORIES.length), 'page'],
+        ])
+        expect(summaries(canvasElement)).toEqual([{Threshold: `3 of ${SIGNATORIES.length}`, Pending: '3', Operations: String(MULTISIG_ENDS.length)}])
+        const cells = (i: number) => [...canvasElement.querySelectorAll('tbody tr')].map(tr => tr.children[i].textContent)
+        expect(cells(1)).toEqual(['4', '2', '0', '0', '0'])
+        expect(cells(2)).toEqual(['1', '1', '1', '1', '1'])
+    },
+}
+
+// a multisig that signs for another multisig stands on both sides
+export const MultisigBothSides: StoryObj = {
+    ...story({multisigOps: [...asAddress(2), multisigOp(10)], memberships: [membership(0)]}, {tab: 'multisig'}),
+    play: async ({canvasElement}) =>
+        expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([
+            ['multisig', '2', 'page'],
+            ['multisig-signatory', '1', null],
+        ]),
+}
 
 const manyOps = Array.from({length: 45}, (_, i) => multisigOp(i, {threshold: 3, ...MULTISIG_ENDS[i % MULTISIG_ENDS.length], multisig: ME, depositor: person(i), signatories: SIGNATORIES}))
 

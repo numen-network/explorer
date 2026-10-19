@@ -3,7 +3,7 @@ import {FilterRow} from '@/components/pills'
 import type {BadgeVariant} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtCount, fmtInt, fmtSpan} from '@/lib/format'
-import type {AccountRef, AccountRow, AccountSummary, BountyDepositRow, ChildBountyDepositRow, GovDepositRow, ValidatorRow} from '@/lib/gql'
+import type {AccountRef, AccountRow, AccountSummary, BountyDepositRow, ChildBountyDepositRow, GovDepositRow, MultisigSet, ValidatorRow} from '@/lib/gql'
 import {identityLabel} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
 import {variantName} from '@/lib/variant'
@@ -202,7 +202,7 @@ function msigRows(pending: {deposit: string | null}[], addr: string): LockRow[] 
     if (total === 0n) return []
     const freedBy =
         pending.length === 1 ? 'until that call runs or is called off' : `until those ${fmtCount(pending.length, 'call')} run or are called off`
-    return [reserved('Multisig deposit', total, {href: tabHref(addr, 'multisig'), freedBy})]
+    return [reserved('Multisig deposit', total, {href: tabHref(addr, 'multisig-signatory'), freedBy})]
 }
 
 // the tab strip needs the count before the tab renders, so the rows are data
@@ -246,9 +246,7 @@ export interface Role {
 const refName = (id: string, acc: AccountRef | undefined, chain: ChainProps) => identityLabel(acc) ?? shortAddr(ss58Encode(id, chain.ss58))
 
 // one signer alone can act, or one lost key locks the account
-export function multisigRole(s: AccountSummary, refs: Map<string, AccountRef>, chain: ChainProps): Role {
-    const set = s.msigSet[0]
-    if (set?.signatories == null || set.threshold == null) return {text: 'Multisig', tone: 'idle'}
+export function multisigRole(set: MultisigSet, refs: Map<string, AccountRef>, chain: ChainProps): Role {
     const n = set.signatories.length
     return {
         text: `Multisig ${set.threshold}/${n}`,
@@ -273,4 +271,4 @@ export function controlRoles(s: AccountSummary, refs: Map<string, AccountRef>, c
 }
 
 /** Accounts the control roles name by id alone, whose identities take a lookup of their own. */
-export const controlRefIds = (s: AccountSummary) => [...new Set([...(s.pureCreated[0] ? [s.pureCreated[0].args.who] : []), ...(s.msigSet[0]?.signatories ?? [])])]
+export const controlRefIds = (s: AccountSummary) => [...new Set([...(s.pureCreated[0] ? [s.pureCreated[0].args.who] : []), ...(s.multisigById?.signatories ?? [])])]

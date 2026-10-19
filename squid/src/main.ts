@@ -27,7 +27,7 @@ import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount,
 import {collectGovEvent, finalizeGovernance, movedDelegates, refreshDelegates} from './governance'
 import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from './validators'
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
-import {collectMultisigCall, collectMultisigEvent, finalizeMultisig} from './multisig'
+import {collectMultisigCall, collectMultisigEvent, finalizeMultisig, refreshMultisigs} from './multisig'
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
 import {accumulateDay, finalizeStats, treasuryAccount} from './stats'
 import {readBatchTracks} from './tracks'
@@ -136,10 +136,10 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     mapCalls(batch, block, b.calls, b.events, h._runtime)
     for (const call of b.calls) {
         if (!call.success) continue
+        if (call.name.startsWith('Multisig.') && call.extrinsic != null) collectMultisigCall(batch, call.name, call.args, call.extrinsic.id)
         const origin = originOf(call)
         if (origin == null) continue
         if (call.name.startsWith('Identity.') || call.name.startsWith('Proxy.')) collectAnnotationCall(batch, call.name, call.args, origin, h.height, h)
-        else if (call.name.startsWith('Multisig.') && call.extrinsic != null) collectMultisigCall(batch, call.name, call.args, origin, call.extrinsic.id)
         else if (call.name.startsWith('ChildBounties.')) collectBountyCall(batch, call.name, call.args, h.height)
     }
     const treasury = treasuryAccount(h)
@@ -691,6 +691,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     if (batch.delegationRemovals.length > 0) await ctx.store.remove(Delegation, batch.delegationRemovals)
     await refreshDelegates(ctx, delegates)
     await ctx.store.upsert([...batch.msigOps.values()])
+    await refreshMultisigs(batch, ctx.store)
     await ctx.store.upsert(batch.proxyRelations)
     await ctx.store.upsert(batch.registrars)
     await ctx.store.upsert(batch.judgements)
