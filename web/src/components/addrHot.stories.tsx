@@ -1,4 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {EvmAddrLink} from '@/components/links'
 import {evmAddress} from '../../../mock/fixtures/evm.js'
 import {AddrMark} from './addrHot'
@@ -35,7 +36,11 @@ export const Idle: Story = {render: () => <Marks />}
 
 export const HoverLightsEveryMatch: Story = {
     render: () => <Marks />,
-    play: async ({canvas, userEvent}) => {
+    play: async ({canvas, canvasElement, userEvent}) => {
         await userEvent.hover(canvas.getByText(alice))
+        const lit = (addr: string) => [...canvasElement.querySelectorAll(`[href="/address/${addr}"]`)].map(a => a.classList.contains('bg-primary-soft'))
+        expect(canvas.getByText(alice)).toHaveClass('bg-primary-soft')
+        expect(lit(alice)).toEqual([true, true])
+        expect(lit(bob)).toEqual([false, false, false, false])
     },
 }

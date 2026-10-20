@@ -46,13 +46,13 @@ export function EventLink({height, index}: {height: number; index: number}) {
 
 export function EvmAddrLink({addr, full = false}: {addr: string; full?: boolean}) {
     return (
-        <AddrMark addr={addr}>
-            <Tip text={full ? undefined : addr}>
+        <Tip text={full ? undefined : addr}>
+            <AddrMark asChild addr={addr}>
                 <Link href={`/address/${addr}`} className="font-mono text-primary hover:underline">
                     <HashText hash={addr} full={full} />
                 </Link>
-            </Tip>
-        </AddrMark>
+            </AddrMark>
+        </Tip>
     )
 }
 

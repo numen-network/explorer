@@ -24,7 +24,7 @@ export default function Header({a, addr, roles}: {a: IdentityRef & {id: string};
                     {a.username && (
                         <>
                             <span className="wrap-anywhere">{a.username}</span>
-                            <span className="text-dim"> | </span>
+                            <span className="mx-2 text-dim">|</span>
                         </>
                     )}
                     <AddrMark addr={addr}>{addr}</AddrMark>

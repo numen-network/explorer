@@ -80,10 +80,12 @@ export default async function EvmAddressPage(props: PageProps<'/address/[address
                     <CopyBtn text={address} />
                 </div>
                 <div className="mt-1 text-[13px] text-muted-foreground">
-                    Mapped substrate account{' '}
-                    <Link href={`/account/${mapped}`} className="font-mono break-all text-primary hover:underline">
-                        {mapped}
-                    </Link>
+                    <span className="mr-2">Mapped substrate account</span>
+                    <AddrMark asChild addr={mapped}>
+                        <Link href={`/account/${mapped}`} className="font-mono break-all text-primary hover:underline">
+                            {mapped}
+                        </Link>
+                    </AddrMark>
                     <span className="ml-2 text-xs text-dim">one way, balances live there</span>
                 </div>
             </div>

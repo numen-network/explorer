@@ -38,6 +38,7 @@ import {controlRefIds, controlRoles, lockRows, multisigRole, schedules, tabHref,
 import {transferableOf} from '@/lib/balance'
 import {chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
+import {AddrMark} from '@/components/addrHot'
 import {votesPower} from '@/lib/conviction'
 import {fmtInt, fmtPct} from '@/lib/format'
 import {accountRefs, accountSummary, blockTime, evmCounts, type AccountRef} from '@/lib/gql'
@@ -231,9 +232,11 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                         )}
                         {a.evmAddress && (
                             <DetailRow label="EVM origin">
-                                <Link href={`/address/${a.evmAddress}`} className="text-primary hover:underline">
-                                    {a.evmAddress}
-                                </Link>{' '}
+                                <AddrMark asChild addr={a.evmAddress}>
+                                    <Link href={`/address/${a.evmAddress}`} className="text-primary hover:underline">
+                                        {a.evmAddress}
+                                    </Link>
+                                </AddrMark>{' '}
                                 <span className="ml-1 text-xs text-dim">mapped account of this H160</span>
                             </DetailRow>
                         )}

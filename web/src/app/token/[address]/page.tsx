@@ -2,6 +2,7 @@ import {cn} from 'cn'
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import Approx from '@/components/Approx'
+import {AddrMark} from '@/components/addrHot'
 import ContractPanel from '@/components/ContractPanel'
 import CopyBtn from '@/components/CopyBtn'
 import Pager from '@/components/Pager'
@@ -117,9 +118,11 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                     )}
                 </h1>
                 <div className="mt-1 font-mono text-[13px] break-all text-muted-foreground">
-                    <Link href={`/address/${token.id}`} className="text-primary hover:underline">
-                        {token.id}
-                    </Link>
+                    <AddrMark asChild addr={token.id}>
+                        <Link href={`/address/${token.id}`} className="text-primary hover:underline">
+                            {token.id}
+                        </Link>
+                    </AddrMark>
                     <CopyBtn text={token.id} />
                 </div>
             </div>

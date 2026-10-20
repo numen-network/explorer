@@ -165,7 +165,7 @@ export const IdentityWithoutDisplay: StoryObj = {
     ...story({account: named({...identity(null, AURORA), username: 'aurora.numen'}), transfers: accountTransfers(3)}),
     play: async ({canvasElement}) => {
         expect(rowValue(canvasElement, 'Display')).toBe('—')
-        expect(addressLine(canvasElement)).toBe(`aurora.numen | ${ss58Encode(SUBJECT, chainInfo.ss58)}`)
+        expect(addressLine(canvasElement)).toBe(`aurora.numen|${ss58Encode(SUBJECT, chainInfo.ss58)}`)
     },
 }
 
@@ -173,7 +173,7 @@ export const UsernameOnly: StoryObj = {
     ...story({account: subject({username: 'aurora.numen'}), transfers: accountTransfers(3)}),
     play: async ({canvas, canvasElement}) => {
         expect(heading(canvasElement)).toBe('aurora.numen')
-        expect(addressLine(canvasElement)).toBe(`aurora.numen | ${ss58Encode(SUBJECT, chainInfo.ss58)}`)
+        expect(addressLine(canvasElement)).toBe(`aurora.numen|${ss58Encode(SUBJECT, chainInfo.ss58)}`)
         expect(canvas.queryByText('Identity')).toBeNull()
     },
 }
