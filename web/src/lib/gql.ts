@@ -491,7 +491,7 @@ export interface SignatoryRow {
 export interface AccountSummary {
     accountById: AccountRow | null
     validators: ValidatorRow[]
-    registrar: {index: number}[]
+    registrar: RegistrarRow[]
     retiredRegistrars: {index: number}[]
     prime: {id: string}[]
     minerDays: {day: string; blocks: number}[]
@@ -505,7 +505,6 @@ export interface AccountSummary {
     nOffences: {totalCount: number}
     nValidatorSteps: {totalCount: number}
     nSubs: {totalCount: number}
-    nJudged: {totalCount: number}
     nDelegOut: {totalCount: number}
     nDelegIn: {totalCount: number}
     nProxyOut: {totalCount: number}
@@ -562,7 +561,7 @@ export function accountSummary(idHex: string) {
         `query ($id: String!) {
             accountById(id: $id) { id free reserved balance frozen nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData username identitySuper { ${ACCOUNT_REF} } evmAddress vestingJson locksJson holdsJson depositsJson }
             validators(where: {account: ${self}}, limit: 1) { ${VALIDATOR_FIELDS} }
-            registrar: registrars(where: {account: ${self}}, orderBy: index_ASC, limit: 1) { index }
+            registrar: registrars(where: {account: ${self}}, orderBy: index_ASC, limit: 1) { ${REGISTRAR_FIELDS} }
             retiredRegistrars: registrars(where: {retiredAt_isNull: false}) { index }
             prime: primeStates(where: {account: ${self}}, limit: 1) { id }
             minerDays: minerDayStats(where: {account: ${self}}, orderBy: day_DESC, limit: 60) { day blocks }
@@ -576,7 +575,6 @@ export function accountSummary(idHex: string) {
             nOffences: validatorOffencesConnection(orderBy: id_ASC, where: {validator: ${self}}) { totalCount }
             nValidatorSteps: validatorStepsConnection(orderBy: id_ASC, where: {account: ${self}}) { totalCount }
             nSubs: accountsConnection(orderBy: id_ASC, where: {identitySuper: ${self}}) { totalCount }
-            nJudged: judgementsConnection(orderBy: id_ASC, where: {registrar: {account: ${self}}}) { totalCount }
             nDelegOut: delegationsConnection(orderBy: id_ASC, where: {who: ${self}}) { totalCount }
             nDelegIn: delegationsConnection(orderBy: id_ASC, where: {target: ${self}}) { totalCount }
             nProxyOut: proxyRelationsConnection(orderBy: id_ASC, where: {delegator: ${self}}) { totalCount }
@@ -1401,27 +1399,6 @@ export function judgementsByEvent(ids: string[]) {
     return gql<{judgements: {id: string; kind: string | null; fee: string | null}[]}>(
         `query ($ids: [String!]!) { judgements(where: {id_in: $ids}, limit: 100) { id kind fee } }`,
         {ids}
-    )
-}
-
-export interface JudgementRow {
-    id: string
-    kind: string | null
-    fee: string | null
-    block: number
-    timestamp: string
-    target: AccountRef
-}
-
-export function judgementsGiven(index: number, limit: number, offset: number) {
-    return gql<{judgements: JudgementRow[]; conn: {totalCount: number}}>(
-        `query ($index: Int!, $limit: Int!, $offset: Int!) {
-            judgements(where: {registrar: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) {
-                id kind fee block timestamp target { ${ACCOUNT_REF} }
-            }
-            conn: judgementsConnection(orderBy: block_DESC, where: {registrar: {index_eq: $index}}) { totalCount }
-        }`,
-        {index, limit, offset}
     )
 }
 

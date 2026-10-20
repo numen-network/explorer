@@ -1,0 +1,33 @@
+import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expect, within} from 'storybook/test'
+import {Card} from '@/components/ui/card'
+import type {RegistrarRow} from '@/lib/gql'
+import {numn} from '../../../../mock/fixtures.js'
+import {CHAIN, REGISTRARS, VERDICTS} from '../../../../mock/fixtures/accounts.js'
+import {ReceivedJudgementsTable, type ReceivedJudgement} from './ReceivedJudgementsTable'
+
+const meta = {title: 'Components/Account/ReceivedJudgementsTable'} satisfies Meta
+export default meta
+type Story = StoryObj<typeof meta>
+
+const seat = (registrar: number) => (REGISTRARS as RegistrarRow[]).find(r => r.index === registrar)
+const verdict = (registrar: number, kind: string): ReceivedJudgement => ({registrar, kind, fee: kind === 'FeePaid' ? numn(2.5) : undefined, seat: seat(registrar)})
+
+const table = (rows: ReceivedJudgement[]) => (
+    <Card size="flush">
+        <ReceivedJudgementsTable rows={rows} chain={CHAIN} />
+    </Card>
+)
+
+const cells = (root: HTMLElement, registrar: number) => [...within(root).getByText(`#${registrar}`).closest('tr')!.cells].map(c => c.textContent)
+
+export const One: Story = {render: () => table([verdict(0, 'Reasonable')])}
+
+// registrar 3 is retired and holds the fee paid to it
+export const EveryVerdict: Story = {
+    render: () => table(VERDICTS.map((kind, i) => verdict(i, kind))),
+    play: async ({canvasElement}) => {
+        expect(cells(canvasElement, 0)).toEqual(['#0Polaris Guild', 'KnownGood', '—'])
+        expect(cells(canvasElement, 3)).toEqual(['#3Retired', 'FeePaid', '2.5 NUMN'])
+    },
+}

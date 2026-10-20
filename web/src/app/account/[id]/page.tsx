@@ -17,13 +17,14 @@ import Extrinsics from '@/components/account/Extrinsics'
 import Header from '@/components/account/Header'
 import Holdings from '@/components/account/Holdings'
 import Identity from '@/components/account/Identity'
-import Judgements from '@/components/account/Judgements'
 import Locks from '@/components/account/Locks'
 import Mining from '@/components/account/Mining'
 import {MultisigAddress, MultisigSignatory} from '@/components/account/Multisig'
 import Proposed from '@/components/account/Proposed'
 import Proxies from '@/components/account/Proxies'
+import ReceivedJudgements from '@/components/account/ReceivedJudgements'
 import Received from '@/components/account/Received'
+import {RegistrarTile} from '@/components/account/Registrar'
 import Subs from '@/components/account/Subs'
 import Timeline from '@/components/account/Timeline'
 import TokenTransfers from '@/components/account/TokenTransfers'
@@ -42,6 +43,7 @@ import {AddrMark} from '@/components/addrHot'
 import {votesPower} from '@/lib/conviction'
 import {fmtInt, fmtPct} from '@/lib/format'
 import {accountRefs, accountSummary, blockTime, evmCounts, type AccountRef} from '@/lib/gql'
+import {identityJudgements} from '@/lib/identity'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {CONFIG, datedOrGenesis} from '@/lib/config'
 
@@ -105,6 +107,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const vest = schedules(a.vestingJson)
     const registrar = s.registrar[0]
     const hasIdentity = a.identityJson != null || a.identitySuper != null
+    const judgements = identityJudgements(a.identityJson)
 
     const free = BigInt(a.free)
     const reserved = BigInt(a.reserved)
@@ -137,13 +140,15 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     tabs.push({slug: 'extrinsics', label: 'Extrinsics', count: s.nExtrinsics.totalCount, body: () => <Extrinsics {...ctx} />})
     if (locks.length > 0) tabs.push({slug: 'locks', label: 'Locks', count: locks.length, body: () => <Locks rows={locks} chain={chain} />})
     if (vest.length > 0) tabs.push({slug: 'vesting', label: 'Vesting', count: vest.length, body: () => <Vesting vest={vest} inLock={BigInt(a.locksJson?.find(l => l.id === 'vesting')?.amount ?? 0)} chain={chain} />})
+    if (hasIdentity) tabs.push({slug: 'direct', label: 'Direct', group: 'Identity', body: () => <Identity a={a} chain={chain} />})
+    if (s.nSubs.totalCount > 0) tabs.push({slug: 'subs', label: 'Sub', group: 'Identity', count: s.nSubs.totalCount, body: () => <Subs {...ctx} />})
+    if (judgements.length > 0)
+        tabs.push({slug: 'judgements-received', label: 'Judgements', group: 'Identity', count: judgements.length, body: () => <ReceivedJudgements judgements={judgements} chain={chain} />})
     // an account that cleared its identity keeps every event it ever raised, so
     // the tab answers to its own rows rather than to the identity standing now
     if (s.nTimeline.totalCount > 0)
         tabs.push({slug: 'timeline', label: 'Timeline', group: 'Identity', count: s.nTimeline.totalCount, body: () => <Timeline {...ctx} />})
-    if (s.nSubs.totalCount > 0) tabs.push({slug: 'subs', label: 'Sub identities', group: 'Identity', count: s.nSubs.totalCount, body: () => <Subs {...ctx} />})
-    if (registrar)
-        tabs.push({slug: 'judgements', label: 'Judgements Given', group: 'Identity', count: s.nJudged.totalCount, body: () => <Judgements {...ctx} index={registrar.index} />})
+    if (registrar) tabs.push({slug: 'registrar', label: 'Registrar', body: () => <RegistrarTile r={registrar} chain={chain} />})
     // an exemption alone leaves no Validator row, so the steps answer for themselves
     if (s.nValidatorSteps.totalCount > 0)
         tabs.push({slug: 'validator-timeline', label: 'Timeline', group: 'Validator', count: s.nValidatorSteps.totalCount, body: () => <ValidatorTimeline {...ctx} />})
@@ -183,68 +188,65 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
         <div>
             <Header a={a} addr={addr} roles={roles} />
 
-            <div className={`mt-4 grid items-start gap-4 ${hasIdentity ? 'lg:grid-cols-2' : ''}`}>
-                <div>
-                    <DetailCard>
-                        <AmountRows>
-                            <AmountGroup>
-                                <AmountRow label="Balance">
-                                    <Balance planck={a.balance} chain={chain} />
-                                    <BalanceBar transferable={transferable} locked={locked} />
-                                </AmountRow>
-                                <AmountRow label="Transferable *" mark="good" share={share(transferable)}>
-                                    <Balance planck={transferable} chain={chain} />
-                                </AmountRow>
-                                <AmountRow label="Locked *" mark="dim" share={share(locked)}>
-                                    <Balance planck={locked} chain={chain} />
-                                </AmountRow>
-                            </AmountGroup>
-                            <AmountRow label="Free">
-                                <Balance planck={free} chain={chain} />
+            <div className="mt-4">
+                <DetailCard>
+                    <AmountRows>
+                        <AmountGroup>
+                            <AmountRow label="Balance">
+                                <Balance planck={a.balance} chain={chain} />
+                                <BalanceBar transferable={transferable} locked={locked} />
                             </AmountRow>
-                            <AmountRow label="Reserved">
-                                <Balance planck={reserved} chain={chain} />
+                            <AmountRow label="Transferable *" mark="good" share={share(transferable)}>
+                                <Balance planck={transferable} chain={chain} />
                             </AmountRow>
-                            <AmountRow label="Frozen">
-                                <Balance planck={frozen} chain={chain} />
+                            <AmountRow label="Locked *" mark="dim" share={share(locked)}>
+                                <Balance planck={locked} chain={chain} />
                             </AmountRow>
-                            <AmountRow label="Votes power **">
-                                <Balance planck={power.votesPower} chain={chain} />
-                            </AmountRow>
-                            <AmountRow label="Max delegations">
-                                <Balance planck={power.maxDelegations} chain={chain} />
-                            </AmountRow>
-                        </AmountRows>
-                        <DetailRow label="Nonce">{fmtInt(a.nonce)}</DetailRow>
-                        <DetailRow label="First seen">
-                            <BlockLink height={a.firstSeenBlock} />
+                        </AmountGroup>
+                        <AmountRow label="Free">
+                            <Balance planck={free} chain={chain} />
+                        </AmountRow>
+                        <AmountRow label="Reserved">
+                            <Balance planck={reserved} chain={chain} />
+                        </AmountRow>
+                        <AmountRow label="Frozen">
+                            <Balance planck={frozen} chain={chain} />
+                        </AmountRow>
+                        <AmountRow label="Votes power **">
+                            <Balance planck={power.votesPower} chain={chain} />
+                        </AmountRow>
+                        <AmountRow label="Max delegations">
+                            <Balance planck={power.maxDelegations} chain={chain} />
+                        </AmountRow>
+                    </AmountRows>
+                    <DetailRow label="Nonce">{fmtInt(a.nonce)}</DetailRow>
+                    <DetailRow label="First seen">
+                        <BlockLink height={a.firstSeenBlock} />
+                        <span className="ml-3 text-muted-foreground">
+                            <TimeCell iso={datedOrGenesis(a.firstSeenTimestamp, a.firstSeenBlock, chain.evmChainId)} cycle />
+                        </span>
+                    </DetailRow>
+                    {a.lastActiveBlock != null && (
+                        <DetailRow label="Last active">
+                            <BlockLink height={a.lastActiveBlock} />
                             <span className="ml-3 text-muted-foreground">
-                                <TimeCell iso={datedOrGenesis(a.firstSeenTimestamp, a.firstSeenBlock, chain.evmChainId)} cycle />
+                                <TimeCell iso={lastActiveTime} cycle />
                             </span>
                         </DetailRow>
-                        {a.lastActiveBlock != null && (
-                            <DetailRow label="Last active">
-                                <BlockLink height={a.lastActiveBlock} />
-                                <span className="ml-3 text-muted-foreground">
-                                    <TimeCell iso={lastActiveTime} cycle />
-                                </span>
-                            </DetailRow>
-                        )}
-                        {a.evmAddress && (
-                            <DetailRow label="EVM origin">
-                                <AddrMark asChild addr={a.evmAddress}>
-                                    <Link href={`/address/${a.evmAddress}`} className="text-primary hover:underline">
-                                        {a.evmAddress}
-                                    </Link>
-                                </AddrMark>{' '}
-                                <span className="ml-1 text-xs text-dim">mapped account of this H160</span>
-                            </DetailRow>
-                        )}
-                    </DetailCard>
-                    <div className="mt-2 px-1 text-xs text-dim">* computed from on-chain data, not raw on-chain data</div>
-                    <div className="mt-1 px-1 text-xs text-dim">** balance × 6 + max delegated votes on one track</div>
-                </div>
-                {hasIdentity && <Identity a={a} chain={chain} retired={s.retiredRegistrars} />}
+                    )}
+                    {a.evmAddress && (
+                        <DetailRow label="EVM origin">
+                            <AddrMark asChild addr={a.evmAddress}>
+                                <Link href={`/address/${a.evmAddress}`} className="text-primary hover:underline">
+                                    {a.evmAddress}
+                                </Link>
+                            </AddrMark>{' '}
+                            <span className="ml-1 text-xs text-dim">mapped account of this H160</span>
+                        </DetailRow>
+                    )}
+                </DetailCard>
+                <div className="mt-2 px-1 text-xs text-dim">* computed from on-chain data, not raw on-chain data</div>
+                <div className="mt-1 px-1 text-xs text-dim">** balance × 6 + max delegated votes on one track</div>
             </div>
 
             <div className="mt-7">

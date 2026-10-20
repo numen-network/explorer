@@ -81,7 +81,7 @@ const registrarRow = (index, acc, traits = {}) => ({
 })
 
 // one seat per verdict an identity can carry, seat 3 retired
-const REGISTRARS = [
+export const REGISTRARS = [
     registrarRow(0, PEOPLE[0]),
     registrarRow(1, PEOPLE[1]),
     registrarRow(2, PEOPLE[5]),
@@ -418,16 +418,6 @@ export const delegationActionRows = () => DELEGATION_ACTION_CASES.map((c, i) => 
 export const delegationActionsOf = (count, side) =>
     Array.from({length: count}, (_, i) => delegationAction(i, side === 'out' ? {target: person(i)} : {who: person(i), target: ME}))
 
-const judgement = (i, traits = {}) => {
-    const h = HEAD - 2_000 * (i + 1)
-    return {id: squidId(h, i % 5), kind: 'Reasonable', fee: null, block: h, timestamp: at(h), target: person(i), ...traits}
-}
-
-// what a registrar can hand out, and the verdict lost to a clear in the same block
-export const JUDGEMENT_KINDS = ['KnownGood', 'Reasonable', 'OutOfDate', 'Unknown', 'LowQuality', 'Erroneous', null]
-
-export const judgementsGiven = count => Array.from({length: count}, (_, i) => judgement(i, {kind: JUDGEMENT_KINDS[i % JUDGEMENT_KINDS.length]}))
-
 // the last name fills all 32 bytes a Raw sub name can hold
 const SUB_NAMES = ['payouts', 'treasury-ops', 'cold-storage', 'validator-payouts-europe-west-01']
 
@@ -757,7 +747,6 @@ export function accountPage({
     timeline = [],
     verdicts = [],
     subs = [],
-    judged = [],
     delegationsOut = [],
     delegationsIn = [],
     proxiesOut = [],
@@ -822,7 +811,7 @@ export function accountPage({
         validatorSteps: paged(steps),
         validatorStepsConnection: count(counts.validatorSteps ?? steps.length),
         registrars: ({where}) =>
-            where?.account ? (registrar == null ? [] : [{index: registrar}]) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
+            where?.account ? REGISTRARS.filter(r => r.index === registrar) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
         primeStates: prime ? [{id: 'prime'}] : [],
         // the subject's own day rows, or the window over every miner that ranks it
         minerDayStats: ({where}) => (where.account ? minerDays : minerWindow),
@@ -839,8 +828,7 @@ export function accountPage({
         extrinsics,
         eventsConnection: count(counts.timeline ?? timeline.length),
         events: ({where}) => (where.method_eq === 'PureCreated' ? (pure ? [pure] : []) : timeline),
-        judgements: ({where}) => (where.id_in ? verdicts : judged),
-        judgementsConnection: count(counts.judged ?? judged.length),
+        judgements: verdicts,
         accountsConnection: count(counts.subs ?? subs.length),
         accounts: ({where}) => (where?.id_in ? refs : subs),
         delegationsConnection: ({where}) => count(!where.target ? delegationsOut.length : where.track ? perTrack(where.track.id_eq) : allIn),

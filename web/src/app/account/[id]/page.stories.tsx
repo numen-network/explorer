@@ -30,7 +30,6 @@ import {
     identityTimeline,
     JJFU_OFFLINE,
     JJFU_STEPS,
-    judgementsGiven,
     ME,
     MADE_UP_EQUIVOCATION,
     MAX_U128,
@@ -119,6 +118,11 @@ const schedule = (locked: number, perBlock: number, startingBlock: number) => ({
 
 const heading = (root: HTMLElement) => within(root).getByRole('heading', {level: 1}).textContent
 const addressLine = (root: HTMLElement) => within(root).getByRole('heading', {level: 1}).nextElementSibling!.textContent
+// the tab slugs of a group's strip, in the order they show
+const subTabs = (root: HTMLElement, group: string) =>
+    within(within(root).getByRole('navigation', {name: group}))
+        .getAllByRole('link')
+        .map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab'))
 
 export const IdentityNone: StoryObj = {
     ...story({transfers: accountTransfers(5)}),
@@ -136,7 +140,7 @@ export const NotActivated: StoryObj = {
 }
 
 export const IdentityFull: StoryObj = {
-    ...story({account: named(identity('Aurora Labs', FULL_FIELDS)), transfers: accountTransfers(3)}),
+    ...story({account: named(identity('Aurora Labs', FULL_FIELDS)), transfers: accountTransfers(3)}, {tab: 'direct'}),
     play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Aurora Labs'),
 }
 
@@ -152,17 +156,26 @@ export const IdentityAvatar: StoryObj = {
     },
 }
 
-export const IdentityDisplayOnly = story({account: named(identity('Aurora Labs')), transfers: accountTransfers(3)})
+export const IdentityDisplayOnly = story({account: named(identity('Aurora Labs')), transfers: accountTransfers(3)}, {tab: 'direct'})
 
-export const IdentityUnjudged = story({account: named(identity('Aurora Labs', {judgements: []})), transfers: accountTransfers(3)})
+export const IdentityUnjudged: StoryObj = {
+    ...story({account: named(identity('Aurora Labs', {judgements: []})), transfers: accountTransfers(3)}, {tab: 'direct'}),
+    play: async ({canvasElement}) => expect(subTabs(canvasElement, 'Identity')).toEqual(['direct']),
+}
 
-export const IdentityEveryVerdict = story({
-    account: named({...identity('Aurora Labs', {judgements: VERDICTS}), ...funds(numn(48_210.75), reservedOf(IDENTITY_DEPOSIT, FEE_PAID))}),
-    transfers: accountTransfers(3),
-})
+export const IdentityEveryVerdict: StoryObj = {
+    ...story(
+        {
+            account: named({...identity('Aurora Labs', {judgements: VERDICTS}), ...funds(numn(48_210.75), reservedOf(IDENTITY_DEPOSIT, FEE_PAID))}),
+            transfers: accountTransfers(3),
+        },
+        {tab: 'judgements-received'},
+    ),
+    play: async ({canvasElement}) => expect(subTabs(canvasElement, 'Identity')).toEqual(['direct', 'judgements-received']),
+}
 
 export const IdentityWithoutDisplay: StoryObj = {
-    ...story({account: named({...identity(null, AURORA), username: 'aurora.numen'}), transfers: accountTransfers(3)}),
+    ...story({account: named({...identity(null, AURORA), username: 'aurora.numen'}), transfers: accountTransfers(3)}, {tab: 'direct'}),
     play: async ({canvasElement}) => {
         expect(rowValue(canvasElement, 'Display')).toBe('—')
         expect(addressLine(canvasElement)).toBe(`aurora.numen|${ss58Encode(SUBJECT, chainInfo.ss58)}`)
@@ -178,20 +191,28 @@ export const UsernameOnly: StoryObj = {
     },
 }
 
+// a sub set through set_subs raises no event naming it, so Direct stands alone
 export const SubIdentity: StoryObj = {
-    ...story({account: subject(subUnder(PEOPLE[0], 'payouts')), transfers: accountTransfers(3)}),
-    play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Polaris Guild/payouts'),
+    ...story({account: subject(subUnder(PEOPLE[0], 'payouts')), transfers: accountTransfers(3)}, {tab: 'direct'}),
+    play: async ({canvas, canvasElement}) => {
+        expect(heading(canvasElement)).toBe('Polaris Guild/payouts')
+        expect(subTabs(canvasElement, 'Identity')).toEqual(['direct'])
+        expect(canvas.getByText('No direct identity')).toBeVisible()
+    },
 }
 
 export const SubFiledUnderAHash: StoryObj = {
-    ...story({
-        account: subject({...subUnder(PEOPLE[0], 'payouts'), identitySubName: null, identitySubData: {__kind: 'BlakeTwo256', value: hashOf('sub', 1)}}),
-        transfers: accountTransfers(3),
-    }),
+    ...story(
+        {
+            account: subject({...subUnder(PEOPLE[0], 'payouts'), identitySubName: null, identitySubData: {__kind: 'BlakeTwo256', value: hashOf('sub', 1)}}),
+            transfers: accountTransfers(3),
+        },
+        {tab: 'direct'},
+    ),
     play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Display')).toBe(`Polaris Guild/BlakeTwo256 ${shortHash(hashOf('sub', 1))}`),
 }
 
-export const SubWithOwnIdentity = story({account: named({...identity('Aurora Payouts'), ...subUnder(PEOPLE[0], 'payouts')}), transfers: accountTransfers(3)})
+export const SubWithOwnIdentity = story({account: named({...identity('Aurora Payouts'), ...subUnder(PEOPLE[0], 'payouts')}), transfers: accountTransfers(3)}, {tab: 'direct'})
 
 // the bar's colours in order, a grey track when there is nothing to split
 const barParts = (root: HTMLElement) =>
@@ -652,15 +673,21 @@ export const TimelineMany: StoryObj = {
 
 const withSubs = (n: number) => named({...funds(numn(48_210.75), reservedOf(IDENTITY_DEPOSIT, numn(2.01 * n))), depositsJson: [{id: 'subs', amount: numn(2.01 * n)}]})
 
-export const SubsOne = story({account: withSubs(1), subs: subRows(1)}, {tab: 'subs'})
+export const SubsOne: StoryObj = {
+    ...story({account: withSubs(1), subs: subRows(1)}, {tab: 'subs'}),
+    play: async ({canvasElement}) => expect(subTabs(canvasElement, 'Identity')).toEqual(['direct', 'subs', 'judgements-received']),
+}
 
 export const SubsMany = story({account: withSubs(34), subs: subRows(20), counts: {subs: 34}}, {tab: 'subs'})
 
-export const JudgementsEmpty = story({account: named(), registrar: 2}, {tab: 'judgements'})
-
-export const JudgementsOne = story({account: named(), registrar: 2, judged: judgementsGiven(1)}, {tab: 'judgements'})
-
-export const JudgementsMany = story({account: named(), registrar: 2, judged: judgementsGiven(20), counts: {judged: 96}}, {tab: 'judgements'})
+// a registrar seat is a tab of its own with no strip under it
+export const RegistrarSeat: StoryObj = {
+    ...story({account: named(), registrar: 2}, {tab: 'registrar'}),
+    play: async ({canvas}) => {
+        expect(canvas.queryByRole('navigation', {name: 'Registrar'})).toBeNull()
+        expect(canvas.getByText('Requests received')).toBeVisible()
+    },
+}
 
 const staked = () => subject({...funds(numn(100_012_000), '0', numn(100_000_000)), locksJson: [lock('validatr', numn(100_000_000))]})
 
@@ -712,10 +739,7 @@ export const ValidatorInactive = story({validator: validatorRow({active: false, 
 
 export const ValidatorKicked = story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE}, {tab: 'validator'})
 
-const validatorTabs = (root: HTMLElement) =>
-    within(within(root).getByRole('navigation', {name: 'Validator'}))
-        .getAllByRole('link')
-        .map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab'))
+const validatorTabs = (root: HTMLElement) => subTabs(root, 'Validator')
 // the tile belongs to the whole group, so it sits above the sub-tab strip
 const tileAboveTabs = (root: HTMLElement) =>
     Boolean(figureLabel(root, 'Status').compareDocumentPosition(within(root).getByRole('navigation', {name: 'Validator'})) & Node.DOCUMENT_POSITION_FOLLOWING)
