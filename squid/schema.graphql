@@ -799,16 +799,21 @@ type ValidatorOffence @entity {
   timestamp: DateTime! @index
 }
 
-"one row per Validator event naming an account, with each run of auto-renewals in a row folded into one"
+"one row per Validator event naming an account, with each run of auto-renewals in a row folded into one, plus one per validator genesis wrote"
 type ValidatorStep @entity {
-  "the id of its first event"
+  "the id of its first event, block 0 and the account on a genesis step"
   id: ID!
   account: Account! @index
-  event: Event!
+  "null on a genesis step, genesis raises no events"
+  event: Event
   "the latest renewal of a run, the step's own event otherwise"
-  lastEvent: Event!
+  lastEvent: Event
   "the auto-renewals a run folds, 0 on any other step"
   renewals: Int!
+  "the ValidatorLocks entry genesis wrote, whole, on a genesis step only"
+  genesisLock: JSON
+  "whether genesis put the account in StakeExemptAccounts, on a genesis step only"
+  genesisExempt: Boolean
 }
 
 type DailyStat @entity {

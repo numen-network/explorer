@@ -2181,12 +2181,25 @@ export interface ValidatorStepEvent {
     block: {height: number; timestamp: string}
 }
 
-export interface ValidatorStepRow {
+export interface ValidatorEventStepRow {
     id: string
     renewals: number
     event: ValidatorStepEvent
     lastEvent: ValidatorStepEvent
+    genesisLock: null
+    genesisExempt: null
 }
+
+export interface ValidatorGenesisStepRow {
+    id: string
+    renewals: 0
+    event: null
+    lastEvent: null
+    genesisLock: {amount: string; expiryBlock: number} | null
+    genesisExempt: boolean
+}
+
+export type ValidatorStepRow = ValidatorEventStepRow | ValidatorGenesisStepRow
 
 const STEP_EVENT = `id indexInBlock method phase args extrinsic { id } block { height timestamp }`
 
@@ -2195,7 +2208,7 @@ export function validatorSteps(idHex: string, limit: number, offset: number) {
     return gql<{steps: ValidatorStepRow[]; all: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
             steps: validatorSteps(where: {${mine}}, orderBy: id_ASC, limit: $limit, offset: $offset) {
-                id renewals event { ${STEP_EVENT} } lastEvent { ${STEP_EVENT} }
+                id renewals event { ${STEP_EVENT} } lastEvent { ${STEP_EVENT} } genesisLock genesisExempt
             }
             all: validatorStepsConnection(orderBy: id_ASC, where: {${mine}}) { totalCount }
         }`,

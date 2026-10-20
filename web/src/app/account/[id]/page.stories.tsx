@@ -23,12 +23,13 @@ import {
     EVERY_REFUND,
     FULL_FIELDS,
     funds,
+    GENESIS_BARE,
     HOLDING,
     holdingRows,
     identitySet,
     identityTimeline,
     JJFU_OFFLINE,
-    JJFU_RENEWALS,
+    JJFU_STEPS,
     judgementsGiven,
     ME,
     MADE_UP_EQUIVOCATION,
@@ -721,13 +722,26 @@ export const ValidatorTimeline: StoryObj = {
     },
 }
 
-// jJFU locked at genesis without an event, so its renewals are all there is
+// jJFU joined at genesis, which wrote its lock and exemption without an event
 export const ValidatorTimelineGenesis: StoryObj = {
-    ...story({account: staked(), validator: validatorRow({lockExpiry: 1_805_760}), steps: JJFU_RENEWALS}, {tab: 'validator-timeline'}),
+    ...story({account: staked(), validator: validatorRow({lockExpiry: 1_805_760}), steps: JJFU_STEPS}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) => {
-        await expect(stepTitles(canvasElement)).toEqual(['Renewed'])
+        await expect(stepTitles(canvasElement)).toEqual(['Genesis', 'Renewed'])
+        const genesis = canvasElement.querySelector<HTMLElement>('[data-slot=card] > ol > li')!
+        await expect(stepRow(genesis, 'Amount')).toBe('0 NUMN')
+        await expect(stepRow(genesis, 'Lock expiry')).toBe('1,555,200')
+        await expect(stepRow(genesis, 'Stake exempt')).toBe('Yes')
+        await expect(within(genesis).getAllByRole('link').map(a => a.textContent)).toEqual(['#0'])
         await expect(stepRow(canvasElement, 'Renewals')).toBe('29')
-        await expect(stepRow(canvasElement, 'Lock expiry')).toBe('1,805,760')
+    },
+}
+
+export const ValidatorTimelineGenesisBare: StoryObj = {
+    ...story({account: staked(), validator: validatorRow(), steps: GENESIS_BARE}, {tab: 'validator-timeline'}),
+    play: async ({canvasElement}) => {
+        await expect(stepTitles(canvasElement)).toEqual(['Genesis'])
+        await expect([...canvasElement.querySelectorAll('dt')].map(d => d.textContent)).toEqual(['Stake exempt'])
+        await expect(stepRow(canvasElement, 'Stake exempt')).toBe('No')
     },
 }
 

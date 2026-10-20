@@ -82,20 +82,22 @@ function Tagged({icon: Icon, children}: {icon: LucideIcon; children: ReactNode})
     )
 }
 
-export function StepLinks({block, event}: {block: number; event: {indexInBlock: number; extrinsic: {id: string} | null}}) {
+export function StepLinks({block, event}: {block: number; event?: {indexInBlock: number; extrinsic: {id: string} | null}}) {
     return (
         <>
             <Tagged icon={Box}>
                 <BlockLink height={block} />
             </Tagged>
-            {event.extrinsic && (
+            {event?.extrinsic && (
                 <Tagged icon={ScrollText}>
                     <ExtrinsicLink id={event.extrinsic.id} />
                 </Tagged>
             )}
-            <Tagged icon={Zap}>
-                <EventLink height={block} index={event.indexInBlock} />
-            </Tagged>
+            {event && (
+                <Tagged icon={Zap}>
+                    <EventLink height={block} index={event.indexInBlock} />
+                </Tagged>
+            )}
         </>
     )
 }

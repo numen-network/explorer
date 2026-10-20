@@ -54,24 +54,43 @@ async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, h
     return v
 }
 
-// the genesis set never gets a NewSession of its own, so it is read where it
-// was written
+// the genesis set never gets a NewSession of its own, nor its locks and
+// exemptions an event, so they are read where they were written
 export async function seedGenesisValidators(batch: BatchData, genesisHeader: any): Promise<void> {
     const s = storage.session.validators.v100
-    if (!s.is(genesisHeader)) throw new Error('unhandled spec version for session validators at genesis')
-    for (const who of (await s.get(genesisHeader)) ?? []) {
+    const locks = storage.validator.validatorLocks.v100
+    const exempt = storage.validator.stakeExemptAccounts.v100
+    if (!s.is(genesisHeader) || !locks.is(genesisHeader) || !exempt.is(genesisHeader)) throw new Error('unhandled spec version for validators at genesis')
+    const set = (await s.get(genesisHeader)) ?? []
+    const lockOf = await locks.getMany(genesisHeader, set)
+    const exemptOf = await exempt.getMany(genesisHeader, set)
+    set.forEach((who, i) => {
+        const lock = lockOf[i]
+        const account = batch.touch(who, 0)
         batch.validators.set(
             who,
             new Validator({
                 id: who,
-                account: batch.touch(who, 0),
+                account,
                 active: true,
-                lockedAmount: 0n,
+                lockedAmount: lock?.amount ?? 0n,
+                lockExpiry: lock?.expiryBlock ?? null,
                 firstSeenBlock: 0,
                 lastActiveSession: 0,
             })
         )
-    }
+        const step = new ValidatorStep({
+            id: `0000000000-${who}`,
+            account,
+            event: null,
+            lastEvent: null,
+            renewals: 0,
+            genesisLock: lock == null ? null : toJSON(lock),
+            genesisExempt: exemptOf[i] !== undefined,
+        })
+        batch.latestSteps.set(who, step)
+        batch.validatorSteps.set(step.id, step)
+    })
 }
 
 // session boundaries apply in chain order among the lifecycle events, each with

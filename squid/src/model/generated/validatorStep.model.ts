@@ -1,9 +1,9 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, IntColumn as IntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, IntColumn as IntColumn_, JSONColumn as JSONColumn_, BooleanColumn as BooleanColumn_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
 import {Event} from "./event.model"
 
 /**
- * one row per Validator event naming an account, with each run of auto-renewals in a row folded into one
+ * one row per Validator event naming an account, with each run of auto-renewals in a row folded into one, plus one per validator genesis wrote
  */
 @Entity_()
 export class ValidatorStep {
@@ -12,7 +12,7 @@ export class ValidatorStep {
     }
 
     /**
-     * the id of its first event
+     * the id of its first event, block 0 and the account on a genesis step
      */
     @PrimaryColumn_()
     id!: string
@@ -21,20 +21,35 @@ export class ValidatorStep {
     @ManyToOne_(() => Account, {nullable: true})
     account!: Relation_<Account>
 
+    /**
+     * null on a genesis step, genesis raises no events
+     */
     @Index_("idx_validator_step_event_63f17947")
     @ManyToOne_(() => Event, {nullable: true})
-    event!: Relation_<Event>
+    event!: Relation_<Event> | undefined | null
 
     /**
      * the latest renewal of a run, the step's own event otherwise
      */
     @Index_("idx_validator_step_last_event_77b1682e")
     @ManyToOne_(() => Event, {nullable: true})
-    lastEvent!: Relation_<Event>
+    lastEvent!: Relation_<Event> | undefined | null
 
     /**
      * the auto-renewals a run folds, 0 on any other step
      */
     @IntColumn_({nullable: false})
     renewals!: number
+
+    /**
+     * the ValidatorLocks entry genesis wrote, whole, on a genesis step only
+     */
+    @JSONColumn_({nullable: true})
+    genesisLock!: unknown | undefined | null
+
+    /**
+     * whether genesis put the account in StakeExemptAccounts, on a genesis step only
+     */
+    @BooleanColumn_({nullable: true})
+    genesisExempt!: boolean | undefined | null
 }

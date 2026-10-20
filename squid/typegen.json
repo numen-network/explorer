@@ -54,6 +54,8 @@
     "Bounties.Bounties",
     "Bounties.BountyDescriptions",
     "ChildBounties.ChildBounties",
-    "ChildBounties.ChildBountyDescriptionsV1"
+    "ChildBounties.ChildBountyDescriptionsV1",
+    "Validator.ValidatorLocks",
+    "Validator.StakeExemptAccounts"
   ]
 }

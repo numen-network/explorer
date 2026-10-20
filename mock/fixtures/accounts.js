@@ -521,7 +521,8 @@ const validatorEvent = (h, index, method, args, signed = true) => ({
     extrinsic: signed ? {id: squidId(h, 1)} : null,
     block: {height: h, timestamp: at(h)},
 })
-const validatorStep = (event, renewals = 0, lastEvent = event) => ({id: event.id, renewals, event, lastEvent})
+const validatorStep = (event, renewals = 0, lastEvent = event) => ({id: event.id, renewals, event, lastEvent, genesisLock: null, genesisExempt: null})
+const genesisStep = (who, genesisLock, genesisExempt) => ({id: `0000000000-${who}`, renewals: 0, event: null, lastEvent: null, genesisLock, genesisExempt})
 
 const DAY = 8_640
 const LOCK_DAYS = 180
@@ -539,9 +540,16 @@ export const validatorLifecycle = () => {
     ]
 }
 
-// jJFU locked at genesis, which raised no event, and has renewed every day
-// since. its first and latest renewals on mainnet
-export const JJFU_RENEWALS = [validatorStep(renewal(8_640, JJFU), 29, renewal(250_560, JJFU))]
+// jJFU on mainnet, the lock and exemption genesis wrote, then its first and
+// latest daily renewals
+export const JJFU_STEPS = [
+    genesisStep(JJFU, {amount: '0', lockBlock: 0, expiryBlock: 1_555_200, status: {__kind: 'Active'}}, true),
+    validatorStep(renewal(8_640, JJFU), 29, renewal(250_560, JJFU)),
+]
+
+// a genesis validator with neither a lock nor an exemption, which the
+// runtime's genesis never writes but the schema allows
+export const GENESIS_BARE = [genesisStep(SUBJECT, null, false)]
 
 // the steps the lifecycle above never reaches, a lock that never got promoted
 // and ran out, then a second one left by choice

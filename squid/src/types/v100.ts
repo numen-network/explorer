@@ -718,6 +718,44 @@ export const AccountVote: sts.Type<AccountVote> = sts.closedEnum(() => {
 
 export const Vote = sts.number()
 
+export interface LockInfo {
+    amount: bigint
+    lockBlock: number
+    expiryBlock: number
+    status: ValidatorStatus
+}
+
+export type ValidatorStatus = ValidatorStatus_Active | ValidatorStatus_ExitRequested | ValidatorStatus_Kicked
+
+export interface ValidatorStatus_Active {
+    __kind: 'Active'
+}
+
+export interface ValidatorStatus_ExitRequested {
+    __kind: 'ExitRequested'
+}
+
+export interface ValidatorStatus_Kicked {
+    __kind: 'Kicked'
+}
+
+export const LockInfo: sts.Type<LockInfo> = sts.struct(() => {
+    return  {
+        amount: sts.bigint(),
+        lockBlock: sts.number(),
+        expiryBlock: sts.number(),
+        status: ValidatorStatus,
+    }
+})
+
+export const ValidatorStatus: sts.Type<ValidatorStatus> = sts.closedEnum(() => {
+    return  {
+        Active: sts.unit(),
+        ExitRequested: sts.unit(),
+        Kicked: sts.unit(),
+    }
+})
+
 export type Provider = Provider_Allocation | Provider_AuthorityDeposit | Provider_System
 
 export interface Provider_Allocation {

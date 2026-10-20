@@ -180,7 +180,7 @@ module.exports = class Data1792460132611 {
         await db.query(`CREATE TABLE "validator" ("id" character varying NOT NULL, "active" boolean NOT NULL, "locked_amount" numeric NOT NULL, "lock_expiry" integer, "kicked" jsonb, "first_seen_block" integer NOT NULL, "last_active_session" integer, "account_id" character varying, CONSTRAINT "REL_4ddc35f6074f65fa2314a425a6" UNIQUE ("account_id"), CONSTRAINT "PK_ae0a943022c24bd60e7161e0fad" PRIMARY KEY ("id"))`)
         await db.query(`CREATE UNIQUE INDEX "idx_validator_account_6c60d32a" ON "validator" ("account_id") `)
         await db.query(`CREATE INDEX "idx_validator_active_c83c422c" ON "validator" ("active") `)
-        await db.query(`CREATE TABLE "validator_step" ("id" character varying NOT NULL, "renewals" integer NOT NULL, "account_id" character varying, "event_id" character varying, "last_event_id" character varying, CONSTRAINT "PK_5d75880f5d17fabc6656ab83adc" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "validator_step" ("id" character varying NOT NULL, "renewals" integer NOT NULL, "genesis_lock" jsonb, "genesis_exempt" boolean, "account_id" character varying, "event_id" character varying, "last_event_id" character varying, CONSTRAINT "PK_5d75880f5d17fabc6656ab83adc" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_validator_step_account_e7f7ffe7" ON "validator_step" ("account_id") `)
         await db.query(`CREATE INDEX "idx_validator_step_event_63f17947" ON "validator_step" ("event_id") `)
         await db.query(`CREATE INDEX "idx_validator_step_last_event_77b1682e" ON "validator_step" ("last_event_id") `)
