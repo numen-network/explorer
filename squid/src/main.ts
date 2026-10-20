@@ -335,6 +335,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
                 from: q.from,
                 to: q.to,
                 amount: q.amount,
+                thirdParty: q.tx.from !== q.from && q.tx.from !== q.to,
                 transaction: q.tx,
                 block: q.block,
                 logIndex: q.logIndex,

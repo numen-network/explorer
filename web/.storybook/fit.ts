@@ -500,3 +500,16 @@ export async function filterOptions(root: HTMLElement, label: string) {
     await waitFor(() => expect(within(document.body).queryByRole('listbox')).toBeNull())
     return options
 }
+
+// which rows carry the address poisoning mark. a marked row greys every part
+// but the warning icon, an unmarked one greys nothing
+export function poisonedRows(rows: Element[]) {
+    const faded = (el: Element) => getComputedStyle(el).opacity === '0.5'
+    return rows.map(row => {
+        const mark = row.querySelector('[data-slot=poisoning]')
+        const parts = [...row.children].flatMap(part => [...part.children]).filter(part => part !== mark)
+        expect(parts.map(faded)).toEqual(parts.map(() => mark != null))
+        if (mark) expect([faded(mark), faded(mark.firstElementChild!), faded(mark.querySelector('svg')!)]).toEqual([false, true, false])
+        return mark != null
+    })
+}

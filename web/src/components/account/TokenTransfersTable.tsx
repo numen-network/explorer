@@ -4,7 +4,8 @@ import Link from 'next/link'
 import {useMemo} from 'react'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import HashText from '@/components/HashText'
-import {EvmAddrLink, EvmTxLink} from '@/components/links'
+import {EvmAddrLink} from '@/components/links'
+import {poisoningRow, TransferTxLink} from '@/components/Poisoning'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import TokenIcon from '@/components/TokenIcon'
 import {fmtBalance} from '@/lib/format'
@@ -17,7 +18,7 @@ export function TokenTransfersTable({rows, evm}: {rows: TokenTransferRow[]; evm:
     const columns = useMemo(() => {
         const side = (a: string) => (a === evm ? SELF : <EvmAddrLink addr={a} />)
         return col.columns([
-            col.display({id: 'tx', header: 'Transaction', cell: ({row}) => <EvmTxLink hash={row.original.transaction.id} />}),
+            col.display({id: 'tx', header: 'Transaction', cell: ({row}) => <TransferTxLink t={row.original} />}),
             col.display({id: 'time', header: () => <TimeModeButton />, meta: {cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.timestamp} />}),
             col.display({id: 'from', header: 'From', meta: {className: 'w-1/2'}, cell: ({row}) => side(row.original.from)}),
             col.display({id: 'to', header: 'To', meta: {className: 'w-1/2'}, cell: ({row}) => side(row.original.to)}),
@@ -31,8 +32,8 @@ export function TokenTransfersTable({rows, evm}: {rows: TokenTransferRow[]; evm:
                     </Link>
                 ),
             }),
-            col.display({id: 'amount', header: 'Amount', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtBalance(row.original.amount, row.original.token.decimals ?? 0)}),
+            col.display({id: 'amount', header: 'Amount', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => <span>{fmtBalance(row.original.amount, row.original.token.decimals ?? 0)}</span>}),
         ])
     }, [evm])
-    return <DataTable emptyClassName="py-5" columns={columns} rows={rows} getRowId={t => t.id} />
+    return <DataTable emptyClassName="py-5" columns={columns} rows={rows} getRowId={t => t.id} rowClassName={poisoningRow} />
 }

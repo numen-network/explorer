@@ -240,6 +240,8 @@ type TokenTransfer @entity {
   from: String! @index
   to: String! @index
   amount: BigInt!
+  "the transaction sender is neither from nor to"
+  thirdParty: Boolean!
   transaction: EvmTransaction!
   block: Block!
   logIndex: Int!

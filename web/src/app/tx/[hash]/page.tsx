@@ -11,6 +11,7 @@ import {TabPanels, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import TokenIcon from '@/components/TokenIcon'
 import {BlockLink, EvmAddrLink, ExtrinsicLink} from '@/components/links'
+import {PoisoningMark, poisoningRow} from '@/components/Poisoning'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
@@ -86,6 +87,7 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
                 {data.tokenTransfers.map(t => (
                     <SplitRow
                         key={t.id}
+                        className={poisoningRow(t)}
                         lead={
                             <>
                                 <EvmAddrLink addr={t.from} />
@@ -94,7 +96,9 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
                             </>
                         }
                     >
-                        <span className="font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
+                        <PoisoningMark t={t}>
+                            <span className="font-mono">{fmtBalance(t.amount, t.token.decimals ?? 0, t.token.symbol ?? undefined)}</span>
+                        </PoisoningMark>
                         <Link href={`/token/${t.token.id}`} className="font-mono text-xs text-primary hover:underline">
                             <TokenIcon addr={t.token.id} />
                             <HashText hash={t.token.id} />

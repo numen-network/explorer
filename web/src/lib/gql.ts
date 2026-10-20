@@ -1114,11 +1114,14 @@ export function transfersFor(idHex: string, dir: 'in' | 'out' | '', limit: numbe
     )
 }
 
-export function tokenTransfersFor(address: string, limit: number, offset: number) {
+// a zero transfer sent by neither side is address poisoning
+export function tokenTransfersFor(address: string, hideRisky: boolean, limit: number, offset: number) {
+    const side = '{OR: [{from_eq: $a}, {to_eq: $a}]}'
+    const where = hideRisky ? `{AND: [${side}, {OR: [{amount_gt: "0"}, {thirdParty_eq: false}]}]}` : side
     return gql<{tokenTransfers: TokenTransferRow[]; conn: {totalCount: number}}>(
         `query ($a: String!, $limit: Int!, $offset: Int!) {
-            tokenTransfers(where: {OR: [{from_eq: $a}, {to_eq: $a}]}, orderBy: ${TOKEN_TRANSFER_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
-            conn: tokenTransfersConnection(where: {OR: [{from_eq: $a}, {to_eq: $a}]}, orderBy: id_ASC) { totalCount }
+            tokenTransfers(where: ${where}, orderBy: ${TOKEN_TRANSFER_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
+            conn: tokenTransfersConnection(where: ${where}, orderBy: id_ASC) { totalCount }
         }`,
         {a: address, limit, offset}
     )
@@ -1475,13 +1478,14 @@ export interface TokenTransferRow {
     from: string
     to: string
     amount: string
+    thirdParty: boolean
     timestamp: string
     token: {id: string; symbol: string | null; decimals: number | null}
     transaction: {id: string}
     block: {height: number}
 }
 
-const TOKEN_TRANSFER_FIELDS = `id from to amount timestamp token { id symbol decimals } transaction { id } block { height }`
+const TOKEN_TRANSFER_FIELDS = `id from to amount thirdParty timestamp token { id symbol decimals } transaction { id } block { height }`
 // logIndex counts across the whole block, so it orders a block's txs too
 const TOKEN_TRANSFER_ORDER = '[timestamp_DESC, logIndex_DESC, id_DESC]'
 const LOG_ORDER = '[logIndex_ASC, id_ASC]'

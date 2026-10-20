@@ -14,6 +14,7 @@ export const TOPIC = {
 
 export const SELECTOR = {
     transfer: '0xa9059cbb',
+    transferFrom: '0x23b872dd',
     approve: '0x095ea7b3',
     swapExactETHForTokens: '0x7ff36ab5',
     withdraw: '0x3ccfd60b',
@@ -173,7 +174,7 @@ export const evmLog = (tx, logIndex, traits = {}) => ({
 // a Transfer log and the token transfer the indexer reads out of it, under one id
 export function erc20Transfer(tx, logIndex, tok, from, to, amount) {
     const log = evmLog(tx, logIndex, {address: tok.id, topics: [TOPIC.transfer, topicOf(from), topicOf(to)], data: '0x' + word(amount)})
-    return {log, transfer: {id: log.id, from, to, amount, timestamp: tx.timestamp, token: tok, transaction: {id: tx.id}, block: tx.block}}
+    return {log, transfer: {id: log.id, from, to, amount, thirdParty: tx.from !== from && tx.from !== to, timestamp: tx.timestamp, token: tok, transaction: {id: tx.id}, block: tx.block}}
 }
 
 // one token moving across many transactions, rows() lays them out newest first
@@ -182,6 +183,7 @@ export const tokenTransfer = (tok, height, index, traits = {}) => ({
     from: evmAddress(index % 7),
     to: evmAddress((index % 7) + 7),
     amount: units(1 + ((height * 31 + index * 17) % 5000) / 3, tok.decimals ?? 0),
+    thirdParty: false,
     timestamp: at(height),
     token: tok,
     transaction: {id: evmTxHash(height, index)},

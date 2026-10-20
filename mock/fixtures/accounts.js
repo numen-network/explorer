@@ -648,6 +648,7 @@ const tokenTransfer = (h, i, traits = {}) => {
         from: i % 2 === 0 ? SUBJECT_EVM : contract(10 + (i % 5)),
         to: i % 2 === 0 ? contract(20 + (i % 4)) : SUBJECT_EVM,
         amount: token.decimals === 6 ? String(1_000_000 + ((h * 13 + i) % 9_000_000)) : numn(10 + ((h * 13 + i) % 900) / 7),
+        thirdParty: false,
         timestamp: at(h),
         token: {id: token.id, symbol: token.symbol, decimals: token.decimals},
         transaction: {id: tx},
@@ -669,6 +670,16 @@ export const tokenTransfersInOneTx = (h, logIndexes) => {
 export const tokenTransferCases = (height = HEAD - 3) => [
     tokenTransfer(height, 0, {token: {id: TOKENS[2].id, symbol: null, decimals: null}, amount: '42'}),
     tokenTransfer(height - 1, 1, {token: {id: TOKENS[3].id, symbol: TOKENS[3].symbol, decimals: 18}, amount: MAX_U128}),
+]
+
+// a zero transfer is poisoning only when neither side sent it, a third party
+// moving tokens or a side sending nothing stays plain
+export const tokenTransferPoisoning = (height = HEAD - 3) => [
+    tokenTransfer(height, 0),
+    tokenTransfer(height - 1, 2, {amount: '0', thirdParty: true}),
+    tokenTransfer(height - 2, 1, {amount: '0', thirdParty: true}),
+    tokenTransfer(height - 3, 4, {amount: '0'}),
+    tokenTransfer(height - 4, 3, {thirdParty: true}),
 ]
 
 // what the subject moved with one counterparty, an account for the native

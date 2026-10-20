@@ -1,7 +1,9 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import type {TokenTransferRow} from '@/lib/gql'
-import {SUBJECT_EVM, tokenTransferCases, tokenTransferRows} from '../../../../mock/fixtures/accounts.js'
+import {SUBJECT_EVM, tokenTransferCases, tokenTransferPoisoning, tokenTransferRows} from '../../../../mock/fixtures/accounts.js'
+import {expectFits, poisonedRows} from '../../../.storybook/fit'
 import {TokenTransfersTable} from './TokenTransfersTable'
 
 // token icons are keyed by chain id, which only the provider knows
@@ -22,3 +24,14 @@ export const One: Story = {render: () => table(tokenTransferRows(1))}
 export const Many: Story = {render: () => table(tokenTransferRows(20))}
 
 export const EdgeCases: Story = {render: () => table(tokenTransferCases())}
+
+// the two zero transfers neither side sent, one out and one in, against a zero
+// one the account sent itself and a third party's real move
+export const Poisoning: Story = {
+    render: () => table(tokenTransferPoisoning()),
+    play: async ({canvas, canvasElement}) => {
+        expect(poisonedRows([...canvasElement.querySelectorAll('tbody tr')])).toEqual([false, true, true, false, false])
+        expect(canvas.getAllByRole('img', {name: 'Suspected address poisoning'})).toHaveLength(2)
+        expectFits(canvasElement.querySelector('[data-slot=card]')!)
+    },
+}

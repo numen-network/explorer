@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, BooleanColumn as BooleanColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
 import {Token} from "./token.model"
 import {EvmTransaction} from "./evmTransaction.model"
 import {Block} from "./block.model"
@@ -26,6 +26,12 @@ export class TokenTransfer {
 
     @BigIntColumn_({nullable: false})
     amount!: bigint
+
+    /**
+     * the transaction sender is neither from nor to
+     */
+    @BooleanColumn_({nullable: false})
+    thirdParty!: boolean
 
     @Index_("idx_token_transfer_transaction_9b9a6656")
     @ManyToOne_(() => EvmTransaction, {nullable: true})

@@ -46,6 +46,7 @@ interface Props<T extends RowData> {
     getRowId?: (row: T) => string
     canExpand?: (row: T) => boolean
     expand?: (row: T) => ReactNode
+    rowClassName?: (row: T) => string | undefined
     className?: string
 }
 
@@ -54,7 +55,7 @@ const cellClass = (meta: ColumnMeta | undefined) => cn(meta?.align === 'right' &
 
 // sorting and paging stay in the url, so the table only ever holds the page
 // it was handed and registers no feature that could reorder it
-export function DataTable<T extends RowData>({columns, rows, empty = 'None', emptyClassName = 'py-6', head = true, headClassName, getRowId, canExpand, expand, className}: Props<T>) {
+export function DataTable<T extends RowData>({columns, rows, empty = 'None', emptyClassName = 'py-6', head = true, headClassName, getRowId, canExpand, expand, rowClassName, className}: Props<T>) {
     const table = useTable({
         features,
         data: rows,
@@ -90,7 +91,7 @@ export function DataTable<T extends RowData>({columns, rows, empty = 'None', emp
                     )}
                     {table.getRowModel().rows.map(row => (
                         <Fragment key={row.id}>
-                            <TableRow onClick={row.getCanExpand() ? row.getToggleExpandedHandler() : undefined} className={cn(row.getCanExpand() && 'cursor-pointer')}>
+                            <TableRow onClick={row.getCanExpand() ? row.getToggleExpandedHandler() : undefined} className={cn(row.getCanExpand() && 'cursor-pointer', rowClassName?.(row.original))}>
                                 {row.getAllCells().map(cell => (
                                     <TableCell key={cell.id} className={cellClass(cell.column.columnDef.meta)}>
                                         <table.FlexRender cell={cell} />

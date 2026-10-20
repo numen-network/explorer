@@ -11,6 +11,7 @@ import {TabPanels} from '@/components/Tabs'
 import {BlockLink, EvmAddrLink, EvmTxLink} from '@/components/links'
 import {TimeCell} from '@/components/TimeCell'
 import PairBadge from '@/components/PairBadge'
+import {poisoningRow, TransferTxLink} from '@/components/Poisoning'
 import TokenIcon from '@/components/TokenIcon'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
@@ -80,10 +81,11 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                 {data.tokenTransfers.map(t => (
                     <SplitRow
                         key={t.id}
+                        className={poisoningRow(t)}
                         lead={
                             <>
                                 <BlockLink height={t.block.height} />
-                                <EvmTxLink hash={t.transaction.id} />
+                                <TransferTxLink t={t} />
                                 <span className="font-mono text-xs text-muted-foreground">
                                     <HashText hash={t.from} /> → <HashText hash={t.to} />
                                 </span>

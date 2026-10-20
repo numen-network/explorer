@@ -4,7 +4,7 @@ import {shortHash} from '@/lib/format'
 import {evmMappedAccount} from '@/lib/evm'
 import {HEAD, paged, transfer} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, erc20Transfer, evmAddress, evmLog, evmTx, exit, EXIT, SELECTOR, token, TOPIC, topicOf, UINT256_MAX, units, word, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
-import {expectAddressForm, expectFits, expectTimesFit, tokenLabels} from '../../../../.storybook/fit'
+import {expectAddressForm, expectFits, expectTimesFit, poisonedRows, tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import EvmTxPage from './page'
 
@@ -121,12 +121,26 @@ const swapLogs = [
     evmLog(swap, 9, {address: pair, topics: [TOPIC.swap, topicOf(router), topicOf(bob)], data: '0x' + word(swapIn) + word(0) + word(0) + word(swapOut)}),
 ]
 
+// a stranger moving nothing from the victim to a look-alike of an address it paid
+const lookalike = evmAddress(70)
+const poison = evmTx(HEAD - 70, 0, {from: evmAddress(71), to: WTMR.id, input: calldata(SELECTOR.transferFrom, alice, lookalike, 0), gasLimit: '60000', gasUsed: '31000', ...exit(EXIT.returned)})
+const poisonTransfer = erc20Transfer(poison, 0, WTMR, alice, lookalike, '0')
+
+export const PoisoningTokenTransfers: StoryObj = {
+    ...txPage(poison, {logs: [poisonTransfer.log], transfers: [poisonTransfer.transfer]}, {tab: 'transfers'}),
+    play: async ({canvasElement}) => expect(poisonedRows([...canvasElement.querySelectorAll('[data-slot=card] .divide-y > *')])).toEqual([true]),
+}
+
+// the router and the pair moving tokens for bob are third parties, but nothing about a real amount is poisoning
 export const SwapEveryTab = txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]})
 
 // in log order, the wrap ahead of the payout
 export const SwapTokenTransfers: StoryObj = {
     ...txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, {tab: 'transfers'}),
-    play: async ({canvasElement}) => expect(tokenLabels(canvasElement)).toEqual([shortHash(wrapped.id), shortHash(ore.id)]),
+    play: async ({canvasElement}) => {
+        expect(tokenLabels(canvasElement)).toEqual([shortHash(wrapped.id), shortHash(ore.id)])
+        expect(poisonedRows([...canvasElement.querySelectorAll('[data-slot=card] .divide-y > *')])).toEqual([false, false])
+    },
 }
 
 // from, to and every log address keep their full form and wrap inside their

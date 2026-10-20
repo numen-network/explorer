@@ -6,7 +6,7 @@ import type {EvmActivity, TokenRow} from '@/lib/gql'
 import {HEAD, rows} from '../../../../../mock/fixtures.js'
 import {activity, bytecode, evmAddress, evmTx, exit, EXIT, holder, holders, proxy, token, tokenTransfer, tokenTransfersInOneTx, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
 import {NST} from '../../../../../mock/fixtures/sourcify.js'
-import {cardsFit, columnTexts, expectAddressForm, expectFits} from '../../../../.storybook/fit'
+import {cardsFit, columnTexts, expectAddressForm, expectFits, poisonedRows} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import {sourcify} from '../../../../.storybook/sourcify'
 import TokenPage from './page'
@@ -189,23 +189,28 @@ export const TransfersInOneTx: StoryObj = {
         expect(canvas.getAllByText(/^[\d,]+ wWTMR$/).map(amount => amount.textContent)).toEqual(['10,002 wWTMR', '10,001 wWTMR', '10,000 wWTMR', '9,999 wWTMR', '9,998 wWTMR']),
 }
 
-export const TransfersEveryKind = tokenPage(
-    WTMR,
-    {
-        transfers: rows(7, (h: number, i: number) =>
-            tokenTransfer(WTMR, h, i, [
-                {from: ZERO_ADDRESS, to: evmAddress(1), amount: units(500, 1)},
-                {from: evmAddress(2), to: ZERO_ADDRESS, amount: units(120.5, 1)},
-                {from: evmAddress(3), to: evmAddress(4), amount: units(42, 1)},
-                {from: evmAddress(5), to: evmAddress(5), amount: units(7, 1)},
-                {from: evmAddress(6), to: evmAddress(7), amount: '0'},
-                {from: evmAddress(8), to: evmAddress(9), amount: '1'},
-                {from: evmAddress(10), to: evmAddress(11), amount: UINT256_MAX},
-            ][i])
-        ),
-    },
-    TRANSFERS_TAB
-)
+// the zero transfer neither side sent is marked as poisoning, the zero one a side sent is not
+export const TransfersEveryKind: StoryObj = {
+    ...tokenPage(
+        WTMR,
+        {
+            transfers: rows(8, (h: number, i: number) =>
+                tokenTransfer(WTMR, h, i, [
+                    {from: ZERO_ADDRESS, to: evmAddress(1), amount: units(500, 1)},
+                    {from: evmAddress(2), to: ZERO_ADDRESS, amount: units(120.5, 1)},
+                    {from: evmAddress(3), to: evmAddress(4), amount: units(42, 1)},
+                    {from: evmAddress(5), to: evmAddress(5), amount: units(7, 1)},
+                    {from: evmAddress(6), to: evmAddress(7), amount: '0', thirdParty: true},
+                    {from: evmAddress(12), to: evmAddress(13), amount: '0'},
+                    {from: evmAddress(8), to: evmAddress(9), amount: '1'},
+                    {from: evmAddress(10), to: evmAddress(11), amount: UINT256_MAX},
+                ][i])
+            ),
+        },
+        TRANSFERS_TAB
+    ),
+    play: async ({canvasElement}) => expect(poisonedRows([...canvasElement.querySelectorAll('[data-slot=card] .divide-y > *')])).toEqual([false, false, false, false, true, false, false, false]),
+}
 
 const wtmrDeploy = evmTx(WTMR.deployTx.block.height, 0, {from: evmAddress(0), to: null, contractAddress: WTMR.id, input: bytecode(3_072), gasLimit: '3000000', gasUsed: '2100000', ...exit(EXIT.returned)})
 
