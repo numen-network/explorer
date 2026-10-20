@@ -62,11 +62,6 @@ export default function Identity({a, chain, retired}: {a: AccountRow; chain: Cha
                     <Registration a={a} chain={chain} retired={retired} />
                 </DetailCard>
             )}
-            {(a.identityJson != null || a.username != null) && (
-                <DetailCard title="Username">
-                    <div className="px-5 py-2.5 font-mono text-sm wrap-anywhere">{a.username ?? NONE}</div>
-                </DetailCard>
-            )}
             {sup && (
                 <DetailCard title="Sub identity">
                     <DetailRow label="Display">{subLabel(a) ?? NONE}</DetailRow>

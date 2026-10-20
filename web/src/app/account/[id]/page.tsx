@@ -103,7 +103,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const locks = lockRows(a, addr, validator, s)
     const vest = schedules(a.vestingJson)
     const registrar = s.registrar[0]
-    const hasIdentity = a.identityJson != null || a.identitySuper != null || a.username != null
+    const hasIdentity = a.identityJson != null || a.identitySuper != null
 
     const free = BigInt(a.free)
     const reserved = BigInt(a.reserved)

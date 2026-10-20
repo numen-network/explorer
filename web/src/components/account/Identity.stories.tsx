@@ -84,22 +84,9 @@ export const SubOnly: Story = {render: () => card(polarisSub)}
 
 export const SubWithOwnRegistration: Story = {render: () => card({...identity('Aurora Payouts'), ...polarisSub})}
 
-export const WithUsername: Story = {
-    render: () => card({...identity('Aurora Labs'), username: 'aurora.numen'}),
-    play: async ({canvasElement}) => expect([rowValue(canvasElement, 'Display'), rowValue(canvasElement, 'Username')]).toEqual(['Aurora Labs', 'aurora.numen']),
-}
-
-export const UsernameOnly: Story = {
-    render: () => card({username: 'aurora.numen'}),
-    play: async ({canvas, canvasElement}) => {
-        expect(rowValue(canvasElement, 'Username')).toBe('aurora.numen')
-        expect(canvas.queryByText('Judgements')).toBeNull()
-    },
-}
-
 export const WithoutDisplay: Story = {
-    render: () => card({...identity(null, FULL_FIELDS), username: 'aurora.numen'}),
-    play: async ({canvasElement}) => expect([rowValue(canvasElement, 'Display'), rowValue(canvasElement, 'Username')]).toEqual(['—', 'aurora.numen']),
+    render: () => card(identity(null, FULL_FIELDS)),
+    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Display')).toBe('—'),
 }
 
 export const SubFiledUnderAHash: Story = {

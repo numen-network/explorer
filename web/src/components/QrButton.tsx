@@ -29,7 +29,7 @@ function savePng(matrix: boolean[][], name: string) {
     })
 }
 
-export default function QrButton({text}: {text: string}) {
+export default function QrButton({text, label}: {text: string; label?: string | null}) {
     const matrix = useMemo(() => encodeQR(text, 'raw', {border: 4}), [text])
     const path = useMemo(() => matrix.flatMap((row, y) => row.map((on, x) => (on ? `M${x} ${y}h1v1h-1z` : ''))).join(''), [matrix])
     return (
@@ -46,6 +46,7 @@ export default function QrButton({text}: {text: string}) {
                         <path d={path} fill={INK} />
                     </svg>
                 </div>
+                {label && <div className="-mb-1.5 text-center text-sm font-medium wrap-anywhere">{label}</div>}
                 <div className="text-center font-mono text-[11px] leading-4 break-all text-muted-foreground">{text}</div>
                 <Button variant="outline" size="sm" className="bg-card" onClick={() => savePng(matrix, text)}>
                     <Download />

@@ -21,9 +21,15 @@ export default function Header({a, addr, roles}: {a: IdentityRef & {id: string};
                     <span className="min-w-0 wrap-anywhere">{identityLabel(a) ?? 'Account'}</span>
                 </h1>
                 <div className="mt-0.5 font-mono text-sm break-all">
+                    {a.username && (
+                        <>
+                            <span className="wrap-anywhere">{a.username}</span>
+                            <span className="text-dim"> | </span>
+                        </>
+                    )}
                     <AddrMark addr={addr}>{addr}</AddrMark>
                     <CopyBtn text={addr} />
-                    <QrButton text={addr} />
+                    <QrButton text={addr} label={a.username} />
                 </div>
                 {roles.length > 0 && (
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">

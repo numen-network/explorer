@@ -118,6 +118,7 @@ const lock = (id: string, amount: string) => ({id, amount, reasons: id === 'vali
 const schedule = (locked: number, perBlock: number, startingBlock: number) => ({locked: numn(locked), perBlock: numn(perBlock), startingBlock})
 
 const heading = (root: HTMLElement) => within(root).getByRole('heading', {level: 1}).textContent
+const addressLine = (root: HTMLElement) => within(root).getByRole('heading', {level: 1}).nextElementSibling!.textContent
 
 export const IdentityNone: StoryObj = {
     ...story({transfers: accountTransfers(5)}),
@@ -162,14 +163,18 @@ export const IdentityEveryVerdict = story({
 
 export const IdentityWithoutDisplay: StoryObj = {
     ...story({account: named({...identity(null, AURORA), username: 'aurora.numen'}), transfers: accountTransfers(3)}),
-    play: async ({canvasElement}) => expect([rowValue(canvasElement, 'Display'), rowValue(canvasElement, 'Username')]).toEqual(['—', 'aurora.numen']),
+    play: async ({canvasElement}) => {
+        expect(rowValue(canvasElement, 'Display')).toBe('—')
+        expect(addressLine(canvasElement)).toBe(`aurora.numen | ${ss58Encode(SUBJECT, chainInfo.ss58)}`)
+    },
 }
 
 export const UsernameOnly: StoryObj = {
     ...story({account: subject({username: 'aurora.numen'}), transfers: accountTransfers(3)}),
-    play: async ({canvasElement}) => {
-        expect(rowValue(canvasElement, 'Username')).toBe('aurora.numen')
+    play: async ({canvas, canvasElement}) => {
         expect(heading(canvasElement)).toBe('aurora.numen')
+        expect(addressLine(canvasElement)).toBe(`aurora.numen | ${ss58Encode(SUBJECT, chainInfo.ss58)}`)
+        expect(canvas.queryByText('Identity')).toBeNull()
     },
 }
 
@@ -356,12 +361,23 @@ export const VotesPower: StoryObj = {
 
 export const QrCode: StoryObj = {
     ...story({transfers: accountTransfers(3)}),
-    play: async ({canvas, userEvent}) => {
+    play: async ({canvas, canvasElement, userEvent}) => {
         await userEvent.click(canvas.getByRole('button', {name: 'QR code'}))
         const body = within(document.body)
         const code = await body.findByRole('img', {name: `QR code for ${ss58Encode(SUBJECT, chainInfo.ss58)}`})
         await waitFor(() => expect(code).toBeVisible())
         await expect(body.getByRole('button', {name: 'Save PNG'})).toBeVisible()
+        expect(addressLine(canvasElement)).toBe(ss58Encode(SUBJECT, chainInfo.ss58))
+    },
+}
+
+export const QrCodeWithUsername: StoryObj = {
+    ...story({account: subject({username: 'aurora.numen'}), transfers: accountTransfers(3)}),
+    play: async ({canvas, userEvent}) => {
+        await userEvent.click(canvas.getByRole('button', {name: 'QR code'}))
+        const popover = await within(document.body).findByRole('dialog')
+        await waitFor(() => expect(within(popover).getByText('aurora.numen')).toBeVisible())
+        expect(within(popover).getByRole('img', {name: `QR code for ${ss58Encode(SUBJECT, chainInfo.ss58)}`})).toBeVisible()
     },
 }
 
