@@ -715,7 +715,7 @@ export const ValidatorTimeline: StoryObj = {
         await expect([tabCount(sub, 'validator-timeline'), tabCount(sub, 'validator')]).toEqual(['5', '2'])
         await expect(tileAboveTabs(canvasElement)).toBe(true)
         await offenceCounts(canvasElement, '2', '0')
-        await expect(stepTitles(canvasElement)).toEqual(['Exemption granted', 'Locked', 'Renewed', 'Kicked', 'Exemption revoked'])
+        await expect(stepTitles(canvasElement)).toEqual(['Exemption revoked', 'Kicked', 'Renewed', 'Locked', 'Exemption granted'])
         await expect(stepRow(canvasElement, 'Renewals')).toBe('29')
         await expect(stepRow(canvasElement, 'Reason')).toBe('Offline')
         await expect(within(canvasElement).getByRole('navigation', {name: 'pagination'})).toBeVisible()
@@ -726,8 +726,8 @@ export const ValidatorTimeline: StoryObj = {
 export const ValidatorTimelineGenesis: StoryObj = {
     ...story({account: staked(), validator: validatorRow({lockExpiry: 1_805_760}), steps: JJFU_STEPS}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) => {
-        await expect(stepTitles(canvasElement)).toEqual(['Genesis', 'Renewed'])
-        const genesis = canvasElement.querySelector<HTMLElement>('[data-slot=card] > ol > li')!
+        await expect(stepTitles(canvasElement)).toEqual(['Renewed', 'Genesis'])
+        const genesis = canvasElement.querySelector<HTMLElement>('[data-slot=card] > ol > li:last-child')!
         await expect(stepRow(genesis, 'Amount')).toBe('0 NUMN')
         await expect(stepRow(genesis, 'Lock expiry')).toBe('1,555,200')
         await expect(stepRow(genesis, 'Stake exempt')).toBe('Yes')
@@ -748,14 +748,14 @@ export const ValidatorTimelineGenesisBare: StoryObj = {
 export const ValidatorTimelineEveryStep: StoryObj = {
     ...story({account: staked(), validator: validatorRow({active: false}), steps: validatorOtherSteps()}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) =>
-        expect(stepTitles(canvasElement)).toEqual(['Locked', 'Dropped', 'Lock released', 'Locked', 'Renewed', 'Equivocation reported', 'Exit requested']),
+        expect(stepTitles(canvasElement)).toEqual(['Exit requested', 'Equivocation reported', 'Renewed', 'Locked', 'Lock released', 'Dropped', 'Locked']),
 }
 
 export const ValidatorTimelinePages = story({account: staked(), validator: validatorRow(), steps: validatorLifecycle(), counts: {validatorSteps: 45}}, {tab: 'validator-timeline'})
 
 // an exemption alone leaves no Validator row, so there is no overview to open
 export const ValidatorExemptOnly: StoryObj = {
-    ...story({steps: validatorLifecycle().slice(0, 1)}, {tab: 'validator-timeline'}),
+    ...story({steps: validatorLifecycle().slice(-1)}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) => {
         await expect(validatorTabs(canvasElement)).toEqual(['validator-timeline'])
         await expect(within(canvasElement).queryByText('Offline (30d)')).toBeNull()

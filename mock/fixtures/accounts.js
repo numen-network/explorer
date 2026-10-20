@@ -528,23 +528,23 @@ const DAY = 8_640
 const LOCK_DAYS = 180
 const renewal = (h, who = SUBJECT) => validatorEvent(h, 0, 'ValidatorLocked', {who, amount: numn(100_000_000), expiryBlock: h + LOCK_DAYS * DAY}, false)
 
-// steps oldest first, the way the tab orders them
+// steps newest first, the way the tab orders them
 export const validatorLifecycle = () => {
     const locked = HEAD - 40 * DAY
     return [
-        validatorStep(validatorEvent(locked - 500, 3, 'StakeExemptSet', {who: SUBJECT, exempt: true})),
-        validatorStep(validatorEvent(locked, 4, 'ValidatorLocked', {who: SUBJECT, amount: numn(100_000_000), expiryBlock: locked + LOCK_DAYS * DAY})),
-        validatorStep(renewal(locked + DAY), 29, renewal(locked + 29 * DAY)),
-        validatorStep(validatorEvent(locked + 30 * DAY + 2, 1, 'ValidatorKicked', {who: SUBJECT, reason: {__kind: 'Offline'}}, false)),
         validatorStep(validatorEvent(locked + 31 * DAY, 3, 'StakeExemptSet', {who: SUBJECT, exempt: false})),
+        validatorStep(validatorEvent(locked + 30 * DAY + 2, 1, 'ValidatorKicked', {who: SUBJECT, reason: {__kind: 'Offline'}}, false)),
+        validatorStep(renewal(locked + DAY), 29, renewal(locked + 29 * DAY)),
+        validatorStep(validatorEvent(locked, 4, 'ValidatorLocked', {who: SUBJECT, amount: numn(100_000_000), expiryBlock: locked + LOCK_DAYS * DAY})),
+        validatorStep(validatorEvent(locked - 500, 3, 'StakeExemptSet', {who: SUBJECT, exempt: true})),
     ]
 }
 
-// jJFU on mainnet, the lock and exemption genesis wrote, then its first and
-// latest daily renewals
+// jJFU on mainnet, its daily renewals from the first to the latest, then the
+// lock and exemption genesis wrote
 export const JJFU_STEPS = [
-    genesisStep(JJFU, {amount: '0', lockBlock: 0, expiryBlock: 1_555_200, status: {__kind: 'Active'}}, true),
     validatorStep(renewal(8_640, JJFU), 29, renewal(250_560, JJFU)),
+    genesisStep(JJFU, {amount: '0', lockBlock: 0, expiryBlock: 1_555_200, status: {__kind: 'Active'}}, true),
 ]
 
 // a genesis validator with neither a lock nor an exemption, which the
@@ -560,13 +560,13 @@ export const validatorOtherSteps = () => {
     const second = HEAD - 15 * DAY
     const lock = (h, expiryBlock) => validatorEvent(h, 2, 'ValidatorLocked', {who: SUBJECT, amount: numn(100_000_000), expiryBlock})
     return [
-        validatorStep(lock(first, firstExpiry)),
-        validatorStep(validatorEvent(first + 360, 0, 'PendingValidatorDropped', {who: SUBJECT}, false)),
-        validatorStep(validatorEvent(firstExpiry, 0, 'LockReleased', {who: SUBJECT, amount: numn(100_000_000)}, false)),
-        validatorStep(lock(second, second + LOCK_DAYS * DAY)),
-        validatorStep(renewal(second + DAY), 1),
-        validatorStep(validatorEvent(second + 2 * DAY + 40, 5, 'EquivocationReported', {who: SUBJECT}, false)),
         validatorStep(validatorEvent(second + 3 * DAY, 2, 'ValidatorExitRequested', {who: SUBJECT})),
+        validatorStep(validatorEvent(second + 2 * DAY + 40, 5, 'EquivocationReported', {who: SUBJECT}, false)),
+        validatorStep(renewal(second + DAY), 1),
+        validatorStep(lock(second, second + LOCK_DAYS * DAY)),
+        validatorStep(validatorEvent(firstExpiry, 0, 'LockReleased', {who: SUBJECT, amount: numn(100_000_000)}, false)),
+        validatorStep(validatorEvent(first + 360, 0, 'PendingValidatorDropped', {who: SUBJECT}, false)),
+        validatorStep(lock(first, firstExpiry)),
     ]
 }
 

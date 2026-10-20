@@ -2207,10 +2207,10 @@ export function validatorSteps(idHex: string, limit: number, offset: number) {
     const mine = `account: {id_eq: $id}`
     return gql<{steps: ValidatorStepRow[]; all: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            steps: validatorSteps(where: {${mine}}, orderBy: id_ASC, limit: $limit, offset: $offset) {
+            steps: validatorSteps(where: {${mine}}, orderBy: id_DESC, limit: $limit, offset: $offset) {
                 id renewals event { ${STEP_EVENT} } lastEvent { ${STEP_EVENT} } genesisLock genesisExempt
             }
-            all: validatorStepsConnection(orderBy: id_ASC, where: {${mine}}) { totalCount }
+            all: validatorStepsConnection(orderBy: id_DESC, where: {${mine}}) { totalCount }
         }`,
         {id: idHex, limit, offset}
     )
