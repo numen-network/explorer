@@ -2,6 +2,8 @@
 import {useState} from 'react'
 import {Check, Copy} from 'lucide-react'
 import {Button} from '@/components/ui/button'
+import {cn} from 'cn'
+import {INLINE_ICON_BUTTON} from './inlineIconButton'
 
 export default function CopyBtn({text}: {text: string}) {
     const [ok, setOk] = useState(false)
@@ -16,7 +18,7 @@ export default function CopyBtn({text}: {text: string}) {
                     setTimeout(() => setOk(false), 1200)
                 })
             }}
-            className="ml-1.5 size-5 rounded bg-card align-middle text-dim hover:bg-card hover:text-primary"
+            className={cn(INLINE_ICON_BUTTON, 'ml-1.5')}
         >
             {ok ? <Check className="size-2.5 text-good" /> : <Copy className="size-2.5" />}
         </Button>

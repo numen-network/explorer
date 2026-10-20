@@ -4,6 +4,8 @@ import {useMemo} from 'react'
 import encodeQR from 'qr'
 import {Download, QrCode} from 'lucide-react'
 import {Button} from '@/components/ui/button'
+import {cn} from 'cn'
+import {INLINE_ICON_BUTTON} from './inlineIconButton'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 
 // dark on white whatever the page around it, a code a phone camera can't read
@@ -35,7 +37,7 @@ export default function QrButton({text, label}: {text: string; label?: string | 
     return (
         <Popover>
             <PopoverTrigger asChild>
-                <Button variant="outline" size="icon-xs" aria-label="QR code" className="ml-1 size-5 rounded bg-card align-middle text-dim hover:bg-card hover:text-primary data-[state=open]:text-primary">
+                <Button variant="outline" size="icon-xs" aria-label="QR code" className={cn(INLINE_ICON_BUTTON, 'ml-1 data-[state=open]:text-primary')}>
                     <QrCode className="size-2.5" />
                 </Button>
             </PopoverTrigger>
