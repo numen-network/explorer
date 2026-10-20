@@ -1,5 +1,5 @@
-module.exports = class Data1792432212558 {
-    name = 'Data1792432212558'
+module.exports = class Data1792460132611 {
+    name = 'Data1792460132611'
 
     async up(db) {
         await db.query(`CREATE TABLE "delegate" ("id" character varying NOT NULL, "delegators" integer NOT NULL, "tracks" integer NOT NULL, "delegated" numeric NOT NULL, "account_id" character varying, CONSTRAINT "REL_9fc4c32ac74b83d15ee9f1305f" UNIQUE ("account_id"), CONSTRAINT "PK_810516365b3daa9f6d6d2d4f2b7" PRIMARY KEY ("id"))`)
@@ -180,6 +180,10 @@ module.exports = class Data1792432212558 {
         await db.query(`CREATE TABLE "validator" ("id" character varying NOT NULL, "active" boolean NOT NULL, "locked_amount" numeric NOT NULL, "lock_expiry" integer, "kicked" jsonb, "first_seen_block" integer NOT NULL, "last_active_session" integer, "account_id" character varying, CONSTRAINT "REL_4ddc35f6074f65fa2314a425a6" UNIQUE ("account_id"), CONSTRAINT "PK_ae0a943022c24bd60e7161e0fad" PRIMARY KEY ("id"))`)
         await db.query(`CREATE UNIQUE INDEX "idx_validator_account_6c60d32a" ON "validator" ("account_id") `)
         await db.query(`CREATE INDEX "idx_validator_active_c83c422c" ON "validator" ("active") `)
+        await db.query(`CREATE TABLE "validator_step" ("id" character varying NOT NULL, "renewals" integer NOT NULL, "account_id" character varying, "event_id" character varying, "last_event_id" character varying, CONSTRAINT "PK_5d75880f5d17fabc6656ab83adc" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE INDEX "idx_validator_step_account_e7f7ffe7" ON "validator_step" ("account_id") `)
+        await db.query(`CREATE INDEX "idx_validator_step_event_63f17947" ON "validator_step" ("event_id") `)
+        await db.query(`CREATE INDEX "idx_validator_step_last_event_77b1682e" ON "validator_step" ("last_event_id") `)
         await db.query(`CREATE TABLE "daily_stat" ("id" character varying NOT NULL, "date" TIMESTAMP WITH TIME ZONE NOT NULL, "blocks" integer NOT NULL, "extrinsics_signed" integer NOT NULL, "transfers" integer NOT NULL, "transfer_volume" numeric NOT NULL, "evm_txs" integer NOT NULL, "fees" numeric NOT NULL, "ts_first" TIMESTAMP WITH TIME ZONE NOT NULL, "ts_last" TIMESTAMP WITH TIME ZONE NOT NULL, "difficulty_close" numeric NOT NULL, "issuance_total" numeric NOT NULL, "issuance_inactive" numeric NOT NULL, "issuance_transferable" numeric NOT NULL, "treasury_pot" numeric NOT NULL, "cum_extrinsics_signed" numeric NOT NULL, "cum_transfers" numeric NOT NULL, "cum_transfer_volume" numeric NOT NULL, "accounts_total" integer NOT NULL, "referenda_total" integer NOT NULL, "miners_active" integer NOT NULL, "rewards" numeric NOT NULL, CONSTRAINT "PK_c2eb70552248e56c09515fb7744" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_daily_stat_date_7855a7bd" ON "daily_stat" ("date") `)
         await db.query(`CREATE TABLE "hourly_stat" ("id" character varying NOT NULL, "hour" TIMESTAMP WITH TIME ZONE NOT NULL, "issuance_transferable" numeric NOT NULL, "issuance_inactive" numeric NOT NULL, "block_id" character varying, CONSTRAINT "PK_1d4e25181c19ab6559edd69473c" PRIMARY KEY ("id"))`)
@@ -277,6 +281,9 @@ module.exports = class Data1792432212558 {
         await db.query(`ALTER TABLE "validator_offence" ADD CONSTRAINT "FK_b33cdb777747d9d0233ac9f7a99" FOREIGN KEY ("validator_id") REFERENCES "validator"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "validator_offence" ADD CONSTRAINT "FK_8793b6221b41e9428731cd1d912" FOREIGN KEY ("event_id") REFERENCES "event"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "validator" ADD CONSTRAINT "FK_4ddc35f6074f65fa2314a425a6f" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`ALTER TABLE "validator_step" ADD CONSTRAINT "FK_b5ecf67264b0b4723ec72ff9c67" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`ALTER TABLE "validator_step" ADD CONSTRAINT "FK_fdaf52c925b79e33f7b5d2d05eb" FOREIGN KEY ("event_id") REFERENCES "event"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`ALTER TABLE "validator_step" ADD CONSTRAINT "FK_03f9e7a7a9196f4a3ec1dbea434" FOREIGN KEY ("last_event_id") REFERENCES "event"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "hourly_stat" ADD CONSTRAINT "FK_ebeaf11ea2612c6e79ae5a5275c" FOREIGN KEY ("block_id") REFERENCES "block"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "miner_day_stat" ADD CONSTRAINT "FK_74b6a61f949a388ff1c34be4f82" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "transfer_pair" ADD CONSTRAINT "FK_be0b879fbf135f3a0a6fbe34aa9" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
@@ -292,6 +299,9 @@ module.exports = class Data1792432212558 {
         await db.query(`ALTER TABLE "transfer_pair" DROP CONSTRAINT "FK_be0b879fbf135f3a0a6fbe34aa9"`)
         await db.query(`ALTER TABLE "miner_day_stat" DROP CONSTRAINT "FK_74b6a61f949a388ff1c34be4f82"`)
         await db.query(`ALTER TABLE "hourly_stat" DROP CONSTRAINT "FK_ebeaf11ea2612c6e79ae5a5275c"`)
+        await db.query(`ALTER TABLE "validator_step" DROP CONSTRAINT "FK_03f9e7a7a9196f4a3ec1dbea434"`)
+        await db.query(`ALTER TABLE "validator_step" DROP CONSTRAINT "FK_fdaf52c925b79e33f7b5d2d05eb"`)
+        await db.query(`ALTER TABLE "validator_step" DROP CONSTRAINT "FK_b5ecf67264b0b4723ec72ff9c67"`)
         await db.query(`ALTER TABLE "validator" DROP CONSTRAINT "FK_4ddc35f6074f65fa2314a425a6f"`)
         await db.query(`ALTER TABLE "validator_offence" DROP CONSTRAINT "FK_8793b6221b41e9428731cd1d912"`)
         await db.query(`ALTER TABLE "validator_offence" DROP CONSTRAINT "FK_b33cdb777747d9d0233ac9f7a99"`)
@@ -389,6 +399,10 @@ module.exports = class Data1792432212558 {
         await db.query(`DROP TABLE "hourly_stat"`)
         await db.query(`DROP INDEX "public"."idx_daily_stat_date_7855a7bd"`)
         await db.query(`DROP TABLE "daily_stat"`)
+        await db.query(`DROP INDEX "public"."idx_validator_step_last_event_77b1682e"`)
+        await db.query(`DROP INDEX "public"."idx_validator_step_event_63f17947"`)
+        await db.query(`DROP INDEX "public"."idx_validator_step_account_e7f7ffe7"`)
+        await db.query(`DROP TABLE "validator_step"`)
         await db.query(`DROP INDEX "public"."idx_validator_active_c83c422c"`)
         await db.query(`DROP INDEX "public"."idx_validator_account_6c60d32a"`)
         await db.query(`DROP TABLE "validator"`)

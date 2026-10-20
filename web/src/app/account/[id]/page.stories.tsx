@@ -28,6 +28,7 @@ import {
     identitySet,
     identityTimeline,
     JJFU_OFFLINE,
+    JJFU_RENEWALS,
     judgementsGiven,
     ME,
     MADE_UP_EQUIVOCATION,
@@ -63,6 +64,8 @@ import {
     tokenTransfersInOneTx,
     TRACKS,
     TREASURY,
+    validatorLifecycle,
+    validatorOtherSteps,
     validatorRow,
     VERDICTS,
     vote,
@@ -630,6 +633,9 @@ export const ValidatorActive: StoryObj = {
         await offenceCounts(canvasElement, '0', '0')
         await expect(within(canvasElement).getByText('No offences yet.')).toBeVisible()
         await expect(within(canvasElement).getByRole('navigation', {name: 'pagination'})).toBeVisible()
+        await expect(validatorTabs(canvasElement)).toEqual(['validator'])
+        await expect(within(within(canvasElement).getByRole('navigation', {name: 'Validator'})).getByRole('link')).toHaveAccessibleName(/^Offences/)
+        await expect(tileAboveTabs(canvasElement)).toBe(true)
     },
 }
 
@@ -662,6 +668,60 @@ export const ValidatorOfflineAndEquivocation: StoryObj = {
 export const ValidatorInactive = story({validator: validatorRow({active: false, lockedAmount: '0', lockExpiry: null, lastActiveSession: 15_210})}, {tab: 'validator'})
 
 export const ValidatorKicked = story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE}, {tab: 'validator'})
+
+const validatorTabs = (root: HTMLElement) =>
+    within(within(root).getByRole('navigation', {name: 'Validator'}))
+        .getAllByRole('link')
+        .map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab'))
+// the tile belongs to the whole group, so it sits above the sub-tab strip
+const tileAboveTabs = (root: HTMLElement) =>
+    Boolean(figureLabel(root, 'Status').compareDocumentPosition(within(root).getByRole('navigation', {name: 'Validator'})) & Node.DOCUMENT_POSITION_FOLLOWING)
+const figureLabel = (root: HTMLElement, label: string) => [...root.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === label)!
+const stepTitles = (root: HTMLElement) => [...root.querySelectorAll('[data-slot=card] > ol > li')].map(li => li.querySelector('.font-medium')!.textContent)
+const stepRow = (root: HTMLElement, label: string) => within(root).getByText(label, {selector: 'dt'}).nextElementSibling!.textContent
+
+export const ValidatorTimeline: StoryObj = {
+    ...story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE, steps: validatorLifecycle()}, {tab: 'validator-timeline'}),
+    play: async ({canvasElement}) => {
+        await expect(validatorTabs(canvasElement)).toEqual(['validator-timeline', 'validator'])
+        const sub = within(canvasElement).getByRole('navigation', {name: 'Validator'})
+        await expect([tabCount(sub, 'validator-timeline'), tabCount(sub, 'validator')]).toEqual(['5', '2'])
+        await expect(tileAboveTabs(canvasElement)).toBe(true)
+        await offenceCounts(canvasElement, '2', '0')
+        await expect(stepTitles(canvasElement)).toEqual(['Exemption granted', 'Locked', 'Renewed', 'Kicked', 'Exemption revoked'])
+        await expect(stepRow(canvasElement, 'Renewals')).toBe('29')
+        await expect(stepRow(canvasElement, 'Reason')).toBe('Offline')
+        await expect(within(canvasElement).getByRole('navigation', {name: 'pagination'})).toBeVisible()
+    },
+}
+
+// jJFU locked at genesis without an event, so its renewals are all there is
+export const ValidatorTimelineGenesis: StoryObj = {
+    ...story({account: staked(), validator: validatorRow({lockExpiry: 1_805_760}), steps: JJFU_RENEWALS}, {tab: 'validator-timeline'}),
+    play: async ({canvasElement}) => {
+        await expect(stepTitles(canvasElement)).toEqual(['Renewed'])
+        await expect(stepRow(canvasElement, 'Renewals')).toBe('29')
+        await expect(stepRow(canvasElement, 'Lock expiry')).toBe('1,805,760')
+    },
+}
+
+export const ValidatorTimelineEveryStep: StoryObj = {
+    ...story({account: staked(), validator: validatorRow({active: false}), steps: validatorOtherSteps()}, {tab: 'validator-timeline'}),
+    play: async ({canvasElement}) =>
+        expect(stepTitles(canvasElement)).toEqual(['Locked', 'Dropped', 'Lock released', 'Locked', 'Renewed', 'Equivocation reported', 'Exit requested']),
+}
+
+export const ValidatorTimelinePages = story({account: staked(), validator: validatorRow(), steps: validatorLifecycle(), counts: {validatorSteps: 45}}, {tab: 'validator-timeline'})
+
+// an exemption alone leaves no Validator row, so there is no overview to open
+export const ValidatorExemptOnly: StoryObj = {
+    ...story({steps: validatorLifecycle().slice(0, 1)}, {tab: 'validator-timeline'}),
+    play: async ({canvasElement}) => {
+        await expect(validatorTabs(canvasElement)).toEqual(['validator-timeline'])
+        await expect(within(canvasElement).queryByText('Offline (30d)')).toBeNull()
+        await expect(stepTitles(canvasElement)).toEqual(['Exemption granted'])
+    },
+}
 
 export const MiningOneBlock = story({minerDays: [{...minedDays(1)[0], blocks: 1}], mined: minedBlockRows(1)}, {tab: 'mining'})
 

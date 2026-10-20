@@ -1,15 +1,39 @@
 import {toJSON} from '@subsquid/util-internal-json'
 import {In} from 'typeorm'
 import {BatchData} from './batch'
-import {Event, Validator, ValidatorOffence} from './model'
+import {Event, Validator, ValidatorOffence, ValidatorStep} from './model'
 import {storage} from './types'
 
-export function collectValidatorEvent(batch: BatchData, id: string, name: string, args: any, height: number, at: Date, header: any): void {
-    if (name === 'Session.NewSession' || name === 'ImOnline.SomeOffline' || name.startsWith('Validator.')) batch.validatorEvents.push({id, name, args, height, at, header})
+export function collectValidatorEvent(batch: BatchData, id: string, name: string, phase: string, args: any, height: number, at: Date, header: any): void {
+    if (name === 'Session.NewSession' || name === 'ImOnline.SomeOffline' || name.startsWith('Validator.')) batch.validatorEvents.push({id, name, phase, args, height, at, header})
 }
 
 function recordOffence(batch: BatchData, v: Validator, id: string, kind: string, ev: {id: string; height: number; at: Date}): void {
     batch.validatorOffences.push(new ValidatorOffence({id, validator: v, kind, event: new Event({id: ev.id}), block: ev.height, timestamp: ev.at}))
+}
+
+async function latestStep(ctx: {store: any}, batch: BatchData, who: string): Promise<ValidatorStep | undefined> {
+    const known = batch.latestSteps.get(who)
+    if (known != null) return known
+    const stored: ValidatorStep | undefined = await ctx.store.findOne(ValidatorStep, {where: {account: {id: who}}, order: {id: 'DESC'}})
+    if (stored != null) batch.latestSteps.set(who, stored)
+    return stored
+}
+
+// on_initialize raises the daily auto-renewal, which joins the run the
+// account's latest step holds
+async function recordStep(ctx: {store: any}, batch: BatchData, ev: {id: string; name: string; phase: string; args: any; height: number}): Promise<void> {
+    const who: string = ev.args.who
+    const renewal = ev.name === 'Validator.ValidatorLocked' && ev.phase === 'Initialization'
+    const last = renewal ? await latestStep(ctx, batch, who) : undefined
+    const step =
+        last != null && last.renewals > 0
+            ? last
+            : new ValidatorStep({id: ev.id, account: batch.touch(who, ev.height), event: new Event({id: ev.id}), renewals: 0})
+    step.lastEvent = new Event({id: ev.id})
+    if (renewal) step.renewals += 1
+    batch.latestSteps.set(who, step)
+    batch.validatorSteps.set(step.id, step)
 }
 
 async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, height: number): Promise<Validator> {
@@ -55,6 +79,7 @@ export async function seedGenesisValidators(batch: BatchData, genesisHeader: any
 // where as many one-session batches would
 export async function finalizeValidators(ctx: {store: any}, batch: BatchData): Promise<void> {
     for (const ev of batch.validatorEvents) {
+        if (ev.name.startsWith('Validator.')) await recordStep(ctx, batch, ev)
         const method = ev.name.split('.')[1]
         const args = ev.args
         switch (method) {

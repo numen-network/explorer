@@ -785,6 +785,18 @@ type ValidatorOffence @entity {
   timestamp: DateTime! @index
 }
 
+"one row per Validator event naming an account, with each run of auto-renewals in a row folded into one"
+type ValidatorStep @entity {
+  "the id of its first event"
+  id: ID!
+  account: Account! @index
+  event: Event!
+  "the latest renewal of a run, the step's own event otherwise"
+  lastEvent: Event!
+  "the auto-renewals a run folds, 0 on any other step"
+  renewals: Int!
+}
+
 type DailyStat @entity {
   id: ID!
   date: DateTime! @index

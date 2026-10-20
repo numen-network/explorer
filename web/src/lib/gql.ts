@@ -502,6 +502,8 @@ export interface AccountSummary {
     nTransfers: {totalCount: number}
     nExtrinsics: {totalCount: number}
     nTimeline: {totalCount: number}
+    nOffences: {totalCount: number}
+    nValidatorSteps: {totalCount: number}
     nSubs: {totalCount: number}
     nJudged: {totalCount: number}
     nDelegOut: {totalCount: number}
@@ -571,6 +573,8 @@ export function accountSummary(idHex: string) {
             nTransfers: transfersConnection(orderBy: id_ASC, where: {OR: [{from: ${self}}, {to: ${self}}]}) { totalCount }
             nExtrinsics: extrinsicsConnection(orderBy: id_ASC, where: {signer: ${self}}) { totalCount }
             nTimeline: eventsConnection(orderBy: id_ASC, where: ${identityWhere(idHex)}) { totalCount }
+            nOffences: validatorOffencesConnection(orderBy: id_ASC, where: {validator: ${self}}) { totalCount }
+            nValidatorSteps: validatorStepsConnection(orderBy: id_ASC, where: {account: ${self}}) { totalCount }
             nSubs: accountsConnection(orderBy: id_ASC, where: {identitySuper: ${self}}) { totalCount }
             nJudged: judgementsConnection(orderBy: id_ASC, where: {registrar: {account: ${self}}}) { totalCount }
             nDelegOut: delegationsConnection(orderBy: id_ASC, where: {who: ${self}}) { totalCount }
@@ -2129,16 +2133,58 @@ export interface ValidatorOffenceRow {
     event: {indexInBlock: number; extrinsic: {id: string} | null}
 }
 
-export function validatorOffences(idHex: string, since: string | null, limit: number, offset: number) {
-    const mine = `validator: {id_eq: $id}`
-    return gql<{offences: ValidatorOffenceRow[]; all: {totalCount: number}; offline: {totalCount: number}; equivocations: {totalCount: number}}>(
-        `query ($id: String!, $since: DateTime, $limit: Int!, $offset: Int!) {
-            offences: validatorOffences(where: {${mine}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id kind block timestamp event { indexInBlock extrinsic { id } } }
-            all: validatorOffencesConnection(orderBy: id_ASC, where: {${mine}}) { totalCount }
-            offline: validatorOffencesConnection(orderBy: id_ASC, where: {${mine}, kind_eq: "Offline", timestamp_gt: $since}) { totalCount }
-            equivocations: validatorOffencesConnection(orderBy: id_ASC, where: {${mine}, kind_eq: "Equivocation", timestamp_gt: $since}) { totalCount }
+const MY_OFFENCES = `validator: {id_eq: $id}`
+
+// the windowed counts the validator tile shows
+export function validatorOffenceCounts(idHex: string, since: string | null) {
+    return gql<{offline: {totalCount: number}; equivocations: {totalCount: number}}>(
+        `query ($id: String!, $since: DateTime) {
+            offline: validatorOffencesConnection(orderBy: id_ASC, where: {${MY_OFFENCES}, kind_eq: "Offline", timestamp_gt: $since}) { totalCount }
+            equivocations: validatorOffencesConnection(orderBy: id_ASC, where: {${MY_OFFENCES}, kind_eq: "Equivocation", timestamp_gt: $since}) { totalCount }
         }`,
-        {id: idHex, since, limit, offset}
+        {id: idHex, since}
+    )
+}
+
+export function validatorOffences(idHex: string, limit: number, offset: number) {
+    return gql<{offences: ValidatorOffenceRow[]; all: {totalCount: number}}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            offences: validatorOffences(where: {${MY_OFFENCES}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id kind block timestamp event { indexInBlock extrinsic { id } } }
+            all: validatorOffencesConnection(orderBy: id_ASC, where: {${MY_OFFENCES}}) { totalCount }
+        }`,
+        {id: idHex, limit, offset}
+    )
+}
+
+export interface ValidatorStepEvent {
+    id: string
+    indexInBlock: number
+    method: string
+    phase: string
+    args: unknown
+    extrinsic: {id: string} | null
+    block: {height: number; timestamp: string}
+}
+
+export interface ValidatorStepRow {
+    id: string
+    renewals: number
+    event: ValidatorStepEvent
+    lastEvent: ValidatorStepEvent
+}
+
+const STEP_EVENT = `id indexInBlock method phase args extrinsic { id } block { height timestamp }`
+
+export function validatorSteps(idHex: string, limit: number, offset: number) {
+    const mine = `account: {id_eq: $id}`
+    return gql<{steps: ValidatorStepRow[]; all: {totalCount: number}}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            steps: validatorSteps(where: {${mine}}, orderBy: id_ASC, limit: $limit, offset: $offset) {
+                id renewals event { ${STEP_EVENT} } lastEvent { ${STEP_EVENT} }
+            }
+            all: validatorStepsConnection(orderBy: id_ASC, where: {${mine}}) { totalCount }
+        }`,
+        {id: idHex, limit, offset}
     )
 }
 

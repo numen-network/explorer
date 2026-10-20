@@ -1,3 +1,4 @@
+import type {ReactNode} from 'react'
 import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import Balance from '@/components/Balance'
@@ -26,7 +27,8 @@ import Timeline from '@/components/account/Timeline'
 import TokenTransfers from '@/components/account/TokenTransfers'
 import Transfers from '@/components/account/Transfers'
 import Treasury from '@/components/account/Treasury'
-import Validator from '@/components/account/Validator'
+import Validator, {ValidatorHead} from '@/components/account/Validator'
+import ValidatorTimeline from '@/components/account/ValidatorTimeline'
 import Vesting from '@/components/account/Vesting'
 import Votes from '@/components/account/Votes'
 import VoteHistory from '@/components/account/VoteHistory'
@@ -129,7 +131,10 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nSubs.totalCount > 0) tabs.push({slug: 'subs', label: 'Sub identities', group: 'Identity', count: s.nSubs.totalCount, body: () => <Subs {...ctx} />})
     if (registrar)
         tabs.push({slug: 'judgements', label: 'Judgements Given', group: 'Identity', count: s.nJudged.totalCount, body: () => <Judgements {...ctx} index={registrar.index} />})
-    if (validator) tabs.push({slug: 'validator', label: 'Validator', body: () => <Validator {...ctx} v={validator} />})
+    // an exemption alone leaves no Validator row, so the steps answer for themselves
+    if (s.nValidatorSteps.totalCount > 0)
+        tabs.push({slug: 'validator-timeline', label: 'Timeline', group: 'Validator', count: s.nValidatorSteps.totalCount, body: () => <ValidatorTimeline {...ctx} />})
+    if (validator) tabs.push({slug: 'validator', label: 'Offences', group: 'Validator', count: s.nOffences.totalCount, body: () => <Validator {...ctx} />})
     if (minedBlocks > 0) tabs.push({slug: 'mining', label: 'Mining', count: minedBlocks, body: () => <Mining {...ctx} days={s.minerDays} total={minedBlocks} />})
     if (s.nProxyOut.totalCount + s.nProxyIn.totalCount > 0)
         tabs.push({slug: 'proxies', label: 'Proxies', count: s.nProxyOut.totalCount + s.nProxyIn.totalCount, body: () => <Proxies {...ctx} />})
@@ -150,6 +155,10 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nDelegHistory.totalCount > 0)
         tabs.push({slug: 'delegations-history', label: 'Delegations history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="out" slug="delegations-history" />})
     if (s.nAccountDays.totalCount > 0) tabs.push({slug: 'charts', label: 'Charts', body: () => <Charts {...ctx} />})
+
+    // what a group shows above its tab strip, whichever of its tabs is open
+    const groupHeads: Record<string, () => ReactNode> = {}
+    if (validator) groupHeads.Validator = () => <ValidatorHead hex={hex} chain={chain} v={validator} />
 
     // dtrack filters Received, so a delegations link carrying one opens there,
     // and multisig opens the signatory side of an account that is no multisig
@@ -237,6 +246,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                         }
                     })}
                 />
+                {active.group && groupHeads[active.group]?.()}
                 {active.group && (
                     <div className="mt-4">
                         <TabBar aria-label={active.group} items={tabs.filter(t => t.group === active.group).map(t => ({label: t.label, count: t.count, href: tabHref(addr, t.slug), active: t.slug === active.slug}))} />

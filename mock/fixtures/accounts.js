@@ -509,6 +509,58 @@ export const JJFU_OFFLINE = [
 // mainnet has never reported an equivocation, so this one is made up
 export const MADE_UP_EQUIVOCATION = offence('0000293100-00000-000004', 'Equivocation', 293_100, '2026-10-17T19:39:11.000Z', {indexInBlock: 4, extrinsic: {id: '0000293100-00000-000002'}})
 
+// a Validator event the way a step reads it, runtime hooks raise theirs at
+// initialization with no extrinsic
+const validatorEvent = (h, index, method, args, signed = true) => ({
+    id: squidId(h, index),
+    indexInBlock: index,
+    method,
+    phase: signed ? 'ApplyExtrinsic' : 'Initialization',
+    args,
+    extrinsic: signed ? {id: squidId(h, 1)} : null,
+    block: {height: h, timestamp: at(h)},
+})
+const validatorStep = (event, renewals = 0, lastEvent = event) => ({id: event.id, renewals, event, lastEvent})
+
+const DAY = 8_640
+const LOCK_DAYS = 180
+const renewal = (h, who = SUBJECT) => validatorEvent(h, 0, 'ValidatorLocked', {who, amount: numn(100_000_000), expiryBlock: h + LOCK_DAYS * DAY}, false)
+
+// steps oldest first, the way the tab orders them
+export const validatorLifecycle = () => {
+    const locked = HEAD - 40 * DAY
+    return [
+        validatorStep(validatorEvent(locked - 500, 3, 'StakeExemptSet', {who: SUBJECT, exempt: true})),
+        validatorStep(validatorEvent(locked, 4, 'ValidatorLocked', {who: SUBJECT, amount: numn(100_000_000), expiryBlock: locked + LOCK_DAYS * DAY})),
+        validatorStep(renewal(locked + DAY), 29, renewal(locked + 29 * DAY)),
+        validatorStep(validatorEvent(locked + 30 * DAY + 2, 1, 'ValidatorKicked', {who: SUBJECT, reason: {__kind: 'Offline'}}, false)),
+        validatorStep(validatorEvent(locked + 31 * DAY, 3, 'StakeExemptSet', {who: SUBJECT, exempt: false})),
+    ]
+}
+
+// jJFU locked at genesis, which raised no event, and has renewed every day
+// since. its first and latest renewals on mainnet
+export const JJFU_RENEWALS = [validatorStep(renewal(8_640, JJFU), 29, renewal(250_560, JJFU))]
+
+// the steps the lifecycle above never reaches, a lock that never got promoted
+// and ran out, then a second one left by choice
+export const validatorOtherSteps = () => {
+    // the mock chain is too short for a whole lock to run out, so the first one is shorter
+    const first = HEAD - 100 * DAY
+    const firstExpiry = HEAD - 20 * DAY
+    const second = HEAD - 15 * DAY
+    const lock = (h, expiryBlock) => validatorEvent(h, 2, 'ValidatorLocked', {who: SUBJECT, amount: numn(100_000_000), expiryBlock})
+    return [
+        validatorStep(lock(first, firstExpiry)),
+        validatorStep(validatorEvent(first + 360, 0, 'PendingValidatorDropped', {who: SUBJECT}, false)),
+        validatorStep(validatorEvent(firstExpiry, 0, 'LockReleased', {who: SUBJECT, amount: numn(100_000_000)}, false)),
+        validatorStep(lock(second, second + LOCK_DAYS * DAY)),
+        validatorStep(renewal(second + DAY), 1),
+        validatorStep(validatorEvent(second + 2 * DAY + 40, 5, 'EquivocationReported', {who: SUBJECT}, false)),
+        validatorStep(validatorEvent(second + 3 * DAY, 2, 'ValidatorExitRequested', {who: SUBJECT})),
+    ]
+}
+
 // days newest first, the way the summary orders them
 export const minedDays = count =>
     Array.from({length: count}, (_, i) => ({day: new Date(HEAD_TIME - i * 86_400_000).toISOString().slice(0, 10), blocks: 12 + ((i * 37) % 90)}))
@@ -663,6 +715,7 @@ export function accountPage({
     account = subject(),
     validator = null,
     offences = [],
+    steps = [],
     registrar = null,
     prime = false,
     minerDays = [],
@@ -738,6 +791,8 @@ export function accountPage({
         validatorOffences: paged(offences),
         // the two windowed counts take counts.Offline and counts.Equivocation when set
         validatorOffencesConnection: ({where}) => count(where.kind_eq ? (counts[where.kind_eq] ?? offences.filter(o => o.kind === where.kind_eq).length) : offences.length),
+        validatorSteps: paged(steps),
+        validatorStepsConnection: count(counts.validatorSteps ?? steps.length),
         registrars: ({where}) =>
             where?.account ? (registrar == null ? [] : [{index: registrar}]) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
         primeStates: prime ? [{id: 'prime'}] : [],

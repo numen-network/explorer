@@ -5,20 +5,18 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainDbHead, windowStart, type ChainProps} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
-import {validatorOffences, type ValidatorRow} from '@/lib/gql'
+import {validatorOffenceCounts, validatorOffences, type ValidatorRow} from '@/lib/gql'
 import {OFFENCE_DAYS, OFFENCE_LABEL} from '@/lib/offences'
 import {paging} from '@/lib/paging'
 import {variantName} from '@/lib/variant'
 import {ValidatorOffencesTable} from './ValidatorOffencesTable'
 import {tabHref, type TabCtx} from './shared'
 
-export default async function Validator({hex, addr, chain, sp, v}: TabCtx & {v: ValidatorRow}) {
+export default async function Validator({hex, addr, sp}: TabCtx) {
     const pg = paging(sp)
-    const head = await chainDbHead()
-    const page = await validatorOffences(hex, windowStart(head, OFFENCE_DAYS), pg.size, pg.offset)
+    const page = await validatorOffences(hex, pg.size, pg.offset)
     return (
         <>
-            <ValidatorTile v={v} offline={page.offline.totalCount} equivocations={page.equivocations.totalCount} chain={chain} />
             <Card size="flush">
                 <ValidatorOffencesTable rows={page.offences} />
             </Card>
@@ -27,7 +25,14 @@ export default async function Validator({hex, addr, chain, sp, v}: TabCtx & {v: 
     )
 }
 
-export function ValidatorTile({v, offline, equivocations, chain}: {v: ValidatorRow; offline: number; equivocations: number; chain: ChainProps}) {
+// the tile the whole Validator group shares, above its tab strip
+export async function ValidatorHead({hex, chain, v}: {hex: string; chain: ChainProps; v: ValidatorRow}) {
+    const head = await chainDbHead()
+    const counts = await validatorOffenceCounts(hex, windowStart(head, OFFENCE_DAYS))
+    return <ValidatorTile v={v} offline={counts.offline.totalCount} equivocations={counts.equivocations.totalCount} chain={chain} className="mt-4" />
+}
+
+export function ValidatorTile({v, offline, equivocations, chain, className}: {v: ValidatorRow; offline: number; equivocations: number; chain: ChainProps; className?: string}) {
     const kicked = variantName(v.kicked)
     return (
         <StatTile
@@ -41,7 +46,7 @@ export function ValidatorTile({v, offline, equivocations, chain}: {v: ValidatorR
                 {label: 'Last active session', value: v.lastActiveSession != null ? `#${fmtInt(v.lastActiveSession)}` : '—'},
             ]}
             pairs
-            className="mb-3"
+            className={className}
         />
     )
 }
