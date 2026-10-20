@@ -198,7 +198,7 @@ export class BatchData {
     days: DailyStat[] = []
     hourDeltas = new Map<string, HourDelta>()
     hours: HourlyStat[] = []
-    minerDayDeltas = new Map<string, {day: string; account: string; blocks: number; rewards: bigint}>()
+    minerDayDeltas = new Map<string, {day: string; account: string; blocks: number; rewards: bigint; fees: bigint}>()
     minerDays: MinerDayStat[] = []
     accountDayDeltas = new Map<string, AccountDayDelta>()
     accountDays: AccountDay[] = []

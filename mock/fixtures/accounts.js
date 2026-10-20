@@ -561,9 +561,16 @@ export const validatorOtherSteps = () => {
     ]
 }
 
-// days newest first, the way the summary orders them
+// days newest first, the way the summary orders them, at the mint of 150 a
+// block with fees on every other day
 export const minedDays = count =>
-    Array.from({length: count}, (_, i) => ({day: new Date(HEAD_TIME - i * 86_400_000).toISOString().slice(0, 10), blocks: 12 + ((i * 37) % 90)}))
+    Array.from({length: count}, (_, i) => {
+        const blocks = 12 + ((i * 37) % 90)
+        return {day: new Date(HEAD_TIME - i * 86_400_000).toISOString().slice(0, 10), blocks, rewards: numn(blocks * 150), fees: numn(i % 2 ? 0.0021 : 0)}
+    })
+
+// the 30-day window over every miner, the subject's day rows among them
+export const minerWindow = (subject, others) => [...subject.map(d => ({...d, account: ME})), ...others.map((blocks, i) => ({day: dayBefore(0), blocks, rewards: numn(blocks * 150), account: person(i)}))]
 
 const dayBefore = days => new Date(HEAD_TIME - days * 86_400_000).toISOString().slice(0, 10)
 
@@ -719,6 +726,7 @@ export function accountPage({
     registrar = null,
     prime = false,
     minerDays = [],
+    minerWindow = [],
     mined = [],
     accountDays = [],
     priorDay = null,
@@ -796,7 +804,8 @@ export function accountPage({
         registrars: ({where}) =>
             where?.account ? (registrar == null ? [] : [{index: registrar}]) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
         primeStates: prime ? [{id: 'prime'}] : [],
-        minerDayStats: minerDays,
+        // the subject's own day rows, or the window over every miner that ranks it
+        minerDayStats: ({where}) => (where.account ? minerDays : minerWindow),
         // the window query and the close before it differ only in day_lt
         accountDays: ({where}) => (where.day_lt != null ? (priorDay ? [priorDay] : []) : accountDays),
         accountDaysConnection: count(counts.accountDays ?? accountDays.length + (priorDay ? 1 : 0)),

@@ -2234,6 +2234,31 @@ export function minerDays(sinceDay: string | null): Promise<MinerDayRow[]> {
     )
 }
 
+// one row per day the account mined, so a lifetime total stays a short read
+export async function minerLifetime(authorHex: string): Promise<{rewards: bigint; fees: bigint; latest: number}> {
+    const [days, latest] = await Promise.all([
+        sweep(page =>
+            gql<{minerDayStats: {rewards: string; fees: string}[]}>(
+                `query ($id: String!, $limit: Int!, $offset: Int!) {
+                    minerDayStats(where: {account: {id_eq: $id}}, orderBy: id_ASC, limit: $limit, offset: $offset) { rewards fees }
+                }`,
+                {id: authorHex, ...page}
+            ).then(r => r.minerDayStats)
+        ),
+        gql<{blocks: {height: number}[]}>(
+            `query ($id: String!) {
+                blocks(where: {author: {id_eq: $id}}, orderBy: height_DESC, limit: 1) { height }
+            }`,
+            {id: authorHex}
+        ),
+    ])
+    return {
+        rewards: days.reduce((n, d) => n + BigInt(d.rewards), 0n),
+        fees: days.reduce((n, d) => n + BigInt(d.fees), 0n),
+        latest: latest.blocks[0].height,
+    }
+}
+
 export interface AccountDayRow {
     day: string
     free: string

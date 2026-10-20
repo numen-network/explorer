@@ -6,15 +6,8 @@ import {columnsFor, DataTable} from '@/components/DataTable'
 import {Progress} from '@/components/ui/progress'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtInt, fmtPct, pctToNum} from '@/lib/format'
-import type {AccountRef} from '@/lib/gql'
+import type {MinerStat} from '@/lib/miners'
 import {ss58Encode} from '@/lib/ss58'
-
-export interface MinerStat {
-    id: string
-    acc: AccountRef
-    blocks: number
-    rewards: string
-}
 
 const col = columnsFor<MinerStat>()
 

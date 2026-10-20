@@ -1,14 +1,13 @@
 'use client'
 
 import {useMemo} from 'react'
-import Approx from '@/components/Approx'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {emptyText} from '@/components/EmptyList'
 import {BlockLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
 import type {ChainProps} from '@/lib/chain'
-import {shortHash} from '@/lib/format'
+import {fmtBalance, shortHash} from '@/lib/format'
 import type {MinedBlockRow} from '@/lib/gql'
 
 const col = columnsFor<MinedBlockRow>()
@@ -31,9 +30,15 @@ export function MinedBlocksTable({rows, chain}: {rows: MinedBlockRow[]; chain: C
                 col.display({id: 'time', header: () => <TimeModeButton />, meta: {className: 'w-full', cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.timestamp} />}),
                 col.display({
                     id: 'reward',
-                    header: 'Reward',
+                    header: 'Production reward',
                     meta: {align: 'right', cellClassName: 'font-mono'},
-                    cell: ({row}) => <Approx planck={BigInt(row.original.reward) + BigInt(row.original.minerFees)} decimals={chain.decimals} symbol={chain.symbol} />,
+                    cell: ({row}) => fmtBalance(row.original.reward, chain.decimals, chain.symbol),
+                }),
+                col.display({
+                    id: 'fees',
+                    header: 'Fees',
+                    meta: {align: 'right', cellClassName: 'font-mono'},
+                    cell: ({row}) => fmtBalance(row.original.minerFees, chain.decimals, chain.symbol),
                 }),
             ]),
         [chain]

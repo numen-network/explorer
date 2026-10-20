@@ -21,6 +21,15 @@ export class MinerDayStat {
     @IntColumn_({nullable: false})
     blocks!: number
 
+    /**
+     * minted for the miner
+     */
     @BigIntColumn_({nullable: false})
     rewards!: bigint
+
+    /**
+     * fee share and tips the miner collected
+     */
+    @BigIntColumn_({nullable: false})
+    fees!: bigint
 }

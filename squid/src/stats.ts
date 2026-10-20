@@ -89,11 +89,12 @@ export function accumulateDay(batch: BatchData, block: Block, at: Date, header: 
         const minerId = `${day}-${block.author.id}`
         let m = batch.minerDayDeltas.get(minerId)
         if (m == null) {
-            m = {day, account: block.author.id, blocks: 0, rewards: 0n}
+            m = {day, account: block.author.id, blocks: 0, rewards: 0n, fees: 0n}
             batch.minerDayDeltas.set(minerId, m)
         }
         m.blocks += 1
         m.rewards += block.reward
+        m.fees += block.minerFees
     }
 }
 
@@ -236,9 +237,10 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promis
     }
 
     for (const [id, delta] of batch.minerDayDeltas) {
-        const row = minerRows.get(id) ?? new MinerDayStat({id, day: delta.day, account: new Account({id: delta.account}), blocks: 0, rewards: 0n})
+        const row = minerRows.get(id) ?? new MinerDayStat({id, day: delta.day, account: new Account({id: delta.account}), blocks: 0, rewards: 0n, fees: 0n})
         row.blocks += delta.blocks
         row.rewards += delta.rewards
+        row.fees += delta.fees
         batch.minerDays.push(row)
     }
 }

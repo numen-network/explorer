@@ -189,7 +189,7 @@ module.exports = class Data1792460132611 {
         await db.query(`CREATE TABLE "hourly_stat" ("id" character varying NOT NULL, "hour" TIMESTAMP WITH TIME ZONE NOT NULL, "issuance_transferable" numeric NOT NULL, "issuance_inactive" numeric NOT NULL, "block_id" character varying, CONSTRAINT "PK_1d4e25181c19ab6559edd69473c" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_hourly_stat_hour_8c7d2a38" ON "hourly_stat" ("hour") `)
         await db.query(`CREATE INDEX "idx_hourly_stat_block_0db9c5b8" ON "hourly_stat" ("block_id") `)
-        await db.query(`CREATE TABLE "miner_day_stat" ("id" character varying NOT NULL, "day" text NOT NULL, "blocks" integer NOT NULL, "rewards" numeric NOT NULL, "account_id" character varying, CONSTRAINT "PK_eb80260e642234974ff50f65a7d" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "miner_day_stat" ("id" character varying NOT NULL, "day" text NOT NULL, "blocks" integer NOT NULL, "rewards" numeric NOT NULL, "fees" numeric NOT NULL, "account_id" character varying, CONSTRAINT "PK_eb80260e642234974ff50f65a7d" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_miner_day_stat_account_d8161b0b" ON "miner_day_stat" ("account_id") `)
         await db.query(`CREATE INDEX "idx_miner_day_stat_day_blocks_d35a091b" ON "miner_day_stat" ("day", "blocks") `)
         await db.query(`CREATE TABLE "transfer_pair" ("id" character varying NOT NULL, "amount_in" numeric NOT NULL, "count_in" integer NOT NULL, "amount_out" numeric NOT NULL, "count_out" integer NOT NULL, "first_block" integer NOT NULL, "last_block" integer NOT NULL, "account_id" character varying, "counterparty_id" character varying, CONSTRAINT "PK_cc3f65b0637dff21baf235e75d7" PRIMARY KEY ("id"))`)

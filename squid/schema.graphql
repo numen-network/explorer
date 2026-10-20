@@ -841,7 +841,10 @@ type MinerDayStat @entity @index(fields: ["day", "blocks"]) {
   day: String! @index
   account: Account! @index
   blocks: Int!
+  "minted for the miner"
   rewards: BigInt!
+  "fee share and tips the miner collected"
+  fees: BigInt!
 }
 
 "an account's native transfers with one counterparty, summed since genesis"
