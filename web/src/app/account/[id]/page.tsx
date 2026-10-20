@@ -35,6 +35,7 @@ import Vesting from '@/components/account/Vesting'
 import Votes from '@/components/account/Votes'
 import VoteHistory from '@/components/account/VoteHistory'
 import {controlRefIds, controlRoles, lockRows, multisigRole, schedules, tabHref, type Role, type TabCtx} from '@/components/account/shared'
+import {transferableOf} from '@/lib/balance'
 import {chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
 import {votesPower} from '@/lib/conviction'
@@ -44,9 +45,6 @@ import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {CONFIG, datedOrGenesis} from '@/lib/config'
 
 export const dynamic = 'force-dynamic'
-
-const sat = (v: bigint) => (v > 0n ? v : 0n)
-const bigMax = (a: bigint, b: bigint) => (a > b ? a : b)
 
 // a url names the account by its ss58 address or its 32 byte hex id
 const accountHex = (raw: string, ss58: number) => (/^0x[0-9a-fA-F]{64}$/.test(raw) ? raw.toLowerCase() : ss58TryDecode(raw, ss58))
@@ -107,14 +105,10 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const registrar = s.registrar[0]
     const hasIdentity = a.identityJson != null || a.identitySuper != null || a.username != null
 
-    // polkadot.js formula. frozen is a floor on the total rather than a bucket of
-    // its own, so reserved counts towards it, and an account that reserves or
-    // freezes anything has a reference keeping it alive and must retain the ED
     const free = BigInt(a.free)
     const reserved = BigInt(a.reserved)
     const frozen = BigInt(a.frozen)
-    const ed = frozen === 0n && reserved === 0n ? 0n : BigInt(chain.existentialDeposit)
-    const transferable = sat(free - bigMax(ed, frozen - reserved))
+    const transferable = transferableOf(free, reserved, frozen, BigInt(chain.existentialDeposit))
     const locked = BigInt(a.balance) - transferable
     const share = (part: bigint) => (a.balance === '0' ? undefined : fmtPct(part, a.balance))
 

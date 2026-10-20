@@ -134,20 +134,28 @@ export const barWidthsIn = (root: Element) => [
     ...new Set(chartsIn(root).flatMap(chart => chart.getZr().storage.getDisplayList(true).flatMap(el => (el instanceof echarts.graphic.Rect ? [Math.round(el.shape.width * 100) / 100] : [])))),
 ]
 
-type Series = {type: string; name?: string; data: number[]; itemStyle: {color: string}}
+type Series = {type: string; name?: string; stack?: string; data: number[]; itemStyle: {color: string}}
+
+// the hex colour the canvas paints at a point on a series' axes. a line two
+// pixels wide around the point covers the whole pixel the point falls in
+export function pixelAt(chart: echarts.ECharts, seriesIndex: number, point: [number, number]) {
+    const [x, y] = chart.convertToPixel({seriesIndex}, point).map(v => Math.floor(v * chart.getDevicePixelRatio()))
+    const [r, g, b] = chart.getDom().querySelector('canvas')!.getContext('2d')!.getImageData(x, y, 1, 1).data
+    return echarts.color.toHex(`rgb(${r},${g},${b})`)
+}
 
 // a line needs two values for a segment, so each line under root that holds
-// a single value paints a dot of its colour on that value
+// a single value paints a dot of its colour on that value, raised by the
+// lines stacked under it
 export function expectLonePointsPainted(root: Element) {
-    const lone = chartsIn(root)
-        .flatMap(chart => (chart.getOption().series as Series[]).map((series, seriesIndex) => ({chart, series, seriesIndex})))
-        // a series the legend leaves out paints nothing
-        .filter(({chart, series}) => series.type === 'line' && series.data.length === 1 && (chart.getOption().legend as {selected?: Record<string, boolean>}[] | undefined)?.[0]?.selected?.[series.name ?? ''] !== false)
-    expect(lone.length).toBeGreaterThan(0)
-    for (const {chart, series, seriesIndex} of lone) {
-        const [x, y] = chart.convertToPixel({seriesIndex}, [0, series.data[0]]).map(v => Math.round(v * chart.getDevicePixelRatio()))
-        const [r, g, b] = chart.getDom().querySelector('canvas')!.getContext('2d')!.getImageData(x, y, 1, 1).data
-        expect(echarts.color.toHex(`rgb(${r},${g},${b})`)).toBe(echarts.color.toHex(series.itemStyle.color))
+    const series = chartsIn(root).flatMap(chart => {
+        const all = chart.getOption().series as Series[]
+        return all.map((series, seriesIndex) => ({chart, series, seriesIndex, base: all.slice(0, seriesIndex).filter(s => s.stack != null && s.stack === series.stack).reduce((sum, s) => sum + s.data[0], 0)}))
+    })
+    const lines = series.filter(({series}) => series.type === 'line' && series.data.length === 1)
+    expect(lines.length).toBeGreaterThan(0)
+    for (const {chart, series, seriesIndex, base} of lines) {
+        expect(pixelAt(chart, seriesIndex, [0, base + series.data[0]])).toBe(echarts.color.toHex(series.itemStyle.color))
     }
 }
 

@@ -15,7 +15,7 @@ export default async function Charts({hex, addr, chain, sp}: TabCtx) {
     const until = win.before || (head.timestamp?.slice(0, 10) ?? '')
     const {days, prior} = await accountDays(hex, win.since, until)
     const filled = accountDaysFilled(days, prior[0], win.since, until)
-    const view = accountChartView(chart, filled, chain.decimals, chain.symbol)
+    const view = accountChartView(chart, filled, chain.decimals, chain.symbol, BigInt(chain.existentialDeposit))
     // the default chart and range stay out of the url
     const keep: Record<string, string> = chart === 'balance' ? {} : {chart}
     const range: Record<string, string> = win.custom ? {after: win.after, before: win.before} : {r: win.range === DEFAULT_RANGE ? '' : win.range}

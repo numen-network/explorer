@@ -483,10 +483,8 @@ export interface ComboSeries {
     values: number[]
     // what the tooltip prints for each value
     tips: string[]
-    // bars sharing a stack pile up, lines never stack
+    // series of one type sharing a stack pile up
     stack?: string
-    // left out until the reader picks it in the legend
-    hidden?: boolean
     area?: boolean
 }
 
@@ -527,22 +525,25 @@ export function ComboChart({labels, series, total, note, height = 380}: {labels:
             itemWidth: 8,
             itemHeight: 8,
             textStyle: {color: SUB, fontSize: 11},
-            selected: Object.fromEntries(series.map(s => [s.name, !s.hidden])),
         },
         grid: plotGrid({left: room, right: room, top: 12, bottom: 84}),
         dataZoom: [{type: 'inside'}, zoomRail(labels.length > 1)],
         xAxis: catAxis(labels),
         yAxis: valAxis() as never,
-        series: series.map(s =>
+        series: series.map((s, i) =>
             s.type === 'line'
                 ? {
                       name: s.name,
                       type: 'line' as const,
                       step: 'middle' as const,
+                      stack: s.stack,
+                      // a layer at zero runs along the top of the one under
+                      // it, so the lower layer paints last and keeps its edge
+                      z: 2 + series.length - i,
                       ...lineSymbol(s.values),
                       lineStyle: {width: 2, color: s.color},
                       itemStyle: {color: s.color},
-                      areaStyle: s.area ? {opacity: 0.07, color: s.color} : undefined,
+                      areaStyle: s.area ? {opacity: 0.18, color: s.color} : undefined,
                       data: s.values,
                   }
                 : {

@@ -77,7 +77,7 @@ import {
 } from '../../../../../mock/fixtures/accounts.js'
 import {batchAll} from '../../../../../mock/fixtures/blocks.js'
 import {at, chainInfo, hashOf, HEAD, identity, issuance, numn, PEOPLE, person, rows, transfer} from '../../../../../mock/fixtures.js'
-import {all, axesLegible, expectPagersFit, categoriesIn, columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, filterOptions, lastTooltipLines, lonePointsPainted, tabCount, tokenLabels, tooltipsInView, plotLefts} from '../../../../.storybook/fit'
+import {all, axesLegible, expectPagersFit, categoriesIn, columnTexts, expectFits, expectNamedNavs, expectWholeWords, filterChips, filterOptions, lastTooltipLines, lonePointsPainted, pixelAt, tabCount, tokenLabels, tooltipsInView, plotLefts} from '../../../../.storybook/fit'
 import {AVATAR_HOST, avatars} from '../../../../.storybook/avatar'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
@@ -943,7 +943,7 @@ const DAYS = accountDayRows(30)
 const charted = (spec = {}, searchParams: Record<string, string> = {}) => story({accountDays: DAYS, ...spec}, {tab: 'charts', ...searchParams})
 const chartSeries = (root: HTMLElement) => {
     const chart = [...root.querySelectorAll<HTMLElement>('[_echarts_instance_]')].map(el => echarts.getInstanceByDom(el)!)[0]
-    return chart.getOption() as {series: {name: string; data: number[]}[]; legend: {selected: Record<string, boolean>}[]; yAxis: unknown[]}
+    return chart.getOption() as {series: {name: string; data: number[]}[]; yAxis: unknown[]}
 }
 // the note under a chart starts where its plot does
 const noteAligned = async (root: HTMLElement, note: string) => {
@@ -975,15 +975,21 @@ export const ChartsBalance: StoryObj = {
         expect(days).toHaveLength(30)
         expect(days[0]).toBe(DAYS[0].day)
         expect(days.at(-1)).toBe(DAYS.at(-1)!.day)
-        const {series, legend, yAxis} = chartSeries(canvasElement)
-        expect(series.map(s => s.name)).toEqual(['Balance', 'Free', 'Reserved', 'Frozen'])
-        expect(legend[0].selected).toEqual({Balance: true, Free: false, Reserved: false, Frozen: false})
+        const {series, yAxis} = chartSeries(canvasElement)
+        expect(series.map(s => s.name)).toEqual(['Transferable', 'Locked'])
         await noteAligned(canvasElement, 'at the last block of each UTC day')
         expect(yAxis).toHaveLength(1)
+        // the two layers pile up to free plus reserved
+        const last = DAYS.at(-1)!
+        expect(series[0].data.at(-1)! + series[1].data.at(-1)!).toBeCloseTo(Number(BigInt(last.free) + BigInt(last.reserved)) / 1e18)
+        // a day with nothing locked keeps the transferable edge on top
+        const chart = echarts.getInstanceByDom(canvasElement.querySelector<HTMLElement>('[_echarts_instance_]')!)!
+        expect(series[1].data[1]).toBe(0)
+        await waitFor(() => expect(pixelAt(chart, 0, [1, series[0].data[1]])).toBe('4caf50'))
         // a quiet day holds the close before it
         const quiet = days.findIndex(d => !DAYS.some(r => r.day === d))
-        expect(series[0].data[quiet]).toBe(series[0].data[quiet - 1])
-        expect(lastTooltipLines(canvasElement)[0][0]).toBe(`${DAYS.at(-1)!.day} (UTC)`)
+        expect(series.map(s => s.data[quiet])).toEqual(series.map(s => s.data[quiet - 1]))
+        expect(lastTooltipLines(canvasElement)[0].slice(0, 2)).toEqual([`${last.day} (UTC)`, 'Balance: 2,105 NUMN'])
     }),
 }
 

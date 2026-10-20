@@ -1,5 +1,6 @@
 import type {ComboSeries} from '@/components/charts'
-import {ACCENT, ACCENT_SOFT, GRAY, GREEN, SUPPORT} from './chartColors'
+import {transferableOf} from './balance'
+import {ACCENT, ACCENT_SOFT, GRAY, GREEN} from './chartColors'
 import {fmtApprox, fmtInt, planckToNum} from './format'
 import type {AccountDayRow} from './gql'
 
@@ -51,7 +52,7 @@ export function accountDaysFilled(rows: AccountDayRow[], prior: AccountDayRow | 
     return out
 }
 
-export function accountChartView(chart: AccountChart, days: Day[], decimals: number, symbol: string): AccountChartView {
+export function accountChartView(chart: AccountChart, days: Day[], decimals: number, symbol: string, existentialDeposit: bigint): AccountChartView {
     const amounts = (pick: (d: Day) => bigint) => {
         const v = days.map(pick)
         return {values: v.map(p => planckToNum(p, decimals)), tips: v.map(p => fmtApprox(p, decimals, symbol))}
@@ -61,16 +62,16 @@ export function accountChartView(chart: AccountChart, days: Day[], decimals: num
         return {values: v, tips: v.map(fmtInt)}
     }
     const labels = days.map(d => d.day)
+    const transferable = (r: AccountDayRow) => transferableOf(BigInt(r.free), BigInt(r.reserved), BigInt(r.frozen), existentialDeposit)
     const fee = (d: Day, key: 'feeTreasury' | 'feeMiner' | 'tip') => BigInt(d.own?.[key] ?? 0)
     switch (chart) {
         case 'balance':
             return {
                 labels,
+                total: {name: 'Balance', tips: amounts(d => held(d.close)).tips},
                 series: [
-                    {name: 'Balance', type: 'line', color: ACCENT, area: true, ...amounts(d => held(d.close))},
-                    {name: 'Free', type: 'line', color: GREEN, hidden: true, ...amounts(d => BigInt(d.close.free))},
-                    {name: 'Reserved', type: 'line', color: GRAY, hidden: true, ...amounts(d => BigInt(d.close.reserved))},
-                    {name: 'Frozen', type: 'line', color: SUPPORT, hidden: true, ...amounts(d => BigInt(d.close.frozen))},
+                    {name: 'Transferable', type: 'line', color: GREEN, stack: 'balance', area: true, ...amounts(d => transferable(d.close))},
+                    {name: 'Locked', type: 'line', color: GRAY, stack: 'balance', area: true, ...amounts(d => held(d.close) - transferable(d.close))},
                 ],
                 note: 'at the last block of each UTC day',
             }
