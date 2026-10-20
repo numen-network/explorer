@@ -357,7 +357,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
             limit(async () => {
                 const [tokenId, addr] = id.split('-')
                 const token = tokens.get(tokenId)!
-                const holder = holders.get(id) ?? new TokenHolder({id, token, address: addr, transferInVolume: 0n, transferOutVolume: 0n})
+                const holder = holders.get(id) ?? new TokenHolder({id, token, address: addr, transferInVolume: 0n, transferOutVolume: 0n, transferInCount: 0, transferOutCount: 0, firstInBlock: null})
                 const before = holder.balance ?? 0n
                 holder.balance = await fetchErc20Balance(rpc, tokenId, addr, at)
                 const after = holder.balance ?? 0n

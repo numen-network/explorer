@@ -257,6 +257,10 @@ type TokenHolder @entity @index(fields: ["token", "balance"]) {
   "transfers of this token in and out, summed since genesis"
   transferInVolume: BigInt!
   transferOutVolume: BigInt!
+  transferInCount: Int!
+  transferOutCount: Int!
+  "block of the first transfer in, absent while none came in"
+  firstInBlock: Int
 }
 
 "an address that sent, received or created an EVM transaction, or sent or received a token"

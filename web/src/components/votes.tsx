@@ -57,7 +57,7 @@ export type VoteRows = {kind: 'standard'; rows: VoteEntry[]} | {kind: 'split'; l
 const LEAD = 'font-mono'
 const AUX = 'font-mono text-muted-foreground'
 
-function Stat({label, value}: {label: string; value: ReactNode}) {
+export function Stat({label, value}: {label: string; value: ReactNode}) {
     return (
         <div className="flex items-baseline justify-between gap-4 border-t py-2 first:border-t-0">
             <span className="text-muted-foreground">{label}</span>

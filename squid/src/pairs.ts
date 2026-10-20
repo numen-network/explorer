@@ -12,13 +12,14 @@ export function bookPair(deltas: Map<string, PairDelta>, scope: string, from: st
     const into = side(deltas, scope, to, from, height)
     into.amountIn += amount
     into.countIn += 1
+    into.firstInBlock ??= height
 }
 
 function side(deltas: Map<string, PairDelta>, scope: string, owner: string, counterparty: string, height: number): PairDelta {
     const id = `${scope}${owner}-${counterparty}`
     let d = deltas.get(id)
     if (d == null) {
-        d = {owner, counterparty, amountIn: 0n, countIn: 0, amountOut: 0n, countOut: 0, firstBlock: height, lastBlock: height}
+        d = {owner, counterparty, amountIn: 0n, countIn: 0, amountOut: 0n, countOut: 0, firstBlock: height, lastBlock: height, firstInBlock: null}
         deltas.set(id, d)
     }
     d.firstBlock = Math.min(d.firstBlock, height)
@@ -67,6 +68,9 @@ export async function finalizeTokenTransferPairs(ctx: {store: any}, batch: Batch
             const holder = holders.get(`${token}-${d.owner}`)!
             holder.transferInVolume += d.amountIn
             holder.transferOutVolume += d.amountOut
+            holder.transferInCount += d.countIn
+            holder.transferOutCount += d.countOut
+            if (d.firstInBlock != null) holder.firstInBlock = Math.min(holder.firstInBlock ?? d.firstInBlock, d.firstInBlock)
         }
         batch.tokenTransferPairs.push(row)
     }

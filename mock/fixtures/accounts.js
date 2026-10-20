@@ -1,6 +1,7 @@
 import data from '../data.js'
 import {account, acct, at, base, block, chainInfo, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer} from '../fixtures.js'
 import {mined, pick, timestampSet} from './blocks.js'
+import {holding} from './evm.js'
 
 // the account every account page story is about, and the H160 it maps from
 export const SUBJECT = account(77)
@@ -629,16 +630,16 @@ const TOKENS = [
     tokenRow(contract(3), {name: 'A token name long enough to crowd its balance off the row', symbol: 'LONGNAME'}),
 ]
 
-export const HOLDING = {balance: numn(1_532.75), token: TOKENS[0]}
+export const HOLDING = holding(TOKENS[0], numn(1_532.75), {transferInVolume: numn(1_600), transferOutVolume: numn(67.25), transferInCount: 12, transferOutCount: 3})
 
 // by token name with the nameless token last, the way the query orders them
 export const holdingRows = count => {
-    const plain = Array.from({length: count - TOKENS.length}, (_, i) => ({balance: numn(1_000 / (i + 1)), token: tokenRow(contract(10 + i), {name: `Token ${String(i + 1).padStart(2, '0')}`, symbol: `TK${i + 1}`})}))
-    return [{balance: MAX_U128, token: TOKENS[3]}, {balance: '1234567890', token: TOKENS[1]}, ...plain, HOLDING, {balance: '42', token: TOKENS[2]}]
+    const plain = Array.from({length: count - TOKENS.length}, (_, i) => holding(tokenRow(contract(10 + i), {name: `Token ${String(i + 1).padStart(2, '0')}`, symbol: `TK${i + 1}`}), numn(1_000 / (i + 1))))
+    return [holding(TOKENS[3], MAX_U128), holding(TOKENS[1], '1234567890'), ...plain, HOLDING, holding(TOKENS[2], '42', {firstInBlock: null})]
 }
 
 // rows the index keeps for tokens the account doesn't hold, a zero balance or no answer to balanceOf
-export const NOT_HELD = [{balance: '0', token: TOKENS[1]}, {balance: null, token: TOKENS[2]}]
+export const NOT_HELD = [holding(TOKENS[1], '0', {transferOutVolume: '1000000', transferOutCount: 1}), holding(TOKENS[2], null)]
 
 const tokenTransfer = (h, i, traits = {}) => {
     const token = TOKENS[i % 2]

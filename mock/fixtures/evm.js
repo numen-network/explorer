@@ -105,7 +105,18 @@ export const holders = (tok, count, offset = 0) =>
 // what the index tallied for an address, n spreads the numbers apart
 export const activity = (address, n = 0) => ({id: address, txCount: (n * 37) % 900, firstSeenBlock: 36_861 + n * 7_919, lastActiveBlock: HEAD - n * 1_303})
 
-export const holding = (tok, balance) => ({balance, token: tok})
+// what the index tallied for one address's token, a single transfer in unless traits say otherwise
+export const holding = (tok, balance, traits = {}) => ({
+    id: `${tok.id}-${evmAddress(0)}`,
+    balance,
+    transferInVolume: balance ?? '0',
+    transferOutVolume: '0',
+    transferInCount: 1,
+    transferOutCount: 0,
+    firstInBlock: tok.firstBlock,
+    token: tok,
+    ...traits,
+})
 
 // by token name and then token address, the order the holdings list asks for
 export const holdings = count =>
@@ -121,8 +132,8 @@ export const EVERY_HOLDING = [
     holding(token(0), units(12.5, 6)),
     holding(token(1), units(5_000_000, 18)),
     holding(token(6, {symbol: null}), units(1_234, 9)),
-    holding(WTMR, units(1_234.5, 1)),
-    holding(token(2, {name: null}), units(250_000, 18)),
+    holding(WTMR, units(1_234.5, 1), {transferInVolume: units(1_300, 1), transferOutVolume: units(65.5, 1), transferInCount: 14, transferOutCount: 3}),
+    holding(token(2, {name: null}), units(250_000, 18), {firstInBlock: null}),
 ]
 
 // rows the index keeps for tokens an address doesn't hold, a zero balance or no answer to balanceOf

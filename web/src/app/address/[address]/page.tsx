@@ -2,7 +2,7 @@ import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import ContractPanel from '@/components/ContractPanel'
 import CopyBtn from '@/components/CopyBtn'
-import HoldingsList from '@/components/HoldingsList'
+import HoldingsTable from '@/components/HoldingsTable'
 import Pager from '@/components/Pager'
 import {AddrMark} from '@/components/addrHot'
 import {TabPanels, type Panel} from '@/components/Tabs'
@@ -50,7 +50,9 @@ export default async function EvmAddressPage(props: PageProps<'/address/[address
 
     const holdings = (
         <>
-            <HoldingsList rows={data.holdings} />
+            <Card size="flush">
+                <HoldingsTable rows={data.holdings} />
+            </Card>
             <Pager paging={pg} total={data.holdingCount.totalCount} href={`/address/${address}?tab=holdings`} />
         </>
     )

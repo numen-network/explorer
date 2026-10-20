@@ -1,5 +1,6 @@
-import HoldingsList from '@/components/HoldingsList'
+import HoldingsTable from '@/components/HoldingsTable'
 import Pager from '@/components/Pager'
+import {Card} from '@/components/ui/card'
 import {tokenHoldingsFor} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {tabHref, type TabCtx} from './shared'
@@ -10,7 +11,9 @@ export default async function Holdings({addr, evm, sp}: TabCtx & {evm: string}) 
 
     return (
         <>
-            <HoldingsList rows={holdings} />
+            <Card size="flush">
+                <HoldingsTable rows={holdings} />
+            </Card>
             <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'holdings')} />
         </>
     )

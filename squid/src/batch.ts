@@ -99,6 +99,7 @@ export interface PairDelta {
     countOut: number
     firstBlock: number
     lastBlock: number
+    firstInBlock: number | null
 }
 
 export interface HourDelta {

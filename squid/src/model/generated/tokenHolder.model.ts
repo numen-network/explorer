@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_} from "@subsquid/typeorm-store"
 import {Token} from "./token.model"
 
 @Index_("idx_token_holder_token_balance_a93fa67e", ["token", "balance"], {unique: false})
@@ -32,4 +32,16 @@ export class TokenHolder {
 
     @BigIntColumn_({nullable: false})
     transferOutVolume!: bigint
+
+    @IntColumn_({nullable: false})
+    transferInCount!: number
+
+    @IntColumn_({nullable: false})
+    transferOutCount!: number
+
+    /**
+     * block of the first transfer in, absent while none came in
+     */
+    @IntColumn_({nullable: true})
+    firstInBlock!: number | undefined | null
 }
