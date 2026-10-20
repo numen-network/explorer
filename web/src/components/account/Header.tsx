@@ -28,8 +28,10 @@ export default function Header({a, addr, roles}: {a: IdentityRef & {id: string};
                         </>
                     )}
                     <AddrMark addr={addr}>{addr}</AddrMark>
-                    <CopyBtn text={addr} />
-                    <QrButton text={addr} label={a.username} />
+                    <span className="whitespace-nowrap">
+                        <CopyBtn text={addr} />
+                        <QrButton text={addr} label={a.username} />
+                    </span>
                 </div>
                 {roles.length > 0 && (
                     <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
