@@ -2296,11 +2296,12 @@ export function chartSeries(after: string, before: string) {
 }
 
 export function searchLookups(hex66: string) {
-    return gql<{byHash: {height: number}[]; ext: {id: string}[]; evm: {id: string}[]}>(
+    return gql<{byHash: {height: number}[]; ext: {id: string}[]; evm: {id: string}[]; acc: {id: string} | null}>(
         `query ($h: String!) {
             byHash: blocks(where: {OR: [{hash_eq: $h}, {evmHash_eq: $h}]}, limit: 1) { height }
             ext: extrinsics(where: {hash_eq: $h}, limit: 1) { id }
             evm: evmTransactions(where: {id_eq: $h}, limit: 1) { id }
+            acc: accountById(id: $h) { id }
         }`,
         {h: hex66}
     )

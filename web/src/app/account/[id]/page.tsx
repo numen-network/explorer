@@ -5,6 +5,8 @@ import Balance from '@/components/Balance'
 import {AmountGroup, AmountRow, AmountRows, DetailCard, DetailRow} from '@/components/Detail'
 import {TabBar, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
+import {Card} from '@/components/ui/card'
+import {Empty, EmptyDescription, EmptyHeader, EmptyTitle} from '@/components/ui/empty'
 import {BlockLink} from '@/components/links'
 import BalanceBar from '@/components/account/BalanceBar'
 import Charts from '@/components/account/Charts'
@@ -56,6 +58,22 @@ export async function generateMetadata(props: PageProps<'/account/[id]'>) {
     return {title: `Account ${shortAddr(hex ? ss58Encode(hex, ss58) : id)}`}
 }
 
+function NotActivated({hex, addr, symbol}: {hex: string; addr: string; symbol: string}) {
+    return (
+        <div>
+            <Header a={{id: hex}} addr={addr} roles={[]} />
+            <Card size="flush" className="mt-4">
+                <Empty className="py-12 text-wrap">
+                    <EmptyHeader className="gap-2">
+                        <EmptyTitle className="text-lg font-semibold tracking-normal">Not activated</EmptyTitle>
+                        <EmptyDescription className="text-sm">This account has not been activated. You can activate it by transferring {symbol} to it.</EmptyDescription>
+                    </EmptyHeader>
+                </Empty>
+            </Card>
+        </div>
+    )
+}
+
 // a tab is only built when the reader is on it, so the page runs one tab query
 // instead of one per tab. group ties the sub tabs to the strip above them
 interface Tab extends Panel {
@@ -72,7 +90,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const sp = await props.searchParams
     const s = await accountSummary(hex)
     const a = s.accountById
-    if (!a) notFound()
+    if (!a) return <NotActivated hex={hex} addr={addr} symbol={chain.symbol} />
 
     const refIds = controlRefIds(s)
     const [evm, lastActiveTime, refs] = await Promise.all([

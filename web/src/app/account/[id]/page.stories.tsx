@@ -123,6 +123,16 @@ export const IdentityNone: StoryObj = {
     play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Account'),
 }
 
+// a valid address the index has never seen
+export const NotActivated: StoryObj = {
+    ...pageStory({...build({}), accountById: null}, {params: {id: SUBJECT}}),
+    play: async ({canvas, canvasElement}) => {
+        expect(heading(canvasElement)).toBe('Account')
+        expect(canvas.getByText('Not activated')).toBeVisible()
+        expect(canvas.queryByRole('navigation', {name: 'Account'})).toBeNull()
+    },
+}
+
 export const IdentityFull: StoryObj = {
     ...story({account: named(identity('Aurora Labs', FULL_FIELDS)), transfers: accountTransfers(3)}),
     play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Aurora Labs'),

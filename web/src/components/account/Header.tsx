@@ -5,13 +5,12 @@ import {JudgementBadge, verdictOf} from '@/components/JudgementBadge'
 import QrButton from '@/components/QrButton'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
-import type {AccountRow} from '@/lib/gql'
-import {identityInfoJson, identityLabel} from '@/lib/identity'
+import {identityInfoJson, identityLabel, type IdentityRef} from '@/lib/identity'
 import type {Role} from './shared'
 
 // a sub with no registration of its own goes by super/sub and wears the
 // judgement of its super, the way AccountLink names it everywhere else
-export default function Header({a, addr, roles}: {a: AccountRow; addr: string; roles: Role[]}) {
+export default function Header({a, addr, roles}: {a: IdentityRef & {id: string}; addr: string; roles: Role[]}) {
     const verdict = verdictOf(identityInfoJson(a))
     return (
         <div className="mt-6 flex items-start gap-3.5 sm:gap-4">

@@ -75,8 +75,7 @@ export default async function SearchPage(props: PageProps<'/search'>) {
         if (hit.byHash[0]) redirect(`/block/${hit.byHash[0].height}`)
         if (hit.ext[0]) redirect(`/extrinsic/${hex}`)
         if (hit.evm[0]) redirect(`/tx/${hit.evm[0].id}`)
-        const asAccount = ss58Encode(hex, chain.ss58)
-        redirect(`/account/${asAccount}`)
+        if (hit.acc) redirect(`/account/${ss58Encode(hex, chain.ss58)}`)
     }
 
     if (ss58TryDecode(q, chain.ss58)) redirect(`/account/${q}`)
@@ -122,7 +121,7 @@ export default async function SearchPage(props: PageProps<'/search'>) {
     return (
         <div>
             <h1 className="mt-6 text-lg font-semibold">
-                Search <span className="font-normal text-muted-foreground">“{q}”</span>
+                Search <span className="font-normal wrap-anywhere text-muted-foreground">“{q}”</span>
             </h1>
             {total === 0 ? (
                 <Card size="flush" className="mt-3">
