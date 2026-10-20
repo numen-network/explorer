@@ -46,8 +46,9 @@ const huge = token(3, {
 
 export const HoldersMany: StoryObj = {
     ...tokenPage(WTMR, {holders: holders(WTMR, 20)}),
-    play: async ({canvasElement}) => {
+    play: async ({canvas, canvasElement}) => {
         expect(canvasElement.querySelector('h1 [data-slot=badge]')).toBeNull()
+        expect(within(canvas.getByRole('heading', {level: 1})).queryByText(/^LP /)).toBeNull()
         expectAddressForm(canvasElement.querySelector('[data-slot=table-container]')!)
         const tallies = holders(WTMR, 20).map((h, i) => activity(h.address, i))
         expect(columnTexts(canvasElement, 'Transactions')).toEqual(tallies.map(a => fmtInt(a.txCount)))
@@ -169,7 +170,7 @@ export const DustSupply: StoryObj = {
     }),
     play: async ({canvas}) => {
         expect(canvas.getByText('Total supply').closest('[data-slot=card]')!.querySelector('[data-slot=card-title]')).toHaveTextContent('≈0 NLP')
-        expect(canvas.getByRole('heading', {level: 1}).querySelector('[data-slot=badge]')).toHaveTextContent('LP NUMN/wWTMR')
+        expect(within(canvas.getByRole('heading', {level: 1})).getByText('LP NUMN/wWTMR')).toBeVisible()
     },
 }
 
