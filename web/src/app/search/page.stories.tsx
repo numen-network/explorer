@@ -88,7 +88,7 @@ export const TokensMany = results('scan', SCANNERS, SCAN_TOKENS, {tab: 'tokens'}
 // a share token that only calls itself LP shows no badge, a pair's shows the two tokens it pools
 export const TokenPairs: StoryObj = {
     ...results('lp', [], [WTMRS[1], POOL]),
-    play: async ({canvasElement}) => expect(tokenRows(canvasElement).map(row => row.querySelector('[data-slot=badge]')?.textContent ?? null)).toEqual([null, 'LP NUMN/wWTMR']),
+    play: async ({canvasElement}) => expect(tokenRows(canvasElement).map(row => row.querySelector('[data-variant]')?.textContent ?? null)).toEqual([null, 'LP NUMN/wWTMR']),
 }
 
 export const TokensPageTwo: StoryObj = {...results('scan', SCANNERS, SCAN_TOKENS, {tab: 'tokens', page: '2'}), play: pagesTab('tokens', 4)}

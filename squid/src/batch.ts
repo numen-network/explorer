@@ -44,7 +44,7 @@ import {
     Vote,
     VotingAction,
 } from './model'
-import {DecodedErc20Transfer} from './evm'
+import {DecodedErc20Transfer, PairReserves} from './evm'
 import {MsigEvent} from './multisig'
 import {BountyEvent} from './bounties'
 import {UsernameEvent} from './usernames'
@@ -124,6 +124,8 @@ export class BatchData {
     evmLogs: EvmLog[] = []
     erc20Queue: Array<DecodedErc20Transfer & {id: string; logIndex: number; tx: EvmTransaction; block: Block; timestamp: Date}> = []
     tokens: Token[] = []
+    // each pair's last Sync in the batch, keyed by the log's address
+    reserves = new Map<string, PairReserves>()
     holders: TokenHolder[] = []
     tokenTransfers: TokenTransfer[] = []
     evmAddresses = new Map<string, EvmAddress>()

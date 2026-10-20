@@ -1425,12 +1425,16 @@ export function judgementsGiven(index: number, limit: number, offset: number) {
     )
 }
 
-// a Uniswap V2 style pair's two pooled tokens, all four absent for any other token
+// a Uniswap V2 style pair's two pooled tokens, all absent for any other token
 export interface TokenPair {
     token0: string | null
     token1: string | null
     token0Symbol: string | null
     token1Symbol: string | null
+    token0Decimals: number | null
+    token1Decimals: number | null
+    reserve0: string | null
+    reserve1: string | null
 }
 
 export interface TokenRow extends TokenPair {
@@ -1458,7 +1462,7 @@ export interface HoldingRow {
     token: TokenRow
 }
 
-const PAIR_FIELDS = 'token0 token1 token0Symbol token1Symbol'
+const PAIR_FIELDS = 'token0 token1 token0Symbol token1Symbol token0Decimals token1Decimals reserve0 reserve1'
 const TOKEN_FIELDS = `id name symbol decimals totalSupply holderCount transferCount deployTx { id from block { height } } firstBlock proxyType implementations ${PAIR_FIELDS}`
 const HOLDING_FIELDS = `id balance transferInVolume transferOutVolume transferInCount transferOutCount firstInBlock token { ${TOKEN_FIELDS} }`
 const TOKEN_ORDER = '[transferCount_DESC, id_ASC]'

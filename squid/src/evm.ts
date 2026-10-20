@@ -6,6 +6,8 @@ import {decodeUtf8} from './utf8'
 
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 
+export const SYNC_TOPIC = '0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1'
+
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 export interface DecodedEvmTx {
@@ -103,6 +105,19 @@ export function asErc20Transfer(log: {address: string; topics: string[]; data: s
     }
 }
 
+export interface PairReserves {
+    reserve0: bigint
+    reserve1: bigint
+}
+
+// Sync(uint112 reserve0, uint112 reserve1), any contract can emit it so the
+// caller keeps it only for a token known to be a pair
+export function asSync(log: {topics: string[]; data: string}): PairReserves | undefined {
+    if (log.topics.length !== 1 || log.topics[0] !== SYNC_TOPIC) return undefined
+    if (log.data.length !== 130) return undefined
+    return {reserve0: BigInt('0x' + log.data.slice(2, 66)), reserve1: BigInt('0x' + log.data.slice(66))}
+}
+
 function topicToAddress(topic: string): string {
     return '0x' + topic.slice(26)
 }
@@ -130,15 +145,18 @@ export interface PairMembers {
     token1: string | null
     token0Symbol: string | null
     token1Symbol: string | null
+    token0Decimals: number | null
+    token1Decimals: number | null
 }
 
 // a Uniswap V2 style pair answers token0() and token1() with the two tokens it
 // pools, a token that answers anything else to either is no pair
 export async function fetchPair(rpc: RpcClient, token: string, at: string): Promise<PairMembers> {
     const [token0, token1] = await Promise.all([SELECTORS.token0, SELECTORS.token1].map(s => ethCall(rpc, token, s, at).then(abiDecodeAddress)))
-    if (token0 == null || token1 == null) return {token0: null, token1: null, token0Symbol: null, token1Symbol: null}
+    if (token0 == null || token1 == null) return {token0: null, token1: null, token0Symbol: null, token1Symbol: null, token0Decimals: null, token1Decimals: null}
     const [token0Symbol, token1Symbol] = await Promise.all([token0, token1].map(t => ethCall(rpc, t, SELECTORS.symbol, at).then(abiDecodeString)))
-    return {token0, token1, token0Symbol, token1Symbol}
+    const [token0Decimals, token1Decimals] = await Promise.all([token0, token1].map(t => ethCall(rpc, t, SELECTORS.decimals, at).then(abiDecodeUint8)))
+    return {token0, token1, token0Symbol, token1Symbol, token0Decimals, token1Decimals}
 }
 
 export interface ProxyTarget {

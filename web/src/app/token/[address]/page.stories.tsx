@@ -155,6 +155,10 @@ const nlp: TokenRow = {
     token1: '0xa1795b3c6f74866c7def1df390f9e2e403dca2e9',
     token0Symbol: 'NUMN',
     token1Symbol: 'wWTMR',
+    token0Decimals: 18,
+    token1Decimals: 1,
+    reserve0: '1000000000000000000',
+    reserve1: '10',
     proxyType: null,
     implementations: null,
 }

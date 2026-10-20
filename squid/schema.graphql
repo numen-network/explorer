@@ -228,6 +228,14 @@ type Token @entity {
   token0Symbol: String
   "what token1 answered to symbol(), absent when it answered nothing"
   token1Symbol: String
+  "what token0 answered to decimals(), absent when it answered nothing"
+  token0Decimals: Int
+  "what token1 answered to decimals(), absent when it answered nothing"
+  token1Decimals: Int
+  "the pair's token0 reserve as its last Sync log reported, absent for any other token and for a pair that never synced"
+  reserve0: BigInt
+  "the token1 reserve that same Sync log reported"
+  reserve1: BigInt
   "proxy kind evm-proxy-detection recognized at the last block that moved the token, absent when it is no proxy"
   proxyType: String
   "what the proxy delegated to at that block, one per facet for a diamond"

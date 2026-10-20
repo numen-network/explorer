@@ -33,7 +33,7 @@ export const calldata = (selector, ...args) => selector + args.map(word).join(''
 export const bytecode = bytes => '0x60806040' + Array.from({length: Math.ceil(bytes / 32)}, (_, i) => hashOf('code', i).slice(2)).join('').slice(0, bytes * 2 - 8)
 
 // what any token that is no pair answers for the two tokens a pair pools
-const NO_PAIR = {token0: null, token1: null, token0Symbol: null, token1Symbol: null}
+const NO_PAIR = {token0: null, token1: null, token0Symbol: null, token1Symbol: null, token0Decimals: null, token1Decimals: null, reserve0: null, reserve1: null}
 
 const NO_PROXY = {proxyType: null, implementations: null}
 
@@ -90,11 +90,25 @@ export function token(n, traits = {}) {
 }
 
 // the native coin as a pair pools it, through its ERC20 precompile
-export const NUMN = {address: chainInfo.nativeErc20, symbol: 'NUMN'}
+export const NUMN = {address: chainInfo.nativeErc20, symbol: 'NUMN', decimals: 18}
 
-// a Uniswap V2 style pair's share token, each pooled token as its address and symbol() answer
+// a Uniswap V2 style pair's share token, each pooled token as its address, symbol() and decimals() answer
 export const pair = (n, token0, token1, traits = {}) =>
-    token(n, {name: 'NumenDEX LP Token', symbol: 'NDEX-LP', decimals: 18, totalSupply: units(1_585.72, 18), token0: token0.address, token1: token1.address, token0Symbol: token0.symbol, token1Symbol: token1.symbol, ...traits})
+    token(n, {
+        name: 'NumenDEX LP Token',
+        symbol: 'NDEX-LP',
+        decimals: 18,
+        totalSupply: units(1_585.72, 18),
+        token0: token0.address,
+        token1: token1.address,
+        token0Symbol: token0.symbol,
+        token1Symbol: token1.symbol,
+        token0Decimals: token0.decimals,
+        token1Decimals: token1.decimals,
+        reserve0: units(1_000, token0.decimals),
+        reserve1: units(2_500_000, token1.decimals),
+        ...traits,
+    })
 
 export const holder = (tok, address, balance) => ({id: `${tok.id}-${address}`, address, balance})
 

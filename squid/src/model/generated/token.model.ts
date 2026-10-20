@@ -73,6 +73,30 @@ export class Token {
     token1Symbol!: string | undefined | null
 
     /**
+     * what token0 answered to decimals(), absent when it answered nothing
+     */
+    @IntColumn_({nullable: true})
+    token0Decimals!: number | undefined | null
+
+    /**
+     * what token1 answered to decimals(), absent when it answered nothing
+     */
+    @IntColumn_({nullable: true})
+    token1Decimals!: number | undefined | null
+
+    /**
+     * the pair's token0 reserve as its last Sync log reported, absent for any other token and for a pair that never synced
+     */
+    @BigIntColumn_({nullable: true})
+    reserve0!: bigint | undefined | null
+
+    /**
+     * the token1 reserve that same Sync log reported
+     */
+    @BigIntColumn_({nullable: true})
+    reserve1!: bigint | undefined | null
+
+    /**
      * proxy kind evm-proxy-detection recognized at the last block that moved the token, absent when it is no proxy
      */
     @StringColumn_({nullable: true})

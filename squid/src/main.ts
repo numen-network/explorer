@@ -23,7 +23,7 @@ import {missingCalls, type CallNode} from './callTree'
 import {parseEvmBlockHash, parsePowDigest} from './digest'
 import {Deposit, feeShares} from './fees'
 import {fetchObj, parseMesh} from './objects'
-import {ZERO_ADDRESS, asErc20Transfer, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply, fetchPair, fetchProxy} from './evm'
+import {ZERO_ADDRESS, asErc20Transfer, asSync, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply, fetchPair, fetchProxy} from './evm'
 import {collectGovEvent, finalizeGovernance, movedDelegates, refreshDelegates} from './governance'
 import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from './validators'
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
@@ -74,6 +74,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     }
     await fetchObjects(ctx, batch)
     await finalizeTokens(ctx, batch, lastHeader)
+    await finalizeReserves(ctx, batch)
     await finalizeTokenTransferPairs(ctx, batch)
     await finalizeEvmAddresses(ctx, batch)
     await finalizeGovernance(ctx, batch, lastHeader, rpc)
@@ -288,6 +289,8 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
                 bookPair(batch.tokenPairDeltas, `${t.token}-`, t.from, t.to, t.amount, h.height)
                 for (const addr of [t.from, t.to]) if (addr !== ZERO_ADDRESS) batch.touchEvm(addr, h.height, 0)
             }
+            const sync = asSync(log)
+            if (sync != null) batch.reserves.set(log.address, sync)
             blockLogIndex++
         }
     }
@@ -369,6 +372,18 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
     )
     batch.tokens = [...tokens.values()]
     batch.holders = [...holders.values()]
+}
+
+// runs after the tokens, so a pair whose first mint is in this batch is already one
+async function finalizeReserves(ctx: Ctx, batch: BatchData): Promise<void> {
+    if (batch.reserves.size === 0) return
+    const tokens = new Map(batch.tokens.map(t => [t.id, t]))
+    const unseen = [...batch.reserves.keys()].filter(id => !tokens.has(id))
+    if (unseen.length > 0) for (const t of await ctx.store.findBy(Token, {id: In(unseen)})) if (t.token0 != null) batch.tokens.push(t)
+    for (const t of batch.tokens) {
+        const r = batch.reserves.get(t.id)
+        if (r != null && t.token0 != null) Object.assign(t, r)
+    }
 }
 
 // a batch counts its own blocks only, so its counts add onto the stored ones

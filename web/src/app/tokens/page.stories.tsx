@@ -27,7 +27,7 @@ export const One: StoryObj = {...list([WTMR]), play: counts('1', '0')}
 export const Many: StoryObj = {...list([WTMR, ...Array.from({length: 19}, (_, n) => token(n))], 87, 4), play: counts('87', '4')}
 
 // what each row's pair badge reads, null for a token that pools nothing
-const badges = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].map(row => row.querySelector('[data-slot=badge]')?.textContent ?? null)
+const badges = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].map(row => row.querySelector('[data-variant]')?.textContent ?? null)
 
 const TEST = token(2).id
 const NDEX = token(3).id
@@ -35,7 +35,7 @@ const NDEX = token(3).id
 // a pair names the two tokens it pools in the order it keeps them, and one that
 // answers no symbol shows by its address
 export const LpTab: StoryObj = {
-    ...list([pair(10, NUMN, {address: TEST, symbol: 'TEST'}), pair(11, {address: NDEX, symbol: 'NDEX'}, {address: TEST, symbol: 'TEST'}), pair(12, NUMN, {address: NDEX, symbol: null})], 5, 3, 'lp'),
+    ...list([pair(10, NUMN, {address: TEST, symbol: 'TEST', decimals: 18}), pair(11, {address: NDEX, symbol: 'NDEX', decimals: 18}, {address: TEST, symbol: 'TEST', decimals: 18}), pair(12, NUMN, {address: NDEX, symbol: null, decimals: 18})], 5, 3, 'lp'),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^LP/)
         await expect(badges(canvasElement)).toEqual(['LP NUMN/TEST', 'LP NDEX/TEST', `LP NUMN/${shortHash(NDEX)}`])

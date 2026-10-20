@@ -12,7 +12,7 @@ import ShareBar from '@/components/ShareBar'
 import {Tip} from '@/components/Tip'
 import TokenIcon from '@/components/TokenIcon'
 import {Stat} from '@/components/votes'
-import {fmtBalance, fmtInt} from '@/lib/format'
+import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import type {HoldingRow} from '@/lib/gql'
 
 const PERCENTAGE_TIP = 'Number of the token held by this account as compared to the total supply of this token'
@@ -59,10 +59,27 @@ const columns = col.columns([
     expander(col),
 ])
 
-function Transfers({h}: {h: HoldingRow}) {
+// a holder owns each reserve in proportion to the share tokens it holds
+function Underlying({h}: {h: HoldingRow}) {
+    const t = h.token
+    const supply = BigInt(t.totalSupply ?? 0)
+    if (t.reserve0 == null || t.reserve1 == null || supply === 0n) return null
+    const side = (reserve: string, symbol: string | null, addr: string | null, decimals: number | null) => (
+        <Stat label={`Underlying ${symbol ?? shortHash(addr!)}`} value={<Approx planck={(BigInt(h.balance) * BigInt(reserve)) / supply} decimals={decimals ?? 0} symbol={symbol ?? undefined} />} />
+    )
+    return (
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 border-b text-sm sm:grid-cols-2">
+            <div>{side(t.reserve0, t.token0Symbol, t.token0, t.token0Decimals)}</div>
+            <div className="border-t sm:border-t-0">{side(t.reserve1, t.token1Symbol, t.token1, t.token1Decimals)}</div>
+        </div>
+    )
+}
+
+function HoldingDetail({h}: {h: HoldingRow}) {
     const amount = (planck: string) => <Approx planck={planck} decimals={h.token.decimals ?? 0} symbol={h.token.symbol ?? undefined} />
     return (
         <div className="bg-[#fafaf9] px-5 py-4">
+            <Underlying h={h} />
             <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 text-sm sm:grid-cols-2">
                 <div>
                     <Stat label="Transfer-in Count" value={fmtInt(h.transferInCount)} />
@@ -78,5 +95,5 @@ function Transfers({h}: {h: HoldingRow}) {
 }
 
 export default function HoldingsTable({rows}: {rows: HoldingRow[]}) {
-    return <DataTable columns={columns} rows={rows} getRowId={h => h.id} canExpand={() => true} expand={h => <Transfers h={h} />} />
+    return <DataTable columns={columns} rows={rows} getRowId={h => h.id} canExpand={() => true} expand={h => <HoldingDetail h={h} />} />
 }

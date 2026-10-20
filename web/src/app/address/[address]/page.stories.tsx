@@ -141,7 +141,7 @@ export const TokenContract: StoryObj = {
     play: async ({canvas}) => expect(canvas.queryByText(/^LP /)).toBeNull(),
 }
 
-const pool = pair(10, NUMN, {address: WTMR.id, symbol: 'wWTMR'})
+const pool = pair(10, NUMN, {address: WTMR.id, symbol: 'wWTMR', decimals: WTMR.decimals})
 
 // a pair names the two tokens it pools beside its token link
 export const PairContract: StoryObj = {
