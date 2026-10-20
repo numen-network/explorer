@@ -19,8 +19,6 @@ const validator = (n: number, traits: object = {}) => ({
     active: true,
     lockedAmount: LOCK,
     lockExpiry: HEAD + (180 - n) * DAY,
-    offlineSessions: 0,
-    equivocations: 0,
     offences: [] as {kind: string}[],
     kicked: null,
     firstSeenBlock: n * 12_000,
@@ -42,7 +40,7 @@ const GENESIS = [
     {id: '0x0c75ace277b402399cf8fb811b871169e5d675f9f7c5c9a72a72c4bb8044d917', offline: 2},
 ]
 const genesis = (traits: (g: (typeof GENESIS)[number]) => object) =>
-    GENESIS.map(g => validator(0, {...exempt, id: g.id, account: {id: g.id}, offlineSessions: g.offline, ...traits(g)}))
+    GENESIS.map(g => validator(0, {...exempt, id: g.id, account: {id: g.id}, ...traits(g)}))
 const inactive = (sessionsAgo: number) => ({active: false, lastActiveSession: SESSION - sessionsAgo})
 const kicked = (reason: string, sessionsAgo: number) => ({...inactive(sessionsAgo), kicked: {__kind: reason}})
 
@@ -64,8 +62,8 @@ export const ValidatorsEveryStatus: StoryObj = {
     ...validators([
         validator(1),
         validator(2, exempt),
-        validator(5, {...kicked('Offline', 1), offlineSessions: 1, ...offences(1)}),
-        validator(6, {...kicked('Equivocation', 3), equivocations: 1, ...offences(0, 1)}),
+        validator(5, {...kicked('Offline', 1), ...offences(1)}),
+        validator(6, {...kicked('Equivocation', 3), ...offences(0, 1)}),
         validator(3, inactive(40)),
         validator(4, {...inactive(9_000), lockedAmount: '0', lockExpiry: null}),
         validator(7, {active: false, lastActiveSession: null, firstSeenBlock: HEAD - 30}),
@@ -85,7 +83,7 @@ export const ValidatorsOfflineInWindow: StoryObj = {
     },
 }
 
-// thirty days on, the misses still count on each account page but have left the window
+// thirty days on, the misses have left the window and only each account page still lists them
 export const ValidatorsOfflineOutsideWindow: StoryObj = {
     ...validators(genesis(() => ({}))),
     play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Offline (30d)')).toEqual(['0', '0', '0', '0']),
@@ -107,8 +105,6 @@ export const ValidatorsExtremeNumbers: StoryObj = {
             account: acct(1, identity('W'.repeat(32), {judgements: ['KnownGood']})),
             lockedAmount: U128_MAX,
             lockExpiry: INT_MAX,
-            offlineSessions: INT_MAX,
-            equivocations: INT_MAX,
             ...offences(4_000, 4_000),
             firstSeenBlock: INT_MAX,
             lastActiveSession: INT_MAX,
@@ -124,8 +120,8 @@ export const ValidatorsExtremeNumbers: StoryObj = {
 const many = Array.from({length: 46}, (_, i) => {
     const n = i + 1
     if (i < 30) return validator(n, i % 7 === 6 ? exempt : {})
-    if (i < 33) return validator(n, {...kicked('Offline', i - 29), offlineSessions: 1, ...offences(1)})
-    if (i < 35) return validator(n, {...kicked('Equivocation', i - 28), equivocations: 1 + (i % 2), ...offences(0, 1 + (i % 2))})
+    if (i < 33) return validator(n, {...kicked('Offline', i - 29), ...offences(1)})
+    if (i < 35) return validator(n, {...kicked('Equivocation', i - 28), ...offences(0, 1 + (i % 2))})
     return validator(n, inactive(i * 50))
 })
 

@@ -765,10 +765,6 @@ type Validator @entity {
   active: Boolean! @index
   lockedAmount: BigInt!
   lockExpiry: Int
-  "ImOnline.SomeOffline events naming it"
-  offlineSessions: Int!
-  "Validator.EquivocationReported events naming it"
-  equivocations: Int!
   "the reason ValidatorKicked carried, whole"
   kicked: JSON
   firstSeenBlock: Int!
@@ -784,6 +780,7 @@ type ValidatorOffence @entity {
   validator: Validator! @index
   "Offline or Equivocation"
   kind: String!
+  event: Event!
   block: Int!
   timestamp: DateTime! @index
 }

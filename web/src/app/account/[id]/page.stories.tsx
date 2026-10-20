@@ -27,8 +27,10 @@ import {
     holdingRows,
     identitySet,
     identityTimeline,
+    JJFU_OFFLINE,
     judgementsGiven,
     ME,
+    MADE_UP_EQUIVOCATION,
     MAX_U128,
     minedBlockRows,
     minedDays,
@@ -616,11 +618,50 @@ export const JudgementsMany = story({account: named(), registrar: 2, judged: jud
 
 const staked = () => subject({...funds(numn(100_012_000), '0', numn(100_000_000)), locksJson: [lock('validatr', numn(100_000_000))]})
 
-export const ValidatorActive = story({account: staked(), validator: validatorRow()}, {tab: 'validator'})
+const figure = (root: HTMLElement, label: string) => [...root.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === label)!.nextElementSibling!.textContent
+const offenceCounts = async (root: HTMLElement, offline: string, equivocations: string) => {
+    await expect(figure(root, 'Offline (30d)')).toBe(offline)
+    await expect(figure(root, 'Equivocations (30d)')).toBe(equivocations)
+}
+
+export const ValidatorActive: StoryObj = {
+    ...story({account: staked(), validator: validatorRow()}, {tab: 'validator'}),
+    play: async ({canvasElement}) => {
+        await offenceCounts(canvasElement, '0', '0')
+        await expect(within(canvasElement).getByText('No offences yet.')).toBeVisible()
+        await expect(within(canvasElement).getByRole('navigation', {name: 'pagination'})).toBeVisible()
+    },
+}
+
+// jJFU missed heartbeats at #292560 and #292620 on mainnet
+export const ValidatorOfflineInWindow: StoryObj = {
+    ...story({account: staked(), validator: validatorRow(), offences: JJFU_OFFLINE}, {tab: 'validator'}),
+    play: async ({canvasElement}) => {
+        await offenceCounts(canvasElement, '2', '0')
+        await expect(columnTexts(canvasElement, 'Kind')).toEqual(['Offline', 'Offline'])
+    },
+}
+
+// thirty days on, both misses are still listed but no longer counted
+export const ValidatorOfflineOutsideWindow: StoryObj = {
+    ...story({account: staked(), validator: validatorRow(), offences: JJFU_OFFLINE, counts: {Offline: 0}}, {tab: 'validator'}),
+    play: async ({canvasElement}) => {
+        await offenceCounts(canvasElement, '0', '0')
+        await expect(columnTexts(canvasElement, 'Kind')).toEqual(['Offline', 'Offline'])
+    },
+}
+
+export const ValidatorOfflineAndEquivocation: StoryObj = {
+    ...story({account: staked(), validator: validatorRow(), offences: [MADE_UP_EQUIVOCATION, ...JJFU_OFFLINE]}, {tab: 'validator'}),
+    play: async ({canvasElement}) => {
+        await offenceCounts(canvasElement, '2', '1')
+        await expect(columnTexts(canvasElement, 'Kind')).toEqual(['Equivocation', 'Offline', 'Offline'])
+    },
+}
 
 export const ValidatorInactive = story({validator: validatorRow({active: false, lockedAmount: '0', lockExpiry: null, lastActiveSession: 15_210})}, {tab: 'validator'})
 
-export const ValidatorKicked = story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}, offlineSessions: 12})}, {tab: 'validator'})
+export const ValidatorKicked = story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE}, {tab: 'validator'})
 
 export const MiningOneBlock = story({minerDays: [{...minedDays(1)[0], blocks: 1}], mined: minedBlockRows(1)}, {tab: 'mining'})
 

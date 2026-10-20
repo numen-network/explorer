@@ -1,24 +1,67 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import {CHAIN, validatorRow} from '../../../../mock/fixtures/accounts.js'
-import Validator from './Validator'
+import {CHAIN, JJFU_OFFLINE, MADE_UP_EQUIVOCATION, validatorRow} from '../../../../mock/fixtures/accounts.js'
+import {columnTexts} from '../../../.storybook/fit'
+import {ValidatorTile} from './Validator'
+import {ValidatorOffencesTable} from './ValidatorOffencesTable'
 
 const meta = {title: 'Components/Account/Validator'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Active: Story = {render: () => <Validator v={validatorRow()} chain={CHAIN} />}
+const figure = (root: HTMLElement, label: string) => [...root.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === label)!.nextElementSibling!.textContent
 
-export const Inactive: Story = {render: () => <Validator v={validatorRow({active: false, lockedAmount: '0', lockExpiry: null, offlineSessions: 0})} chain={CHAIN} />}
+export const NoOffences: Story = {
+    render: () => <ValidatorTile v={validatorRow()} offline={0} equivocations={0} chain={CHAIN} />,
+    play: async ({canvasElement}) => {
+        await expect(figure(canvasElement, 'Offline (30d)')).toBe('0')
+        await expect(figure(canvasElement, 'Equivocations (30d)')).toBe('0')
+    },
+}
+
+// jJFU missed two heartbeats on mainnet within the window
+export const OfflineInWindow: Story = {
+    render: () => <ValidatorTile v={validatorRow()} offline={2} equivocations={0} chain={CHAIN} />,
+    play: async ({canvasElement}) => expect(figure(canvasElement, 'Offline (30d)')).toBe('2'),
+}
+
+export const OfflineAndEquivocation: Story = {
+    render: () => <ValidatorTile v={validatorRow()} offline={2} equivocations={1} chain={CHAIN} />,
+    play: async ({canvasElement}) => expect(figure(canvasElement, 'Equivocations (30d)')).toBe('1'),
+}
+
+export const Inactive: Story = {render: () => <ValidatorTile v={validatorRow({active: false, lockedAmount: '0', lockExpiry: null})} offline={0} equivocations={0} chain={CHAIN} />}
 
 // locked but yet to sit in an active set, so there is no last session
 export const NeverActive: Story = {
-    render: () => <Validator v={validatorRow({active: false, offlineSessions: 0, lastActiveSession: null})} chain={CHAIN} />,
-    play: async ({canvas}) => expect(canvas.getByText('Last active session').nextElementSibling!.textContent).toBe('—'),
+    render: () => <ValidatorTile v={validatorRow({active: false, lastActiveSession: null})} offline={0} equivocations={0} chain={CHAIN} />,
+    play: async ({canvasElement}) => expect(figure(canvasElement, 'Last active session')).toBe('—'),
 }
 
-export const KickedOffline: Story = {render: () => <Validator v={validatorRow({active: false, kicked: {__kind: 'Offline'}, offlineSessions: 12})} chain={CHAIN} />}
+export const KickedOffline: Story = {render: () => <ValidatorTile v={validatorRow({active: false, kicked: {__kind: 'Offline'}})} offline={2} equivocations={0} chain={CHAIN} />}
 
 export const KickedEquivocation: Story = {
-    render: () => <Validator v={validatorRow({active: false, kicked: {__kind: 'Equivocation'}, equivocations: 1, lastActiveSession: 2_147_483_647})} chain={CHAIN} />,
+    render: () => <ValidatorTile v={validatorRow({active: false, kicked: {__kind: 'Equivocation'}, lastActiveSession: 2_147_483_647})} offline={0} equivocations={1} chain={CHAIN} />,
+}
+
+export const OffencesNone: Story = {
+    render: () => <ValidatorOffencesTable rows={[]} />,
+    play: async ({canvas}) => expect(canvas.getByText('No offences yet.')).toBeVisible(),
+}
+
+export const OffencesOffline: Story = {
+    render: () => <ValidatorOffencesTable rows={JJFU_OFFLINE} />,
+    play: async ({canvasElement}) => {
+        await expect(columnTexts(canvasElement, 'Event')).toEqual(['292620-0', '292560-0'])
+        await expect(columnTexts(canvasElement, 'Block')).toEqual(['#292,620', '#292,560'])
+        await expect(columnTexts(canvasElement, 'Extrinsic')).toEqual(['—', '—'])
+    },
+}
+
+export const OffencesBothKinds: Story = {
+    render: () => <ValidatorOffencesTable rows={[MADE_UP_EQUIVOCATION, ...JJFU_OFFLINE]} />,
+    play: async ({canvasElement}) => {
+        await expect(columnTexts(canvasElement, 'Kind')).toEqual(['Equivocation', 'Offline', 'Offline'])
+        await expect(columnTexts(canvasElement, 'Extrinsic')).toEqual(['293100-2', '—', '—'])
+    },
 }

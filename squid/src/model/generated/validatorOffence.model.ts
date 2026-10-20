@@ -1,5 +1,6 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
 import {Validator} from "./validator.model"
+import {Event} from "./event.model"
 
 /**
  * one row per validator an ImOnline.SomeOffline names and one per Validator.EquivocationReported
@@ -25,6 +26,10 @@ export class ValidatorOffence {
      */
     @StringColumn_({nullable: false})
     kind!: string
+
+    @Index_("idx_validator_offence_event_5ca17f7a")
+    @ManyToOne_(() => Event, {nullable: true})
+    event!: Relation_<Event>
 
     @IntColumn_({nullable: false})
     block!: number

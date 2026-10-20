@@ -1,5 +1,5 @@
-module.exports = class Data1792430431290 {
-    name = 'Data1792430431290'
+module.exports = class Data1792432212558 {
+    name = 'Data1792432212558'
 
     async up(db) {
         await db.query(`CREATE TABLE "delegate" ("id" character varying NOT NULL, "delegators" integer NOT NULL, "tracks" integer NOT NULL, "delegated" numeric NOT NULL, "account_id" character varying, CONSTRAINT "REL_9fc4c32ac74b83d15ee9f1305f" UNIQUE ("account_id"), CONSTRAINT "PK_810516365b3daa9f6d6d2d4f2b7" PRIMARY KEY ("id"))`)
@@ -173,10 +173,11 @@ module.exports = class Data1792430431290 {
         await db.query(`CREATE INDEX "idx_proxy_relation_delegatee_7ed4f938" ON "proxy_relation" ("delegatee_id") `)
         await db.query(`CREATE TABLE "prime_state" ("id" character varying NOT NULL, "since" integer NOT NULL, "account_id" character varying, CONSTRAINT "PK_806b5e47200d768221a9e26b77c" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_prime_state_account_386e528c" ON "prime_state" ("account_id") `)
-        await db.query(`CREATE TABLE "validator_offence" ("id" character varying NOT NULL, "kind" text NOT NULL, "block" integer NOT NULL, "timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "validator_id" character varying, CONSTRAINT "PK_a8efaac1188a465dd5f3e4a8247" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "validator_offence" ("id" character varying NOT NULL, "kind" text NOT NULL, "block" integer NOT NULL, "timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "validator_id" character varying, "event_id" character varying, CONSTRAINT "PK_a8efaac1188a465dd5f3e4a8247" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_validator_offence_validator_88b118f2" ON "validator_offence" ("validator_id") `)
+        await db.query(`CREATE INDEX "idx_validator_offence_event_5ca17f7a" ON "validator_offence" ("event_id") `)
         await db.query(`CREATE INDEX "idx_validator_offence_timestamp_d93e74a3" ON "validator_offence" ("timestamp") `)
-        await db.query(`CREATE TABLE "validator" ("id" character varying NOT NULL, "active" boolean NOT NULL, "locked_amount" numeric NOT NULL, "lock_expiry" integer, "offline_sessions" integer NOT NULL, "equivocations" integer NOT NULL, "kicked" jsonb, "first_seen_block" integer NOT NULL, "last_active_session" integer, "account_id" character varying, CONSTRAINT "REL_4ddc35f6074f65fa2314a425a6" UNIQUE ("account_id"), CONSTRAINT "PK_ae0a943022c24bd60e7161e0fad" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "validator" ("id" character varying NOT NULL, "active" boolean NOT NULL, "locked_amount" numeric NOT NULL, "lock_expiry" integer, "kicked" jsonb, "first_seen_block" integer NOT NULL, "last_active_session" integer, "account_id" character varying, CONSTRAINT "REL_4ddc35f6074f65fa2314a425a6" UNIQUE ("account_id"), CONSTRAINT "PK_ae0a943022c24bd60e7161e0fad" PRIMARY KEY ("id"))`)
         await db.query(`CREATE UNIQUE INDEX "idx_validator_account_6c60d32a" ON "validator" ("account_id") `)
         await db.query(`CREATE INDEX "idx_validator_active_c83c422c" ON "validator" ("active") `)
         await db.query(`CREATE TABLE "daily_stat" ("id" character varying NOT NULL, "date" TIMESTAMP WITH TIME ZONE NOT NULL, "blocks" integer NOT NULL, "extrinsics_signed" integer NOT NULL, "transfers" integer NOT NULL, "transfer_volume" numeric NOT NULL, "evm_txs" integer NOT NULL, "fees" numeric NOT NULL, "ts_first" TIMESTAMP WITH TIME ZONE NOT NULL, "ts_last" TIMESTAMP WITH TIME ZONE NOT NULL, "difficulty_close" numeric NOT NULL, "issuance_total" numeric NOT NULL, "issuance_inactive" numeric NOT NULL, "issuance_transferable" numeric NOT NULL, "treasury_pot" numeric NOT NULL, "cum_extrinsics_signed" numeric NOT NULL, "cum_transfers" numeric NOT NULL, "cum_transfer_volume" numeric NOT NULL, "accounts_total" integer NOT NULL, "referenda_total" integer NOT NULL, "miners_active" integer NOT NULL, "rewards" numeric NOT NULL, CONSTRAINT "PK_c2eb70552248e56c09515fb7744" PRIMARY KEY ("id"))`)
@@ -274,6 +275,7 @@ module.exports = class Data1792430431290 {
         await db.query(`ALTER TABLE "proxy_relation" ADD CONSTRAINT "FK_6d80e97f7778598dd914baa1d54" FOREIGN KEY ("delegatee_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "prime_state" ADD CONSTRAINT "FK_d4bc11b0f56e9b4654845c3f6f7" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "validator_offence" ADD CONSTRAINT "FK_b33cdb777747d9d0233ac9f7a99" FOREIGN KEY ("validator_id") REFERENCES "validator"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`ALTER TABLE "validator_offence" ADD CONSTRAINT "FK_8793b6221b41e9428731cd1d912" FOREIGN KEY ("event_id") REFERENCES "event"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "validator" ADD CONSTRAINT "FK_4ddc35f6074f65fa2314a425a6f" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "hourly_stat" ADD CONSTRAINT "FK_ebeaf11ea2612c6e79ae5a5275c" FOREIGN KEY ("block_id") REFERENCES "block"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "miner_day_stat" ADD CONSTRAINT "FK_74b6a61f949a388ff1c34be4f82" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
@@ -291,6 +293,7 @@ module.exports = class Data1792430431290 {
         await db.query(`ALTER TABLE "miner_day_stat" DROP CONSTRAINT "FK_74b6a61f949a388ff1c34be4f82"`)
         await db.query(`ALTER TABLE "hourly_stat" DROP CONSTRAINT "FK_ebeaf11ea2612c6e79ae5a5275c"`)
         await db.query(`ALTER TABLE "validator" DROP CONSTRAINT "FK_4ddc35f6074f65fa2314a425a6f"`)
+        await db.query(`ALTER TABLE "validator_offence" DROP CONSTRAINT "FK_8793b6221b41e9428731cd1d912"`)
         await db.query(`ALTER TABLE "validator_offence" DROP CONSTRAINT "FK_b33cdb777747d9d0233ac9f7a99"`)
         await db.query(`ALTER TABLE "prime_state" DROP CONSTRAINT "FK_d4bc11b0f56e9b4654845c3f6f7"`)
         await db.query(`ALTER TABLE "proxy_relation" DROP CONSTRAINT "FK_6d80e97f7778598dd914baa1d54"`)
@@ -390,6 +393,7 @@ module.exports = class Data1792430431290 {
         await db.query(`DROP INDEX "public"."idx_validator_account_6c60d32a"`)
         await db.query(`DROP TABLE "validator"`)
         await db.query(`DROP INDEX "public"."idx_validator_offence_timestamp_d93e74a3"`)
+        await db.query(`DROP INDEX "public"."idx_validator_offence_event_5ca17f7a"`)
         await db.query(`DROP INDEX "public"."idx_validator_offence_validator_88b118f2"`)
         await db.query(`DROP TABLE "validator_offence"`)
         await db.query(`DROP INDEX "public"."idx_prime_state_account_386e528c"`)

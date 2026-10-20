@@ -3,6 +3,7 @@ import {Card} from '@/components/ui/card'
 import {chainDbHead, chainProps, windowStart} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
 import {validatorsPage} from '@/lib/gql'
+import {OFFENCE_DAYS} from '@/lib/offences'
 import {paging} from '@/lib/paging'
 import {ValidatorsTable} from './table'
 
@@ -12,7 +13,7 @@ export const metadata = {title: 'Validators'}
 export default async function ValidatorsPage(props: PageProps<'/validators'>) {
     const pg = paging(await props.searchParams)
     const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
-    const data = await validatorsPage(windowStart(head, 30), pg.size, pg.offset)
+    const data = await validatorsPage(windowStart(head, OFFENCE_DAYS), pg.size, pg.offset)
 
     return (
         <div>

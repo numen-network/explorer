@@ -8,6 +8,7 @@ import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtInt} from '@/lib/format'
 import type {ValidatorListRow} from '@/lib/gql'
+import {OFFENCE_LABEL} from '@/lib/offences'
 import {ss58Encode} from '@/lib/ss58'
 import {variantName} from '@/lib/variant'
 
@@ -34,8 +35,8 @@ export function ValidatorsTable({rows, chain}: {rows: ValidatorListRow[]; chain:
                 }),
                 col.display({id: 'locked', header: 'Locked', meta: num, cell: ({row}) => fmtBalance(row.original.lockedAmount, chain.decimals, chain.symbol)}),
                 col.display({id: 'expiry', header: 'Lock expiry', meta: num, cell: ({row}) => (row.original.lockExpiry ? fmtInt(row.original.lockExpiry) : '—')}),
-                col.display({id: 'offline', header: 'Offline (30d)', meta: num, cell: ({row}) => fmtInt(tally(row.original, 'Offline'))}),
-                col.display({id: 'equivocations', header: 'Equivocations (30d)', meta: num, cell: ({row}) => fmtInt(tally(row.original, 'Equivocation'))}),
+                col.display({id: 'offline', header: OFFENCE_LABEL.Offline, meta: num, cell: ({row}) => fmtInt(tally(row.original, 'Offline'))}),
+                col.display({id: 'equivocations', header: OFFENCE_LABEL.Equivocation, meta: num, cell: ({row}) => fmtInt(tally(row.original, 'Equivocation'))}),
                 col.display({id: 'first', header: 'First seen', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.firstSeenBlock} />}),
                 col.display({id: 'session', header: 'Last session', meta: num, cell: ({row}) => (row.original.lastActiveSession != null ? `#${fmtInt(row.original.lastActiveSession)}` : '—')}),
             ]),

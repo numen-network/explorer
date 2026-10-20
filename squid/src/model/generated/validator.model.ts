@@ -27,18 +27,6 @@ export class Validator {
     lockExpiry!: number | undefined | null
 
     /**
-     * ImOnline.SomeOffline events naming it
-     */
-    @IntColumn_({nullable: false})
-    offlineSessions!: number
-
-    /**
-     * Validator.EquivocationReported events naming it
-     */
-    @IntColumn_({nullable: false})
-    equivocations!: number
-
-    /**
      * the reason ValidatorKicked carried, whole
      */
     @JSONColumn_({nullable: true})

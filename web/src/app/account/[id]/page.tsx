@@ -129,7 +129,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nSubs.totalCount > 0) tabs.push({slug: 'subs', label: 'Sub identities', group: 'Identity', count: s.nSubs.totalCount, body: () => <Subs {...ctx} />})
     if (registrar)
         tabs.push({slug: 'judgements', label: 'Judgements Given', group: 'Identity', count: s.nJudged.totalCount, body: () => <Judgements {...ctx} index={registrar.index} />})
-    if (validator) tabs.push({slug: 'validator', label: 'Validator', body: () => <Validator v={validator} chain={chain} />})
+    if (validator) tabs.push({slug: 'validator', label: 'Validator', body: () => <Validator {...ctx} v={validator} />})
     if (minedBlocks > 0) tabs.push({slug: 'mining', label: 'Mining', count: minedBlocks, body: () => <Mining {...ctx} days={s.minerDays} total={minedBlocks} />})
     if (s.nProxyOut.totalCount + s.nProxyIn.totalCount > 0)
         tabs.push({slug: 'proxies', label: 'Proxies', count: s.nProxyOut.totalCount + s.nProxyIn.totalCount, body: () => <Proxies {...ctx} />})

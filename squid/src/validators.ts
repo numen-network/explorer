@@ -1,15 +1,15 @@
 import {toJSON} from '@subsquid/util-internal-json'
 import {In} from 'typeorm'
 import {BatchData} from './batch'
-import {Validator, ValidatorOffence} from './model'
+import {Event, Validator, ValidatorOffence} from './model'
 import {storage} from './types'
 
 export function collectValidatorEvent(batch: BatchData, id: string, name: string, args: any, height: number, at: Date, header: any): void {
     if (name === 'Session.NewSession' || name === 'ImOnline.SomeOffline' || name.startsWith('Validator.')) batch.validatorEvents.push({id, name, args, height, at, header})
 }
 
-function recordOffence(batch: BatchData, v: Validator, id: string, kind: string, ev: {height: number; at: Date}): void {
-    batch.validatorOffences.push(new ValidatorOffence({id, validator: v, kind, block: ev.height, timestamp: ev.at}))
+function recordOffence(batch: BatchData, v: Validator, id: string, kind: string, ev: {id: string; height: number; at: Date}): void {
+    batch.validatorOffences.push(new ValidatorOffence({id, validator: v, kind, event: new Event({id: ev.id}), block: ev.height, timestamp: ev.at}))
 }
 
 async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, height: number): Promise<Validator> {
@@ -22,8 +22,6 @@ async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, h
             account: batch.touch(who, height),
             active: false,
             lockedAmount: 0n,
-            offlineSessions: 0,
-            equivocations: 0,
             firstSeenBlock: height,
             lastActiveSession: null,
         })
@@ -45,8 +43,6 @@ export async function seedGenesisValidators(batch: BatchData, genesisHeader: any
                 account: batch.touch(who, 0),
                 active: true,
                 lockedAmount: 0n,
-                offlineSessions: 0,
-                equivocations: 0,
                 firstSeenBlock: 0,
                 lastActiveSession: 0,
             })
@@ -85,14 +81,12 @@ export async function finalizeValidators(ctx: {store: any}, batch: BatchData): P
             }
             case 'EquivocationReported': {
                 const v = await loadValidator(ctx, batch, args.who, ev.height)
-                v.equivocations += 1
                 recordOffence(batch, v, ev.id, 'Equivocation', ev)
                 break
             }
             case 'SomeOffline':
                 for (const [who] of args.offline) {
                     const v = await loadValidator(ctx, batch, who, ev.height)
-                    v.offlineSessions += 1
                     recordOffence(batch, v, `${ev.id}-${who}`, 'Offline', ev)
                 }
                 break

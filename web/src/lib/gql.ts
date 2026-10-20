@@ -2113,15 +2113,34 @@ export interface ValidatorRow {
     active: boolean
     lockedAmount: string
     lockExpiry: number | null
-    offlineSessions: number
-    equivocations: number
     kicked: unknown
     firstSeenBlock: number
     lastActiveSession: number | null
     account: AccountRef
 }
 
-const VALIDATOR_FIELDS = `id active lockedAmount lockExpiry offlineSessions equivocations kicked firstSeenBlock lastActiveSession account { ${ACCOUNT_REF} }`
+const VALIDATOR_FIELDS = `id active lockedAmount lockExpiry kicked firstSeenBlock lastActiveSession account { ${ACCOUNT_REF} }`
+
+export interface ValidatorOffenceRow {
+    id: string
+    kind: string
+    block: number
+    timestamp: string
+    event: {indexInBlock: number; extrinsic: {id: string} | null}
+}
+
+export function validatorOffences(idHex: string, since: string | null, limit: number, offset: number) {
+    const mine = `validator: {id_eq: $id}`
+    return gql<{offences: ValidatorOffenceRow[]; all: {totalCount: number}; offline: {totalCount: number}; equivocations: {totalCount: number}}>(
+        `query ($id: String!, $since: DateTime, $limit: Int!, $offset: Int!) {
+            offences: validatorOffences(where: {${mine}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id kind block timestamp event { indexInBlock extrinsic { id } } }
+            all: validatorOffencesConnection(orderBy: id_ASC, where: {${mine}}) { totalCount }
+            offline: validatorOffencesConnection(orderBy: id_ASC, where: {${mine}, kind_eq: "Offline", timestamp_gt: $since}) { totalCount }
+            equivocations: validatorOffencesConnection(orderBy: id_ASC, where: {${mine}, kind_eq: "Equivocation", timestamp_gt: $since}) { totalCount }
+        }`,
+        {id: idHex, since, limit, offset}
+    )
+}
 
 export interface ValidatorListRow extends ValidatorRow {
     offences: {kind: string}[]

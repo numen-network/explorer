@@ -489,14 +489,25 @@ export const validatorRow = (traits = {}) => ({
     active: true,
     lockedAmount: numn(100_000_000),
     lockExpiry: HEAD + 120_960,
-    offlineSessions: 2,
-    equivocations: 0,
     kicked: null,
     firstSeenBlock: 12_000,
     lastActiveSession: 16_666,
     account: ME,
     ...traits,
 })
+
+const JJFU = '0x0c75ace277b402399cf8fb811b871169e5d675f9f7c5c9a72a72c4bb8044d917'
+const offence = (eventId, kind, block, timestamp, event, who = '') => ({id: who ? `${eventId}-${who}` : eventId, kind, block, timestamp, event})
+
+// the heartbeats jJFU missed on mainnet, newest first. SomeOffline comes from
+// the runtime, so no extrinsic raised it
+export const JJFU_OFFLINE = [
+    offence('0000292620-ffde7-000000', 'Offline', 292_620, '2026-10-17T18:11:11.000Z', {indexInBlock: 0, extrinsic: null}, JJFU),
+    offence('0000292560-1f5ec-000000', 'Offline', 292_560, '2026-10-17T18:01:32.000Z', {indexInBlock: 0, extrinsic: null}, JJFU),
+]
+
+// mainnet has never reported an equivocation, so this one is made up
+export const MADE_UP_EQUIVOCATION = offence('0000293100-00000-000004', 'Equivocation', 293_100, '2026-10-17T19:39:11.000Z', {indexInBlock: 4, extrinsic: {id: '0000293100-00000-000002'}})
 
 // days newest first, the way the summary orders them
 export const minedDays = count =>
@@ -651,6 +662,7 @@ const delegate = delegations => {
 export function accountPage({
     account = subject(),
     validator = null,
+    offences = [],
     registrar = null,
     prime = false,
     minerDays = [],
@@ -723,6 +735,9 @@ export function accountPage({
     return {
         accountById: {...volumes, ...account},
         validators: validator ? [validator] : [],
+        validatorOffences: paged(offences),
+        // the two windowed counts take counts.Offline and counts.Equivocation when set
+        validatorOffencesConnection: ({where}) => count(where.kind_eq ? (counts[where.kind_eq] ?? offences.filter(o => o.kind === where.kind_eq).length) : offences.length),
         registrars: ({where}) =>
             where?.account ? (registrar == null ? [] : [{index: registrar}]) : where?.retiredAt_isNull === false ? REGISTRARS.filter(r => r.retiredAt != null) : REGISTRARS,
         primeStates: prime ? [{id: 'prime'}] : [],
