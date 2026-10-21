@@ -5,7 +5,7 @@ import {HEAD, hex, numn, PEOPLE} from '../../../mock/fixtures.js'
 import {CHAIN, proposal} from '../../../mock/fixtures/governance.js'
 import {RequestCard} from './RequestCard'
 
-const meta = {title: 'Components/RequestCard'} satisfies Meta
+const meta = {title: 'Pages/Referendum/Request'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 

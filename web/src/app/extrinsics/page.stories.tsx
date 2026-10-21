@@ -7,7 +7,7 @@ import {cardsFit, filterOptions} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import ExtrinsicsPage from './page'
 
-export default {title: 'Pages/Extrinsics', ...pageMeta(ExtrinsicsPage)}
+export default {title: 'Pages/Extrinsics/List', ...pageMeta(ExtrinsicsPage)}
 
 type Mined = ReturnType<typeof mined>
 type Row = Mined['extrinsics'][number]

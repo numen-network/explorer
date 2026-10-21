@@ -6,7 +6,7 @@ import type {ProxyRow} from '@/lib/gql'
 import {CHAIN, proxyDelegates, proxyFor} from '../../../../mock/fixtures/accounts.js'
 import {ProxiesTable} from './ProxiesTable'
 
-const meta = {title: 'Components/Account/ProxiesTable'} satisfies Meta
+const meta = {title: 'Pages/Account/Proxies'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 

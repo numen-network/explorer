@@ -3,7 +3,7 @@ import {expect} from 'storybook/test'
 import ChartList from './ChartList'
 
 const meta = {
-    title: 'Components/ChartList',
+    title: 'Pages/Charts/Chart list',
     component: ChartList,
     args: {active: 'blocks'},
     // the chart page gives the list a 220px column

@@ -1,10 +1,10 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {BountyRow} from '@/lib/gql'
-import {bounty, BOUNTY_STATUSES, CHAIN} from '../../../mock/fixtures/governance.js'
+import {bounty, CHAIN} from '../../../mock/fixtures/governance.js'
 import {BountyTable} from './BountyTable'
 import {Card} from './ui/card'
 
-const meta = {title: 'Components/BountyTable'} satisfies Meta
+const meta = {title: 'Pages/Bounties/List'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -16,13 +16,7 @@ const table = (rows: object[], filtered?: boolean): Story => ({
     ),
 })
 
-export const Empty = table([])
-
 export const FilteredEmpty = table([], true)
-
-export const One = table([bounty(0, 'Active')])
-
-export const EveryStatus = table(BOUNTY_STATUSES.map((status, i) => bounty(BOUNTY_STATUSES.length - 1 - i, status)))
 
 export const EdgeCases = table([
     bounty(3, 'Proposed', {description: null, referendum: null}),

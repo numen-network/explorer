@@ -6,7 +6,7 @@ import {axesLegible, axisTexts, expectLegibleAxes, lastTooltipLines, tooltipsInV
 import {ThresholdChart} from './charts'
 import {Card, CardContent, CardHeader, CardTitle} from './ui/card'
 
-const meta = {title: 'Components/ThresholdChart'} satisfies Meta
+const meta = {title: 'Pages/Governance/Tracks'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -46,13 +46,13 @@ const grid = (tracks: Spec[]): Story => ({
     play: axesLegible,
 })
 
-export const EveryCurveKind = grid([
+export const ChartEveryCurveKind = grid([
     {name: 'Linear decreasing', approval: LINEAR, support: linear(1e9, 0, 5e8), hours: 672},
     {name: 'Reciprocal', approval: RECIPROCAL, support: SUPPORT, hours: 672},
     {name: 'Stepped decreasing', approval: STEPPED, support: stepped(2e8, 1e7, 5e7, 2.5e8), hours: 672},
 ])
 
-export const PeriodLengths = grid([
+export const ChartPeriodLengths = grid([
     {name: 'One hour', approval: LINEAR, support: SUPPORT, hours: 1},
     {name: 'Forty seven hours', approval: LINEAR, support: SUPPORT, hours: 47},
     {name: 'Two days', approval: LINEAR, support: SUPPORT, hours: 48},
@@ -60,12 +60,12 @@ export const PeriodLengths = grid([
     {name: 'One year', approval: RECIPROCAL, support: SUPPORT, hours: 8760},
 ])
 
-export const PeriodLengthsTooltip: Story = {...PeriodLengths, play: tooltipsInView}
+export const ChartPeriodLengthsTooltip: Story = {...ChartPeriodLengths, play: tooltipsInView}
 
 // the end of a period with part of a day left falls between two day ticks and
 // the axis names it in days, while the tooltip there reads a month once the
 // period runs past thirty days
-export const PeriodsEndingMidDay: Story = {
+export const ChartPeriodsEndingMidDay: Story = {
     ...grid([
         {name: 'A hundred hours', approval: LINEAR, support: SUPPORT, hours: 100},
         {name: 'A thousand hours', approval: RECIPROCAL, support: SUPPORT, hours: 1000},
@@ -80,7 +80,7 @@ export const PeriodsEndingMidDay: Story = {
 }
 
 // periods under a day that stop part way through an hour
-export const PeriodsEndingMidHour: Story = {
+export const ChartPeriodsEndingMidHour: Story = {
     ...grid([
         {name: 'Ten minutes', approval: LINEAR, support: SUPPORT, hours: 10 / 60},
         {name: 'Ninety minutes', approval: LINEAR, support: SUPPORT, hours: 1.5},
@@ -94,7 +94,7 @@ export const PeriodsEndingMidHour: Story = {
     },
 }
 
-export const FlatAndSpikedCurves = grid([
+export const ChartFlatAndSpikedCurves = grid([
     {name: 'Never relaxes', approval: linear(1e9, 1e9, 1e9), support: linear(1e9, 0, 0), hours: 672},
     {name: 'Drops to its floor at once', approval: linear(0, 5e8, 1e9), support: reciprocal('1', '1', '0'), hours: 672},
 ])

@@ -8,7 +8,7 @@ import {all, cardsFit} from '../../.storybook/fit'
 import {urlUpdates} from '../../.storybook/url'
 import ActionList, {type ActionActor, type ActionRow} from './actions'
 
-const meta = {title: 'Components/ActionList'} satisfies Meta
+const meta = {title: 'Pages/Referendum/Curves'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -53,20 +53,9 @@ const lastUpdate = () => urlUpdates.mock.lastCall![0]
 
 const emptyText = (root: HTMLElement) => root.querySelector('tbody td')!.textContent
 
-export const Empty: Story = {
-    render: () => list([]),
-    play: async ({canvasElement}) => {
-        await expect(emptyText(canvasElement)).toBe('No actions.')
-    },
-}
-
-export const One: Story = {
-    render: () => list(EVERY_KIND.slice(0, 1)),
-}
-
 const impacts = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].map(row => row.lastElementChild!.textContent)
 
-export const EveryKind: Story = {
+export const ActionsEveryImpact: Story = {
     render: () => list(EVERY_KIND),
     play: all(cardsFit, async ({canvasElement}) => {
         await expect(impacts(canvasElement)).toEqual([
@@ -81,20 +70,8 @@ export const EveryKind: Story = {
     }),
 }
 
-// the first page of forty, the pager under the card
-export const Many: Story = {
-    render: () =>
-        list(
-            Array.from({length: 20}, (_, i) => {
-                const row = EVERY_KIND[i % EVERY_KIND.length]
-                return {...row, ...base(i, row.own, row.delegated)}
-            }),
-            40
-        ),
-}
-
 // the controls read the filters back from the url
-export const NoMatch: Story = {
+export const ActionsSearchFromUrl: Story = {
     render: () => list([], 0, true),
     parameters: {searchParams: {q: 'nobody by this name', action: 'undelegate', impact: 'support-up'}},
     play: async ({canvas, canvasElement}) => {
@@ -106,7 +83,7 @@ export const NoMatch: Story = {
 
 // a search goes into the url once typing pauses, as a history entry of its
 // own that asks the server again and starts over at the first page
-export const SearchGoesToUrl: Story = {
+export const ActionsSearchGoesToUrl: Story = {
     render: () => list(EVERY_KIND),
     parameters: {searchParams: PAGE_3},
     play: async ({canvas, userEvent}) => {
@@ -118,7 +95,7 @@ export const SearchGoesToUrl: Story = {
 }
 
 // a pick goes into the url at once, along with what the search box holds
-export const PickGoesToUrl: Story = {
+export const ActionsPickGoesToUrl: Story = {
     render: () => list(EVERY_KIND),
     parameters: {searchParams: PAGE_3},
     play: async ({canvas, userEvent}) => {
@@ -130,7 +107,7 @@ export const PickGoesToUrl: Story = {
 }
 
 // a cleared box goes into the url without waiting for a pause
-export const ClearGoesToUrl: Story = {
+export const ActionsClearGoesToUrl: Story = {
     render: () => list(EVERY_KIND),
     parameters: {searchParams: {...PAGE_3, q: 'Polaris'}},
     play: async ({canvas, userEvent}) => {

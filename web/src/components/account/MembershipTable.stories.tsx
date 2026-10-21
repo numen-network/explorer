@@ -5,7 +5,7 @@ import type {MembershipRow} from '@/lib/gql'
 import {CHAIN, membership, memberships} from '../../../../mock/fixtures/accounts.js'
 import {MembershipTable} from './MembershipTable'
 
-const meta = {title: 'Components/Account/MembershipTable'} satisfies Meta
+const meta = {title: 'Pages/Account/Multisig | As a multisig signatory'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -15,9 +15,9 @@ const table = (rows: MembershipRow[]) => (
     </Card>
 )
 
-export const Empty: Story = {render: () => table([])}
+export const MembershipsEmpty: Story = {render: () => table([])}
 
-export const One: Story = {
+export const MembershipsOne: Story = {
     render: () => table([membership(0)]),
     play: ({canvasElement}) => {
         const cells = [...canvasElement.querySelectorAll('tbody td')].map(td => td.textContent)
@@ -26,4 +26,4 @@ export const One: Story = {
 }
 
 // thresholds of two and three, nothing pending on every third
-export const Many: Story = {render: () => table(memberships(6))}
+export const MembershipsMany: Story = {render: () => table(memberships(6))}

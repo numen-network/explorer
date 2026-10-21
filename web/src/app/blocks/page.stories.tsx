@@ -6,7 +6,7 @@ import {columnTexts, expectShortHashes} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import BlocksPage from './page'
 
-export default {title: 'Pages/Blocks', ...pageMeta(BlocksPage)}
+export default {title: 'Pages/Blocks/List', ...pageMeta(BlocksPage)}
 
 const TOTAL = HEAD + 1
 const chain = (count: number, from = HEAD) => Array.from({length: count}, (_, i) => sealed(from - i))

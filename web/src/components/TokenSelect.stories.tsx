@@ -11,7 +11,7 @@ const icons: Decorator = Story => (
     </WellKnownProvider>
 )
 
-const meta = {title: 'Components/TokenSelect', decorators: [icons]} satisfies Meta
+const meta = {title: 'Pages/Account/Transfers | Counterparties', decorators: [icons]} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -39,7 +39,7 @@ async function optionIcons(root: HTMLElement) {
 }
 
 // the chain's own coin leads under the logo, the way the counterparty tab picks one asset
-export const WithNative: Story = {
+export const SelectWithNative: Story = {
     render: () => <TokenSelect tokens={TOKENS} native="NUMN" value={WTMR} href={href} />,
     play: async ({canvasElement}) => {
         expect(within(canvasElement).getByRole('combobox', {name: 'Token'})).toHaveTextContent(/^WTMR0xa179…a2e9$/)
@@ -49,7 +49,7 @@ export const WithNative: Story = {
 }
 
 // an account that never moved the native coin picks among its tokens alone
-export const TokensOnly: Story = {
+export const SelectTokensOnly: Story = {
     render: () => <TokenSelect tokens={TOKENS} value={NAMELESS} href={href} />,
     play: async ({canvasElement}) => {
         expect(within(canvasElement).getByRole('combobox', {name: 'Token'})).toHaveTextContent(/^0xe2e2…e2e2$/)
@@ -58,7 +58,7 @@ export const TokensOnly: Story = {
 }
 
 // as a filter it leads with All, which carries no icon or contract
-export const WithAll: Story = {
+export const SelectWithAll: Story = {
     render: () => <TokenSelect tokens={TOKENS} all value="" href={href} />,
     play: async ({canvasElement}) => {
         expect(within(canvasElement).getByRole('combobox', {name: 'Token'})).toHaveTextContent(/^All$/)

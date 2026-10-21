@@ -5,7 +5,7 @@ import {VoteGrid} from './charts'
 import type {GridCell, GridVote} from '@/lib/voteGrid'
 import {Card} from './ui/card'
 
-const meta = {title: 'Components/VoteGrid'} satisfies Meta
+const meta = {title: 'Pages/Account/Governance | Votes'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -32,7 +32,7 @@ const chartIn = async (root: HTMLElement) => {
 }
 
 // five to a column, top to bottom, the last column part full
-export const EveryVote: Story = {
+export const RecordEveryVote: Story = {
     ...grid(14),
     play: async ({canvasElement}) => {
         const {series, dataZoom} = await chartIn(canvasElement)
@@ -45,7 +45,7 @@ export const EveryVote: Story = {
 }
 
 // more columns than the card holds scroll, opening on the newest
-export const MoreThanFit: Story = {
+export const RecordMoreThanFit: Story = {
     ...grid(1500),
     play: async ({canvasElement}) => {
         await waitFor(async () => expect((await chartIn(canvasElement)).dataZoom[1].show).toBe(true))

@@ -1,3 +1,4 @@
 .storybook
 **/*.stories.tsx
+**/*.stories.helpers.tsx
 vitest.config.ts

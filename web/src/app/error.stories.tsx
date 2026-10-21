@@ -3,7 +3,7 @@ import {expect, fn} from 'storybook/test'
 import ErrorPage from './error'
 
 const meta = {
-    title: 'Pages/Error',
+    title: 'Pages/Error/Message',
     component: ErrorPage,
     args: {error: new Error('graphql http 502'), reset: fn()},
 } satisfies Meta<typeof ErrorPage>

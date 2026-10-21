@@ -5,7 +5,7 @@ import {columnTexts, expectAddressForm, expectFits} from '../../../.storybook/fi
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import ValidatorsPage from './page'
 
-export default {title: 'Pages/Validators', ...pageMeta(ValidatorsPage)}
+export default {title: 'Pages/Validators/List', ...pageMeta(ValidatorsPage)}
 
 const SESSION = Math.floor(HEAD / chainInfo.sessionLength)
 const DAY = 86_400 / chainInfo.blockTime
@@ -51,14 +51,14 @@ const validators = (rows: ReturnType<typeof validator>[], page = '1') =>
         {searchParams: {page}}
     )
 
-export const ValidatorsEmpty = validators([])
+export const Empty = validators([])
 
-export const ValidatorsOne = validators([validator(1)])
+export const One = validators([validator(1)])
 
 // the last one locked thirty blocks ago and has yet to sit in an active set.
 // from xl up a full address breaks onto a second line so every column stays in
 // view, narrower screens scroll the table
-export const ValidatorsEveryStatus: StoryObj = {
+export const EveryStatus: StoryObj = {
     ...validators([
         validator(1),
         validator(2, exempt),
@@ -75,7 +75,7 @@ export const ValidatorsEveryStatus: StoryObj = {
     },
 }
 
-export const ValidatorsOfflineInWindow: StoryObj = {
+export const OfflineInWindow: StoryObj = {
     ...validators(genesis(g => offences(g.offline))),
     play: async ({canvasElement}) => {
         await expect(columnTexts(canvasElement, 'Offline (30d)')).toEqual(['1', '2', '1', '2'])
@@ -84,13 +84,13 @@ export const ValidatorsOfflineInWindow: StoryObj = {
 }
 
 // thirty days on, the misses have left the window and only each account page still lists them
-export const ValidatorsOfflineOutsideWindow: StoryObj = {
+export const OfflineOutsideWindow: StoryObj = {
     ...validators(genesis(() => ({}))),
     play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Offline (30d)')).toEqual(['0', '0', '0', '0']),
 }
 
 // mainnet has never reported an equivocation, so the last row's one is made up
-export const ValidatorsOfflineAndEquivocation: StoryObj = {
+export const OfflineAndEquivocation: StoryObj = {
     ...validators(genesis(g => offences(g.offline, g === GENESIS[2] ? 1 : 0))),
     play: async ({canvasElement}) => {
         await expect(columnTexts(canvasElement, 'Offline (30d)')).toEqual(['1', '2', '1', '2'])
@@ -99,7 +99,7 @@ export const ValidatorsOfflineAndEquivocation: StoryObj = {
 }
 
 // the second sat in the genesis set, so session 0 is a session it was active in
-export const ValidatorsExtremeNumbers: StoryObj = {
+export const ExtremeNumbers: StoryObj = {
     ...validators([
         validator(1, {
             account: acct(1, identity('W'.repeat(32), {judgements: ['KnownGood']})),
@@ -125,8 +125,8 @@ const many = Array.from({length: 46}, (_, i) => {
     return validator(n, inactive(i * 50))
 })
 
-export const ValidatorsMany = validators(many)
+export const Many = validators(many)
 
-export const ValidatorsPage2 = validators(many, '2')
+export const Page2 = validators(many, '2')
 
-export const ValidatorsLastPage = validators(many, lastPage(many.length))
+export const LastPage = validators(many, lastPage(many.length))

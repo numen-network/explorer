@@ -1,11 +1,11 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {EVERY_HOLDING, holding, holdings, NUMN, pair, token, units, WTMR} from '../../../mock/fixtures/evm.js'
+import {EVERY_HOLDING, holding, NUMN, pair, token, units, WTMR} from '../../../mock/fixtures/evm.js'
 import {Card} from './ui/card'
 import HoldingsTable from './HoldingsTable'
 
 const meta = {
-    title: 'Components/HoldingsTable',
+    title: 'Pages/Account/Tokens',
     component: HoldingsTable,
     decorators: [Story => <Card size="flush">{Story()}</Card>],
 } satisfies Meta<typeof HoldingsTable>
@@ -22,10 +22,6 @@ const expandPool = async ({canvas, userEvent}: {canvas: ReturnType<typeof within
 }
 
 export const Empty: Story = {args: {rows: []}}
-
-export const One: Story = {args: {rows: [WTMR_HOLDING]}}
-
-export const Many: Story = {args: {rows: holdings(20)}}
 
 // a long name, a balance at the uint256 ceiling, no decimals, no symbol, no name and no transfer in
 export const EveryCase: Story = {args: {rows: EVERY_HOLDING}}

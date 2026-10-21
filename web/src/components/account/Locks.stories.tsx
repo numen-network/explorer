@@ -4,7 +4,7 @@ import {CHAIN, MAX_U128} from '../../../../mock/fixtures/accounts.js'
 import Locks from './Locks'
 import type {LockRow} from './shared'
 
-const meta = {title: 'Components/Account/Locks'} satisfies Meta
+const meta = {title: 'Pages/Account/Locks'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -24,9 +24,7 @@ const EVERY_KIND: LockRow[] = [
 
 export const Empty: Story = {render: () => <Locks rows={[]} chain={CHAIN} />}
 
-export const One: Story = {render: () => <Locks rows={EVERY_KIND.slice(0, 1)} chain={CHAIN} />}
-
-export const EveryKind: Story = {
+export const EveryUnlock: Story = {
     render: () => <Locks rows={EVERY_KIND} chain={CHAIN} />,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)

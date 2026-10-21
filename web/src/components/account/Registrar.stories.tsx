@@ -4,7 +4,7 @@ import type {RegistrarRow} from '@/lib/gql'
 import {CHAIN, REGISTRARS} from '../../../../mock/fixtures/accounts.js'
 import {RegistrarTile} from './Registrar'
 
-const meta = {title: 'Components/Account/Registrar'} satisfies Meta
+const meta = {title: 'Pages/Account/Registrar'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 

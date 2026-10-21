@@ -6,7 +6,7 @@ import {cardsFit, filterOptions} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import EventsPage from './page'
 
-export default {title: 'Pages/Events', ...pageMeta(EventsPage)}
+export default {title: 'Pages/Events/List', ...pageMeta(EventsPage)}
 
 type Mined = ReturnType<typeof mined>
 type Row = Mined['events'][number]

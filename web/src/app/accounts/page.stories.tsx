@@ -14,7 +14,7 @@ const wellKnown: Decorator = Story => (
     </WellKnownProvider>
 )
 
-export default {title: 'Pages/Accounts', ...pageMeta(AccountsPage), decorators: [wellKnown]}
+export default {title: 'Pages/Accounts/List', ...pageMeta(AccountsPage), decorators: [wellKnown]}
 
 const row = (who: object, balance: string, i: number) => ({...who, balance, nonce: (i * 37) % 900, firstSeenBlock: 1_000 + i * 41_000, lastActiveBlock: HEAD - i * 1_300})
 

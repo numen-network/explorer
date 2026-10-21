@@ -2,7 +2,7 @@ import {bounty, BOUNTY_STATUSES, counted, listed} from '../../../../mock/fixture
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
 import BountiesPage from './page'
 
-export default {title: 'Pages/Bounties', ...pageMeta(BountiesPage)}
+export default {title: 'Pages/Bounties/List', ...pageMeta(BountiesPage)}
 
 const list = (rows: object[], page = '1') => pageStory({bounties: listed(rows), bountiesConnection: counted(rows)}, {searchParams: {page}})
 

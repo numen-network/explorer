@@ -3,7 +3,7 @@ import {Card} from '@/components/ui/card'
 import {WellKnownProvider} from '@/components/wellKnown'
 import type {TransferRow} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
-import {accountTransferCases, accountTransfers, CHAIN, PRIME_KEY, SUBJECT} from '../../../../mock/fixtures/accounts.js'
+import {accountTransferCases, CHAIN, PRIME_KEY, SUBJECT} from '../../../../mock/fixtures/accounts.js'
 import {TransfersTable} from './TransfersTable'
 
 const wellKnown: Decorator = Story => (
@@ -12,7 +12,7 @@ const wellKnown: Decorator = Story => (
     </WellKnownProvider>
 )
 
-const meta = {title: 'Components/Account/TransfersTable', decorators: [wellKnown]} satisfies Meta
+const meta = {title: 'Pages/Account/Transfers | Native', decorators: [wellKnown]} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -21,13 +21,5 @@ const table = (rows: TransferRow[], filtered?: boolean) => (
         <TransfersTable rows={rows} hex={SUBJECT} chain={CHAIN} filtered={filtered} />
     </Card>
 )
-
-export const Empty: Story = {render: () => table([])}
-
-export const FilteredEmpty: Story = {render: () => table([], true)}
-
-export const One: Story = {render: () => table(accountTransfers(1))}
-
-export const Many: Story = {render: () => table(accountTransfers(20))}
 
 export const EdgeCases: Story = {render: () => table(accountTransferCases())}

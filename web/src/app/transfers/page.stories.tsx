@@ -12,7 +12,7 @@ const wellKnown: Decorator = Story => (
     </WellKnownProvider>
 )
 
-export default {title: 'Pages/Transfers', ...pageMeta(TransfersPage), decorators: [wellKnown]}
+export default {title: 'Pages/Transfers/List', ...pageMeta(TransfersPage), decorators: [wellKnown]}
 
 const list = (transfers: object[], total = transfers.length) => pageStory({transfers, transfersConnection: {totalCount: total}})
 

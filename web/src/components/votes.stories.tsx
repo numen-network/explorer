@@ -9,7 +9,7 @@ import {MAX_U128} from '../../../mock/fixtures/accounts.js'
 import {anon, CHAIN} from '../../../mock/fixtures/governance.js'
 import VoteLists, {type Delegator, type SplitEntry, type VoteEntry, type VoteGroup, type VoteRows} from './votes'
 
-const meta = {title: 'Components/VoteLists'} satisfies Meta
+const meta = {title: 'Pages/Referendum/Votes'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -61,10 +61,6 @@ const many = Array.from({length: 10}, (_, i) => delegator(i === 2 ? person(7) : 
 const ayes = [vote(3, '0.1x', 500_000), vote(0, '2x', 400_000, many, 13), vote(1, '1x', 300_000, few)]
 const every = groups('Aye', 3, 2, 1, 1)
 
-export const NoVotes = lists(groups('Aye', 0, 0, 0), standard([]))
-
-export const OneVote = lists(groups('Aye', 1, 0, 0), standard([vote(0, '3x', 1_000_000)]))
-
 export const EveryGroup = lists(every, standard(ayes))
 
 export const NayGroupSelected = lists(groups('Nay', 3, 2, 1, 1), standard([vote(4, '4x', 300_000), vote(7, '6x', 1_000)]))
@@ -72,8 +68,6 @@ export const NayGroupSelected = lists(groups('Nay', 3, 2, 1, 1), standard([vote(
 export const SplitGroupSelected = lists(groups('Split', 3, 2, 1, 1), splits(['Aye', 'Nay'], [splitVote(6, 100_000, 50_000)]))
 
 export const AbstainGroupSelected = lists(groups('Abstain', 3, 2, 1, 1), splits(['Abstain', 'Aye', 'Nay'], [splitVote(5, 200_000, 20_000, 20_000)]))
-
-export const EmptyGroupSelected = lists(groups('Abstain', 1, 0, 0), splits(['Abstain', 'Aye', 'Nay'], []))
 
 export const MoreThanOnePage = lists(groups('Aye', 250, 0, 0), standard(Array.from({length: 20}, (_, i) => vote(i, `${i % 7}x`, 500_000 - i * 20_000))))
 

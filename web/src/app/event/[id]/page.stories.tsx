@@ -3,7 +3,7 @@ import {busy, mined, sessionStart, timestampSet} from '../../../../../mock/fixtu
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import EventPage from './page'
 
-export default {title: 'Pages/Event', ...pageMeta(EventPage)}
+export default {title: 'Pages/Event/Overview', ...pageMeta(EventPage)}
 
 type Row = ReturnType<typeof busy>['events'][number]
 

@@ -6,7 +6,7 @@ import {CHAIN, EVERY_PAYOUT, payouts} from '../../../../mock/fixtures/accounts.j
 import {columnTexts} from '../../../.storybook/fit'
 import {TreasuryTable} from './TreasuryTable'
 
-const meta = {title: 'Components/Account/TreasuryTable'} satisfies Meta
+const meta = {title: 'Pages/Account/Governance | Treasury'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -29,7 +29,7 @@ export const FilteredEmpty: Story = {
 export const One: Story = {render: () => table(payouts(1))}
 
 // each source paying each role, a spend_local with no referendum and a bounty and a child without a description
-export const EverySource: Story = {
+export const EverySourceAndRole: Story = {
     render: () => table(EVERY_PAYOUT as TreasuryPayoutRow[]),
     play: async ({canvasElement}) => {
         expect(columnTexts(canvasElement, 'Source')).toEqual([
@@ -46,5 +46,3 @@ export const EverySource: Story = {
         expect(columnTexts(canvasElement, 'Amount')).toEqual(['20,000 NUMN', '500 NUMN', '4,500 NUMN', '380 NUMN', '25 NUMN', '1,200 NUMN', '2,000 NUMN'])
     },
 }
-
-export const Many: Story = {render: () => table(payouts(20))}

@@ -8,7 +8,7 @@ import {CHAIN, SUBJECT, vote, voteRows} from '../../../../mock/fixtures/accounts
 import {columnTexts} from '../../../.storybook/fit'
 import {VotesTable} from './VotesTable'
 
-const meta = {title: 'Components/Account/VotesTable'} satisfies Meta
+const meta = {title: 'Pages/Account/Governance | Votes'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -39,8 +39,6 @@ const expand = (index: number) => async ({canvasElement, userEvent}: {canvasElem
 const EVERY_KIND_DELEGATIONS = {6: [counted(1, 'Locked3x', 1_500)], 10: [counted(2, 'Locked2x', 3_000), counted(3, 'Locked4x', 1_500)]}
 
 export const Empty: Story = {render: () => table([])}
-
-export const One: Story = {render: () => table([vote(0)])}
 
 // aye, nay, split and abstain, every conviction, each phase a referendum ends in, one untitled and one removed
 export const EveryKind: Story = {

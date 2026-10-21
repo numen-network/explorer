@@ -1,12 +1,11 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, screen, userEvent, within} from 'storybook/test'
-import {shortHash} from '@/lib/format'
 import type {AccountRow} from '@/lib/gql'
 import {CHAIN, FULL_FIELDS, subject, subUnder} from '../../../../mock/fixtures/accounts.js'
-import {hashOf, identity, PEOPLE} from '../../../../mock/fixtures.js'
+import {identity, PEOPLE} from '../../../../mock/fixtures.js'
 import Identity from './Identity'
 
-const meta = {title: 'Components/Account/Identity'} satisfies Meta
+const meta = {title: 'Pages/Account/Identity | Direct'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -62,19 +61,5 @@ export const BioFullOnly: Story = {
 }
 
 export const DisplayOnly: Story = {render: () => card(identity('Aurora Labs'))}
-
-export const SubOnly: Story = {render: () => card(polarisSub)}
-
-export const SubWithOwnRegistration: Story = {render: () => card({...identity('Aurora Payouts'), ...polarisSub})}
-
-export const WithoutDisplay: Story = {
-    render: () => card(identity(null, FULL_FIELDS)),
-    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Display')).toBe('—'),
-}
-
-export const SubFiledUnderAHash: Story = {
-    render: () => card({...polarisSub, identitySubName: null, identitySubData: {__kind: 'BlakeTwo256', value: hashOf('sub', 1)}}),
-    play: async ({canvasElement}) => expect(rowValue(canvasElement, 'Display')).toBe(`Polaris Guild/BlakeTwo256 ${shortHash(hashOf('sub', 1))}`),
-}
 
 export const SubWithoutAName: Story = {render: () => card({...polarisSub, identitySubName: null, identitySubData: {__kind: 'None'}})}

@@ -6,7 +6,7 @@ import {numn} from '../../../../mock/fixtures.js'
 import {CHAIN, REGISTRARS, VERDICTS} from '../../../../mock/fixtures/accounts.js'
 import {ReceivedJudgementsTable, type ReceivedJudgement} from './ReceivedJudgementsTable'
 
-const meta = {title: 'Components/Account/ReceivedJudgementsTable'} satisfies Meta
+const meta = {title: 'Pages/Account/Identity | Judgements'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -24,7 +24,7 @@ const cells = (root: HTMLElement, registrar: number) => [...within(root).getByTe
 export const One: Story = {render: () => table([verdict(0, 'Reasonable')])}
 
 // registrar 3 is retired and holds the fee paid to it
-export const EveryVerdict: Story = {
+export const RetiredRegistrar: Story = {
     render: () => table(VERDICTS.map((kind, i) => verdict(i, kind))),
     play: async ({canvasElement}) => {
         expect(cells(canvasElement, 0)).toEqual(['#0Polaris Guild', 'KnownGood', '—'])

@@ -5,7 +5,7 @@ import {CHAIN} from '../../../../mock/fixtures/accounts.js'
 import {account, PEOPLE} from '../../../../mock/fixtures.js'
 import {SignatoryTable} from './SignatoryTable'
 
-const meta = {title: 'Components/Account/SignatoryTable'} satisfies Meta
+const meta = {title: 'Pages/Account/Multisig | As a multisig address'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -15,11 +15,11 @@ const table = (rows: SignatoryRow[]) => (
     </Card>
 )
 
-export const Empty: Story = {render: () => table([])}
+export const SignatoriesEmpty: Story = {render: () => table([])}
 
-export const One: Story = {render: () => table([{account: PEOPLE[0], approved: 12, opened: 3}])}
+export const SignatoriesOne: Story = {render: () => table([{account: PEOPLE[0], approved: 12, opened: 3}])}
 
 // the last signatory never acted on chain, so it has no account row to name it
-export const Many: Story = {
+export const SignatoriesMany: Story = {
     render: () => table([...PEOPLE.slice(0, 4).map((p, i) => ({account: p, approved: 40 - i * 9, opened: 4 - i})), {account: {id: account(99), identityDisplay: null}, approved: 0, opened: 0}]),
 }

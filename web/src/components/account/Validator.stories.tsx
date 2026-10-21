@@ -5,48 +5,20 @@ import {columnTexts} from '../../../.storybook/fit'
 import {ValidatorTile} from './Validator'
 import {ValidatorOffencesTable} from './ValidatorOffencesTable'
 
-const meta = {title: 'Components/Account/Validator'} satisfies Meta
+const meta = {title: 'Pages/Account/Validator | Offences'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
 const figure = (root: HTMLElement, label: string) => [...root.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === label)!.nextElementSibling!.textContent
 
-export const NoOffences: Story = {
-    render: () => <ValidatorTile v={validatorRow()} offline={0} equivocations={0} chain={CHAIN} />,
-    play: async ({canvasElement}) => {
-        await expect(figure(canvasElement, 'Offline (30d)')).toBe('0')
-        await expect(figure(canvasElement, 'Equivocations (30d)')).toBe('0')
-    },
-}
-
-// jJFU missed two heartbeats on mainnet within the window
-export const OfflineInWindow: Story = {
-    render: () => <ValidatorTile v={validatorRow()} offline={2} equivocations={0} chain={CHAIN} />,
-    play: async ({canvasElement}) => expect(figure(canvasElement, 'Offline (30d)')).toBe('2'),
-}
-
-export const OfflineAndEquivocation: Story = {
-    render: () => <ValidatorTile v={validatorRow()} offline={2} equivocations={1} chain={CHAIN} />,
-    play: async ({canvasElement}) => expect(figure(canvasElement, 'Equivocations (30d)')).toBe('1'),
-}
-
-export const Inactive: Story = {render: () => <ValidatorTile v={validatorRow({active: false, lockedAmount: '0', lockExpiry: null})} offline={0} equivocations={0} chain={CHAIN} />}
-
 // locked but yet to sit in an active set, so there is no last session
-export const NeverActive: Story = {
+export const TileNeverActive: Story = {
     render: () => <ValidatorTile v={validatorRow({active: false, lastActiveSession: null})} offline={0} equivocations={0} chain={CHAIN} />,
     play: async ({canvasElement}) => expect(figure(canvasElement, 'Last active session')).toBe('—'),
 }
 
-export const KickedOffline: Story = {render: () => <ValidatorTile v={validatorRow({active: false, kicked: {__kind: 'Offline'}})} offline={2} equivocations={0} chain={CHAIN} />}
-
-export const KickedEquivocation: Story = {
+export const TileKickedEquivocation: Story = {
     render: () => <ValidatorTile v={validatorRow({active: false, kicked: {__kind: 'Equivocation'}, lastActiveSession: 2_147_483_647})} offline={0} equivocations={1} chain={CHAIN} />,
-}
-
-export const OffencesNone: Story = {
-    render: () => <ValidatorOffencesTable rows={[]} />,
-    play: async ({canvas}) => expect(canvas.getByText('No offences yet.')).toBeVisible(),
 }
 
 export const OffencesOffline: Story = {

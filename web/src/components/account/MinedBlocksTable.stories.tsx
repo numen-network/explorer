@@ -6,7 +6,7 @@ import {CHAIN, minedBlockRows} from '../../../../mock/fixtures/accounts.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {MinedBlocksTable} from './MinedBlocksTable'
 
-const meta = {title: 'Components/Account/MinedBlocksTable'} satisfies Meta
+const meta = {title: 'Pages/Account/Mining'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -16,12 +16,10 @@ const table = (rows: MinedBlockRow[]) => (
     </Card>
 )
 
-export const Empty: Story = {render: () => table([])}
-
-export const One: Story = {render: () => table(minedBlockRows(1))}
+export const BlocksEmpty: Story = {render: () => table([])}
 
 // the mint and the fee share in their own columns, fees on every other block
-export const Many: Story = {
+export const BlocksMany: Story = {
     render: () => table(minedBlockRows(20)),
     play: async ({canvasElement}) => {
         await expect(columnTexts(canvasElement, 'Production reward')).toContain(`150 ${CHAIN.symbol}`)

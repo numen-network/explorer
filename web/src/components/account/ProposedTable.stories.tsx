@@ -2,11 +2,11 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import type {ProposedRow} from '@/lib/gql'
-import {CHAIN, EVERY_REFUND, proposals} from '../../../../mock/fixtures/accounts.js'
+import {CHAIN, EVERY_REFUND} from '../../../../mock/fixtures/accounts.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {ProposedTable} from './ProposedTable'
 
-const meta = {title: 'Components/Account/ProposedTable'} satisfies Meta
+const meta = {title: 'Pages/Account/Governance | Proposed'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -17,8 +17,6 @@ const table = (rows: ProposedRow[]) => (
 )
 
 export const Empty: Story = {render: () => table([])}
-
-export const One: Story = {render: () => table(proposals(1))}
 
 // held on an open referendum, claimable, kept for good after a rejection, slashed by a kill, refunded, and a referendum without a title
 export const EveryRefund: Story = {
@@ -31,5 +29,3 @@ export const EveryRefund: Story = {
         expect(columnTexts(canvasElement, 'Track')).toEqual(['Small Spender', 'Small Spender', 'Small Spender', 'Treasurer', 'Big Spender'])
     },
 }
-
-export const Many: Story = {render: () => table(proposals(20))}

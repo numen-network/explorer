@@ -8,7 +8,7 @@ import {axesLegible, lastTooltipLines, tooltipsInView} from '../../.storybook/fi
 import {CurvesChart, type TallyStep} from './charts'
 import {Card} from './ui/card'
 
-const meta = {title: 'Components/CurvesChart'} satisfies Meta
+const meta = {title: 'Pages/Referendum/Curves'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -65,7 +65,7 @@ const SMALL = {approval: linear(25e7, 5e8, 1e9), support: reciprocal('3846922', 
 const MEDIUM = {approval: linear(5e8, 5e8, 1e9), support: reciprocal('5846821', '11734029', '1720990')}
 const BIG = {approval: linear(1e9, 5e8, 1e9), support: reciprocal('7901235', '15873016', '2222222')}
 
-export const DecidingBelowCurves = chart({
+export const ChartDecidingBelowCurves = chart({
     ...BIG,
     zero: 951_440,
     submitted: 950_000,
@@ -79,7 +79,7 @@ export const DecidingBelowCurves = chart({
     open: true,
 })
 
-export const ConfirmingEndsEarly = chart({
+export const ChartConfirmingEndsEarly = chart({
     ...MEDIUM,
     zero: 961_440,
     submitted: 960_000,
@@ -94,7 +94,7 @@ export const ConfirmingEndsEarly = chart({
     confirmations: [[990_000, 1_015_920]],
 })
 
-export const TwoConfirmationsEndedEarly = chart({
+export const ChartTwoConfirmationsEndedEarly = chart({
     ...SMALL,
     zero: 701_440,
     submitted: 700_000,
@@ -113,7 +113,7 @@ export const TwoConfirmationsEndedEarly = chart({
     ended: 743_640,
 })
 
-export const WaitingForDecisionDeposit = chart({
+export const ChartWaitingForDecisionDeposit = chart({
     ...MEDIUM,
     zero: HEAD,
     submitted: 940_000,
@@ -126,9 +126,9 @@ export const WaitingForDecisionDeposit = chart({
     open: true,
 })
 
-export const NoVotesYet = chart({...SMALL, zero: 1_000_840, submitted: 999_400, started: false, tally: [], open: true})
+export const ChartNoVotesYet = chart({...SMALL, zero: 1_000_840, submitted: 999_400, started: false, tally: [], open: true})
 
-export const RejectedAtEndOfPeriod = chart({
+export const ChartRejectedAtEndOfPeriod = chart({
     ...MEDIUM,
     zero: 301_440,
     submitted: 300_000,
@@ -143,12 +143,12 @@ export const RejectedAtEndOfPeriod = chart({
 })
 
 // the tally runs to the end of the period, so readings list all four lines
-export const RejectedAtEndOfPeriodTooltip: Story = {...RejectedAtEndOfPeriod, play: tooltipsInView}
+export const ChartRejectedAtEndOfPeriodTooltip: Story = {...ChartRejectedAtEndOfPeriod, play: tooltipsInView}
 
 const AYES = 52_000_000n * 10n ** 18n
 
 // one planck of nay against 52M of aye keeps the reading short of 100%
-export const SliverOfNay: Story = {
+export const ChartSliverOfNay: Story = {
     ...chart({
         ...MEDIUM,
         zero: 961_440,

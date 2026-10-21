@@ -5,7 +5,7 @@ import {expectAddressForm} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import MinersPage from './page'
 
-export default {title: 'Pages/Miners', ...pageMeta(MinersPage)}
+export default {title: 'Pages/Miners/List', ...pageMeta(MinersPage)}
 
 const DAY_MS = 86_400_000
 const REWARD = 150
@@ -23,18 +23,18 @@ const dailyRows = (dayCount: number, minerCount: number) =>
 
 const minersIn = (w: string, rows: object[]) => pageStory({minerDayStats: rows}, {searchParams: {w}})
 
-export const MinersEmpty = minersIn('24h', [])
+export const Empty = minersIn('24h', [])
 
-export const MinersOne = minersIn('24h', [minerDay(miner(0), 0, 4_210)])
+export const One = minersIn('24h', [minerDay(miner(0), 0, 4_210)])
 
-export const MinersMany = minersIn('24h', Array.from({length: 40}, (_, i) => minerDay(miner(i), 0, 340 - i * 8)))
+export const Many = minersIn('24h', Array.from({length: 40}, (_, i) => minerDay(miner(i), 0, 340 - i * 8)))
 
-export const MinersWeek: StoryObj = {...minersIn('7d', dailyRows(7, 12)), play: async ({canvasElement}) => expectAddressForm(canvasElement)}
+export const Week: StoryObj = {...minersIn('7d', dailyRows(7, 12)), play: async ({canvasElement}) => expectAddressForm(canvasElement)}
 
-export const MinersMonth = minersIn('30d', dailyRows(30, 12))
+export const Month = minersIn('30d', dailyRows(30, 12))
 
 // one miner holds every block but one, the other holds that one
-export const MinersExtremeCounts: StoryObj = {
+export const ExtremeCounts: StoryObj = {
     ...minersIn('24h', [minerDay(WIDEST, 0, INT_MAX, U128_MAX), minerDay(WIDEST, 1, INT_MAX), minerDay(miner(2), 0, 1, '0')]),
     play: async ({canvasElement}) => {
         const shares = [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].map(row => row.cells[3].textContent)
@@ -49,7 +49,7 @@ const REBUILT = [1_989, 1_143, 1_096, 912, 293, 82, 37, 11, 7, 6, 3, 3, 2, 2, 1,
 const rebuiltRows = REBUILT.map((blocks, i) => ({day: '2026-09-14', blocks, rewards: numn(blocks * 16), account: miner(i)}))
 
 // the window runs back from the newest indexed block, not from today
-export const MinersIndexBehind: StoryObj = {
+export const IndexBehind: StoryObj = {
     ...pageStory(
         {
             chainInfos: [{...chainInfo, head: 220_095, finalizedHead: 220_090}],
