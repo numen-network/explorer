@@ -14,14 +14,15 @@ const LABEL = 'w-20 shrink-0 text-muted-foreground'
 // names the super it hangs under
 function Registration({a, chain}: {a: AccountRow; chain: ChainProps}) {
     const json = a.identityJson
-    const bio = splitBio(json).short || null
+    const {short, full} = splitBio(json)
+    const bio = short || null
     return (
         <div className="grid grid-cols-[minmax(0,1fr)] sm:grid-cols-2">
             {identityRows(json).map(({key, label, value}, i) => (
                 <div key={key} className={`${ROW} ${i > 0 ? 'border-t' : ''} ${i === 1 ? 'sm:border-t-0' : ''} sm:odd:border-r`}>
                     <div className={LABEL}>{label}</div>
                     <div className="min-w-0 flex-1 truncate font-mono">{(key === 'bio' ? bio : value) ?? NONE}</div>
-                    {key === 'bio' && <BioDialog acc={a} addr={ss58Encode(a.id, chain.ss58)} size="icon-xs" className="-my-1 shrink-0" />}
+                    {key === 'bio' && full && <BioDialog acc={a} addr={ss58Encode(a.id, chain.ss58)} size="icon-xs" className="-my-1 shrink-0" />}
                 </div>
             ))}
         </div>

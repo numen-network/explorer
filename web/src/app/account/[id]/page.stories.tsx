@@ -1,6 +1,6 @@
 import type {Decorator, StoryObj} from '@storybook/nextjs-vite'
 import * as echarts from 'echarts'
-import {expect, userEvent, waitFor, within} from 'storybook/test'
+import {expect, screen, userEvent, waitFor, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {fmtSpan, shortHash} from '@/lib/format'
 import {ss58Encode} from '@/lib/ss58'
@@ -117,7 +117,8 @@ const lock = (id: string, amount: string) => ({id, amount, reasons: id === 'vali
 const schedule = (locked: number, perBlock: number, startingBlock: number) => ({locked: numn(locked), perBlock: numn(perBlock), startingBlock})
 
 const heading = (root: HTMLElement) => within(root).getByRole('heading', {level: 1}).textContent
-const addressLine = (root: HTMLElement) => within(root).getByRole('heading', {level: 1}).nextElementSibling!.textContent
+const headerOf = (root: HTMLElement) => within(root).getByRole('heading', {level: 1}).parentElement!.parentElement!
+const addressLine = (root: HTMLElement) => within(root).getByRole('heading', {level: 1}).parentElement!.nextElementSibling!.textContent
 // the tab slugs of a group's strip, in the order they show
 const subTabs = (root: HTMLElement, group: string) =>
     within(within(root).getByRole('navigation', {name: group}))
@@ -141,7 +142,23 @@ export const NotActivated: StoryObj = {
 
 export const IdentityFull: StoryObj = {
     ...story({account: named(identity('Aurora Labs', FULL_FIELDS)), transfers: accountTransfers(3)}, {tab: 'direct'}),
-    play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Aurora Labs'),
+    play: async ({canvasElement}) => {
+        expect(heading(canvasElement)).toBe('Aurora Labs')
+        expect(within(headerOf(canvasElement)).getByRole('button', {name: 'Bio'})).toBeVisible()
+    },
+}
+
+const BIOGRAPHED = {...AURORA, bio: 'Validator operator since genesis.\n## Votes\n- **Root** and Treasurer tracks'}
+
+// the header carries the first line of the bio, the rest opens behind its button
+export const IdentityBio: StoryObj = {
+    ...story({account: named(identity('Aurora Labs', BIOGRAPHED)), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => {
+        const header = headerOf(canvasElement)
+        expect(within(header).getByText('Validator operator since genesis.')).toBeVisible()
+        await userEvent.click(within(header).getByRole('button', {name: 'Bio'}))
+        expect(within(await screen.findByRole('dialog')).getByRole('heading', {name: 'Votes'})).toBeInTheDocument()
+    },
 }
 
 const PICTURED = {...AURORA, avatar: `${AVATAR_HOST}/aurora.png`}
@@ -150,13 +167,16 @@ const PICTURED = {...AURORA, avatar: `${AVATAR_HOST}/aurora.png`}
 export const IdentityAvatar: StoryObj = {
     ...pageStory(build({account: named(identity('Aurora Labs', PICTURED)), transfers: accountTransfers(3)}), {params: {id: SUBJECT}, msw: [avatars]}),
     play: async ({canvasElement}) => {
-        const header = within(canvasElement).getByRole('heading', {level: 1}).parentElement!.parentElement!
+        const header = within(canvasElement).getByRole('heading', {level: 1}).parentElement!.parentElement!.parentElement!
         await userEvent.click(await within(header).findByRole('button', {name: 'Show identicon'}))
         expect(within(header).getByRole('button', {name: 'Show avatar'})).toBeInTheDocument()
     },
 }
 
-export const IdentityDisplayOnly = story({account: named(identity('Aurora Labs')), transfers: accountTransfers(3)}, {tab: 'direct'})
+export const IdentityDisplayOnly: StoryObj = {
+    ...story({account: named(identity('Aurora Labs')), transfers: accountTransfers(3)}, {tab: 'direct'}),
+    play: async ({canvasElement}) => expect(within(headerOf(canvasElement)).queryByRole('button', {name: 'Bio'})).toBeNull(),
+}
 
 export const IdentityUnjudged: StoryObj = {
     ...story({account: named(identity('Aurora Labs', {judgements: []})), transfers: accountTransfers(3)}, {tab: 'direct'}),

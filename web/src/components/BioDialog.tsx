@@ -10,13 +10,10 @@ import Socials from '@/components/Socials'
 import {Button} from '@/components/ui/button'
 import {Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 import {Separator} from '@/components/ui/separator'
-import type {AccountRef} from '@/lib/gql'
-import {splitBio} from '@/lib/identity'
+import {splitBio, type IdentityRef} from '@/lib/identity'
 
-// renders nothing when the bio has no full part
-export default function BioDialog({acc, addr, size = 'icon', className}: {acc: AccountRef; addr: string; size?: 'icon' | 'icon-xs'; className?: string}) {
+export default function BioDialog({acc, addr, size = 'icon', className}: {acc: IdentityRef & {id: string}; addr: string; size?: 'icon' | 'icon-xs'; className?: string}) {
     const {short, full} = splitBio(acc.identityJson)
-    if (!full) return null
     return (
         <Dialog>
             <DialogTrigger asChild>
@@ -45,8 +42,12 @@ export default function BioDialog({acc, addr, size = 'icon', className}: {acc: A
                     )}
                     <Socials json={acc.identityJson} />
                 </div>
-                <Separator />
-                <Markdown text={full} />
+                {full && (
+                    <>
+                        <Separator />
+                        <Markdown text={full} />
+                    </>
+                )}
             </DialogContent>
         </Dialog>
     )

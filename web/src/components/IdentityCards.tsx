@@ -44,7 +44,7 @@ export function delegateHref(wallet: string, addr: string): string {
 function IdentityCard({row, chain, wallet}: {row: IdentityRow; chain: ChainProps; wallet: string}) {
     const addr = ss58Encode(row.id, chain.ss58)
     const label = identityLabel(row)
-    const {short} = splitBio(row.identityJson)
+    const {short, full} = splitBio(row.identityJson)
     return (
         <Card className="row-span-4 mb-4 grid grid-rows-subgrid gap-0 py-0">
             <div className="flex min-w-0 flex-wrap items-center gap-3 px-5 pt-[18px]">
@@ -70,7 +70,7 @@ function IdentityCard({row, chain, wallet}: {row: IdentityRow; chain: ChainProps
                             Delegate
                         </a>
                     </Button>
-                    <BioDialog acc={row} addr={addr} />
+                    {full && <BioDialog acc={row} addr={addr} />}
                 </div>
             </div>
             <p dir="auto" className={cn('truncate px-5 text-[13px] leading-5 text-muted-foreground', short && 'mt-3')}>{short}</p>
