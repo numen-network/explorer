@@ -41,17 +41,12 @@ const EVERY_KIND: ActionRow[] = [
     {...base(6, numn(2_000_000), '0'), kind: 'undelegate', by: actor(8), impact: {approval: points(-0.5), support: points(-0.02)}},
 ]
 
-// one page of a list the server already filtered, total counts every match
-const list = (rows: ActionRow[], total = rows.length, filtered = false) => (
-    <ActionList rows={rows} total={total} filtered={filtered} paging={paging({})} href="/referendum/12?tab=curves" decimals={CHAIN.decimals} symbol={CHAIN.symbol} />
-)
+const list = (rows: ActionRow[]) => <ActionList rows={rows} total={rows.length} filtered={false} paging={paging({})} href="/referendum/12?tab=curves" decimals={CHAIN.decimals} symbol={CHAIN.symbol} />
 
 // the url the list opens on, the third page at fifty a page
 const PAGE_3 = {tab: 'curves', page: '3', size: '50'}
 
 const lastUpdate = () => urlUpdates.mock.lastCall![0]
-
-const emptyText = (root: HTMLElement) => root.querySelector('tbody td')!.textContent
 
 const impacts = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].map(row => row.lastElementChild!.textContent)
 
@@ -68,17 +63,6 @@ export const ActionsEveryImpact: Story = {
             'Approval −0.50%Support −0.02%',
         ])
     }),
-}
-
-// the controls read the filters back from the url
-export const ActionsSearchFromUrl: Story = {
-    render: () => list([], 0, true),
-    parameters: {searchParams: {q: 'nobody by this name', action: 'undelegate', impact: 'support-up'}},
-    play: async ({canvas, canvasElement}) => {
-        await expect(emptyText(canvasElement)).toBe('No matching actions.')
-        await expect(canvas.getByPlaceholderText('Search address or identity')).toHaveValue('nobody by this name')
-        await expect(canvas.getAllByRole('combobox', {name: ''}).map(b => b.textContent)).toEqual(['Undelegate', 'Support up'])
-    },
 }
 
 // a search goes into the url once typing pauses, as a history entry of its

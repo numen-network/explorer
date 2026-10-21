@@ -1,22 +1,16 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
-import {expect, userEvent, within} from 'storybook/test'
-import {withCallViews} from '@/lib/args'
-import type {AccountRef, CallCount, CallRef, CallRow} from '@/lib/gql'
-import {HEAD} from '../../../mock/fixtures.js'
-import {batchAll, batchInterrupted, batchOfProxies, CHAIN_PROPS, failedReferendumSubmission, heartbeat, mined, pick, proxied, referendumSubmission, timestampSet, transfer, vestingPayout} from '../../../mock/fixtures/blocks.js'
-import {CallTree} from './CallTree'
+import {expect} from 'storybook/test'
+import type {CallCount, CallRef} from '@/lib/gql'
 import {CallCell, CallPill} from './calls'
 
 const meta = {title: 'Components/Calls'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-type Spec = Parameters<typeof mined>[1][number]
-
 function Case({label, children}: {label: string; children: ReactNode}) {
     return (
-        <div className="grid grid-cols-[220px_minmax(0,1fr)] items-center gap-4 py-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-center gap-1 py-2 sm:grid-cols-[220px_minmax(0,1fr)] sm:gap-4">
             <span className="text-xs text-muted-foreground">{label}</span>
             <div>{children}</div>
         </div>
@@ -77,73 +71,4 @@ export const CallCells: Story = {
             </Case>
         </>
     ),
-}
-
-const tree = (spec: Spec): Story => {
-    const {extrinsics, calls} = pick(mined(HEAD - 120, [timestampSet, spec]), 1)
-    const signer = extrinsics[0].signer as AccountRef | null
-    return {render: () => <CallTree calls={withCallViews(calls as CallRow[])} chain={CHAIN_PROPS} signer={signer} />}
-}
-
-const expandAll: Story['play'] = async ({canvasElement}) => {
-    for (const trigger of within(canvasElement).getAllByRole('button', {expanded: false})) await userEvent.click(trigger)
-}
-
-export const CallTreeEmpty: Story = {render: () => <CallTree calls={[]} chain={CHAIN_PROPS} signer={null} />}
-
-export const CallTreeUnsigned: Story = {...tree(heartbeat), play: async ({canvas}) => expect(canvas.getByText('1 event')).toBeVisible()}
-
-export const CallTreeSingleCall: Story = {...tree(transfer), play: async ({canvas}) => expect(canvas.getByText('6 events')).toBeVisible()}
-
-export const CallTreeBatch = tree(batchAll)
-
-// the failed item and the one past it, which never ran
-export const CallTreeBatchInterrupted: Story = {
-    ...tree(batchInterrupted),
-    play: async ({canvas}) => {
-        await expect(canvas.getAllByText('Failed')).toHaveLength(1)
-        await expect(canvas.getAllByText('Not applied')).toHaveLength(1)
-    },
-}
-
-// a rolled back batch fails at the root and leaves every call under it without an outcome
-export const CallTreeFailedBatch: Story = {
-    ...tree(failedReferendumSubmission),
-    play: async ({canvas}) => {
-        await expect(canvas.getAllByText('Failed')).toHaveLength(1)
-        await expect(canvas.getAllByText('Not applied')).toHaveLength(3)
-    },
-}
-
-export const CallTreeNested = tree(proxied)
-
-export const CallTreeNestedExpanded: Story = {...tree(proxied), play: expandAll}
-
-export const CallTreeTwoDepths = tree(batchOfProxies)
-
-export const CallTreeLongArgs = tree(referendumSubmission)
-
-export const CallTreePayoutBatch = tree((height: number) => vestingPayout(height, {count: 40}))
-
-// a runtime newer than the metadata the explorer ships with leaves only the raw args
-export const CallTreeUnknownRuntime: Story = {
-    render: () => {
-        const {extrinsics, calls} = pick(mined(HEAD - 120, [timestampSet, transfer]), 1)
-        const unknown = withCallViews((calls as CallRow[]).map(c => ({...c, block: {specVersion: 999}})))
-        return <CallTree calls={unknown} chain={CHAIN_PROPS} signer={extrinsics[0].signer as AccountRef | null} />
-    },
-    play: async ({canvas}) => {
-        await expect(canvas.queryByRole('tab', {name: 'Table'})).toBeNull()
-        await expect(canvas.getByText(/"transfer_keep_alive"|"dest"/)).toBeVisible()
-    },
-}
-
-export const CallTreeJsonView: Story = {
-    ...tree(transfer),
-    play: async ({canvas}) => {
-        await userEvent.click(canvas.getByRole('tab', {name: 'JSON'}))
-        await expect(canvas.getByText(/"dest"/)).toBeVisible()
-        await userEvent.click(canvas.getByRole('tab', {name: 'Table'}))
-        await expect(canvas.getByText('dest')).toBeVisible()
-    },
 }

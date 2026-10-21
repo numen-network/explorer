@@ -29,7 +29,7 @@ const framed: Story['play'] = async ({canvasElement}) => {
     for (const margins of await drawnMargins(canvasElement, 2)) expect(Object.entries(margins).filter(([, px]) => px === 0)).toEqual([])
 }
 
-export const Rock: Story = {render: () => <Sizes vertices={minedObject(9, PROTOCOL).vertices} />, play: framed}
+export const RoundObject: Story = {render: () => <Sizes vertices={minedObject(9, PROTOCOL).vertices} />, play: framed}
 
 // three times as tall as it is wide, its top leaning toward the camera
 export const LongObject: Story = {render: () => <Sizes vertices={minedObject(3, PROTOCOL, [0.7, 2.2, 0.7]).vertices} />, play: framed}

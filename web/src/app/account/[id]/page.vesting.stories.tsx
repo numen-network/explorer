@@ -15,8 +15,8 @@ const behind = (spec: Spec, head: {height: number; timestamp: string}, best: num
 
 export const One = story({account: subject({...funds(numn(1_001_250.5), '0', numn(400_000)), vestingJson: [PARTIAL], locksJson: [lock('vesting', numn(400_000))]})}, {tab: 'vesting'})
 
-// the lock still holds what vested since the last vest call
-export const Schedules: StoryObj = {
+// what vested since the last vest call is still in the lock, over a schedule yet to start, one under way and one paid out
+export const ReleasableByVest: StoryObj = {
     ...story(
         {
             account: subject({

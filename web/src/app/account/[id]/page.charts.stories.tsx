@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import * as echarts from 'echarts'
 import {expect, waitFor, within} from 'storybook/test'
-import {accountDayRows, accountTransfers} from '../../../../../mock/fixtures/accounts.js'
+import {accountDayRows} from '../../../../../mock/fixtures/accounts.js'
 import {all, axesLegible, categoriesIn, lastTooltipLines, lonePointsPainted, pixelAt, tooltipsInView, plotLefts} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
@@ -23,14 +23,6 @@ const noteAligned = async (root: HTMLElement, note: string) => {
     await waitFor(() => expect(text.getBoundingClientRect().left + parseFloat(getComputedStyle(text).paddingLeft) - chart.getBoundingClientRect().left).toBeCloseTo(plotLefts(root)[0], 0))
 }
 const chartViews = (root: HTMLElement) => within(within(root).getByRole('navigation', {name: 'Chart'})).getAllByRole('link')
-
-export const None: StoryObj = {
-    ...story({transfers: accountTransfers(3)}),
-    play: async ({canvasElement}) => {
-        await within(canvasElement).findByRole('navigation', {name: 'Account'})
-        expect(within(within(canvasElement).getByRole('navigation', {name: 'Account'})).queryByRole('link', {name: /Charts/})).toBeNull()
-    },
-}
 
 export const Balance: StoryObj = {
     ...charted(),

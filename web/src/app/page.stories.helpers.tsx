@@ -1,8 +1,9 @@
 import {within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
-import {DAILY} from '../../../mock/fixtures/home.js'
-import {HEAD, HEAD_TIME, block, chainInfo, transfer} from '../../../mock/fixtures.js'
-import {type Play, expectFits, expectNoHangingDots, expectOneLine, expectTimesFit} from '../../.storybook/fit'
+import {minedObject, topology} from '../../../mock/fixtures/blocks.js'
+import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
+import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
+import {expectFits, expectNoHangingDots, expectOneLine} from '../../.storybook/fit'
 
 type Day = (typeof DAILY)[number]
 type Window = [total: number, day: number, month: number]
@@ -122,26 +123,93 @@ const manyTransfers = [
 // DAILY rolls with the clock, so the chip the story checks reads a fixed window
 export const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: minedUpTo(HEAD, 5, MANY_FINALIZED), transfers: manyTransfers, referendums: referenda.slice(4, 9), windows: {extrinsics: [89_181, 1_139, 33_800] satisfies Window}}
 
-export const homeFits: Play = async ({canvasElement}) => {
-    expectBlockCardsFit(canvasElement)
-    expectListsFit(canvasElement)
-    expectTimesFit(canvasElement)
+// only genesis is indexed, with no timestamp and no validator row
+export const genesisOnly = {head: 0, days: [], validators: 0}
+
+// the chain one block past genesis, a single row in every list
+export const firstBlock = {
+    head: 1,
+    days: [{...chainDays(1)[0], blocks: 2, extrinsicsSigned: 2, transfers: 1, transferVolume: numn(17), cumExtrinsicsSigned: '2', cumTransfers: '1', cumTransferVolume: numn(17), referendaTotal: 1, accountsTotal: 13}],
+    objects: minedUpTo(1, 5),
+    transfers: [transfer(1, 1, {amount: numn(17), timestamp: timeAt(1, 1)})],
+    referendums: [{...referenda[2], id: '0', index: 0, submittedAt: 1, submittedTimestamp: timeAt(1, 1)}],
 }
 
-// a crowded transfer row keeps its amount whole and cuts its call short, a
-// crowded referendum row squeezes its title and wraps its facts, rather than overflowing
-function expectListsFit(root: HTMLElement) {
-    const rows = (heading: string) => [...within(root).getByRole('heading', {name: heading}).parentElement!.nextElementSibling!.children] as HTMLElement[]
-    expectFits(...rows('Transfers'), ...rows('Referenda').flatMap(row => [row, ...row.querySelectorAll(':scope > * > *')]))
-    expectOneLine(...rows('Transfers').map(row => within(row).getByText(/ NUMN$/)))
+// an upgrade moved mining onto poscan-v2 two blocks ago, so the rail mixes
+// objects of both protocols and each draws on its own protocol's topology
+export const [V1, V2] = [topology(PROTOCOL), topology('poscan-v2')]
+const mixed = minedUpTo(HEAD, 5, MANY_FINALIZED).map((o, i) => ({...o, ...minedObject(o.block.height, i < 2 ? V2.id : V1.id)}))
+export const mixedProtocols = {...home({...many, objects: mixed}), meshTopologies: [V1, V2]}
+
+const FAR = 987_654_321
+const HUGE = '987654321098765432109876543210'
+
+const farDays = DAILY.slice(-31).map((d, i, all) => ({
+    ...d,
+    transfers: d.transfers * 10_000,
+    transferVolume: String(BigInt(d.transferVolume) * 10n ** 6n),
+    ...(i === all.length - 1 && {
+        cumExtrinsicsSigned: '98765432109',
+        cumTransfers: '12345678901',
+        issuanceTotal: HUGE,
+        issuanceInactive: '0',
+        issuanceTransferable: '876543210987654321098765432109',
+        treasuryPot: '0',
+        difficultyClose: '987654321987654',
+    }),
+}))
+
+// the widest figure every part of the page can be handed
+export const far = {
+    head: FAR,
+    days: farDays,
+    objects: minedUpTo(FAR, 5, FAR - 5, height => ({
+        extrinsicCount: 1_234,
+        eventCount: 98_765,
+        author: height === FAR ? null : PEOPLE[(FAR - height) % 2 ? 7 : 8],
+    })),
+    transfers: [
+        transfer(FAR, 1, {amount: '12345678123456789123456789', from: PEOPLE[7], to: PEOPLE[7], timestamp: timeAt(FAR, FAR)}),
+        transfer(FAR, 2, {amount: '1', from: PEOPLE[8], to: PEOPLE[2], timestamp: timeAt(FAR, FAR)}),
+        transfer(FAR - 1, 1, {amount: '549926000123456789012345678', from: TREASURY, call: {pallet: 'Balances', method: 'force_transfer'}, timestamp: timeAt(FAR, FAR - 1)}),
+    ],
+    referendums: [
+        {...referenda[4], id: '123456', index: 123_456, proposalAmount: '199999999999999999999999'},
+        {...referenda[8], id: '123455', index: 123_455},
+    ],
+    validators: 1_000,
+    sessionLength: 14_400,
+    windows: {
+        accounts: [1_234_567_890, 98_765_432, 987_654_321] satisfies Window,
+        miners: [2_147_483_647, 99_999, 1_000_000] satisfies Window,
+        extrinsics: [0, 9_876_543, 987_654_321] satisfies Window,
+        transfers: [0, 1_234_567, 123_456_789] satisfies Window,
+        evm: [2_147_483_647, 98_765_432, 987_654_321] satisfies Window,
+    },
 }
+
+// the card holding the list under heading, and the rows in it
+export const listCard = (root: HTMLElement, heading: string) => within(root).getByRole('heading', {name: heading}).parentElement!.nextElementSibling as HTMLElement
+export const listRows = (root: HTMLElement, heading: string) => [...listCard(root, heading).children] as HTMLElement[]
+
+// a crowded transfer row keeps its amount whole and on one line and cuts its call short rather than overflowing
+export function expectTransfersFit(root: HTMLElement) {
+    const rows = listRows(root, 'Transfers')
+    expectFits(...rows)
+    expectOneLine(...rows.map(row => within(row).getByText(/ NUMN$/)))
+}
+
+// a crowded referendum row squeezes its title and wraps its facts rather than overflowing
+export const expectReferendaFit = (root: HTMLElement) => expectFits(...listRows(root, 'Referenda').flatMap(row => [row, ...row.querySelectorAll(':scope > * > *')]))
+
+export const railOf = (root: HTMLElement) => within(root).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
 
 // every block card keeps its rows inside the card, its age with its status and
 // its miner each on one line and each count whole, with no line ending on a
 // middle dot. a miner's name truncates on its own, its link reaching past the
 // row for a wider hover
-function expectBlockCardsFit(root: HTMLElement) {
-    const rail = within(root).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
+export function expectBlockCardsFit(root: HTMLElement) {
+    const rail = railOf(root)
     const cards = [...rail.querySelectorAll<HTMLElement>('[data-slot=card]')]
     const miners: Element[] = cards.map(card => within(card).getByText('Miner').parentElement!)
     const ages = within(rail).getAllByText(/^\d+[smhd] ago$/).map(age => age.parentElement!)

@@ -19,7 +19,7 @@ const CASES: [label: string, iso: string][] = [
 
 export const EveryRange: Story = {
     render: () => (
-        <dl className="grid w-80 grid-cols-[1fr_auto] gap-x-6 gap-y-2 text-sm">
+        <dl className="grid max-w-80 grid-cols-[1fr_auto] gap-x-6 gap-y-2 text-sm">
             {CASES.map(([label, iso]) => (
                 <div key={label} className="contents">
                     <dt className="text-muted-foreground">{label}</dt>

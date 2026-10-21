@@ -22,9 +22,7 @@ const inExtrinsic = (rows: EventRow[]): Story => ({
     ),
 })
 
-export const Proxied = inExtrinsic(PROXY_EVENTS)
-
-export const RowExpanded: Story = {...inExtrinsic(PROXY_EVENTS), play: opening('Proxy.ProxyExecuted')}
+export const RowExpandedProxyExecuted: Story = {...inExtrinsic(PROXY_EVENTS), play: opening('Proxy.ProxyExecuted')}
 
 export const RowExpandedWithoutArgs: Story = {...inExtrinsic(PROXY_EVENTS), play: opening('Utility.ItemCompleted')}
 

@@ -12,7 +12,7 @@ const seat = (index: number, traits: Partial<RegistrarRow> = {}) => ({...(REGIST
 
 const figure = (root: HTMLElement, label: string) => [...root.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === label)!.nextElementSibling!.textContent
 
-export const Seated: Story = {
+export const IndexAndFee: Story = {
     render: () => <RegistrarTile r={seat(2)} chain={CHAIN} />,
     play: async ({canvasElement}) => {
         await expect(figure(canvasElement, 'Registrar')).toBe('#2')

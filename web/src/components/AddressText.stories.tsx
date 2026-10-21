@@ -39,9 +39,9 @@ export const Full: Story = {
     ),
 }
 
-// a line wraps a full address to fit. a table cell narrower than sm keeps 7…4
-// so the other columns stay in view, a wider column too narrow for the full
-// address splits it at the middle
+// a line wraps a full address to fit. on a screen narrower than sm a table
+// cell keeps 7…4 so the other columns stay in view, on a wider screen a cell
+// too narrow for the full address splits it at the middle
 export const FullInLineAndCell: Story = {
     render: () => (
         <div className="max-w-72 space-y-3 font-mono text-sm">

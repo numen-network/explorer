@@ -1,8 +1,12 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
 import {expect} from 'storybook/test'
+import type {ReferendumRow} from '@/lib/gql'
 import type {Phase} from '@/lib/referendum'
-import {Gauge, StatusBadge, ThresholdBar} from './referenda'
+import {referenda} from '../../../mock/data.js'
+import {CHAIN} from '../../../mock/fixtures/accounts.js'
+import {at, person} from '../../../mock/fixtures.js'
+import {Gauge, ReferendumByline, StatusBadge, StatusTag, ThresholdBar} from './referenda'
 
 const meta = {title: 'Components/Referenda'} satisfies Meta
 export default meta
@@ -20,7 +24,7 @@ function Case({label, children}: {label: string; children: ReactNode}) {
     )
 }
 
-export const StatusBadges: Story = {
+export const EveryPhase: Story = {
     render: () => (
         <div className="flex flex-wrap gap-2">
             {PHASES.map(phase => (
@@ -28,6 +32,57 @@ export const StatusBadges: Story = {
             ))}
         </div>
     ),
+}
+
+// the soft form a table row shows
+export const EveryPhaseTag: Story = {
+    render: () => (
+        <div className="flex flex-wrap gap-2">
+            {PHASES.map(phase => (
+                <StatusTag key={phase} phase={phase} />
+            ))}
+        </div>
+    ),
+}
+
+// the byline reads the submitter, the track, the submission time and the phase
+const REFERENDUM: ReferendumRow = {
+    id: '10',
+    index: 10,
+    origin: null,
+    proposalHash: null,
+    title: null,
+    description: null,
+    proposalPallet: null,
+    proposalMethod: null,
+    proposalPayouts: null,
+    proposalAmount: null,
+    proposalBeneficiary: null,
+    submittedAt: 600_000,
+    submittedTimestamp: at(600_000),
+    status: 'Approved',
+    decidingSince: 669_000,
+    confirmingSince: 690_000,
+    endedAt: 698_640,
+    ayes: '0',
+    nays: '0',
+    support: '0',
+    timeline: null,
+    submitter: person(0),
+    track: referenda[1].track,
+}
+
+export const BylineWithSubmitter: Story = {
+    render: () => <ReferendumByline r={REFERENDUM} chain={CHAIN} />,
+    play: async ({canvasElement}) => expect(canvasElement.querySelector('a[href^="/account/"]')).toHaveTextContent('Polaris Guild'),
+}
+
+export const BylineWithoutSubmitter: Story = {
+    render: () => <ReferendumByline r={{...REFERENDUM, submitter: null}} chain={CHAIN} />,
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvasElement.querySelector('a[href^="/account/"]')).toBeNull()
+        await expect(canvas.getByText('—')).toBeInTheDocument()
+    },
 }
 
 export const SplitGauge: Story = {
@@ -74,7 +129,8 @@ export const SolidGauge: Story = {
     ),
 }
 
-export const ThresholdBars: Story = {
+// a figure reads green once it meets its need, red short of it, and grey with nothing to measure
+export const EveryThresholdOutcome: Story = {
     render: () => (
         <>
             <Case label="approval passing">
@@ -104,8 +160,8 @@ export const ThresholdBars: Story = {
         </>
     ),
     play: async ({canvas}) => {
-        const figures = canvas.getAllByText(/^need /).map(need => need.parentElement!.textContent)
-        await expect(figures).toEqual([
+        const figures = canvas.getAllByText(/^need /).map(need => need.parentElement!)
+        await expect(figures.map(figure => figure.textContent)).toEqual([
             '89.50% need 84.10%',
             '59.60% need 90.00%',
             '— need 100.00%',
@@ -115,6 +171,15 @@ export const ThresholdBars: Story = {
             '<0.01% need 0.50%',
             '— need 0.50%',
         ])
-        for (const none of canvas.getAllByText('—')) await expect(none).toHaveClass('text-muted-foreground')
+        await expect(figures.map(figure => figure.firstElementChild!.className)).toEqual([
+            'text-good',
+            'text-destructive',
+            'text-muted-foreground',
+            'text-good',
+            'text-good',
+            'text-destructive',
+            'text-destructive',
+            'text-muted-foreground',
+        ])
     },
 }

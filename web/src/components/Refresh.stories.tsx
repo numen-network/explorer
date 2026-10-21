@@ -1,7 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {getRouter} from '@storybook/nextjs-vite/navigation.mock'
 import {useEffect, useState} from 'react'
-import {expect, waitFor} from 'storybook/test'
+import {expect, spyOn, waitFor} from 'storybook/test'
 import Refresh from './Refresh'
 
 const meta = {title: 'Components/Refresh'} satisfies Meta
@@ -23,6 +23,11 @@ function Refreshes() {
 }
 
 export const EverySecond: Story = {
+    // the interval starts as Refresh mounts, so the spy goes in before the render
+    beforeEach: () => {
+        const timers = spyOn(window, 'setInterval')
+        return () => timers.mockRestore()
+    },
     render: () => (
         <>
             <Refresh ms={1000} />
@@ -30,6 +35,7 @@ export const EverySecond: Story = {
         </>
     ),
     play: async () => {
+        await expect(window.setInterval).toHaveBeenCalledWith(expect.any(Function), 1000)
         await waitFor(() => expect(getRouter().refresh).toHaveBeenCalled(), {timeout: 3000})
     },
 }

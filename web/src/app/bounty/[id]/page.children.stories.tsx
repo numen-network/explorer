@@ -21,16 +21,15 @@ export const EveryStatus: StoryObj = {
     },
 }
 
-export const EdgeCases = detail(
+// a child with no description goes by its number, a long one is cut short before the value column
+export const DescriptionEdges = detail(
     parent,
-    [
-        childBounty(12, 0, 'Added', {description: null}),
-        childBounty(12, 1, 'Active', {description: 'A child bounty description long enough that the table has to cut it short before the value column'}),
-        childBounty(12, 2, 'Claimed', {value: '0', payout: '0'}),
-        childBounty(12, 3, 'PendingPayout', {value: '123456789012345678901234567890'}),
-    ],
+    [childBounty(12, 0, 'Added', {description: null}), childBounty(12, 1, 'Active', {description: 'A child bounty description long enough that the table has to cut it short before the value column'})],
     'children'
 )
+
+// a value and payout of nothing, and a value thirty digits long
+export const ValueEdges = detail(parent, [childBounty(12, 2, 'Claimed', {value: '0', payout: '0'}), childBounty(12, 3, 'PendingPayout', {value: '123456789012345678901234567890'})], 'children')
 
 const children = Array.from({length: 45}, (_, i) => childBounty(12, i, CHILD_STATUSES[i % CHILD_STATUSES.length]))
 

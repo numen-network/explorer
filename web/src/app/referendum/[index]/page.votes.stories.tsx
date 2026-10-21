@@ -33,11 +33,12 @@ export const SplitAbsent = castAt(single, singleVote, {group: 'split'})
 
 export const EveryKind = story(everyAction.referendum, 'votes', everyAction.data)
 
-export const NayGroup = story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'nay'})
+// the every kind referendum holds one vote in each list
+export const NayOne = story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'nay'})
 
-export const SplitGroup = story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'split'})
+export const SplitOne = story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'split'})
 
-export const AbstainGroup = story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'abstain'})
+export const AbstainOne = story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'abstain'})
 
 export const EveryConviction = withPlay(cast(deciding(20, 'Votes at every conviction from 0x to 6x'), convictionVotes, 'votes'), expandAll)
 
@@ -75,7 +76,16 @@ export const DelegatorsNone = withPlay(withDelegators(fewAndMany), expandRow('No
 
 export const DelegatorsFew = withPlay(withDelegators(fewAndMany), expandRow('Redshift'))
 
-export const DelegatorsOverInlineLimit = withPlay(withDelegators(fewAndMany), expandRow('Polaris Guild'))
+// the delegators past the inline ten are counted under the list
+const hiddenNote = (list: object[], note: string) =>
+    withPlay(withDelegators(list), async context => {
+        await expandRow('Polaris Guild')!(context)
+        await expect(await context.canvas.findByRole('link', {name: note})).toBeVisible()
+    })
+
+export const DelegatorsOverInlineLimit = hiddenNote(fewAndMany, '3 more delegators on the account page')
+
+export const DelegatorsOneOverInlineLimit = hiddenNote(delegators(PEOPLE[0], anons(80, 11)), '1 more delegator on the account page')
 
 // five thousand delegations behind one vote, every one counted and ten listed
 export const DelegatorsThousands = withPlay(withDelegators(delegators(PEOPLE[0], anons(1000, 5000), 1_000)), async context => {

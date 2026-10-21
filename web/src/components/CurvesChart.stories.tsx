@@ -94,7 +94,7 @@ export const ChartConfirmingEndsEarly = chart({
     confirmations: [[990_000, 1_015_920]],
 })
 
-export const ChartTwoConfirmationsEndedEarly = chart({
+export const ChartTwoConfirmAttempts = chart({
     ...SMALL,
     zero: 701_440,
     submitted: 700_000,
@@ -126,9 +126,9 @@ export const ChartWaitingForDecisionDeposit = chart({
     open: true,
 })
 
-export const ChartNoVotesYet = chart({...SMALL, zero: 1_000_840, submitted: 999_400, started: false, tally: [], open: true})
+export const ChartSubmittedWithoutVotes = chart({...SMALL, zero: 1_000_840, submitted: 999_400, started: false, tally: [], open: true})
 
-export const ChartRejectedAtEndOfPeriod = chart({
+export const ChartRejectedAtEnd = chart({
     ...MEDIUM,
     zero: 301_440,
     submitted: 300_000,
@@ -142,13 +142,21 @@ export const ChartRejectedAtEndOfPeriod = chart({
     open: false,
 })
 
-// the tally runs to the end of the period, so readings list all four lines
-export const ChartRejectedAtEndOfPeriodTooltip: Story = {...ChartRejectedAtEndOfPeriod, play: tooltipsInView}
+// the tally runs to the end of the period, so the readings there list all
+// four lines, and a tooltip stays in view wherever it opens
+export const ChartRejectedAtEndTooltip: Story = {
+    ...ChartRejectedAtEnd,
+    play: async context => {
+        await tooltipsInView(context)
+        const [, ...readings] = lastTooltipLines(context.canvasElement)[0]
+        expect(readings.map(line => line!.replace(/[\d.]+%$/, ''))).toEqual(['Approval', 'Current approval', 'Support', 'Current support'])
+    },
+}
 
 const AYES = 52_000_000n * 10n ** 18n
 
 // one planck of nay against 52M of aye keeps the reading short of 100%
-export const ChartSliverOfNay: Story = {
+export const ChartExtremeAmounts: Story = {
     ...chart({
         ...MEDIUM,
         zero: 961_440,

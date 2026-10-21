@@ -136,7 +136,7 @@ export const ZeroBalance = withPlay(
 )
 
 // 52M of aye against ten planck of nay, the tab fits every width
-export const ExtremeAmounts = withPlay(extremeAmounts('statistics'), async ({canvasElement}) => {
+export const ExtremeAmounts = withPlay(extremeAmounts('statistics'), async ({canvas, canvasElement}) => {
     const {totals, ranges} = await statistics(canvasElement)
     await expect(totals).toEqual([
         ['Accounts', '2'],
@@ -144,6 +144,7 @@ export const ExtremeAmounts = withPlay(extremeAmounts('statistics'), async ({can
         ['Votes', '≈52M NUMN'],
     ])
     await expect(ranges.totals).toEqual(['1', '0', '0', '0', '1'])
-    expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
-    expectLegibleAxes(canvasElement)
+    const tab = canvas.getByRole('tabpanel')
+    expectFits(...tab.querySelectorAll('[data-slot=card]'))
+    expectLegibleAxes(tab)
 })

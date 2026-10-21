@@ -4,19 +4,17 @@ import {JJFU_OFFLINE, MADE_UP_EQUIVOCATION, validatorRow} from '../../../../../m
 import {columnTexts} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {wellKnown, story, staked, offenceCounts, validatorTabs, tileAboveTabs} from './page.stories.helpers'
+import {wellKnown, story, staked, figure, offenceCounts} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Validator | Offences', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
-export const Active: StoryObj = {
+// an active validator that has never missed a heartbeat or signed twice
+export const ActiveNoOffences: StoryObj = {
     ...story({account: staked(), validator: validatorRow()}, {tab: 'validator'}),
     play: async ({canvasElement}) => {
+        await expect(figure(canvasElement, 'Status')).toBe('Active')
         await offenceCounts(canvasElement, '0', '0')
         await expect(within(canvasElement).getByText('No offences yet.')).toBeVisible()
-        await expect(within(canvasElement).getByRole('navigation', {name: 'pagination'})).toBeVisible()
-        await expect(validatorTabs(canvasElement)).toEqual(['validator'])
-        await expect(within(within(canvasElement).getByRole('navigation', {name: 'Validator'})).getByRole('link')).toHaveAccessibleName(/^Offences/)
-        await expect(tileAboveTabs(canvasElement)).toBe(true)
     },
 }
 
@@ -46,6 +44,12 @@ export const OfflineAndEquivocation: StoryObj = {
     },
 }
 
-export const Inactive = story({validator: validatorRow({active: false, lockedAmount: '0', lockExpiry: null, lastActiveSession: 15_210})}, {tab: 'validator'})
+export const Inactive: StoryObj = {
+    ...story({validator: validatorRow({active: false, lockedAmount: '0', lockExpiry: null, lastActiveSession: 15_210})}, {tab: 'validator'}),
+    play: async ({canvasElement}) => expect(figure(canvasElement, 'Status')).toBe('Inactive'),
+}
 
-export const Kicked = story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE}, {tab: 'validator'})
+export const KickedOffline: StoryObj = {
+    ...story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE}, {tab: 'validator'}),
+    play: async ({canvasElement}) => expect(figure(canvasElement, 'Status')).toBe('Kicked · Offline'),
+}

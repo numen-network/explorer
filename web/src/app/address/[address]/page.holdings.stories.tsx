@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {shortHash} from '@/lib/format'
 import {EVERY_HOLDING, evmTx, holding, holdings, NOT_HELD, token, units, WTMR} from '../../../../../mock/fixtures/evm.js'
-import {tabCount, tokenLabels} from '../../../../.storybook/fit'
+import {tokenLabels} from '../../../../.storybook/fit'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import EvmAddressPage from './page'
 import {addressPage, alice, everyTx} from './page.stories.helpers'
@@ -18,7 +18,9 @@ export const EoaEveryCase: StoryObj = {
         expect(tokenLabels(canvasElement)).toEqual([
             'A token name long enough to crowd its balance off a phone screen',
             'Comet Points',
+            'Kuiper Belt Dust',
             'Nova Fund Share',
+            'NumenDEX LP Token',
             'Orbit Dollar',
             'Polaris Governance',
             'Spectral Shard',
@@ -29,22 +31,10 @@ export const EoaEveryCase: StoryObj = {
 
 export const EoaOne = addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: [holding(WTMR, units(1_234.5, 1))]}, HOLDINGS_TAB)
 
-// a token at a zero balance or with no answer to balanceOf is neither listed nor counted
+// a token at a zero balance or with no answer to balanceOf stays out of the list
 export const EoaSkipNotHeld: StoryObj = {
     ...addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], holdings: [holding(token(1), units(5_000_000, 18)), holding(WTMR, units(1_234.5, 1))], notHeld: NOT_HELD}, HOLDINGS_TAB),
-    play: async ({canvasElement}) => {
-        expect(tokenLabels(canvasElement)).toEqual(['Polaris Governance', 'Wrapped WTMR'])
-        expect(tabCount(canvasElement, 'holdings')).toBe('2')
-    },
-}
-
-// with nothing held there is no tokens tab, and a link to it opens the first tab
-export const EoaNoneHeld: StoryObj = {
-    ...addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])], notHeld: NOT_HELD}, HOLDINGS_TAB),
-    play: async ({canvas, canvasElement}) => {
-        expect(tabCount(canvasElement, 'holdings')).toBeNull()
-        expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^Transactions/)
-    },
+    play: async ({canvasElement}) => expect(tokenLabels(canvasElement)).toEqual(['Polaris Governance', 'Wrapped WTMR']),
 }
 
 const manyHoldings = holdings(50)

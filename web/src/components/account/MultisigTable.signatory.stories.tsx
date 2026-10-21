@@ -2,6 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {MULTISIG_ENDS, multisigOp, multisigOps} from '../../../../mock/fixtures/accounts.js'
 import {batchAll} from '../../../../mock/fixtures/blocks.js'
+import {columnTexts} from '../../../.storybook/fit'
 import {headers, column, withCall, table, expand} from './MultisigTable.stories.helpers'
 
 const meta = {title: 'Pages/Account/Multisig | As a multisig signatory'} satisfies Meta
@@ -12,23 +13,26 @@ type Story = StoryObj<typeof meta>
 const approvals = (root: HTMLElement) =>
     [...root.querySelectorAll('tbody table tbody tr')].map(tr => [tr.children[0].textContent, tr.children[1].textContent])
 
-export const Empty: Story = {render: () => table([], 'signatory')}
+export const OperationsEmpty: Story = {render: () => table([], 'signatory')}
 
-export const One: Story = {render: () => table([multisigOp(0)], 'signatory')}
+// an operation of another multisig, so the list adds a Multisig address and a Signed column
+export const OperationsOne: Story = {
+    render: () => table([multisigOp(0)], 'signatory'),
+    play: ({canvasElement}) => expect(headers(canvasElement)).toEqual(['When', 'Multisig address', 'Call', 'Approving', 'Signed', 'Signatories', 'Opened by', 'Status', '']),
+}
 
-// signed, not yet signed while open, and never signed once closed
+// signed, not yet signed while open, and never signed once closed, over every status an operation stands in
 export const EveryStatus: Story = {
     render: () => table(multisigOps(), 'signatory'),
     play: ({canvasElement}) => {
-        expect(headers(canvasElement)).toEqual(['When', 'Multisig address', 'Call', 'Approving', 'Signed', 'Signatories', 'Opened by', 'Status', ''])
-        expect(column(canvasElement, 4)).toEqual(['Signed', 'Signed', 'Not signed', 'Not signed', 'Not signed', 'Not yet'])
-        expect(column(canvasElement, 7)).toEqual(['Pending', 'Pending', 'Executed', 'Exec failed', 'Cancelled', 'Pending'])
+        expect(columnTexts(canvasElement, 'Signed')).toEqual(['Signed', 'Signed', 'Not signed', 'Not signed', 'Not signed', 'Not yet'])
+        expect(columnTexts(canvasElement, 'Status')).toEqual(['Pending', 'Pending', 'Executed', 'Exec failed', 'Cancelled', 'Pending'])
     },
 }
 
 const executed = withCall(multisigOp(2, MULTISIG_ENDS[2]), batchAll)
 
-// the call's name over its hash, then who signed and the tree it ran
+// the call's name over its hash, then who signed and the tree it ran, its origin the multisig so no row names one
 export const ExpandedExecuted: Story = {
     render: () => table([executed.op], 'signatory', {[executed.op.call!.id]: executed.tree}),
     play: async ({canvasElement}) => {
@@ -39,7 +43,7 @@ export const ExpandedExecuted: Story = {
             ['Orbit Labs', 'Executed'],
             ['self', 'Not signed'],
         ])
-        expect(within(canvasElement).getByRole('heading', {name: 'Call'})).toBeVisible()
+        expect(within(canvasElement).getAllByText('Balances.transfer_keep_alive')).toHaveLength(executed.tree.calls.length - 1)
         expect(within(canvasElement).queryByText('Dispatched as')).toBeNull()
     },
 }

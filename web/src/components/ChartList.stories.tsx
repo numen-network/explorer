@@ -1,5 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import ChartList from './ChartList'
 
 const meta = {
@@ -18,11 +18,12 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-// only the chart being read is the current page
+// only the chart being read is the current page of the list, a navigation
+// landmark named apart from the range pills beside the chart
 const current =
     (href: string): Story['play'] =>
     async ({canvas}) =>
-        expect(canvas.getAllByRole('link', {current: 'page'}).map(link => link.getAttribute('href'))).toEqual([href])
+        expect(within(canvas.getByRole('navigation', {name: 'Charts'})).getAllByRole('link', {current: 'page'}).map(link => link.getAttribute('href'))).toEqual([href])
 
 export const FirstActive: Story = {play: current('/charts/blocks')}
 

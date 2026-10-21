@@ -1,13 +1,12 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import type {RequestHandler} from 'msw'
 import {expect, within} from 'storybook/test'
-import {evmTx} from '../../../../../mock/fixtures/evm.js'
-import {LONG, NOT_VERIFIED, NST, NST_PARTIAL, PROXIED, UNSUPPORTED_CHAIN, VAULT, VAULT_FILES, VYPER} from '../../../../../mock/fixtures/sourcify.js'
+import {DEFAULT_SETTINGS, LONG, NOT_VERIFIED, NST, NST_PARTIAL, PROXIED, UNSUPPORTED_CHAIN, VAULT, VAULT_FILES, VYPER} from '../../../../../mock/fixtures/sourcify.js'
 import {expectFits} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import {sourcify, sourcifyDown} from '../../../../.storybook/sourcify'
 import EvmAddressPage from './page'
-import {addressPage, alice, everyTx, contract, deploy, factoryBuilt} from './page.stories.helpers'
+import {addressPage, contract, deploy, factoryBuilt} from './page.stories.helpers'
 
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
 export default {title: 'Pages/EVM Address/Contract', ...pageMeta(EvmAddressPage)}
@@ -51,9 +50,16 @@ export const ManyFiles: StoryObj = {
     ...contractTab(sourcify({body: VAULT})),
     play: async ({canvasElement}) => {
         expect(codeTitles(canvasElement)).toEqual(VAULT_FILES)
+        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
+    },
+}
+
+// solc's defaults leave the optimizer off and name no EVM version
+export const CompilerDefaults: StoryObj = {
+    ...contractTab(sourcify({body: DEFAULT_SETTINGS})),
+    play: async ({canvasElement}) => {
         expect(rowValue(canvasElement, 'Optimizer')).toBe('Off')
         expect(rowValue(canvasElement, 'EVM version')).toBe('—')
-        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
     },
 }
 
@@ -118,14 +124,5 @@ export const SourcifyDown: StoryObj = {
     play: async ({canvas, canvasElement}) => {
         expect(canvas.getByText('Unavailable')).toBeVisible()
         expect(rowValue(canvasElement, 'Creation code')).toBe('2,048 bytes')
-    },
-}
-
-// an account has no contract tab, so a link to one opens the first tab
-export const EoaNoTab: StoryObj = {
-    ...addressPage(alice, {txs: [evmTx(999_990, 0, everyTx[0])]}, CONTRACT_TAB),
-    play: async ({canvas}) => {
-        expect(canvas.queryByRole('tab', {name: /^Contract/})).toBeNull()
-        expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^Transactions/)
     },
 }

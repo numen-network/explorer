@@ -9,7 +9,7 @@ const meta = {title: 'Components/ApplyButton'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Default: Story = {
+export const Idle: Story = {
     render: () => (
         <form>
             <ApplyButton />
@@ -17,8 +17,8 @@ export const Default: Story = {
     ),
 }
 
-// a filter row mixes dropdowns, a date picker, a text box and Apply, all one height
-export const FilterRowHeights: Story = {
+// in a filter row Apply stands as tall as the dropdown, the date picker and the text box beside it
+export const MatchesFilterControlHeight: Story = {
     render: () => (
         <form className="flex flex-wrap items-center gap-2 text-xs">
             <Dropdown label="Result" value="" options={[{value: '', label: 'All'}, {value: 'ok', label: 'Success'}]} onChange={() => {}} />
@@ -27,9 +27,11 @@ export const FilterRowHeights: Story = {
             <ApplyButton />
         </form>
     ),
-    play: async ({canvasElement}) => {
+    play: async ({canvas, canvasElement}) => {
         const controls = [...canvasElement.querySelectorAll('button, input:not([type=hidden])')]
         await expect(controls).toHaveLength(4)
-        await expect(new Set(controls.map(c => c.getBoundingClientRect().height))).toEqual(new Set([32]))
+        const height = (el: Element) => el.getBoundingClientRect().height
+        const apply = height(canvas.getByRole('button', {name: 'Apply'}))
+        await expect(controls.map(height)).toEqual(controls.map(() => apply))
     },
 }

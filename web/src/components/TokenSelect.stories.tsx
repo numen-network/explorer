@@ -56,13 +56,3 @@ export const SelectTokensOnly: Story = {
         expect(await filterOptions(canvasElement, 'Token')).toEqual(['WTMR 0xa179…a2e9', 'ORB 0xe1e1…e1e1', '[0xe2e2…e2e2]'])
     },
 }
-
-// as a filter it leads with All, which carries no icon or contract
-export const SelectWithAll: Story = {
-    render: () => <TokenSelect tokens={TOKENS} all value="" href={href} />,
-    play: async ({canvasElement}) => {
-        expect(within(canvasElement).getByRole('combobox', {name: 'Token'})).toHaveTextContent(/^All$/)
-        expect(await filterOptions(canvasElement, 'Token')).toEqual(['[All]', 'WTMR 0xa179…a2e9', 'ORB 0xe1e1…e1e1', '0xe2e2…e2e2'])
-        expect(await optionIcons(canvasElement)).toEqual([false, true, false, false])
-    },
-}

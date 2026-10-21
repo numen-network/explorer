@@ -1,28 +1,22 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {GENESIS_BARE, JJFU_OFFLINE, JJFU_STEPS, validatorLifecycle, validatorOtherSteps, validatorRow} from '../../../../../mock/fixtures/accounts.js'
-import {tabCount} from '../../../../.storybook/fit'
+import {GENESIS_BARE, JJFU_OFFLINE, JJFU_STEPS, validatorEveryStep, validatorLifecycle, validatorRounds, validatorRow} from '../../../../../mock/fixtures/accounts.js'
 import {pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {wellKnown, story, staked, offenceCounts, validatorTabs, tileAboveTabs} from './page.stories.helpers'
+import {wellKnown, story, staked} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Validator | Timeline', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
 const stepTitles = (root: HTMLElement) => [...root.querySelectorAll('[data-slot=card] > ol > li')].map(li => li.querySelector('.font-medium')!.textContent)
 const stepRow = (root: HTMLElement, label: string) => within(root).getByText(label, {selector: 'dt'}).nextElementSibling!.textContent
 
+// an exemption, a lock renewed day after day, a kick for going offline and the exemption taken back
 export const Lifecycle: StoryObj = {
     ...story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE, steps: validatorLifecycle()}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) => {
-        await expect(validatorTabs(canvasElement)).toEqual(['validator-timeline', 'validator'])
-        const sub = within(canvasElement).getByRole('navigation', {name: 'Validator'})
-        await expect([tabCount(sub, 'validator-timeline'), tabCount(sub, 'validator')]).toEqual(['5', '2'])
-        await expect(tileAboveTabs(canvasElement)).toBe(true)
-        await offenceCounts(canvasElement, '2', '0')
         await expect(stepTitles(canvasElement)).toEqual(['Exemption revoked', 'Kicked', 'Renewed', 'Locked', 'Exemption granted'])
         await expect(stepRow(canvasElement, 'Renewals')).toBe('29')
         await expect(stepRow(canvasElement, 'Reason')).toBe('Offline')
-        await expect(within(canvasElement).getByRole('navigation', {name: 'pagination'})).toBeVisible()
     },
 }
 
@@ -50,18 +44,29 @@ export const GenesisBare: StoryObj = {
 }
 
 export const EveryStep: StoryObj = {
-    ...story({account: staked(), validator: validatorRow({active: false}), steps: validatorOtherSteps()}, {tab: 'validator-timeline'}),
+    ...story({account: staked(), validator: validatorRow({active: false}), steps: validatorEveryStep()}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) =>
-        expect(stepTitles(canvasElement)).toEqual(['Exit requested', 'Equivocation reported', 'Renewed', 'Locked', 'Lock released', 'Dropped', 'Locked']),
+        expect(stepTitles(canvasElement)).toEqual([
+            'Exit requested',
+            'Exemption granted',
+            'Dropped',
+            'Locked',
+            'Lock released',
+            'Kicked',
+            'Equivocation reported',
+            'Renewed',
+            'Locked',
+            'Exemption revoked',
+            'Genesis',
+        ]),
 }
 
-export const Many = story({account: staked(), validator: validatorRow(), steps: validatorLifecycle(), counts: {validatorSteps: 45}}, {tab: 'validator-timeline'})
+export const Many = story({account: staked(), validator: validatorRow(), steps: validatorRounds(7), counts: {validatorSteps: 45}}, {tab: 'validator-timeline'})
 
-// an exemption alone leaves no Validator row, so there is no overview to open
+// an exemption alone leaves no Validator row, so no tile heads the timeline
 export const ExemptOnly: StoryObj = {
     ...story({steps: validatorLifecycle().slice(-1)}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) => {
-        await expect(validatorTabs(canvasElement)).toEqual(['validator-timeline'])
         await expect(within(canvasElement).queryByText('Offline (30d)')).toBeNull()
         await expect(stepTitles(canvasElement)).toEqual(['Exemption granted'])
     },

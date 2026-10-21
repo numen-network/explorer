@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import {expectAddressForm, expectFits, expectTimesFit} from '../../../../.storybook/fit'
+import {expectAddressForm, expectFits} from '../../../../.storybook/fit'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import EvmTxPage from './page'
 import {txPage, call, callTransfer, plain, swap, wrap, payout, swapLogs, drops, airdropPage, crowdedPage} from './page.stories.helpers'
@@ -10,18 +10,17 @@ export default {title: 'Pages/EVM Transaction/Logs', ...pageMeta(EvmTxPage)}
 
 const LOGS_TAB = {tab: 'logs'}
 
-export const CallSucceeded = txPage(call, {logs: [callTransfer.log], transfers: [callTransfer.transfer]}, LOGS_TAB)
+export const One = txPage(call, {logs: [callTransfer.log], transfers: [callTransfer.transfer]}, LOGS_TAB)
 
 export const Empty = txPage(plain, {}, LOGS_TAB)
 
-// from, to and every log address keep their full form and wrap inside their
-// rows, the timestamp breaks after its age inside its own
+// every log address keeps its full form and wraps inside its row
 export const Swap: StoryObj = {
     ...txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, LOGS_TAB),
-    play: async ({canvasElement}) => {
-        expectAddressForm(canvasElement)
-        expectFits(...[...canvasElement.querySelectorAll('a[href^="/address/"]')].map(link => link.closest('[data-slot=card] > *')!))
-        expectTimesFit(canvasElement)
+    play: async ({canvas}) => {
+        const logs = canvas.getByRole('tabpanel')
+        expectAddressForm(logs)
+        expectFits(...[...logs.querySelectorAll('a[href^="/address/"]')].map(link => link.closest('[data-slot=card] > *')!))
     },
 }
 

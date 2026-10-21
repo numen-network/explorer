@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import {Tabs, TabsContent} from '@/components/ui/tabs'
-import {all, expectArrowsOnLabelLine} from '../../.storybook/fit'
+import {all, expectArrowsOnLabelLine, tabCount} from '../../.storybook/fit'
 import {TabBar, TabPanels, TabSwitch, type Panel, type TabItem} from './Tabs'
 
 const meta = {title: 'Components/Tabs'} satisfies Meta
@@ -54,11 +54,6 @@ const currentInView: Play = async ({canvas, canvasElement}) => {
     expectArrowsOnLabelLine(canvasElement)
 }
 
-// the open tab controls the panel under the strip
-const panelShown: Play = async ({canvas}) => {
-    await expect(canvas.getByRole('tab', {selected: true})).toHaveAttribute('aria-controls', canvas.getByRole('tabpanel').id)
-}
-
 const panel = (label: string, count?: number): Panel => ({
     slug: label.toLowerCase(),
     label,
@@ -68,14 +63,18 @@ const panel = (label: string, count?: number): Panel => ({
 
 export const LineSingleTab: Story = {render: () => <TabBar aria-label="Account" items={items(['Transfers'], 0, [42])} />, play: linkStrip('Account', 'Transfers')}
 
+const TOKEN_TABS = items(['Holders', 'Transfers', 'Contract'], 1, [0, 1, 1_234_567])
+
 export const LineWithCounts: Story = {
-    render: () => <TabBar aria-label="Token" items={items(['Holders', 'Transfers', 'Contract'], 1, [0, 1, 1_234_567])} />,
-    play: all(linkStrip('Token', 'Transfers'), keyboard),
+    render: () => <TabBar aria-label="Token" items={TOKEN_TABS} />,
+    play: all(linkStrip('Token', 'Transfers'), async ({canvasElement}) => expect(['holders', 'transfers', 'contract'].map(slug => tabCount(canvasElement, slug))).toEqual(['0', '1', '1,234,567'])),
 }
+
+export const LineKeyboard: Story = {render: () => <TabBar aria-label="Token" items={TOKEN_TABS} />, play: keyboard}
 
 export const LineWithoutCounts: Story = {
     render: () => <TabBar aria-label="Governance" items={items(['Referenda', 'Treasury spends', 'Bounties', 'Tracks'], 0)} />,
-    play: linkStrip('Governance', 'Referenda'),
+    play: all(linkStrip('Governance', 'Referenda'), async ({canvasElement}) => expect(canvasElement.querySelector('[data-slot=badge]')).toBeNull()),
 }
 
 // a strip as narrow as a phone's
@@ -159,7 +158,16 @@ export const SegmentLastActive: Story = {render: () => <TabBar aria-label="Windo
 
 export const PanelsSingle: Story = {render: () => <TabPanels panels={[panel('Events', 7)]} href={s => `?tab=${s}`} />}
 
-export const PanelsSecondActive: Story = {render: () => <TabPanels panels={[panel('Events', 7), panel('Calls', 3), panel('Logs')]} at="calls" href={s => `?tab=${s}`} />, play: panelShown}
+// the second tab is the open one and controls the panel under the strip
+export const PanelsSecondActive: Story = {
+    render: () => <TabPanels panels={[panel('Events', 7), panel('Calls', 3), panel('Logs')]} at="calls" href={s => `?tab=${s}`} />,
+    play: async ({canvas}) => {
+        const open = canvas.getByRole('tab', {selected: true})
+        await expect(open).toHaveAccessibleName(/^Calls/)
+        await expect(open).toHaveAttribute('aria-controls', canvas.getByRole('tabpanel').id)
+        await expect(canvas.getByRole('tabpanel')).toHaveTextContent('Calls panel')
+    },
+}
 
 export const PanelsUnknownSlug: Story = {render: () => <TabPanels panels={[panel('Events', 7), panel('Calls', 3)]} at="nope" href={s => `?tab=${s}`} />}
 

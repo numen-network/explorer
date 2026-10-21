@@ -17,17 +17,22 @@ export const VotingInPreparePeriod = curatedCase(9)
 
 export const WaitingForDecisionDeposit = curatedCase(8)
 
-export const SubmittedWithoutVotes = curatedCase(7)
+// nobody voted, so the action list has nothing to show
+export const SubmittedWithoutVotes = withPlay(curatedCase(7), async ({canvasElement}) => {
+    const {heading, rows} = await actionList(canvasElement)
+    await expect(heading).toBe('Actions (0)')
+    await expect(cellsOf(rows[0])).toEqual(['No actions.'])
+})
 
 export const DecidingBelowCurves = curatedCase(5)
 
-export const KilledWithDepositsSlashed = curatedCase(4)
+export const KilledWhileDeciding = curatedCase(4)
 
-export const CancelledNonSpend = curatedCase(2)
+export const CancelledWhileDeciding = curatedCase(2)
 
 export const RejectedAtEnd = curatedCase(1)
 
-export const ApprovedAndEnacted = curatedCase(0)
+export const ApprovedOnFirstConfirmation = curatedCase(0)
 
 export const TwoConfirmAttempts = story(secondAttempt, 'curves', castFromSnapshots(secondAttempt))
 
@@ -70,12 +75,6 @@ export const ActionsEveryKind = withPlay(story(everyAction.referendum, 'curves',
     await expect(amount[2]).toMatch(/\+ .* delegated$/)
     await expect(amount[3]).not.toContain('delegated')
     await expect(impact.map(i => i === '—')).toEqual([false, false, false, false, false, false, false, false, true, false, false])
-})
-
-export const ActionsEmpty = withPlay(curatedCase(7), async ({canvasElement}) => {
-    const {heading, rows} = await actionList(canvasElement)
-    await expect(heading).toBe('Actions (0)')
-    await expect(cellsOf(rows[0])).toEqual(['No actions.'])
 })
 
 export const ActionsOne = withPlay(cast(single, singleVote, 'curves'), async ({canvasElement}) => {
@@ -122,7 +121,7 @@ export const ActionsSearchName = filtered({q: 'Polaris'}, names(alice), ['All ac
 
 export const ActionsSearchAddress = filtered({q: ss58Encode(grace.id, CHAIN.ss58)}, names(grace), ['All actions', 'All impact'])
 
-export const ActionsNoMatch = filtered({action: 'undelegate', impact: 'support-up'}, () => false, ['Undelegate', 'Support up'])
+export const ActionsNoMatch = filtered({q: 'nobody by this name', action: 'undelegate', impact: 'support-up'}, () => false, ['Undelegate', 'Support up'])
 
 const manyActions = (page: string) =>
     withPlay(cast(many, manyVotes, 'curves', {}, [], {page}), async ({canvasElement}) => {

@@ -1,26 +1,13 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, userEvent, within} from 'storybook/test'
-import {ME, MULTISIG_ENDS, membership, multisigCall, multisigOp, SIGNATORIES} from '../../../../../mock/fixtures/accounts.js'
+import {ME, MULTISIG_ENDS, multisigCall, SIGNATORIES} from '../../../../../mock/fixtures/accounts.js'
 import {batchAll} from '../../../../../mock/fixtures/blocks.js'
 import {PEOPLE} from '../../../../../mock/fixtures.js'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {wellKnown, story, summaries, strip} from './page.stories.helpers'
+import {wellKnown, story, summaries, strip, addressOp, asAddress} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Multisig | As a multisig address', ...pageMeta(AccountPage), decorators: [wellKnown]}
-
-// the subject as the multisig, each operation approved by a run of its signatories
-const addressOp = (i: number) => {
-    const end = MULTISIG_ENDS[i % MULTISIG_ENDS.length]
-    return multisigOp(i, {threshold: 3, ...end, approvals: SIGNATORIES.slice(i % 3, (i % 3) + (end.approvals?.length ?? 2)), multisig: ME, signatories: SIGNATORIES})
-}
-
-const asAddress = (count: number) => Array.from({length: count}, (_, i) => addressOp(i))
-
-export const AddressOnly: StoryObj = {
-    ...story({multisigOps: asAddress(MULTISIG_ENDS.length)}, {tab: 'multisig'}),
-    play: async ({canvasElement}) => expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([['multisig', String(MULTISIG_ENDS.length), 'page']]),
-}
 
 const ran = multisigCall(ME, batchAll)
 
@@ -37,7 +24,7 @@ export const OperationCall: StoryObj = {
 }
 
 // each signatory's approvals and openings over the six operations, the tile above them
-export const Signatories: StoryObj = {
+export const SignatoriesWithTile: StoryObj = {
     ...story({multisigOps: asAddress(MULTISIG_ENDS.length), refs: PEOPLE}, {tab: 'multisig', mtab: 'signatories'}),
     play: async ({canvasElement}) => {
         expect(strip(canvasElement, 'As a multisig address', 'mtab')).toEqual([
@@ -49,16 +36,6 @@ export const Signatories: StoryObj = {
         expect(cells(1)).toEqual(['2', '3', '3', '1', '0'])
         expect(cells(2)).toEqual(['2', '2', '2', '0', '0'])
     },
-}
-
-// a multisig that signs for another multisig stands on both sides
-export const BothSides: StoryObj = {
-    ...story({multisigOps: [...asAddress(2), multisigOp(10)], memberships: [membership(0)]}, {tab: 'multisig'}),
-    play: async ({canvasElement}) =>
-        expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([
-            ['multisig', '2', 'page'],
-            ['multisig-signatory', '1', null],
-        ]),
 }
 
 const manyOps = asAddress(45)

@@ -2,7 +2,8 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {withEventViews} from '@/lib/args'
 import type {EventRow} from '@/lib/gql'
-import {CHAIN_PROPS} from '../../../mock/fixtures/blocks.js'
+import {HEAD} from '../../../mock/fixtures.js'
+import {batchAll, CHAIN_PROPS, mined, timestampSet} from '../../../mock/fixtures/blocks.js'
 import {EventsTable} from './EventsTable'
 import {Card} from './ui/card'
 import {BLOCK_EVENTS, opening} from './EventsTable.stories.helpers'
@@ -19,7 +20,8 @@ const inBlock = (rows: EventRow[]): Story => ({
     ),
 })
 
-export const SessionAndBatch = inBlock(BLOCK_EVENTS)
+// an item's events name the inner call that raised them, the batch's own events name the batch
+export const BatchItemsNameTheirCall = inBlock(mined(HEAD - 7, [timestampSet, batchAll]).events as EventRow[])
 
 export const OneRow = inBlock(BLOCK_EVENTS.slice(0, 1))
 

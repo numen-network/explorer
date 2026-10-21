@@ -230,6 +230,9 @@ export const delegatedFrom = (count, tracks = TRACKS) =>
 // one account delegating the same balance on each track given, which the incoming list keeps in track order
 export const delegatedOnTracks = (who, tracks, balance) => tracks.map((track, i) => delegation(i + 200, {who, track, balance, conviction: 'Locked3x', block: HEAD - 2_000}))
 
+// one delegator per conviction given, each putting 1,000 on Root
+export const delegatedAt = convictions => convictions.map((conviction, i) => delegation(i + 300, {who: person(i + 1), track: TRACKS[0], balance: numn(1_000), conviction, block: HEAD - 3_000}))
+
 const PROXY_TYPES = ['Any', 'Governance', 'NonTransfer']
 
 const proxy = (i, traits = {}) => ({id: `proxy-${i}`, proxyType: PROXY_TYPES[i % PROXY_TYPES.length], delay: [0, 100, 14_400][Math.floor(i / 3) % 3], ...traits})
@@ -381,6 +384,9 @@ const VOTE_ACTION_CASES = [
     {kind: 'Split', aye: null, conviction: null, balance: null, ayeAmount: numn(4_000), nayAmount: numn(1_500), referendum: {index: 10}},
     {kind: 'SplitAbstain', aye: null, conviction: null, balance: null, ayeAmount: numn(100), nayAmount: numn(100), abstainAmount: numn(9_800), referendum: {index: 11}},
     {conviction: 'None', referendum: {index: 0}},
+    {conviction: 'Locked2x', referendum: {index: 2}},
+    {aye: false, conviction: 'Locked4x', referendum: {index: 3}},
+    {conviction: 'Locked5x', referendum: {index: 4}},
     {conviction: 'Locked6x', balance: numn(250_000), referendum: {index: 1}},
 ]
 
@@ -404,13 +410,14 @@ export const delegationAction = (i, traits = {}) => {
     }
 }
 
-// both directions and both methods, plus a delegation its own block undid, which leaves no amount
+// both directions and both methods, plus on each side a delegation its own block undid, which leaves no amount
 const DELEGATION_ACTION_CASES = [
     {who: person(3), target: ME},
     {method: 'Undelegated', target: person(5)},
     {method: 'Undelegated', who: person(4), target: ME},
     {target: person(5)},
     {who: person(4), target: ME, conviction: null, balance: null},
+    {target: person(6), conviction: null, balance: null},
 ]
 
 export const delegationActionRows = () => DELEGATION_ACTION_CASES.map((c, i) => delegationAction(i, c))
@@ -458,6 +465,7 @@ export const identityTimeline = () => [
     step(HEAD - 3_100, 3, 'SubIdentityRevoked', {sub: SUBJECT, main: account(1), deposit: numn(2.01)}, {method: 'quit_sub', args: {}}),
     step(HEAD - 3_500, 2, 'PrimaryUsernameSet', {who: SUBJECT, username: hex('aurora.numen')}, {method: 'set_primary_username', args: {username: hex('aurora.numen')}}),
     step(HEAD - 3_600, 4, 'UsernameSet', {who: SUBJECT, username: hex('aurora.numen')}, null, false),
+    step(HEAD - 3_800, 3, 'UsernameQueued', {who: SUBJECT, username: hex('aurora.numen'), expiration: HEAD + 100_000}, {method: 'set_username_for', args: {who: {__kind: 'Id', value: SUBJECT}, username: hex('aurora.numen'), signature: null, useAllocation: true}}),
     step(HEAD - 4_000, 7, 'DanglingUsernameRemoved', {who: SUBJECT, username: hex('old-aurora.numen')}, {method: 'remove_dangling_username', args: {username: hex('old-aurora.numen')}}),
     step(HEAD - 5_000, 2, 'JudgementGiven', {target: SUBJECT, registrarIndex: 5}, {method: 'provide_judgement', args: {regIndex: 5, judgement: {__kind: 'Erroneous'}}}),
     step(HEAD - 5_400, 2, 'JudgementGiven', {target: SUBJECT, registrarIndex: 1}, {method: 'provide_judgement', args: {regIndex: 1, judgement: {__kind: 'KnownGood'}}}),
@@ -541,24 +549,40 @@ export const JJFU_STEPS = [
 // runtime's genesis never writes but the schema allows
 export const GENESIS_BARE = [genesisStep(SUBJECT, null, false)]
 
-// the steps the lifecycle above never reaches, a lock that never got promoted
-// and ran out, then a second one left by choice
-export const validatorOtherSteps = () => {
-    // the mock chain is too short for a whole lock to run out, so the first one is shorter
-    const first = HEAD - 100 * DAY
-    const firstExpiry = HEAD - 20 * DAY
-    const second = HEAD - 15 * DAY
-    const lock = (h, expiryBlock) => validatorEvent(h, 2, 'ValidatorLocked', {who: SUBJECT, amount: numn(100_000_000), expiryBlock})
+// one validator's whole history newest first, every step genesis and the
+// runtime's Validator events leave. exempt at genesis, the exemption revoked
+// for a stake renewed until an equivocation kicked it and freed the lock, a
+// second lock dropped before promotion, the exemption back and a request to leave
+export const validatorEveryStep = () => {
+    const daysAgo = days => HEAD - days * DAY
+    const locked = (h, index) => validatorEvent(h, index, 'ValidatorLocked', {who: SUBJECT, amount: numn(100_000_000), expiryBlock: h + LOCK_DAYS * DAY})
     return [
-        validatorStep(validatorEvent(second + 3 * DAY, 2, 'ValidatorExitRequested', {who: SUBJECT})),
-        validatorStep(validatorEvent(second + 2 * DAY + 40, 5, 'EquivocationReported', {who: SUBJECT}, false)),
-        validatorStep(renewal(second + DAY), 1),
-        validatorStep(lock(second, second + LOCK_DAYS * DAY)),
-        validatorStep(validatorEvent(firstExpiry, 0, 'LockReleased', {who: SUBJECT, amount: numn(100_000_000)}, false)),
-        validatorStep(validatorEvent(first + 360, 0, 'PendingValidatorDropped', {who: SUBJECT}, false)),
-        validatorStep(lock(first, firstExpiry)),
+        validatorStep(validatorEvent(daysAgo(30), 2, 'ValidatorExitRequested', {who: SUBJECT})),
+        validatorStep(validatorEvent(daysAgo(40), 3, 'StakeExemptSet', {who: SUBJECT, exempt: true})),
+        validatorStep(validatorEvent(daysAgo(60) + 360, 0, 'PendingValidatorDropped', {who: SUBJECT}, false)),
+        validatorStep(locked(daysAgo(60), 2)),
+        validatorStep(validatorEvent(daysAgo(70), 0, 'LockReleased', {who: SUBJECT, amount: numn(100_000_000)}, false)),
+        validatorStep(validatorEvent(daysAgo(78) + 41, 1, 'ValidatorKicked', {who: SUBJECT, reason: {__kind: 'Equivocation'}}, false)),
+        validatorStep(validatorEvent(daysAgo(78) + 40, 5, 'EquivocationReported', {who: SUBJECT}, false)),
+        validatorStep(renewal(daysAgo(98)), 20, renewal(daysAgo(79))),
+        validatorStep(locked(daysAgo(99), 4)),
+        validatorStep(validatorEvent(daysAgo(100), 3, 'StakeExemptSet', {who: SUBJECT, exempt: false})),
+        genesisStep(SUBJECT, {amount: '0', lockBlock: 0, expiryBlock: LOCK_DAYS * DAY, status: {__kind: 'Active'}}, true),
     ]
 }
+
+// round after round of lock, ask to leave and get the stake back, then a
+// fresh lock, newest first
+export const validatorRounds = rounds =>
+    Array.from({length: rounds * 3 + 1}, (_, i) => {
+        const h = HEAD - (i + 1) * 2 * DAY
+        const [method, args, signed] = [
+            ['ValidatorLocked', {who: SUBJECT, amount: numn(100_000_000), expiryBlock: h + LOCK_DAYS * DAY}, true],
+            ['LockReleased', {who: SUBJECT, amount: numn(100_000_000)}, false],
+            ['ValidatorExitRequested', {who: SUBJECT}, true],
+        ][i % 3]
+        return validatorStep(validatorEvent(h, 2, method, args, signed))
+    })
 
 // days newest first, the way the summary orders them, at the mint of 150 a
 // block with fees on every other day

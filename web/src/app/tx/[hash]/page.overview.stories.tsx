@@ -1,10 +1,11 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {HEAD} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, erc20Transfer, evmLog, evmTx, exit, EXIT, SELECTOR, token, TOPIC, topicOf, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
+import {expectAddressForm, expectFits, expectTimesFit} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import EvmTxPage from './page'
-import {txPage, alice, bob, call, callTransfer} from './page.stories.helpers'
+import {txPage, alice, bob, call, callTransfer, swap, wrap, payout, swapLogs} from './page.stories.helpers'
 
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
 export default {title: 'Pages/EVM Transaction/Overview', ...pageMeta(EvmTxPage)}
@@ -31,11 +32,13 @@ const creation = evmTx(HEAD - 40, 0, {from: alice, to: null, contractAddress: du
 const mint = erc20Transfer(creation, 1, dust, ZERO_ADDRESS, alice, dust.totalSupply)
 const ownership = evmLog(creation, 0, {topics: [TOPIC.ownershipTransferred, topicOf(ZERO_ADDRESS), topicOf(alice)]})
 
+// a create names the contract it made where a call names its recipient, and its input is the init code
 export const ContractCreation: StoryObj = {
     ...txPage(creation, {logs: [ownership, mint.log], transfers: [mint.transfer]}),
     play: async ({canvas}) => {
+        await expect(within(canvas.getByText('Contract created').nextElementSibling as HTMLElement).getByRole('link')).toHaveAttribute('href', `/address/${dust.id}`)
+        await expect(canvas.queryByText('To')).toBeNull()
         await expect(canvas.getByRole('button', {name: '0x60806040 · 4,321 bytes'})).toBeVisible()
-        await expect(canvas.getByText('Legacy · nonce 12,345')).toBeVisible()
     },
 }
 
@@ -46,6 +49,19 @@ export const ContractCreationInputOpen: StoryObj = {
     },
 }
 
-export const ExtremeNumbers = txPage(
-    evmTx(HEAD - 70, 0, {value: UINT256_MAX, gasLimit: '30000000', gasUsed: '29999999', gasPrice: (10n ** 18n).toString(), nonce: 2_147_483_647, txType: 'Legacy'})
-)
+export const ExtremeNumbers: StoryObj = {
+    ...txPage(evmTx(HEAD - 70, 0, {value: UINT256_MAX, gasLimit: '30000000', gasUsed: '29999999', gasPrice: (10n ** 18n).toString(), nonce: 2_147_483_647, txType: 'Legacy'})),
+    play: async ({canvas}) => expect(canvas.getByText('Legacy · nonce 2,147,483,647')).toBeVisible(),
+}
+
+// from and to keep their full form and wrap inside their rows, the timestamp
+// breaks after its age inside its own
+export const AddressesAndTimeFit: StoryObj = {
+    ...txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}),
+    play: async ({canvasElement}) => {
+        const card = canvasElement.querySelector('[data-slot=card]')!
+        expectAddressForm(card)
+        expectFits(...[...card.querySelectorAll('a[href^="/address/"]')].map(link => link.closest('[data-slot=card] > *')!))
+        expectTimesFit(card)
+    },
+}

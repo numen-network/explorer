@@ -33,7 +33,7 @@ export const OnlyGenesisIndexed: StoryObj = {
     play: async ({canvas}) => expect(canvas.queryByRole('alert')).toBeNull(),
 }
 
-export const StuckAtGenesis: StoryObj = {
+export const OnlyGenesisIndexedFarBehind: StoryObj = {
     ...status(0, HEAD, () => null),
     play: async ({canvas}) => expect(canvas.getByRole('alert')).toHaveTextContent('Indexer is 1,000,000 blocks behind the chain head at #1,000,000.'),
 }

@@ -36,12 +36,13 @@ export const InOneTx: StoryObj = {
         expect(canvas.getAllByText(/^[\d,]+ wWTMR$/).map(amount => amount.textContent)).toEqual(['10,002 wWTMR', '10,001 wWTMR', '10,000 wWTMR', '9,999 wWTMR', '9,998 wWTMR']),
 }
 
-// the zero transfer neither side sent is marked as poisoning, the zero one a side sent is not
+// the zero transfer neither side sent is marked as poisoning, the zero one a
+// side sent is not, and neither is one moving value that neither side sent
 export const EveryKind: StoryObj = {
     ...tokenPage(
         WTMR,
         {
-            transfers: rows(8, (h: number, i: number) =>
+            transfers: rows(9, (h: number, i: number) =>
                 tokenTransfer(WTMR, h, i, [
                     {from: ZERO_ADDRESS, to: evmAddress(1), amount: units(500, 1)},
                     {from: evmAddress(2), to: ZERO_ADDRESS, amount: units(120.5, 1)},
@@ -51,10 +52,11 @@ export const EveryKind: StoryObj = {
                     {from: evmAddress(12), to: evmAddress(13), amount: '0'},
                     {from: evmAddress(8), to: evmAddress(9), amount: '1'},
                     {from: evmAddress(10), to: evmAddress(11), amount: UINT256_MAX},
+                    {from: evmAddress(14), to: evmAddress(15), amount: units(3, 1), thirdParty: true},
                 ][i])
             ),
         },
         TRANSFERS_TAB
     ),
-    play: async ({canvasElement}) => expect(poisonedRows([...canvasElement.querySelectorAll('[data-slot=card] .divide-y > *')])).toEqual([false, false, false, false, true, false, false, false]),
+    play: async ({canvasElement}) => expect(poisonedRows([...canvasElement.querySelectorAll('[data-slot=card] .divide-y > *')])).toEqual([false, false, false, false, true, false, false, false, false]),
 }

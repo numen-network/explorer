@@ -1,13 +1,12 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, screen, userEvent, waitFor, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
-import {accountTransfers, delegatedFrom, EVERY_PAYOUT, FULL_FIELDS, funds, ME, minedDays, multisigOp, proxyDelays, proxyFor, pureCreatedBy, SIGNATORIES, subject, SUBJECT, SUBJECT_EVM, validatorRow} from '../../../../../mock/fixtures/accounts.js'
-import {chainInfo, HEAD, identity, numn, PEOPLE} from '../../../../../mock/fixtures.js'
-import {expectWholeWords} from '../../../../.storybook/fit'
+import {accountTransfers, delegatedFrom, EVERY_PAYOUT, FULL_FIELDS, ME, minedDays, multisigOp, payout, proxyDelays, proxyFor, pureCreatedBy, SIGNATORIES, subject, SUBJECT, SUBJECT_EVM, subUnder, TREASURY, validatorRow} from '../../../../../mock/fixtures/accounts.js'
+import {chainInfo, HEAD, identity, PEOPLE} from '../../../../../mock/fixtures.js'
 import {AVATAR_HOST, avatars} from '../../../../.storybook/avatar'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {wellKnown, build, story, IDENTITY_DEPOSIT, AURORA, named, mapped, lock, heading, addressLine, badges, roles} from './page.stories.helpers'
+import {wellKnown, build, story, AURORA, named, mapped, heading, addressLine, badges, roles, staked} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Header', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
@@ -18,18 +17,8 @@ export const IdentityNone: StoryObj = {
     play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Account'),
 }
 
-// a valid address the index has never seen
-export const NotActivated: StoryObj = {
-    ...pageStory({...build({}), accountById: null}, {params: {id: SUBJECT}}),
-    play: async ({canvas, canvasElement}) => {
-        expect(heading(canvasElement)).toBe('Account')
-        expect(canvas.getByText('Not activated')).toBeVisible()
-        expect(canvas.queryByRole('navigation', {name: 'Account'})).toBeNull()
-    },
-}
-
 export const IdentityFull: StoryObj = {
-    ...story({account: named(identity('Aurora Labs', FULL_FIELDS)), transfers: accountTransfers(3)}, {tab: 'direct'}),
+    ...story({account: named(identity('Aurora Labs', FULL_FIELDS)), transfers: accountTransfers(3)}),
     play: async ({canvasElement}) => {
         expect(heading(canvasElement)).toBe('Aurora Labs')
         expect(within(headerOf(canvasElement)).getByRole('button', {name: 'Bio'})).toBeVisible()
@@ -62,41 +51,76 @@ export const IdentityAvatar: StoryObj = {
 }
 
 export const IdentityDisplayOnly: StoryObj = {
-    ...story({account: named(identity('Aurora Labs')), transfers: accountTransfers(3)}, {tab: 'direct'}),
+    ...story({account: named(identity('Aurora Labs')), transfers: accountTransfers(3)}),
     play: async ({canvasElement}) => expect(within(headerOf(canvasElement)).queryByRole('button', {name: 'Bio'})).toBeNull(),
+}
+
+// a registration with an empty display goes by the account's username
+export const DisplayEmptyUsername: StoryObj = {
+    ...story({account: named({...identity(null, AURORA), username: 'aurora.numen'}), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('aurora.numen'),
 }
 
 export const UsernameOnly: StoryObj = {
     ...story({account: subject({username: 'aurora.numen'}), transfers: accountTransfers(3)}),
-    play: async ({canvas, canvasElement}) => {
+    play: async ({canvasElement}) => {
         expect(heading(canvasElement)).toBe('aurora.numen')
         expect(addressLine(canvasElement)).toBe(`aurora.numen|${ss58Encode(SUBJECT, chainInfo.ss58)}`)
-        expect(canvas.queryByText('Identity')).toBeNull()
     },
 }
 
-// the H160 leaves its note little room on the line, which wraps it between
-// whole words
+// a sub with no registration of its own goes by its super's name and its own
+export const SubIdentity: StoryObj = {
+    ...story({account: subject(subUnder(PEOPLE[0], 'payouts')), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect(heading(canvasElement)).toBe('Polaris Guild/payouts'),
+}
+
+// each badge's text and tone in the order the header shows them
+const badgeTones = (root: HTMLElement) => badges(root).map(b => [b.textContent, b.dataset.variant])
+const tones = (root: HTMLElement) => Object.fromEntries(badgeTones(root))
+
+// the treasury account wearing every other role as well, in the order the page adds them
 export const EveryRole: StoryObj = {
     ...story({
-        account: named({evmAddress: SUBJECT_EVM, ...funds(numn(100_250_000), IDENTITY_DEPOSIT, numn(100_000_000)), locksJson: [lock('validatr', numn(100_000_000))]}),
+        account: subject({id: TREASURY.id, evmAddress: SUBJECT_EVM}),
         prime: true,
         validator: validatorRow(),
         minerDays: minedDays(30),
         registrar: 2,
         deploys: 5,
         tokens: 3,
+        payouts: EVERY_PAYOUT,
         curated: 1,
         delegationsIn: delegatedFrom(3),
-        multisigOps: [multisigOp(0, {multisig: ME, approvals: SIGNATORIES.slice(1, 3), signatories: SIGNATORIES, threshold: 3})],
+        multisigOps: [multisigOp(0, {multisig: TREASURY, approvals: SIGNATORIES.slice(1, 3), signatories: SIGNATORIES, threshold: 3})],
         proxiesIn: proxyFor(2),
-        transfers: accountTransfers(4),
-        payouts: EVERY_PAYOUT,
+        pure: pureCreatedBy(PEOPLE[0], HEAD - 9_000),
+        proxiesOut: proxyDelays(PEOPLE[1], 'Governance', [100]),
     }),
-    play: async ({canvas}) => expectWholeWords(await canvas.findByText('mapped account of this H160')),
+    play: async ({canvasElement}) =>
+        expect(badgeTones(canvasElement)).toEqual([
+            ['Treasury', 'primary'],
+            ['Prime', 'warn'],
+            ['Active validator', 'pos'],
+            ['Miner', 'primary'],
+            ['Registrar #2', 'primary'],
+            ['Token issuer · 3', 'primary'],
+            ['Contract deployer', 'idle'],
+            ['Treasury beneficiary', 'idle'],
+            ['Bounty curator', 'idle'],
+            ['Delegate', 'idle'],
+            ['Multisig 3/5', 'idle'],
+            ['Proxy', 'idle'],
+            ['Pure proxy', 'idle'],
+            ['Has proxies', 'idle'],
+        ]),
 }
 
-const tones = (root: HTMLElement) => Object.fromEntries(badges(root).map(b => [b.textContent, b.dataset.variant]))
+// a validator outside the active set wears the plain grey badge
+export const ValidatorInactive: StoryObj = {
+    ...story({account: staked(), validator: validatorRow({active: false})}),
+    play: async ({canvasElement}) => expect(tones(canvasElement)).toEqual({Validator: 'idle'}),
+}
 
 // the roles an account earns from the contracts and tokens it deployed
 const deployed = (contracts: number, tokens: number, earned: string[]): StoryObj => ({
@@ -114,15 +138,21 @@ export const DeployedManyTokens = deployed(150, 150, ['Token issuer · 150'])
 
 export const DeployedMoreContractsThanTokens = deployed(160, 150, ['Token issuer · 150', 'Contract deployer'])
 
-// spawned by Polaris Guild, which kept an Any proxy with no delay, beside a Governance proxy that waits 100 blocks
+// spawned by Polaris Guild at #991,000, which kept an Any proxy on it, and the badge's tip says so
 export const PureProxy: StoryObj = {
-    ...story({
-        pure: pureCreatedBy(PEOPLE[0], HEAD - 9_000),
-        proxiesOut: [...proxyDelays(PEOPLE[0], 'Any', [0]), ...proxyDelays(PEOPLE[1], 'Governance', [100])],
-        refs: [PEOPLE[0]],
-        transfers: accountTransfers(3),
-    }),
-    play: async ({canvasElement}) => expect(tones(canvasElement)).toEqual({'Pure proxy': 'idle', 'Has proxies': 'warn'}),
+    ...story({pure: pureCreatedBy(PEOPLE[0], HEAD - 9_000), proxiesOut: proxyDelays(PEOPLE[0], 'Any', [0]), refs: [PEOPLE[0]], transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => {
+        const badge = badges(canvasElement).find(b => b.textContent === 'Pure proxy')!
+        expect(badge.dataset.variant).toBe('idle')
+        await userEvent.hover(badge)
+        expect(await screen.findByRole('tooltip')).toHaveTextContent('Created by Polaris Guild at #991,000')
+    },
+}
+
+// an Any proxy with no delay can take over at once, so the badge warns even beside one that waits
+export const ProxiesInstant: StoryObj = {
+    ...story({proxiesOut: proxyDelays(PEOPLE[0], 'Any', [0, 14_400]), transfers: accountTransfers(3)}),
+    play: async ({canvasElement}) => expect(tones(canvasElement)).toEqual({'Has proxies': 'warn'}),
 }
 
 // every proxy waits out a delay, so none can take over at once
@@ -142,15 +172,22 @@ export const MultisigOneOfTwo = multisigSelf(1, PEOPLE.slice(0, 2).map(p => p.id
 
 export const MultisigThreeOfThree = multisigSelf(3, PEOPLE.slice(0, 3).map(p => p.id))
 
+// curator fees alone earn no Treasury beneficiary badge
+export const CuratorFeesOnly: StoryObj = {
+    ...story({payouts: [payout(0, 'Bounty', 'Curator', 380, {bounty: {index: 3, description: 'Wallet audit', referendum: null}})]}),
+    play: async ({canvasElement}) => expect(roles(canvasElement)).toEqual([]),
+}
+
+// with no username the code card shows the address alone
 export const QrCode: StoryObj = {
     ...story({transfers: accountTransfers(3)}),
-    play: async ({canvas, canvasElement, userEvent}) => {
+    play: async ({canvas, userEvent}) => {
+        const addr = ss58Encode(SUBJECT, chainInfo.ss58)
         await userEvent.click(canvas.getByRole('button', {name: 'QR code'}))
-        const body = within(document.body)
-        const code = await body.findByRole('img', {name: `QR code for ${ss58Encode(SUBJECT, chainInfo.ss58)}`})
-        await waitFor(() => expect(code).toBeVisible())
-        await expect(body.getByRole('button', {name: 'Save PNG'})).toBeVisible()
-        expect(addressLine(canvasElement)).toBe(ss58Encode(SUBJECT, chainInfo.ss58))
+        const popover = await within(document.body).findByRole('dialog')
+        await waitFor(() => expect(within(popover).getByRole('img', {name: `QR code for ${addr}`})).toBeVisible())
+        await expect(within(popover).getByRole('button', {name: 'Save PNG'})).toBeVisible()
+        expect(popover.textContent).toBe(`${addr}Save PNG`)
     },
 }
 

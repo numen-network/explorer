@@ -22,4 +22,5 @@ export const One = list([transfer(HEAD, 0)])
 
 export const Many = list(rows(20, transfer), 48_213)
 
-export const EdgeCases = list(transferCases())
+// the edge cases, then the prime key paying out, so both well known accounts read by their label
+export const EdgeCases = list([...transferCases(), transfer(HEAD - 9, 6, {from: PRIME_KEY})])

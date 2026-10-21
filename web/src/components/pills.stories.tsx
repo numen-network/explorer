@@ -7,7 +7,7 @@ const meta = {title: 'Components/Pills'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const FilterChips: Story = {
+export const EveryChipForm: Story = {
     render: () => (
         <div className="flex flex-wrap items-center gap-2">
             <FilterChip label="All" href="/extrinsics" active />
@@ -58,17 +58,6 @@ export const FilterRowOnlyAll: Story = {
 export const FilterRowAllCounted: Story = {
     render: () => <FilterRow label="Track" values={TRACKS} counts={perTrack({'Small Spender': 18, 'Medium Spender': 1_234_567})} allCount={1_234_585} value="" href={href} />,
     play: async ({canvasElement}) => expect(filterChips(canvasElement, 'Track')).toEqual(['[All 1,234,585]', 'Small Spender 18', 'Medium Spender 1,234,567']),
-}
-
-// stacked rows share a label width so their chips line up
-export const FilterRowsAligned: Story = {
-    render: () => (
-        <div className="space-y-2">
-            <FilterRow label="Kind" labelClassName="w-12" values={['Local', 'Spend']} counts={{Local: 13, Spend: 34}} value="" href={href} />
-            <FilterRow label="Status" labelClassName="w-12" values={['Paid', 'Payment failed']} counts={{Paid: 7, 'Payment failed': 0}} value="Payment failed" href={href} />
-            <FilterRow label="Track" labelClassName="w-12" values={TRACKS.slice(6)} counts={{'Small Spender': 2, 'Medium Spender': 3, 'Big Spender': 2}} value="" href={href} />
-        </div>
-    ),
 }
 
 export const FilterRowWrapping: Story = {
@@ -154,7 +143,7 @@ export const FilterSelectNarrow: Story = {
     },
 }
 
-export const StatusDots: Story = {
+export const EveryDotTone: Story = {
     render: () => (
         <div className="flex flex-col gap-2 text-xs">
             {(['pos', 'warn', 'neg', 'idle'] as const).map(tone => (

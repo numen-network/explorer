@@ -3,7 +3,7 @@ import {expect, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import type {RegistrarRow} from '@/lib/gql'
 import {numn} from '../../../../mock/fixtures.js'
-import {CHAIN, REGISTRARS, VERDICTS} from '../../../../mock/fixtures/accounts.js'
+import {CHAIN, REGISTRARS} from '../../../../mock/fixtures/accounts.js'
 import {ReceivedJudgementsTable, type ReceivedJudgement} from './ReceivedJudgementsTable'
 
 const meta = {title: 'Pages/Account/Identity | Judgements'} satisfies Meta
@@ -21,13 +21,14 @@ const table = (rows: ReceivedJudgement[]) => (
 
 const cells = (root: HTMLElement, registrar: number) => [...within(root).getByText(`#${registrar}`).closest('tr')!.cells].map(c => c.textContent)
 
-export const One: Story = {render: () => table([verdict(0, 'Reasonable')])}
+// a seated registrar names its account, a verdict with no fee reserves nothing
+export const One: Story = {
+    render: () => table([verdict(0, 'Reasonable')]),
+    play: async ({canvasElement}) => expect(cells(canvasElement, 0)).toEqual(['#0Polaris Guild', 'Reasonable', '—']),
+}
 
 // registrar 3 is retired and holds the fee paid to it
 export const RetiredRegistrar: Story = {
-    render: () => table(VERDICTS.map((kind, i) => verdict(i, kind))),
-    play: async ({canvasElement}) => {
-        expect(cells(canvasElement, 0)).toEqual(['#0Polaris Guild', 'KnownGood', '—'])
-        expect(cells(canvasElement, 3)).toEqual(['#3Retired', 'FeePaid', '2.5 NUMN'])
-    },
+    render: () => table([verdict(3, 'FeePaid')]),
+    play: async ({canvasElement}) => expect(cells(canvasElement, 3)).toEqual(['#3Retired', 'FeePaid', '2.5 NUMN']),
 }

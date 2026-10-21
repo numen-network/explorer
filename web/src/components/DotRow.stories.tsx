@@ -68,7 +68,7 @@ export const MissingFactsLeaveNoDot: Story = {
 // a dot that would end a line moves down with the fact after it
 export const WrapsInNarrowColumn: Story = {
     render: () => (
-        <div className="w-64">
+        <div className="max-w-64">
             <DotRow className="text-xs">
                 {who}
                 {track}
@@ -78,7 +78,7 @@ export const WrapsInNarrowColumn: Story = {
     ),
     play: async ({canvasElement}) => {
         expectNoHangingDots(canvasElement)
-        expectFits(canvasElement.querySelector('.w-64')!)
+        expectFits(canvasElement.querySelector('.max-w-64')!, canvasElement.querySelector('[data-slot=card]')!)
     },
 }
 

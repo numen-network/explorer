@@ -325,6 +325,9 @@ export const NST = {
 // a match on the bytecode but not the metadata hash, with no ABI
 export const NST_PARTIAL = {...NST, match: 'match', creationMatch: null, runtimeMatch: 'match', abi: null}
 
+// built with solc's defaults, the optimizer off and no EVM version named
+export const DEFAULT_SETTINGS = {...NST, compilation: {...NST.compilation, compilerSettings: {optimizer: {enabled: false, runs: 200}, remappings: []}}}
+
 const IERC20_SOL = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 

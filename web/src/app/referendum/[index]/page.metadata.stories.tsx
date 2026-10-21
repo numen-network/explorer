@@ -1,8 +1,9 @@
 import {expect, within} from 'storybook/test'
+import {castFromSnapshots} from '../../../../../mock/fixtures/governance.js'
 import {expectNoHangingDots} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
-import {Play, curated, story, curatedCase, withPlay} from './page.stories.helpers'
+import {Play, approvedHeld, approvedRefunded, curated, story, withPlay} from './page.stories.helpers'
 
 export default {title: 'Pages/Referendum/Metadata', ...pageMeta(ReferendumPage)}
 
@@ -14,9 +15,12 @@ const depositorsInline: Play = async ({canvas}) => {
     }
 }
 
-export const EveryField = withPlay(curatedCase(6, 'metadata'), async context => {
+// every row holds a value, and no deposit row ends a line on its middle dot
+export const EveryField = withPlay(story(approvedHeld, 'metadata', castFromSnapshots(approvedHeld)), async context => {
     await depositorsInline!(context)
-    expectNoHangingDots(context.canvasElement)
+    const rows = context.canvas.getByRole('tabpanel').querySelector('[data-slot=card]')!
+    expect([...rows.children].filter(row => row.lastElementChild!.textContent === '—').map(row => row.firstElementChild!.textContent)).toEqual([])
+    expectNoHangingDots(rows)
 })
 
 export const EmptyFields = story(
@@ -24,8 +28,9 @@ export const EmptyFields = story(
     'metadata'
 )
 
-export const Approved = withPlay(curatedCase(0, 'metadata'), async ({canvas}) => {
-    await expect(canvas.getByText('Approved')).toBeInTheDocument()
-    const ended = (await canvas.findByText('Ended at')).nextElementSibling as HTMLElement
-    await expect(within(ended).getByRole('link', {name: '#588,640'})).toBeInTheDocument()
+// ended with both deposits back with their depositors, so neither reads as held
+export const EndedDepositsRefunded = withPlay(story(approvedRefunded, 'metadata', castFromSnapshots(approvedRefunded)), async ({canvas}) => {
+    const value = async (label: string) => (await canvas.findByText(label)).nextElementSibling as HTMLElement
+    await expect(within(await value('Ended at')).getByRole('link', {name: '#588,640'})).toBeInTheDocument()
+    for (const label of ['Submission deposit', 'Decision deposit']) await expect(await value(label)).toHaveTextContent(/^—$/)
 })

@@ -16,8 +16,11 @@ const ambiguous = (hits: object[], page = '1') => pageStory({extrinsics: paged(h
 
 const replays = Array.from({length: 45}, (_, i) => hit(300_000 + i * 15_000, 1 + (i % 3)))
 
-export const Few: StoryObj = {
-    ...ambiguous([hit(412_007, 3), hit(698_311, 1), hit(HEAD - 42, 2)]),
+export const Few = ambiguous([hit(412_007, 3), hit(698_311, 1), hit(HEAD - 42, 2)])
+
+// the heading shortens the hash the extrinsics share to 0x4…4
+export const ShortHashHeading: StoryObj = {
+    ...ambiguous([hit(412_007, 3), hit(HEAD - 42, 2)]),
     play: async ({canvas}) => expectShortHashes(canvas.getByRole('heading', {name: /^Extrinsic 0x/}).textContent!),
 }
 

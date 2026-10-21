@@ -53,29 +53,58 @@ const RESERVED = reservedOf(
     numn(3.33)
 )
 
-export const EveryKind = story(
-    {
-        account: named({
-            ...identity('Aurora Labs', {judgements: ['Reasonable', 'FeePaid', 'Unknown', 'FeePaid']}),
-            ...funds(numn(100_500_000), RESERVED, numn(100_000_000)),
-            vestingJson: [PARTIAL],
-            locksJson: [lock('vesting', numn(400_000)), lock('validatr', numn(100_000_000)), lock('pyconvot', numn(25_000)), lock('democrac', numn(10))],
-            holdsJson: PAYMENTS.holds,
-            depositsJson: PAYMENTS.deposits,
-        }),
-        validator: validatorRow(),
-        curated: 1,
-        childCurated: 1,
-        subs: subRows(2),
-        proxiesOut: proxyDelegates(2),
-        multisigOps: PAYMENTS.pending,
-        govDeposits: PAYMENTS.gov,
-        bountyDeposits: PAYMENTS.bounties,
-        childBountyDeposits: PAYMENTS.children,
-        votes: [vote(0, {balance: numn(25_000)})],
-    },
-    {tab: 'locks'}
-)
+const EVERY_SOURCE = [
+    'Vesting',
+    'Validator stake',
+    'Conviction voting',
+    'democrac',
+    'Preimage hold',
+    'Session hold',
+    'Identity deposit',
+    'Registrar #1 judgement fee',
+    'Retired registrar #3 judgement fee',
+    'Sub identity deposits (2)',
+    'Proxy deposit (2)',
+    'Announcement deposit',
+    'Username deposits',
+    'Referendum #9 submission deposit',
+    'Referendum #9 decision deposit',
+    'Referendum #8 submission deposit',
+    'Referendum #7 submission deposit',
+    'Bounty #2 proposal deposit',
+    'Bounty #5 curator deposit',
+    'Child bounty #5-1 curator deposit',
+    'Multisig deposit',
+    'Unattributed',
+]
+
+// a row for every source a lock or a reserve can come from, an unknown lock id by its own name
+export const EverySource: StoryObj = {
+    ...story(
+        {
+            account: named({
+                ...identity('Aurora Labs', {judgements: ['Reasonable', 'FeePaid', 'Unknown', 'FeePaid']}),
+                ...funds(numn(100_500_000), RESERVED, numn(100_000_000)),
+                vestingJson: [PARTIAL],
+                locksJson: [lock('vesting', numn(400_000)), lock('validatr', numn(100_000_000)), lock('pyconvot', numn(25_000)), lock('democrac', numn(10))],
+                holdsJson: PAYMENTS.holds,
+                depositsJson: PAYMENTS.deposits,
+            }),
+            validator: validatorRow(),
+            curated: 1,
+            childCurated: 1,
+            subs: subRows(2),
+            proxiesOut: proxyDelegates(2),
+            multisigOps: PAYMENTS.pending,
+            govDeposits: PAYMENTS.gov,
+            bountyDeposits: PAYMENTS.bounties,
+            childBountyDeposits: PAYMENTS.children,
+            votes: [vote(0, {balance: numn(25_000)})],
+        },
+        {tab: 'locks'}
+    ),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Source')).toEqual(EVERY_SOURCE),
+}
 
 const curating = [[2, 9], [2, 10], [2, 11], [10, 1]].map(([index, childIndex]) => ({parent: {index}, childIndex, curatorDeposit: numn(25)}))
 

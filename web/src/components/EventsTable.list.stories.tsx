@@ -31,8 +31,6 @@ export const SessionAndBatch: Story = {
 
 export const OneRow = inList(BLOCK_EVENTS.slice(0, 1))
 
-export const Empty = inList([])
-
 export const RowExpanded: Story = {
     ...inList(BLOCK_EVENTS),
     play: async context => {

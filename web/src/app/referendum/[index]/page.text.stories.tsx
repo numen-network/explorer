@@ -1,8 +1,9 @@
+import {expect, within} from 'storybook/test'
 import {castFromSnapshots, metadataAction} from '../../../../../mock/fixtures/governance.js'
 import {expectFits, expectTimesFit} from '../../../../.storybook/fit'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
-import {curated, story, curatedCase, withPlay, PREIMAGE, refundTitle} from './page.stories.helpers'
+import {curated, story, curatedCase, withPlay, markdownPitch, refundTitle, refundPitch} from './page.stories.helpers'
 
 export default {title: 'Pages/Referendum/Text history', ...pageMeta(ReferendumPage)}
 
@@ -33,12 +34,24 @@ export const Page2 = story(curated(6), 'text', {}, drafts, {page: '2'})
 
 export const LastPage = story(curated(6), 'text', {}, drafts, {page: lastPage(drafts.length)})
 
-const refundPitch = `Preimage ${PREIMAGE} was noted twice, so this pays back the second deposit.`
+// the history keeps the markdown source the text was noted with
+export const MarkdownKeptRaw = withPlay(
+    story({...curated(6), description: markdownPitch}, 'text', {}, [metadataAction(990_500, 4, 'MetadataSet', {title: curated(6).title, description: markdownPitch})]),
+    async ({canvas}) => {
+        const entry = within((await canvas.findByText('Text set')).closest<HTMLElement>('li')!)
+        expect(entry.getByText(content => content.includes('## Budget'))).toHaveTextContent(markdownPitch, {normalizeWhitespace: false})
+        expect(entry.queryByRole('heading')).toBeNull()
+        expect(entry.queryByRole('table')).toBeNull()
+    }
+)
 
+// a title and a description that each carry a 66 character hash break inside
+// the entry, and so does its time
 export const LongTokens = withPlay(
     story({...curated(6), title: refundTitle, description: refundPitch}, 'text', {}, [metadataAction(990_500, 4, 'MetadataSet', {title: refundTitle, description: refundPitch})]),
-    async ({canvas, canvasElement}) => {
-        expectFits(...canvas.getAllByText(refundTitle), ...canvas.getAllByText(refundPitch))
-        expectTimesFit(canvasElement)
+    async ({canvas}) => {
+        const history = canvas.getByRole('tabpanel')
+        expectFits(within(history).getByText(refundTitle), within(history).getByText(refundPitch))
+        expectTimesFit(history)
     }
 )

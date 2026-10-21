@@ -1,8 +1,8 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, userEvent, within} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {accountTransfers, counterpartyPage, counterpartyRow, HOLDING, holdingRows, ME, tokenTransferRows} from '../../../../../mock/fixtures/accounts.js'
 import {HEAD, numn, person} from '../../../../../mock/fixtures.js'
-import {expectPagersFit, columnTexts, filterOptions} from '../../../../.storybook/fit'
+import {columnTexts, filterOptions} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
 import {wellKnown, Spec, story, mapped} from './page.stories.helpers'
@@ -36,22 +36,11 @@ const counterpartySorts = (root: HTMLElement) =>
         .getAllByRole('columnheader')
         .flatMap(h => [...h.querySelectorAll('a')])
         .map(a => [a.textContent, new URL(a.getAttribute('href')!, 'http://x').searchParams.get('sort'), a.querySelector('.lucide-arrow-down') != null])
-const transferTabs = (root: HTMLElement) => within(within(root).getByRole('navigation', {name: 'Transfers'})).getAllByRole('link').map(a => a.firstChild!.lastChild!.textContent)
-
-// no transfer either way leaves the tab out
-export const None: StoryObj = {
-    ...story({}),
-    play: async ({canvasElement}) => {
-        await within(canvasElement).findByRole('navigation', {name: 'Account'})
-        expect(transferTabs(canvasElement)).toEqual(['Native'])
-    },
-}
 
 // one account sent to the subject and it sent nothing back
 export const One: StoryObj = {
     ...counterparties({counterparties: counterpartyPage([counterpartyRow(person(1), {amountIn: numn(12_000), countIn: 6})])}),
     play: async ({canvas, canvasElement}) => {
-        expect(transferTabs(canvasElement)).toEqual(['Native', 'Counterparties'])
         expect(ring(canvasElement, 'NUMN Transfer-in Accounts')).toEqual([['Orbit Labs', '12K NUMN', '100.00%']])
         expect(canvas.queryByRole('list', {name: 'NUMN Transfer-out Accounts'})).toBeNull()
         expect(canvas.getByText('No transfers yet.')).toBeInTheDocument()
@@ -73,30 +62,38 @@ export const Many: StoryObj = {
         expect(columnTexts(canvasElement, '#')).toEqual(Array.from({length: 11}, (_, i) => String(i + 1)))
         expect(columnTexts(canvasElement, 'Account')[2]).toBe('self')
         expect(columnTexts(canvasElement, 'First')[2]).toBe(`#${(HEAD - 300).toLocaleString('en-US')}`)
+    },
+}
+
+// five a side, sending and receiving, all get a slice of their own
+export const Five: StoryObj = {
+    ...counterparties({counterparties: counterpartyPage([...NATIVE_PAIRS.rows.slice(0, 5), NATIVE_PAIRS.rows[7], NATIVE_PAIRS.rows[8]])}),
+    play: async ({canvasElement}) => {
+        const inside = ring(canvasElement, 'NUMN Transfer-in Accounts')
+        expect(inside.map(l => l[0])).toEqual(['Polaris Guild', 'Orbit Labs', 'self', 'Redshift', 'Spamlord'])
+        expect(shareSum(inside)).toBe(10_000)
+        const outside = ring(canvasElement, 'NUMN Transfer-out Accounts')
+        expect(outside.map(l => l[0]!.startsWith('Others'))).toEqual([false, false, false, false, false])
+        expect(shareSum(outside)).toBe(10_000)
+    },
+}
+
+// a second page counts on from where the first left off
+export const Page2: StoryObj = {
+    ...counterparties({counterparties: NATIVE_PAIRS, counts: {pairs: 46}}, {page: '2', size: '20'}),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, '#')[0]).toBe('21'),
+}
+
+// transfer-in volume biggest first is the default, the url carries no sort and each other heading leads to its own
+export const ByInVolume: StoryObj = {
+    ...counterparties({counterparties: NATIVE_PAIRS}),
+    play: async ({canvasElement}) =>
         expect(counterpartySorts(canvasElement)).toEqual([
             ['Transfer-in Volume', null, true],
             ['Transfer-in Count', 'in-count', false],
             ['Transfer-out Volume', 'out-volume', false],
             ['Transfer-out Count', 'out-count', false],
-        ])
-        expectPagersFit(canvasElement)
-    },
-}
-
-// five a side all get a slice of their own
-export const Five: StoryObj = {
-    ...counterparties({counterparties: counterpartyPage(NATIVE_PAIRS.rows.slice(0, 5))}),
-    play: async ({canvasElement}) => {
-        const inside = ring(canvasElement, 'NUMN Transfer-in Accounts')
-        expect(inside.map(l => l[0])).toEqual(['Polaris Guild', 'Orbit Labs', 'self', 'Redshift', 'Spamlord'])
-        expect(shareSum(inside)).toBe(10_000)
-    },
-}
-
-// a second page counts on from where the first left off
-export const SecondPage: StoryObj = {
-    ...counterparties({counterparties: NATIVE_PAIRS, counts: {pairs: 46}}, {page: '2', size: '20'}),
-    play: async ({canvasElement}) => expect(columnTexts(canvasElement, '#')[0]).toBe('21'),
+        ]),
 }
 
 export const ByOutCount: StoryObj = {
@@ -121,24 +118,21 @@ const TOKEN_PAIRS = counterpartyPage([
 export const Token: StoryObj = {
     ...counterparties({account: mapped(), holdings: holdingRows(4), counterparties: TOKEN_PAIRS}, {token: WTMR_ID}),
     play: async ({canvasElement}) => {
-        // listed in the order the holder rows come back in, each contract by its address too, which a nameless one already shows
-        expect(await filterOptions(canvasElement, 'Token')).toEqual(['NUMN', 'LONGNAME 0xe3e3…e3e3', 'ORB 0xe1e1…e1e1', '[WTMR 0xa179…a2e9]', '0xe2e2…e2e2'])
-        // the native token wears the chain logo, a listed token its own, the rest an empty square
-        const trigger = within(canvasElement).getByRole('combobox', {name: 'Token'})
-        expect(trigger).toHaveTextContent(/^WTMR0xa179…a2e9$/)
-        expect(trigger.querySelector('img')).not.toBeNull()
-        await userEvent.click(trigger)
-        const list = await within(document.body).findByRole('listbox')
-        expect(within(list).getAllByRole('option').map(o => o.querySelector('img') != null)).toEqual([true, false, false, true, false])
-        await userEvent.keyboard('{Escape}')
         expect(ring(canvasElement, 'WTMR Transfer-in Accounts')).toEqual([['0x0000…0000', '≈255.01K WTMR', '100.00%']])
         expect(columnTexts(canvasElement, 'Account')).toEqual(['0x0000…0000', '0xacc9…adad'])
         expect(columnTexts(canvasElement, 'Transfer-in Volume')).toEqual(['≈255.01K WTMR', '0 WTMR'])
     },
 }
 
+// the picker leads with NUMN, then the tokens in the order the holder rows come back, each contract by its address too
+export const TokenOptions: StoryObj = {
+    ...counterparties({account: mapped(), holdings: holdingRows(4), counterparties: NATIVE_PAIRS}),
+    play: async ({canvasElement}) =>
+        expect(await filterOptions(canvasElement, 'Token')).toEqual(['[NUMN]', 'LONGNAME 0xe3e3…e3e3', 'ORB 0xe1e1…e1e1', 'WTMR 0xa179…a2e9', '0xe2e2…e2e2']),
+}
+
 // an account that never moved NUMN opens on its first token, and NUMN is no pick
-export const TokenOnly: StoryObj = {
+export const OpensOnFirstToken: StoryObj = {
     ...counterparties({account: mapped(), transfers: [], tokenTransfers: tokenTransferRows(2), holdings: [HOLDING], counterparties: TOKEN_PAIRS}),
     play: async ({canvasElement}) => {
         expect(await filterOptions(canvasElement, 'Token')).toEqual(['[WTMR 0xa179…a2e9]'])

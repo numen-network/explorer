@@ -1,5 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, screen} from 'storybook/test'
 import {all, cardsFit, type Play} from '../../.storybook/fit'
 import {CHAIN} from '../../../mock/fixtures/accounts.js'
 import {numn} from '../../../mock/fixtures.js'
@@ -13,8 +13,10 @@ const meta = {
     // the home page grid, so a tile takes the width it gets there
     decorators: [
         Story => (
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-                <Story />
+            <div className="@container">
+                <div className="grid grid-cols-1 gap-4 @min-[496px]:grid-cols-2 @min-[752px]:grid-cols-3 @min-[1008px]:grid-cols-4 @min-[1264px]:grid-cols-5">
+                    <Story />
+                </div>
             </div>
         ),
     ],
@@ -108,16 +110,15 @@ export const BesideStatWrapped: Story = {
     }),
 }
 
-export const HomeRow: Story = {
-    render: () => (
-        <>
-            <StatTile label="Signed extrinsics" href="/charts/extrinsics-total" value="89,062" chips={chips(['+1,139', '24h', 'pos'], ['+33.6K', '30d', 'pos'])} />
-            <StatTile label="Transfers" href="/charts/transfers-total" value="30,411" chips={chips(['+401', '24h', 'pos'], ['+11.4K', '30d', 'pos'])} />
-            <StatTile label="EVM txs" href="/charts/evm-transactions" value="3,620" chips={chips(['0', '24h', 'idle'], ['+1,439', '30d', 'pos'])} />
-            <StatTile label="Accounts" href="/charts/accounts" value="1,636" chips={chips(['+2', '24h', 'pos'], ['+410', '30d', 'pos'])} />
-            <StatTile label="Miners" href="/charts/miners" value="23" chips={chips(['43', '30d', 'idle'], ['54', 'total', 'idle'])} />
-        </>
-    ),
+const TIP = "Production rewards plus the miner's share of fees and tips"
+
+// a figure beside the main one can carry a question mark that opens its note
+export const BesideStatWithTip: Story = {
+    args: {label: 'Blocks produced', value: '1,204', beside: [{label: 'Cumulative rewards', tip: TIP, value: '12,840.5 NUMN'}]},
+    play: async ({canvas, userEvent}) => {
+        await userEvent.hover(canvas.getByLabelText(TIP))
+        await expect(await screen.findByRole('tooltip')).toHaveTextContent(TIP)
+    },
 }
 
 // figures share the tile evenly from sm up and stack below it

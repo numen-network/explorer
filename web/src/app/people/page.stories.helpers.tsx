@@ -145,3 +145,51 @@ export const short = (row: {id: string}) => shortAddr(ss58Encode(row.id, chainIn
 export const bare = (n: number) => acct(n, {identityDisplay: null, identityJson: null})
 
 export const NAMED_OWNER = registered(200, 'Polaris Guild', {judgements: ['KnownGood']})
+
+export const WITH_SUBS = [
+    withSubs(registered(90, 'Hundred Subs Collective'), 'hundred', Array.from({length: 100}, (_, i) => `miner-${String(i + 1).padStart(3, '0')}`)),
+    withSubs(registered(91, 'Orbit Labs'), 'orbit', ['validator']),
+    withSubs(registered(92, 'Polaris Guild', {judgements: ['KnownGood']}), 'polaris', ['payouts', 'treasury desk', null]),
+    registered(93, 'Solo'),
+]
+
+export const username = (name: string, owner: object, traits: object = {}) => ({
+    id: name,
+    owner,
+    status: 'Active',
+    expiresAt: null,
+    provider: 'Allocation',
+    deposit: null,
+    primary: true,
+    grantedBlock: HEAD - 1_000,
+    grantedAt: at(HEAD - 1_000),
+    ...traits,
+})
+
+export const EVERY_USERNAME = [
+    username('polaris.numen', NAMED_OWNER),
+    username('polarispool.numen', NAMED_OWNER, {primary: false, provider: 'AuthorityDeposit', deposit: numn(0.32), grantedBlock: HEAD - 2_000, grantedAt: at(HEAD - 2_000)}),
+    username('anon.numen', bare(201), {grantedBlock: HEAD - 3_000, grantedAt: at(HEAD - 3_000)}),
+    username('waiting.numen', bare(202), {status: 'Pending', expiresAt: HEAD + 60_000, primary: false, grantedBlock: HEAD - 4_000, grantedAt: at(HEAD - 4_000)}),
+    username('leaving.pool', bare(203), {status: 'Unbinding', expiresAt: HEAD + 250_000, provider: 'AuthorityDeposit', deposit: U128_MAX, grantedBlock: HEAD - 5_000, grantedAt: at(HEAD - 5_000)}),
+    username('legacy.dot', bare(204), {provider: 'System', grantedBlock: HEAD - 6_000, grantedAt: at(HEAD - 6_000)}),
+    username(`${'w'.repeat(27)}.numen`, bare(205), {grantedBlock: HEAD - 7_000, grantedAt: at(HEAD - 7_000)}),
+]
+
+export const authority = (suffix: string, account: object, traits: object = {}) => ({
+    id: suffix,
+    account,
+    allocation: 47,
+    usernameCount: 3,
+    addedBlock: HEAD - 20_000,
+    addedAt: at(HEAD - 20_000),
+    ...traits,
+})
+
+// a suffix the chain started with has no AuthorityAdded behind it
+export const EVERY_AUTHORITY = [
+    authority('genesis', bare(210), {addedBlock: null, addedAt: null}),
+    authority('numen', NAMED_OWNER),
+    authority('spent', bare(211), {allocation: 0, usernameCount: 0}),
+    authority('maxed', person(1), {allocation: INT_MAX, usernameCount: INT_MAX}),
+]

@@ -88,7 +88,7 @@ export const WrapsInNarrowBoxes: Story = {
     ...inTimezone(false),
     render: () => (
         <div className="space-y-4 text-xs text-muted-foreground">
-            {['w-80', 'w-55', 'w-42'].map(width => (
+            {['max-w-80', 'max-w-55', 'max-w-42'].map(width => (
                 <div key={width} className={width}>
                     <TimeCell iso={TIMES[3]} cycle />
                 </div>

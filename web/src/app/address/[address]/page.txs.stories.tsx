@@ -17,11 +17,14 @@ export const EoaEveryCase = addressPage(alice, {txs: rows(everyTx.length, (h: nu
 
 const manyTxs = rows(63, (h: number, i: number) => evmTx(h, i % 3, i % 2 ? {from: bob, to: alice, value: units(i * 1.5, 18)} : {from: alice, to: evmAddress(2 + (i % 5)), value: units(i, 18)}))
 
-export const EoaMany: StoryObj = {
-    ...addressPage(alice, {txs: manyTxs}),
-    play: async ({canvasElement}) => expectShortHashes(...[...canvasElement.querySelectorAll('a[href^="/tx/"]')].map(link => link.textContent!)),
-}
+export const EoaMany = addressPage(alice, {txs: manyTxs})
 
 export const EoaPage2 = addressPage(alice, {txs: manyTxs}, {page: '2'})
 
 export const EoaLastPage = addressPage(alice, {txs: manyTxs}, {page: lastPage(manyTxs.length)})
+
+// each transaction hash shortens to 0x4…4
+export const EoaShortHashes: StoryObj = {
+    ...addressPage(alice, {txs: rows(3, (h: number, i: number) => evmTx(h, i, {from: alice, to: bob, value: units(i + 1, 18)}))}),
+    play: async ({canvasElement}) => expectShortHashes(...[...canvasElement.querySelectorAll('a[href^="/tx/"]')].map(link => link.textContent!)),
+}

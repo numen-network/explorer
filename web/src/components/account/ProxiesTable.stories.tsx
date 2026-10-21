@@ -4,6 +4,7 @@ import {Card} from '@/components/ui/card'
 import {fmtSpan} from '@/lib/format'
 import type {ProxyRow} from '@/lib/gql'
 import {CHAIN, proxyDelegates, proxyFor} from '../../../../mock/fixtures/accounts.js'
+import {columnTexts} from '../../../.storybook/fit'
 import {ProxiesTable} from './ProxiesTable'
 
 const meta = {title: 'Pages/Account/Proxies'} satisfies Meta
@@ -16,9 +17,10 @@ const table = (label: string, rows: ProxyRow[]) => (
     </Card>
 )
 
-export const Empty: Story = {render: () => table('Delegates to', [])}
+// a page past the last leaves the Proxy for list empty, Delegates to only shows with rows
+export const InEmpty: Story = {render: () => table('Proxy for', [])}
 
-export const One: Story = {render: () => table('Proxy for', proxyFor(1))}
+export const InOne: Story = {render: () => table('Proxy for', proxyFor(1))}
 
 const delays = (root: HTMLElement) => [...root.querySelectorAll('tbody tr')].map(tr => tr.lastElementChild!.textContent)
 const after = (blocks: number) => fmtSpan(blocks * CHAIN.blockTime)
@@ -26,8 +28,10 @@ const after = (blocks: number) => fmtSpan(blocks * CHAIN.blockTime)
 // three types against three delays, no delay first, a delay read in blocks and the time they take
 export const EveryTypeAndDelay: Story = {
     render: () => table('Delegates to', proxyDelegates(9)),
-    play: ({canvasElement}) =>
-        expect(delays(canvasElement)).toEqual([...Array(3).fill('—'), ...Array(3).fill(`100 blocks ≈ ${after(100)}`), ...Array(3).fill(`14,400 blocks ≈ ${after(14_400)}`)]),
+    play: ({canvasElement}) => {
+        expect(columnTexts(canvasElement, 'Type')).toEqual(Array.from({length: 9}, (_, i) => ['Any', 'Governance', 'NonTransfer'][i % 3]))
+        expect(delays(canvasElement)).toEqual([...Array(3).fill('—'), ...Array(3).fill(`100 blocks ≈ ${after(100)}`), ...Array(3).fill(`14,400 blocks ≈ ${after(14_400)}`)])
+    },
 }
 
 // a type's badge names on hover what the runtime lets a proxy of it call

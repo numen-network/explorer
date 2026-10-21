@@ -1,6 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {CHAIN, MAX_U128} from '../../../../mock/fixtures/accounts.js'
+import {columnTexts} from '../../../.storybook/fit'
 import Locks from './Locks'
 import type {LockRow} from './shared'
 
@@ -22,15 +23,27 @@ const EVERY_KIND: LockRow[] = [
     {kind: 'Reserved', source: 'Unattributed', amount: 1n, until: null, unattributed: true},
 ]
 
-export const Empty: Story = {render: () => <Locks rows={[]} chain={CHAIN} />}
-
 export const EveryUnlock: Story = {
     render: () => <Locks rows={EVERY_KIND} chain={CHAIN} />,
+    play: async ({canvasElement}) =>
+        expect(columnTexts(canvasElement, 'Unlocks')).toEqual([
+            'until #1,400,000',
+            'until the stake lock expires',
+            '—',
+            'until the identity is cleared',
+            'Refundable now',
+            'Never refunded',
+            '—',
+            'the chain records no reason for a plain reserve',
+        ]),
+}
+
+// a deposit on a referendum links to it, a session hold has no page to go to
+export const SourceLinks: Story = {
+    render: () => <Locks rows={EVERY_KIND.filter(r => r.source === 'Referendum #0 submission deposit' || r.source === 'Session hold')} chain={CHAIN} />,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole('link', {name: 'Referendum #0 submission deposit'})).toHaveAttribute('href', '/referendum/0')
         await expect(canvas.queryByRole('link', {name: 'Session hold'})).toBeNull()
-        await expect(canvas.getByText('Refundable now')).toBeVisible()
-        await expect(canvas.getByText('Never refunded')).toBeVisible()
     },
 }

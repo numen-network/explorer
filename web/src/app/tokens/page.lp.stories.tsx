@@ -4,7 +4,7 @@ import {shortHash} from '@/lib/format'
 import {NUMN, pair, token} from '../../../../mock/fixtures/evm.js'
 import {pageMeta} from '../../../.storybook/page'
 import TokensPage from './page'
-import {list, counts} from './page.stories.helpers'
+import {list} from './page.stories.helpers'
 
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
 export default {title: 'Pages/Tokens/LP', ...pageMeta(TokensPage)}
@@ -25,4 +25,4 @@ export const PairBadges: StoryObj = {
     },
 }
 
-export const Empty: StoryObj = {...list([], 5, 0, 'lp'), play: counts('5', '0')}
+export const Empty: StoryObj = {...list([], 5, 0, 'lp'), play: async ({canvas}) => expect(canvas.getByText('No tokens seen yet.')).toBeVisible()}

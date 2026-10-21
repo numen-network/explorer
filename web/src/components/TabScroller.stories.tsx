@@ -45,6 +45,7 @@ export const OverflowAtStart: Story = {
     render: () => <Strip count={LABELS.length} />,
     play: async ({canvas, canvasElement}) => {
         await canvas.findByRole('button', {name: 'Scroll right'})
+        await expect(canvas.queryByRole('button', {name: 'Scroll left'})).toBeNull()
         expectArrowsOnLabelLine(canvasElement)
     },
 }

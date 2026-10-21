@@ -18,7 +18,7 @@ export const TileNeverActive: Story = {
 }
 
 export const TileKickedEquivocation: Story = {
-    render: () => <ValidatorTile v={validatorRow({active: false, kicked: {__kind: 'Equivocation'}, lastActiveSession: 2_147_483_647})} offline={0} equivocations={1} chain={CHAIN} />,
+    render: () => <ValidatorTile v={validatorRow({active: false, kicked: {__kind: 'Equivocation'}})} offline={0} equivocations={1} chain={CHAIN} />,
 }
 
 export const OffencesOffline: Story = {

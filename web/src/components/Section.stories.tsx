@@ -13,7 +13,3 @@ type Story = StoryObj<typeof meta>
 export const TitleOnly: Story = {args: {title: 'Network info'}}
 
 export const WithViewAll: Story = {args: {more: '/blocks'}}
-
-export const WithCustomLink: Story = {args: {title: 'Delegations', more: '/governance?tab=tracks', moreLabel: 'All tracks'}}
-
-export const LongTitle: Story = {args: {title: 'Blocks sealed by this miner over the last thirty days', more: '/blocks', moreLabel: 'View every block'}}

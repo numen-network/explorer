@@ -9,7 +9,7 @@ import {hits, results, NOVA} from './page.stories.helpers'
 
 export default {title: 'Pages/Search/Query', ...pageMeta(SearchPage)}
 
-export const Empty = pageStory({})
+export const NoQuery = pageStory({})
 
 export const NothingFound = results('zzz', [], [])
 

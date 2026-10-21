@@ -18,6 +18,18 @@ const hovered: Story = {
     },
 }
 
+// opens the tip, then reads the lines its text takes and whether it stays on
+// screen, leaving out the copy Radix keeps for screen readers
+async function openTip({canvas, userEvent}: Parameters<NonNullable<Story['play']>>[0]) {
+    await userEvent.hover(canvas.getByText('hover me'))
+    await screen.findByRole('tooltip')
+    const tip = document.querySelector('[data-slot=tooltip-content]')!
+    const range = document.createRange()
+    range.selectNodeContents(tip.firstChild!)
+    const box = tip.getBoundingClientRect()
+    return {lines: new Set([...range.getClientRects()].map(r => Math.round(r.top))).size, onScreen: box.left >= -0.5 && box.right <= document.documentElement.clientWidth + 0.5}
+}
+
 // room above and beside the trigger so the open tip is in the shot
 const Stage = ({children}: {children: React.ReactNode}) => <div className="px-6 pt-24 pb-6 text-sm">{children}</div>
 
@@ -32,8 +44,8 @@ export const ShortText: Story = {
     ),
 }
 
+// a hash keeps to one line from sm up, the tip widening to hold it, and breaks anywhere below sm
 export const UnbrokenHash: Story = {
-    ...hovered,
     render: () => (
         <Stage>
             <Tip text={HASH}>
@@ -41,10 +53,14 @@ export const UnbrokenHash: Story = {
             </Tip>
         </Stage>
     ),
+    play: async context => {
+        const {lines, onScreen} = await openTip(context)
+        await expect({oneLine: lines === 1, onScreen}).toEqual({oneLine: matchMedia('(width >= 40rem)').matches, onScreen: true})
+    },
 }
 
+// a sentence wraps to the width of the tip
 export const LongSentence: Story = {
-    ...hovered,
     render: () => (
         <Stage>
             <Tip text="Accounts the chain has ever seen. An account joins the count on the day a block first touched it, and nothing removes it again.">
@@ -52,6 +68,10 @@ export const LongSentence: Story = {
             </Tip>
         </Stage>
     ),
+    play: async context => {
+        const {lines, onScreen} = await openTip(context)
+        await expect({wraps: lines > 1, onScreen}).toEqual({wraps: true, onScreen: true})
+    },
 }
 
 export const RichContent: Story = {

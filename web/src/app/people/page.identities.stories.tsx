@@ -8,7 +8,7 @@ import {WALLET_URL} from '@/lib/wallet'
 import {AVATAR_HOST} from '../../../.storybook/avatar'
 import {lastPage, pageMeta} from '../../../.storybook/page'
 import PeoplePage from './page'
-import {Fields, Row, U128_MAX, registered, withSubs, MANY, identities, tileText, short} from './page.stories.helpers'
+import {Fields, Row, U128_MAX, registered, withSubs, MANY, WITH_SUBS, identities, short} from './page.stories.helpers'
 
 export default {title: 'Pages/People/Identities', ...pageMeta(PeoplePage)}
 
@@ -35,13 +35,6 @@ const CHANNELS = [
     registered(84, 'Web and X', {web: 'https://orbit.example', x: 'orbit_labs'}),
 ]
 
-const WITH_SUBS = [
-    withSubs(registered(90, 'Hundred Subs Collective'), 'hundred', Array.from({length: 100}, (_, i) => `miner-${String(i + 1).padStart(3, '0')}`)),
-    withSubs(registered(91, 'Orbit Labs'), 'orbit', ['validator']),
-    withSubs(registered(92, 'Polaris Guild', {judgements: ['KnownGood']}), 'polaris', ['payouts', 'treasury desk', null]),
-    registered(93, 'Solo'),
-]
-
 const LONG_NAMES = [
     registered(100, 'Rocket Pool 🚀🚀🚀', {judgements: ['FeePaid'], web: 'rocket.example'}),
     withSubs(registered(101, WIDEST, {judgements: ['KnownGood', 'Erroneous'], web: `${'w'.repeat(60)}.org`, x: 'w'.repeat(31)}), 'widest', [WIDEST]),
@@ -63,44 +56,46 @@ const openSubs: StoryObj['play'] = async ({canvas, userEvent}) => {
     await screen.findByRole('dialog')
 }
 
+// the popover grows to its longest name, cutting names short only once it
+// fills the 32rem cap or the room the viewport leaves
+function expectSubsFit(dialog: HTMLElement, count: number) {
+    const names = [...dialog.querySelectorAll<HTMLElement>('a[href^="/account/"] .truncate')]
+    expect(names).toHaveLength(count)
+    const room = Math.min(32 * parseFloat(getComputedStyle(document.documentElement).fontSize), parseFloat(getComputedStyle(dialog).getPropertyValue('--radix-popover-content-available-width')))
+    const full = dialog.offsetWidth >= room - 1
+    expect(full || names.every(n => n.scrollWidth <= n.clientWidth)).toBe(true)
+}
+
+// the identity cards a story renders, past the tiles above them
+const cardsOf = (canvasElement: HTMLElement, rows: Row[]) => [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card]')].slice(-rows.length)
+
 export const Empty = identities([], {registrars: []})
 
 export const One = identities([person(0)])
 
-export const Channels: StoryObj = {
+// each card shows a mark for every channel its identity fills in and none for the rest
+export const ChannelSets: StoryObj = {
     ...identities(CHANNELS),
-    play: async ({canvas}) => {
-        const card = (await canvas.findByText('All channels')).closest<HTMLElement>('[data-slot=card]')!
-        const sizes = [...card.querySelectorAll('[aria-label]:not(button):has(> svg)')].map(m => [m.getAttribute('aria-label'), m.querySelector('svg')!.getBoundingClientRect().width])
-        expect(sizes).toEqual([
-            ['Web', 18],
-            ['Email', 18],
-            ['GitHub', 18],
-            ['Matrix', 18],
-            ['X', 16],
-            ['Telegram', 18],
-            ['Discord', 18],
-        ])
-    },
+    play: async ({canvasElement}) => expect(cardsOf(canvasElement, CHANNELS).map(card => card.querySelectorAll('[aria-label]:not(button):has(> svg)').length)).toEqual([7, 1, 0, 2, 2]),
 }
 
-// the popover grows to its longest name, cutting names short only once it
-// fills the 32rem cap or the room the viewport leaves
 export const SubsOpen: StoryObj = {
     ...identities(WITH_SUBS),
     play: async ctx => {
-        expect(tileText(ctx.canvasElement, 'Direct identities')).toEqual(['Direct identities', '4', 'Sub identities', '104', '4 · verified0 · unverified0 · flagged'])
         await openSubs!(ctx)
-        const dialog = await screen.findByRole('dialog')
-        const names = [...dialog.querySelectorAll<HTMLElement>('a[href^="/account/"] .truncate')]
-        expect(names).toHaveLength(100)
-        const room = Math.min(32 * parseFloat(getComputedStyle(document.documentElement).fontSize), parseFloat(getComputedStyle(dialog).getPropertyValue('--radix-popover-content-available-width')))
-        const full = dialog.offsetWidth >= room - 1
-        expect(full || names.every(n => n.scrollWidth <= n.clientWidth)).toBe(true)
+        expectSubsFit(await screen.findByRole('dialog'), 100)
     },
 }
 
-export const LongNames: StoryObj = {...identities(LONG_NAMES), play: openSubs}
+// long names cut short inside their cards, and the widest sub name sizes its popover
+export const LongNamesSubsOpen: StoryObj = {
+    ...identities(LONG_NAMES),
+    play: async ctx => {
+        for (const card of cardsOf(ctx.canvasElement, LONG_NAMES)) expect(card.scrollWidth).toBeLessThanOrEqual(card.clientWidth)
+        await openSubs!(ctx)
+        expectSubsFit(await screen.findByRole('dialog'), 1)
+    },
+}
 
 // an identity with no display still shows its judgement, beside its username or else its address
 export const WithoutDisplay: StoryObj = {
@@ -156,18 +151,27 @@ const BIOS = [
 const cardOf = (canvasElement: HTMLElement, name: string) =>
     [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card]')].find(c => c.querySelector('a[href^="/account/"]')?.textContent === name)!
 
-// every card hands its own address to the wallet's Delegate and offers it to
-// copy, shows the first line of its bio on one line, and opens the rest
+// a card shows the first line of its bio on one line and a button that opens the rest
 export const Bios: StoryObj = {
     ...identities(BIOS),
-    play: async ({canvas, canvasElement}) => {
-        expect((await canvas.findAllByRole('link', {name: 'Delegate'})).map(a => a.getAttribute('href'))).toEqual(BIOS.map(r => delegateHref(WALLET_URL, ss58Encode(r.id, chainInfo.ss58))))
-        expect(canvas.getAllByRole('button', {name: 'copy'})).toHaveLength(BIOS.length)
+    play: async ({canvasElement}) => {
         const names = BIOS.map(r => r.identityDisplay!)
         expect(names.filter(n => cardOf(canvasElement, n).querySelector('button[aria-label=Bio]'))).toEqual(['Lines', 'Full bio only', 'Markdown'])
         const shorts = names.map(n => cardOf(canvasElement, n).querySelector('p')!)
         expect(shorts.map(p => p.textContent)).toEqual(['Validator operator since genesis.', LONG_BIO, 'Root and Treasurer tracks', '', 'Treasury-minded validator', 'x'.repeat(2048), ''])
         for (const p of shorts.filter(p => p.textContent)) expect(p.getBoundingClientRect().height).toBeLessThanOrEqual(parseFloat(getComputedStyle(p).lineHeight))
+    },
+}
+
+// every card hands its own address to the wallet's Delegate and offers it to
+// copy, beside the name or, with no name, beside the address that stands in for it
+const ACTIONS = [registered(170, 'Named'), nameless(171, {})]
+
+export const CardActions: StoryObj = {
+    ...identities(ACTIONS),
+    play: async ({canvas, canvasElement}) => {
+        expect((await canvas.findAllByRole('link', {name: 'Delegate'})).map(a => a.getAttribute('href'))).toEqual(ACTIONS.map(r => delegateHref(WALLET_URL, ss58Encode(r.id, chainInfo.ss58))))
+        expect(cardsOf(canvasElement, ACTIONS).map(card => within(card).getAllByRole('button', {name: 'copy'}).length)).toEqual([1, 1])
     },
 }
 

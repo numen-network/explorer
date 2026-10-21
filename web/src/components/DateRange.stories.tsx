@@ -25,10 +25,13 @@ type Story = StoryObj<typeof meta>
 
 export const AnyDate: Story = {}
 
-export const FullRange: Story = {
+// a range set without the chart page's pick keeps the plain look
+export const FullRangeInactive: Story = {
     args: {after: day(45), before: day(15)},
-    play: async ({canvas}) => {
-        await expect(canvas.getByRole('button')).toHaveAttribute('data-active', 'false')
+    play: async ({args, canvas}) => {
+        const trigger = canvas.getByRole('button')
+        await expect(trigger).toHaveTextContent(`${args.after} to ${args.before}`)
+        await expect(trigger).toHaveAttribute('data-active', 'false')
     },
 }
 
@@ -54,7 +57,7 @@ export const CalendarOpen: Story = {
 
 export const ActiveCalendarOpen: Story = {...CalendarOpen, args: {...CalendarOpen.args, active: true}}
 
-export const CalendarOpenEmpty: Story = {
+export const AnyDateCalendarOpen: Story = {
     play: async ({canvas, userEvent}) => {
         await userEvent.click(canvas.getByRole('button'))
         await expect(await screen.findByRole('grid')).toBeInTheDocument()
@@ -62,7 +65,7 @@ export const CalendarOpenEmpty: Story = {
 }
 
 // only genesis is indexed, which carries no timestamp, so there is no day to pick
-export const NothingIndexed: Story = {
+export const NoDayToPick: Story = {
     args: {lastDay: null},
     play: async ({canvas}) => {
         await expect(canvas.queryByRole('button')).toBeNull()

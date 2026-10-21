@@ -1,38 +1,40 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {fmtBalance} from '@/lib/format'
-import {ss58Encode} from '@/lib/ss58'
-import {CHAIN, MAX_U128} from '../../../mock/fixtures/accounts.js'
-import {numn, PEOPLE} from '../../../mock/fixtures.js'
-import AccountLink from './AccountLink'
+import {expect} from 'storybook/test'
+import {expectFits} from '../../.storybook/fit'
 import {SplitRow, SplitRows} from './SplitRows'
 
 const meta = {title: 'Components/SplitRows'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-const row = (p: (typeof PEOPLE)[number], amount: string) => (
+const row = (n: number, value = `Value ${n}`) => (
     <SplitRow
-        key={p.id}
+        key={n}
         lead={
             <>
-                <AccountLink addr={ss58Encode(p.id, CHAIN.ss58)} acc={p} />
-                <span className="text-muted-foreground">→</span>
-                <AccountLink addr={ss58Encode(PEOPLE[2].id, CHAIN.ss58)} acc={PEOPLE[2]} />
+                <span>Lead {n}</span>
+                <span className="text-muted-foreground">detail</span>
             </>
         }
     >
-        <span className="font-mono">{fmtBalance(amount, CHAIN.decimals, CHAIN.symbol)}</span>
+        <span className="font-mono">{value}</span>
     </SplitRow>
 )
 
-export const One: Story = {render: () => <SplitRows>{row(PEOPLE[7], numn(12.5))}</SplitRows>}
+export const One: Story = {render: () => <SplitRows>{row(1)}</SplitRows>}
 
-export const Many: Story = {render: () => <SplitRows>{PEOPLE.slice(0, 8).map((p, i) => row(p, numn(1_000 / (i + 1))))}</SplitRows>}
+export const Many: Story = {render: () => <SplitRows>{Array.from({length: 8}, (_, i) => row(i + 1))}</SplitRows>}
 
+// a value longer than the card keeps its line, and the card scrolls it sideways instead of spilling over the page
 export const WiderThanCard: Story = {
     render: () => (
         <div className="max-w-sm">
-            <SplitRows>{[row(PEOPLE[7], MAX_U128), row(PEOPLE[8], numn(12.5))]}</SplitRows>
+            <SplitRows>{[row(1, ((1n << 256n) - 1n).toString()), row(2)]}</SplitRows>
         </div>
     ),
+    play: async ({canvasElement}) => {
+        const strip = canvasElement.querySelector<HTMLElement>('.overflow-x-auto')!
+        await expect(strip.scrollWidth).toBeGreaterThan(strip.clientWidth)
+        expectFits(canvasElement.querySelector('[data-slot=card]')!)
+    },
 }

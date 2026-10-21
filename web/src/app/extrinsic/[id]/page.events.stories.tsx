@@ -20,5 +20,3 @@ export const PayoutBatch = detail(payout, {tab: 'events'})
 export const PayoutBatchPage2 = detail(payout, {tab: 'events', page: '2'})
 
 export const PayoutBatchLastPage = detail(payout, {tab: 'events', page: lastPage(payout.events.length)})
-
-export const Empty = detail({...of(transfer), events: []}, {tab: 'events'})

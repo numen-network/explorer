@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import type {TreasuryPayoutRow} from '@/lib/gql'
-import {CHAIN, EVERY_PAYOUT, payouts} from '../../../../mock/fixtures/accounts.js'
+import {CHAIN, EVERY_PAYOUT, payout, payouts} from '../../../../mock/fixtures/accounts.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {TreasuryTable} from './TreasuryTable'
 
@@ -43,6 +43,11 @@ export const EverySourceAndRole: Story = {
         ])
         expect(columnTexts(canvasElement, 'Role')).toEqual(['Beneficiary', 'Beneficiary', 'Beneficiary', 'Curator', 'Curator', 'Beneficiary', 'Beneficiary'])
         expect(columnTexts(canvasElement, 'Referendum')).toEqual(['#28', '—', '#12', '#12', '—', '#12', '—'])
-        expect(columnTexts(canvasElement, 'Amount')).toEqual(['20,000 NUMN', '500 NUMN', '4,500 NUMN', '380 NUMN', '25 NUMN', '1,200 NUMN', '2,000 NUMN'])
     },
+}
+
+// a payment reads to its last decimal, where the tile above the list abbreviates
+export const AmountsInFull: Story = {
+    render: () => table([4_321.123456, 0.000001].map((units, i) => payout(i, 'Spend', 'Beneficiary', units, {spend: {id: `spend-${9 - i}`, referendum: null}})) as TreasuryPayoutRow[]),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Amount')).toEqual(['4,321.123456 NUMN', '0.000001 NUMN']),
 }

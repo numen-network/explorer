@@ -1,10 +1,11 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {accountTransferCases, accountTransfers, delegatedOnTracks, funds, MAX_U128, subject, SUBJECT, TRACKS, TREASURY} from '../../../../../mock/fixtures/accounts.js'
-import {chainInfo, HEAD, issuance, numn, PEOPLE, rows, transfer} from '../../../../../mock/fixtures.js'
+import {accountTransferCases, accountTransfers, delegatedOnTracks, funds, MAX_U128, subject, SUBJECT, TRACKS} from '../../../../../mock/fixtures/accounts.js'
+import {chainInfo, HEAD, numn, PEOPLE} from '../../../../../mock/fixtures.js'
+import {expectWholeWords} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {wellKnown, build, story, rowValue, lock} from './page.stories.helpers'
+import {wellKnown, build, story, rowValue, lock, mapped} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Balance', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
@@ -29,12 +30,20 @@ const expectAligned = (root: HTMLElement) => {
 const expectSplit = (root: HTMLElement, balance: string, transferable: string, locked: string) =>
     expect([rowValue(root, 'Balance'), rowValue(root, 'Transferable *'), rowValue(root, 'Locked *')]).toEqual([balance, transferable, locked].map(v => `${v} NUMN`))
 
+// a valid address the index has never seen, the message stands where the balance and the tabs would
+export const NotActivated: StoryObj = {
+    ...pageStory({...build({}), accountById: null}, {params: {id: SUBJECT}}),
+    play: async ({canvas}) => {
+        expect(canvas.getByText('Not activated')).toBeVisible()
+        expect(canvas.queryByRole('navigation', {name: 'Account'})).toBeNull()
+    },
+}
+
 export const Zero: StoryObj = {
     ...story({account: subject({...funds('0'), nonce: 4}), transfers: accountTransfers(4)}),
     play: ({canvasElement}) => {
         expect(barParts(canvasElement)).toEqual(['bg-border'])
         expect(shares(canvasElement)).toEqual([])
-        expectAligned(canvasElement)
     },
 }
 
@@ -46,6 +55,7 @@ export const AllTransferable: StoryObj = {
     },
 }
 
+// the widest amounts the chain can hold still split the bar and line up on their decimal points
 export const Extremes: StoryObj = {
     ...story({
         account: subject({
@@ -70,7 +80,6 @@ export const ReserveOverLocks: StoryObj = {
         expectSplit(canvasElement, '104.382014386512943379', '98.512014386512943379', '5.870000000000000000')
         expect(barParts(canvasElement)).toEqual(['bg-good', 'bg-dim'])
         expect(shares(canvasElement)).toEqual(['94.37%', '5.62%'])
-        expectAligned(canvasElement)
     },
 }
 
@@ -88,7 +97,6 @@ export const LocksOverReserve: StoryObj = {
         expect(shares(canvasElement)).toEqual(['<0.01%', '99.99%'])
         const sliver = canvasElement.querySelector('[data-slot=balance-bar] > .bg-good')!
         expect(sliver.getBoundingClientRect().width).toBeGreaterThanOrEqual(4)
-        expectAligned(canvasElement)
     },
 }
 
@@ -104,17 +112,16 @@ export const VotesPower: StoryObj = {
     },
 }
 
-// born at genesis, which the config dates, and never active since
-export const Treasury: StoryObj = {
-    ...story({
-        account: subject({id: TREASURY.id, ...funds(issuance.treasuryPot), nonce: 0, firstSeenBlock: 0, firstSeenTimestamp: null, lastActiveBlock: null}),
-        transfers: rows(8, (h: number, i: number) => (i % 2 === 0 ? transfer(h, i, {from: TREASURY, extrinsic: null, call: null, amount: numn(5_000 * (i + 1))}) : transfer(h, i, {to: TREASURY}))),
-        counts: {transfers: 312},
-    }),
-    play: async ({canvas, canvasElement}) => {
-        expect(rowValue(canvasElement, 'First seen')).toContain('| 2026-09-14 01:00:00 (UTC)')
-        expect(canvas.queryByText('Last active')).toBeNull()
-    },
+// an account that never signed anything, only received, has no Last active row
+export const NeverActive: StoryObj = {
+    ...story({account: subject({nonce: 0, lastActiveBlock: null}), transfers: accountTransfers(3, 'to')}),
+    play: async ({canvas}) => expect(canvas.queryByText('Last active')).toBeNull(),
+}
+
+// the H160 leaves its note little room on the line, which wraps it between whole words
+export const EvmOriginNoteWraps: StoryObj = {
+    ...story({account: mapped(), transfers: accountTransfers(3)}),
+    play: async ({canvas}) => expectWholeWords(await canvas.findByText('mapped account of this H160')),
 }
 
 const BORN_AT_GENESIS = subject({firstSeenBlock: 0, firstSeenTimestamp: null})

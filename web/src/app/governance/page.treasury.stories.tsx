@@ -26,6 +26,8 @@ export const One = treasuryTab([spend(0, 'Paid')])
 
 export const EveryStatus = treasuryTab(SPEND_STATUSES.map((status, i) => spend(i, status)))
 
+// the longest display name, a spend with no referendum on record and amounts
+// of nothing, one planck and thirty digits
 export const EdgeCases = treasuryTab([
     spend(0, 'AssetSpendApproved', {beneficiary: PEOPLE[7]}),
     spend(1, 'Awarded', {referendum: null}),

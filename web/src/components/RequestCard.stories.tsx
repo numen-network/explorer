@@ -63,17 +63,33 @@ export const SingleLocalSpend: Story = {
     play: async ({canvas}) => expect(canvas.getByText('Next spend period')).toBeVisible(),
 }
 
-// a payout past its block, one a block away, and ones held back days and years
+// a payout past its block, one a block away, ones held back days and years,
+// and a spend_local that waits for the next spend period
 export const EveryRelease: Story = {
-    ...card({root: batch(spend(200_000, 0), spend(150_000, 1, HEAD - 2_000), spend(120_000, 3, HEAD + 1), spend(90_000, 5, HEAD + 45 * DAY + 1_234), spend(80_000, 2, HEAD + 3 * 365 * DAY))}),
-    play: async ({canvasElement, canvas}) => {
-        await expect(notes(canvasElement).filter(t => /^(Immediately|In )/.test(t ?? ''))).toEqual(['Immediately', 'Immediately · #998,000', 'In 10s · #1,000,001', 'In 1mo 15d · #1,390,034', 'In 3y · #10,460,800'])
-        await expect(canvas.getByText('5 payouts')).toBeVisible()
-        await expect(canvas.getByText('640,000 NUMN')).toBeVisible()
+    ...card({
+        root: batch(
+            spend(200_000, 0),
+            spend(150_000, 1, HEAD - 2_000),
+            spend(120_000, 3, HEAD + 1),
+            spend(90_000, 5, HEAD + 45 * DAY + 1_234),
+            spend(80_000, 2, HEAD + 3 * 365 * DAY),
+            call('Treasury', 'spend_local', {amount: numn(60_000), beneficiary: id(4)})
+        ),
+    }),
+    play: async ({canvasElement, canvas, userEvent}) => {
+        await userEvent.click(canvas.getByRole('button', {name: 'Show all 6'}))
+        await expect(notes(canvasElement).filter(t => /^(Immediately|In |Next spend period)/.test(t ?? ''))).toEqual([
+            'Immediately',
+            'Immediately · #998,000',
+            'In 10s · #1,000,001',
+            'In 1mo 15d · #1,390,034',
+            'In 3y · #10,460,800',
+            'Next spend period',
+        ])
     },
 }
 
-// tranches to one payee, more than the card lists before asking
+// seven tranches, three of them to one payee, more than the card lists before asking
 const staged = batch(
     spend(2_000_000, 0),
     spend(1_500_000, 1),

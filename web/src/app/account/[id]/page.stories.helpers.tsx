@@ -2,7 +2,7 @@ import type {Decorator} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
-import {accountPage, delegationActionsOf, funds, PRIME_KEY, subject, SUBJECT, SUBJECT_EVM} from '../../../../../mock/fixtures/accounts.js'
+import {accountPage, funds, ME, MULTISIG_ENDS, multisigOp, PRIME_KEY, SIGNATORIES, subject, SUBJECT, SUBJECT_EVM} from '../../../../../mock/fixtures/accounts.js'
 import {chainInfo, identity, numn} from '../../../../../mock/fixtures.js'
 import {pageStory} from '../../../../.storybook/page'
 
@@ -51,13 +51,13 @@ export const PARTIAL = schedule(1_000_000, 1, 400_000)
 
 export const staked = () => subject({...funds(numn(100_012_000), '0', numn(100_000_000)), locksJson: [lock('validatr', numn(100_000_000))]})
 
-const figure = (root: HTMLElement, label: string) => [...root.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === label)!.nextElementSibling!.textContent
+// a figure on a summary tile, read off the label above it
+export const figure = (root: HTMLElement, label: string) => [...root.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === label)!.nextElementSibling!.textContent
 export const offenceCounts = async (root: HTMLElement, offline: string, equivocations: string) => {
     await expect(figure(root, 'Offline (30d)')).toBe(offline)
     await expect(figure(root, 'Equivocations (30d)')).toBe(equivocations)
 }
 
-export const validatorTabs = (root: HTMLElement) => subTabs(root, 'Validator')
 // the tile belongs to the whole group, so it sits above the sub-tab strip
 export const tileAboveTabs = (root: HTMLElement) =>
     Boolean(figureLabel(root, 'Status').compareDocumentPosition(within(root).getByRole('navigation', {name: 'Validator'})) & Node.DOCUMENT_POSITION_FOLLOWING)
@@ -78,10 +78,16 @@ export const summaries = (root: HTMLElement) =>
         .filter(h => h.querySelector('[data-slot=card-description]'))
         .map(h => Object.fromEntries([...h.querySelectorAll('[data-slot=card-description]')].map(d => [d.textContent, d.nextElementSibling!.textContent])))
 
-// each link of a tab strip as its tab or mtab, its count and whether it is open
+// each link of a tab strip as its tab or mtab, its count or null for an uncounted tab, and whether it is open
 export const strip = (root: HTMLElement, name: string, param: string) =>
     within(within(root).getByRole('navigation', {name}))
         .getAllByRole('link')
-        .map(a => [new URL(a.getAttribute('href')!, 'http://x').searchParams.get(param), a.querySelector('[data-slot=badge]')!.textContent, a.getAttribute('aria-current')])
+        .map(a => [new URL(a.getAttribute('href')!, 'http://x').searchParams.get(param), a.querySelector('[data-slot=badge]')?.textContent ?? null, a.getAttribute('aria-current')])
 
-export const bothSides = [...delegationActionsOf(12, 'out'), ...delegationActionsOf(30, 'in')]
+// the subject as the multisig, each operation approved by a run of its signatories
+export const addressOp = (i: number) => {
+    const end = MULTISIG_ENDS[i % MULTISIG_ENDS.length]
+    return multisigOp(i, {threshold: 3, ...end, approvals: SIGNATORIES.slice(i % 3, (i % 3) + (end.approvals?.length ?? 2)), multisig: ME, signatories: SIGNATORIES})
+}
+
+export const asAddress = (count: number) => Array.from({length: count}, (_, i) => addressOp(i))

@@ -1,8 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {Fragment, type ReactNode} from 'react'
-import {CircleAlert, CircleCheck, CircleQuestionMark, CircleX} from 'lucide-react'
+import type {ReactNode} from 'react'
 import {identity} from '../../../mock/fixtures.js'
-import {JudgementBadge, MarkDisc, verdictOf, type Verdict} from './JudgementBadge'
+import {JudgementBadge, verdictOf, type Verdict} from './JudgementBadge'
 
 const meta = {title: 'Components/JudgementBadge'} satisfies Meta
 export default meta
@@ -25,8 +24,6 @@ const JUDGEMENTS = [
 ]
 
 const SIZES = ['text-xs', 'text-sm', 'text-base', 'text-xl', 'text-4xl']
-const FILLS = ['--color-good', '--color-warn', '--color-destructive', '--color-dim']
-const MARKS = [CircleCheck, CircleAlert, CircleX, CircleQuestionMark]
 
 function Case({label, children}: {label: string; children: ReactNode}) {
     return (
@@ -83,20 +80,5 @@ export const Sizes: Story = {
                 </Case>
             ))}
         </>
-    ),
-}
-
-export const MarkDiscs: Story = {
-    render: () => (
-        <div className="grid w-fit grid-cols-[auto_repeat(4,auto)] items-center gap-x-4 gap-y-2">
-            {FILLS.map(fill => (
-                <Fragment key={fill}>
-                    <span className="text-xs text-muted-foreground">{fill}</span>
-                    {MARKS.map((mark, i) => (
-                        <MarkDisc key={i} fill={`var(${fill})`} mark={mark} className="size-8" />
-                    ))}
-                </Fragment>
-            ))}
-        </div>
     ),
 }

@@ -83,7 +83,7 @@ export const FilterPalletAndMethod: StoryObj = {
     play: cardsFit,
 }
 
-export const FilterOneMatch = list(take([mined(HEAD - 7, [timestampSet, batchAll])], e => e.method === 'BatchCompleted'), {pallet: 'Utility'})
+export const FilterOneMatch = list(take([mined(HEAD - 7, [timestampSet, batchAll])], e => e.method === 'BatchCompleted'), {pallet: 'Utility'}, [['Utility.BatchCompleted', 'ApplyExtrinsic', 1]])
 
 export const FilterPhaseInitialization = list(take(RECENT, e => e.phase === 'Initialization'), {phase: 'Initialization'})
 
@@ -100,4 +100,19 @@ export const FilterNothingMatches: StoryObj = {
     },
 }
 
-export const FilterDateRange = list(take(RECENT), {after: '2026-09-01', before: '2026-09-30'})
+// dated inside the month whatever day the story runs, every third day back from the 28th
+const inSeptember = (b: Mined, i: number) => {
+    const timestamp = `2026-09-${String(28 - i * 3).padStart(2, '0')}T12:00:00.000Z`
+    return {...b, events: b.events.map((e: Row) => ({...e, block: {...e.block, timestamp}}))}
+}
+const SEPTEMBER = Array.from({length: 4}, (_, i) => inSeptember(mined(HEAD - 30_000 - i * 1_200, [timestampSet, transfer]), i))
+
+export const FilterDateRange = list(take(SEPTEMBER), {after: '2026-09-01', before: '2026-09-30'}, [
+    ['Balances.Deposit', 'ApplyExtrinsic', 129],
+    ['Balances.Deposit', 'Finalization', 259_200],
+    ['Balances.Issued', 'Finalization', 259_200],
+    ['Balances.Transfer', 'ApplyExtrinsic', 43],
+    ['Balances.Withdraw', 'ApplyExtrinsic', 43],
+    ['Session.NewSession', 'Initialization', 4_320],
+    ['System.ExtrinsicSuccess', 'ApplyExtrinsic', 259_243],
+])

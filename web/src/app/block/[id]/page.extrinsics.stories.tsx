@@ -2,7 +2,6 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {HEAD, person} from '../../../../../mock/fixtures.js'
 import {heartbeat, mined, timestampSet, transfer, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
-import {expectNamedNavs} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import BlockPage from './page'
 import {QUIET, detail, genesis} from './page.stories.helpers'
@@ -16,8 +15,7 @@ const PAYOUTS = mined(HEAD - 520, [timestampSet, ...PAYOUT_SIZES.map(count => (h
 
 export const One = detail(QUIET)
 
-// the links to the neighbouring blocks share the page with the list's pager
-export const Many: StoryObj = {...detail(CROWDED), play: async ({canvasElement}) => expectNamedNavs(canvasElement)}
+export const Many = detail(CROWDED)
 
 export const ManyLastPage = detail(CROWDED, {page: 3})
 

@@ -1,4 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
+import {within} from 'storybook/test'
+import type {RawStep} from '@/components/timeline'
 import data, {referenda} from '../../../../../mock/data.js'
 import {at, block, numn, paged, PEOPLE} from '../../../../../mock/fixtures.js'
 import {accounts, actionLog, anon, castFromSnapshots, castVotes, delegatedVoteData, delegation, eventsById, metadataAction, metadataEvents, proposal, snapshots, split, splitAbstain, standard, step, stepEvents, voteData, votingAction, withImpact} from '../../../../../mock/fixtures/governance.js'
@@ -42,6 +44,49 @@ export const cast = (r: Referendum, votes: object[], tab: string, extra: Record<
 
 export const withPlay = (s: StoryObj, play: Play): StoryObj => ({...s, play})
 
+// the queries bound to the card under a title
+export const card = (root: HTMLElement, title: string) => within(within(root).getByText(title).closest<HTMLElement>('[data-slot=card]')!)
+
+export const markdownPitch = `Pays a pilot cohort of **three** community teams, see the [forum thread](https://forum.example.com/t/42).
+
+## Budget
+
+| Team | Amount |
+| --- | ---: |
+| Docs | 12,000 NUMN |
+| Tooling | 30,000 NUMN |
+
+- monthly reports
+- unspent funds go back to the treasury`
+
+interface Deposit {
+    kind: string
+    who: {id: string}
+    amount: string
+    state: string
+}
+
+// the submission deposit and the decision deposit its submitter placed, both in one state
+const bothDeposits = (r: Referendum, state: string) => {
+    const [submission] = r.deposits as Deposit[]
+    return [
+        {...submission, state},
+        {...submission, kind: 'Decision', amount: (r.track as {decisionDeposit: string}).decisionDeposit, state},
+    ]
+}
+
+export const approvedRefunded = {...curated(0), deposits: bothDeposits(curated(0), 'Refunded')}
+
+// both deposits stay held after the end until somebody asks for the refund
+export const approvedHeld = {
+    ...curated(0),
+    id: '27',
+    index: 27,
+    title: 'Approved with both deposits still held',
+    deposits: bothDeposits(curated(0), 'Held'),
+    timeline: (curated(0).timeline as RawStep[]).filter(s => !s.name.endsWith('DepositRefunded')),
+}
+
 export const treasurySpend = (amount: string, beneficiary: string, validFrom: number | null) => ({
     __kind: 'Treasury',
     value: {__kind: 'spend', assetKind: null, amount, beneficiary, validFrom},
@@ -49,6 +94,7 @@ export const treasurySpend = (amount: string, beneficiary: string, validFrom: nu
 
 export const PREIMAGE = '0x4f2c9d07a1b3e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e'
 export const refundTitle = `Refund the deposit locked under preimage ${PREIMAGE}`
+export const refundPitch = `Preimage ${PREIMAGE} was noted twice, so this pays back the second deposit.`
 
 // approved on its second confirmation, the first one aborted when nays came in
 export const secondAttempt = {

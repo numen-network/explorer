@@ -4,7 +4,6 @@ import type {IdentityRef} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
 import {chainInfo, person} from '../../../mock/fixtures.js'
 import AccountLink from './AccountLink'
-import TokenIcon from './TokenIcon'
 import {WellKnownProvider} from './wellKnown'
 
 const meta = {title: 'Components/WellKnown'} satisfies Meta
@@ -15,8 +14,6 @@ const ss58 = (hex: string) => ss58Encode(hex, chainInfo.ss58)
 
 const TREASURY = ss58(chainInfo.treasuryAccount)
 const PRIME = person(0)
-const WTMR = '0xa1795b3c6f74866c7def1df390f9e2e403dca2e9'
-const UNLISTED_TOKEN = '0x00000000000000000000000000000000000c0ffe'
 
 const CASES: [label: string, id: string, acc?: IdentityRef][] = [
     ['treasury', chainInfo.treasuryAccount],
@@ -61,28 +58,5 @@ export const NoPrime: Story = {
         <WellKnownProvider treasury={TREASURY} prime="" evmChainId={chainInfo.evmChainId}>
             <Grid>{lines}</Grid>
         </WellKnownProvider>
-    ),
-}
-
-export const TokenIcons: Story = {
-    render: () => (
-        <div className="grid gap-3 text-sm">
-            <WellKnownProvider treasury={TREASURY} prime="" evmChainId={chainInfo.evmChainId}>
-                <span>
-                    <TokenIcon addr={WTMR} />
-                    WTMR on chain {chainInfo.evmChainId}
-                </span>
-                <span>
-                    <TokenIcon addr={UNLISTED_TOKEN} />
-                    unlisted token on chain {chainInfo.evmChainId}
-                </span>
-            </WellKnownProvider>
-            <WellKnownProvider treasury={TREASURY} prime="" evmChainId={1}>
-                <span>
-                    <TokenIcon addr={WTMR} />
-                    WTMR address on chain 1
-                </span>
-            </WellKnownProvider>
-        </div>
     ),
 }

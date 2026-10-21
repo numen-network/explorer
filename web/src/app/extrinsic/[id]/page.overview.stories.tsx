@@ -5,7 +5,7 @@ import {batchInterrupted, evmTransact, mined, pick, signedCall, timestampSet, ti
 import {expectAddressForm, expectFits, expectTimesFit} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import ExtrinsicPage from './page'
-import {Spec, H, of, detail, expectCallRowsFit, wasm} from './page.stories.helpers'
+import {Spec, H, of, detail, wasm} from './page.stories.helpers'
 
 export default {title: 'Pages/Extrinsic/Overview', ...pageMeta(ExtrinsicPage)}
 
@@ -51,16 +51,15 @@ const whale = (height: number) => transfer(height, {fee: 987_654_321_987_654_321
 
 const applyUpgrade = (height: number) => signedCall(height, 'System.apply_authorized_upgrade', {code: wasm}, {fee: 0n, events: [['System.CodeUpdated', null]]})
 
-// the signer keeps its full address and wraps it inside its row, the
-// timestamp breaks after its age inside its own, and the call keeps its events
-// inside its row
+// the signer keeps its full address and wraps it inside its row, and the
+// timestamp breaks after its age inside its own
 export const Transfer: StoryObj = {
     ...detail(of(transfer)),
     play: async ({canvasElement}) => {
-        expectAddressForm(canvasElement)
-        expectFits(canvasElement.querySelector('a[href^="/account/"]')!.closest('[data-slot=card] > *')!)
-        expectTimesFit(canvasElement)
-        expectCallRowsFit(canvasElement)
+        const card = canvasElement.querySelector('[data-slot=card]')!
+        expectAddressForm(card)
+        expectFits(card.querySelector('a[href^="/account/"]')!.closest('[data-slot=card] > *')!)
+        expectTimesFit(card)
     },
 }
 

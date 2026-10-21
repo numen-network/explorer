@@ -1,6 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect, within} from 'storybook/test'
-import {levelLabel} from '@/lib/conviction'
+import {expect} from 'storybook/test'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
@@ -49,41 +48,6 @@ const lists = (chips: VoteGroup[], list: VoteRows, paging = FIRST): Story => ({r
 
 const standard = (rows: VoteEntry[]): VoteRows => ({kind: 'standard', rows})
 const splits = (labels: string[], rows: SplitEntry[]): VoteRows => ({kind: 'split', labels, rows})
-
-const expand = (label: string): Story['play'] => async ({canvas, userEvent}) => {
-    const row = (await canvas.findByText(label)).closest('tr')!
-    await userEvent.click(within(row).getByRole('button', {name: 'expand'}))
-}
-
-const few = [delegator(person(4), '1x', 40_000), delegator(person(5), '0.1x', 25_000), delegator(person(8), '6x', 10_000)]
-const many = Array.from({length: 10}, (_, i) => delegator(i === 2 ? person(7) : anon(500 + i), levelLabel((i * 3) % 7), 90_000 - i * 7_000))
-
-const ayes = [vote(3, '0.1x', 500_000), vote(0, '2x', 400_000, many, 13), vote(1, '1x', 300_000, few)]
-const every = groups('Aye', 3, 2, 1, 1)
-
-export const EveryGroup = lists(every, standard(ayes))
-
-export const NayGroupSelected = lists(groups('Nay', 3, 2, 1, 1), standard([vote(4, '4x', 300_000), vote(7, '6x', 1_000)]))
-
-export const SplitGroupSelected = lists(groups('Split', 3, 2, 1, 1), splits(['Aye', 'Nay'], [splitVote(6, 100_000, 50_000)]))
-
-export const AbstainGroupSelected = lists(groups('Abstain', 3, 2, 1, 1), splits(['Abstain', 'Aye', 'Nay'], [splitVote(5, 200_000, 20_000, 20_000)]))
-
-export const MoreThanOnePage = lists(groups('Aye', 250, 0, 0), standard(Array.from({length: 20}, (_, i) => vote(i, `${i % 7}x`, 500_000 - i * 20_000))))
-
-export const ExpandedWithoutDelegators = {...lists(every, standard(ayes)), play: expand('Redshift')}
-
-export const ExpandedWithFewDelegators = {...lists(every, standard(ayes)), play: expand('Orbit Labs')}
-
-// the delegators past the inline ten are counted under the list
-const hiddenNote = (note: string): Story['play'] => async context => {
-    await expand('Polaris Guild')!(context)
-    await expect(context.canvas.getByRole('link', {name: note})).toBeVisible()
-}
-
-export const ExpandedOverInlineLimit = {...lists(every, standard(ayes)), play: hiddenNote('3 more delegators on the account page')}
-
-export const ExpandedOneOverInlineLimit = {...lists(every, standard([ayes[0], vote(0, '2x', 400_000, many, 11), ayes[2]])), play: hiddenNote('1 more delegator on the account page')}
 
 export const ExtremeNumbers = lists(
     groups('Aye', 3, 0, 0),

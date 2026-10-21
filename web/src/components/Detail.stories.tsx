@@ -1,8 +1,9 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import {expect} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
 import {CHAIN, SUBJECT_EVM} from '../../../mock/fixtures/accounts.js'
 import {account, chainInfo, numn} from '../../../mock/fixtures.js'
-import {cardsFit, expectFits, expectWholeWords} from '../../.storybook/fit'
+import {all, cardsFit, expectFits, expectWholeWords} from '../../.storybook/fit'
 import AddressText from './AddressText'
 import Balance from './Balance'
 import CopyBtn from './CopyBtn'
@@ -59,10 +60,24 @@ export const LongUnbrokenValue: Story = {
     render: () => (
         <DetailCard>
             <DetailRow label="Logs">{'0x0661757261' + 'ab'.repeat(160)}</DetailRow>
-            <DetailRow label="A label long enough to wrap in its column">value</DetailRow>
         </DetailCard>
     ),
     play: cardsFit,
+}
+
+const LONG_LABEL = 'A label long enough to wrap in its column'
+
+export const LongLabelWraps: Story = {
+    render: () => (
+        <DetailCard>
+            <DetailRow label={LONG_LABEL}>value</DetailRow>
+        </DetailCard>
+    ),
+    play: all(cardsFit, async ({canvas}) => {
+        const label = document.createRange()
+        label.selectNodeContents(canvas.getByText(LONG_LABEL))
+        expect(new Set([...label.getClientRects()].map(r => Math.round(r.top))).size).toBeGreaterThan(1)
+    }),
 }
 
 const NOTE = 'mapped account of this H160'

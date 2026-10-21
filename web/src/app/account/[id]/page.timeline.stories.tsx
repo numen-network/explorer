@@ -10,16 +10,18 @@ export default {title: 'Pages/Account/Identity | Timeline', ...pageMeta(AccountP
 
 export const One = story({account: named(), timeline: [identitySet(HEAD - 10_000)]}, {tab: 'timeline'})
 
+export const Many = story(
+    {
+        account: named(),
+        timeline: [...identityTimeline(), identitySet(HEAD - 12_000), identitySet(HEAD - 14_000), identitySet(HEAD - 16_000)],
+        verdicts: timelineVerdicts(),
+        counts: {timeline: 41},
+    },
+    {tab: 'timeline'}
+)
+
 // the longest event name breaks inside its card
-export const Many: StoryObj = {
-    ...story(
-        {
-            account: named(),
-            timeline: [...identityTimeline(), identitySet(HEAD - 12_000), identitySet(HEAD - 14_000), identitySet(HEAD - 16_000)],
-            verdicts: timelineVerdicts(),
-            counts: {timeline: 41},
-        },
-        {tab: 'timeline'}
-    ),
+export const LongEventName: StoryObj = {
+    ...story({account: named(), timeline: identityTimeline().filter(e => e.method === 'DanglingUsernameRemoved')}, {tab: 'timeline'}),
     play: async ({canvas}) => expectFits(canvas.getByText('DanglingUsernameRemoved')),
 }

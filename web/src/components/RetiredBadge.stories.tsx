@@ -6,18 +6,24 @@ const meta = {title: 'Components/RetiredBadge', component: RetiredBadge} satisfi
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Default: Story = {}
-
-export const InRegistrarLines: Story = {
+// alone and before the block it retired at in the registrars table, after the
+// seat number in received judgements, after the index in an identity timeline
+export const EveryPlacement: Story = {
     render: () => (
         <div className="grid gap-3 text-sm">
             <span className="flex items-center gap-2">
                 <RetiredBadge />
+            </span>
+            <span className="flex items-center gap-2">
+                <RetiredBadge />
                 <BlockLink height={950_000} />
             </span>
-            <span className="flex items-center gap-1.5">
-                <span className="text-xs text-dim">registrar #2</span>
+            <span className="flex items-baseline gap-1.5">
+                <span className="font-mono text-muted-foreground">#2</span>
                 <RetiredBadge />
+            </span>
+            <span className="flex items-center gap-2">
+                2<RetiredBadge />
             </span>
         </div>
     ),

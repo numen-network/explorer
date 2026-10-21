@@ -2,17 +2,24 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {chainInfo, HEAD} from '../../../../../mock/fixtures.js'
 import {GENESIS, mined, timestampSet, topology, transfer} from '../../../../../mock/fixtures/blocks.js'
-import {drawnCanvases, drawnFaces, expectInContentBox, expectShortHashes} from '../../../../.storybook/fit'
+import {drawnCanvases, drawnFaces, expectInContentBox, expectNamedNavs, expectShortHashes} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import BlockPage from './page'
-import {BUSY, QUIET, detail} from './page.stories.helpers'
+import {AIRDROP, BUSY, QUIET, detail} from './page.stories.helpers'
 
 export default {title: 'Pages/Block/Overview', ...pageMeta(BlockPage)}
 
 const FRESH = mined(HEAD - 1, [timestampSet, transfer])
 
-const whale = (height: number) => transfer(height, {tip: 1_234_567_891_234_567_891_234_567n})
+const whale = (height: number) => transfer(height, {fee: 987_654_321_987_654_321_987_654n, tip: 1_234_567_891_234_567_891_234_567n})
 const EXTREME = mined(HEAD - 113, [timestampSet, whale], {traits: {difficulty: (2n ** 128n - 1n).toString()}})
+
+// genesis carries no timestamp inherent, so its timestamp row shows the
+// network's genesis time from the explorer's config
+export const Genesis: StoryObj = {
+    ...pageStory({blocks: [GENESIS]}, {params: {id: '0'}}),
+    play: async ({canvas}) => expect(canvas.getByText('Timestamp').nextElementSibling!.textContent).toContain('| 2026-09-14 01:00:00 (UTC)'),
+}
 
 // a network the config has no genesis time for, like the testnet, leaves the empty mark
 export const GenesisUnconfigured: StoryObj = {
@@ -38,4 +45,13 @@ export const ExtremeValues = detail(EXTREME)
 export const UpgradedProtocol: StoryObj = {
     ...detail(QUIET, {protocols: ['poscan-v1', 'poscan-v2']}),
     play: async ({canvasElement}) => expect(await drawnFaces(canvasElement, 1)).toEqual([topology('poscan-v2').faceCount]),
+}
+
+// the links to the neighbouring blocks share the page with the list's pager,
+// each landmark under a name of its own
+export const NeighbourLinksNamed: StoryObj = {...detail(QUIET), play: async ({canvasElement}) => expectNamedNavs(canvasElement)}
+
+export const ThousandsOfEvents: StoryObj = {
+    ...detail(AIRDROP),
+    play: async ({canvas}) => expect(canvas.getByText('Extrinsics / events').nextElementSibling).toHaveTextContent('3 / 3,694'),
 }

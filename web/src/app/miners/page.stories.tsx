@@ -29,9 +29,15 @@ export const One = minersIn('24h', [minerDay(miner(0), 0, 4_210)])
 
 export const Many = minersIn('24h', Array.from({length: 40}, (_, i) => minerDay(miner(i), 0, 340 - i * 8)))
 
-export const Week: StoryObj = {...minersIn('7d', dailyRows(7, 12)), play: async ({canvasElement}) => expectAddressForm(canvasElement)}
+export const Week = minersIn('7d', dailyRows(7, 12))
 
 export const Month = minersIn('30d', dailyRows(30, 12))
+
+// a miner without an identity reads as its address, whole from sm up and 7…4 below it
+export const AddressForm: StoryObj = {
+    ...minersIn('24h', Array.from({length: 4}, (_, i) => minerDay({id: account(80 + i)}, 0, 900 - i * 100))),
+    play: async ({canvasElement}) => expectAddressForm(canvasElement),
+}
 
 // one miner holds every block but one, the other holds that one
 export const ExtremeCounts: StoryObj = {

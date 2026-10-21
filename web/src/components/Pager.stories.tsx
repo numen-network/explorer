@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, waitFor, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import {fmtInt} from '@/lib/format'
-import {expectPagersFit} from '../../.storybook/fit'
+import {all, expectPagersFit} from '../../.storybook/fit'
 import Pager from './Pager'
 
 const at = (page: number, size = 20) => ({page, size, offset: (page - 1) * size})
@@ -33,10 +33,33 @@ const meta = {
             </>
         ),
     ],
-    play: async ({canvasElement}) => paddingKept(canvasElement),
 } satisfies Meta<typeof Pager>
 export default meta
 type Story = StoryObj<typeof meta>
+type Play = NonNullable<Story['play']>
+
+const pagerIn = (root: HTMLElement) => within(within(root).getByRole('navigation'))
+
+const padded: Play = async ({canvasElement}) => paddingKept(canvasElement)
+
+// the page marked current, previous off only on the first page and next only on the last
+const opens =
+    (page: number, last: number): Play =>
+    async ({canvasElement}) => {
+        const nav = pagerIn(canvasElement)
+        await expect(nav.getByRole('link', {current: 'page'})).toHaveTextContent(new RegExp(`^${page}$`))
+        await expect(nav.getByRole('link', {name: 'previous page'})).toHaveAttribute('aria-disabled', String(page === 1))
+        await expect(nav.getByRole('link', {name: 'next page'})).toHaveAttribute('aria-disabled', String(page === last))
+    }
+
+// the size picked, and the last page it leaves the thousand rows
+const pagedBy =
+    (size: number): Play =>
+    async ({canvasElement}) => {
+        const nav = pagerIn(canvasElement)
+        await expect(nav.getByRole('combobox', {name: 'Rows per page'})).toHaveTextContent(`${size} / page`)
+        await expect(nav.getByRole('link', {name: `last page, page ${1_000 / size}`})).toBeVisible()
+    }
 
 // the first, middle and last page of a page count
 const lengths = (pages: number): Story => ({
@@ -54,13 +77,13 @@ const lengths = (pages: number): Story => ({
     },
 })
 
-export const FirstPage: Story = {}
+export const FirstPage: Story = {play: opens(1, 50)}
 
-export const SecondPage: Story = {args: {paging: at(2)}}
+export const SecondPage: Story = {args: {paging: at(2)}, play: opens(2, 50)}
 
-export const MiddlePage: Story = {args: {paging: at(25)}}
+export const MiddlePage: Story = {args: {paging: at(25)}, play: opens(25, 50)}
 
-export const LastPage: Story = {args: {paging: at(50)}}
+export const LastPage: Story = {args: {paging: at(50)}, play: opens(50, 50)}
 
 // a list of one page still shows the whole pager, page 1 current and both arrows off
 async function onePage({canvasElement}: {canvasElement: HTMLElement}) {
@@ -75,25 +98,30 @@ async function onePage({canvasElement}: {canvasElement: HTMLElement}) {
 
 export const SinglePage: Story = {args: {total: 15}, play: onePage}
 
-export const FitsSmallestPage: Story = {args: {total: 10}, play: onePage}
+// ten rows fill one page of the smallest size exactly
+export const FitsSmallestPage: Story = {
+    args: {paging: at(1, 10), total: 10},
+    play: all(onePage, async ({canvasElement}) => expect(pagerIn(canvasElement).getByRole('combobox', {name: 'Rows per page'})).toHaveTextContent('10 / page')),
+}
 
 export const Empty: Story = {args: {total: 0}, play: onePage}
 
-export const TwoPages: Story = {args: {paging: at(2, 10), total: 11}}
+export const TwoPages: Story = {
+    args: {paging: at(2, 10), total: 11},
+    play: async ({canvasElement}) => expect(pagerIn(canvasElement).getAllByRole('link', {name: /page \d+$/}).map(link => link.textContent)).toEqual(['1', '2']),
+}
 
-export const PageSize10: Story = {args: {paging: at(3, 10)}}
+export const PageSize10: Story = {args: {paging: at(3, 10)}, play: pagedBy(10)}
 
-export const PageSize50: Story = {args: {paging: at(3, 50)}}
+export const PageSize50: Story = {args: {paging: at(3, 50)}, play: pagedBy(50)}
 
-export const PageSize100: Story = {args: {paging: at(3, 100)}}
+export const PageSize100: Story = {args: {paging: at(3, 100)}, play: pagedBy(100)}
 
-export const ThreeAndFourDigits: Story = {args: {paging: at(999), total: 21_000}}
+export const ThreeAndFourDigits: Story = {args: {paging: at(999), total: 21_000}, play: padded}
 
-export const FourDigitPages: Story = {args: {paging: at(4_200), total: 168_000}}
+export const HugeTotal: Story = {args: {paging: at(41_666), total: 1_000_000}, play: padded}
 
-export const HugeTotal: Story = {args: {paging: at(41_666), total: 1_000_000}}
-
-export const HugeTotalLastPage: Story = {args: {paging: at(50_000), total: 1_000_000}}
+export const HugeTotalLastPage: Story = {args: {paging: at(50_000), total: 1_000_000}, play: all(opens(50_000, 50_000), padded)}
 
 export const PageSizeMenuOpen: Story = {
     play: async ({canvas, userEvent}) => {
@@ -131,3 +159,22 @@ export const FiveDigits: Story = lengths(99_999)
 export const SixDigits: Story = lengths(999_999)
 
 export const SevenDigits: Story = lengths(9_999_999)
+
+// the window follows the box the pager sits in, so a narrow box keeps only the
+// current page between the jumps even on a wide screen
+export const ThreeSlotsInNarrowBox: Story = {
+    args: {paging: at(25_000), total: 1_000_000},
+    decorators: [
+        Story => (
+            <div className="max-w-sm">
+                <Story />
+            </div>
+        ),
+    ],
+    play: async ({canvasElement}) => {
+        const nav = pagerIn(canvasElement)
+        await expect(nav.getAllByRole('link', {name: /page \d+$/}).map(link => link.textContent)).toEqual(['25000'])
+        await expect(nav.getAllByRole('link', {name: /5 pages$/})).toHaveLength(2)
+        expectPagersFit(canvasElement)
+    },
+}

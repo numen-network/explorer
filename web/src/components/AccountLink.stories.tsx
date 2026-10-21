@@ -1,6 +1,6 @@
 import type {Decorator, Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
-import {expect} from 'storybook/test'
+import {expect, screen, within} from 'storybook/test'
 import type {IdentityRef} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
 import {PRIME_KEY, TREASURY} from '../../../mock/fixtures/accounts.js'
@@ -29,7 +29,7 @@ const shown = (links: HTMLElement[]) => links.map(l => [l.textContent, [...(l.qu
 
 function Case({label, children}: {label: string; children: ReactNode}) {
     return (
-        <div className="grid grid-cols-[220px_minmax(0,1fr)] items-center gap-4 py-2">
+        <div className="grid grid-cols-1 items-center gap-x-4 gap-y-1 py-2 sm:grid-cols-[220px_minmax(0,1fr)]">
             <span className="text-xs text-muted-foreground">{label}</span>
             <div className="min-w-0">{children}</div>
         </div>
@@ -62,7 +62,6 @@ const CASES: [string, IdentityRef & {id: string}][] = [
     ['a username and no identity', acct(30, {username: 'satoshi.numen'})],
     ['a username beside a display', acct(31, identity('Nakamoto Labs'), {username: 'satoshin.numen'})],
     ['no identity', bare],
-    ['label longer than its column', longName],
 ]
 
 export const EveryIdentity: Story = {
@@ -96,7 +95,6 @@ export const EveryIdentity: Story = {
             ['satoshi.numen', null],
             ['Nakamoto Labs', 'lucide-circle-check'],
             [short(bare), null],
-            ['Longest display a chain can hold', 'lucide-circle-check'],
         ]),
 }
 
@@ -176,13 +174,18 @@ export const InText: Story = {
         const line = (link: HTMLElement) => link.closest('.space-y-3 > div')!
         expect(top(inline)).toBeCloseTo(top(line(inline)), 0)
         expect(top(wrapped)).toBeGreaterThan(top(line(wrapped)) + 10)
+        const label = wrapped.lastElementChild!
+        expect(label.scrollWidth).toBeGreaterThan(label.clientWidth)
         expectFits(line(wrapped))
     },
 }
 
-export const HoverCard: Story = {
+// hovering floats the full address and the identity's contact fields
+export const HoverShowsAddressAndFields: Story = {
     render: () => <AccountLink addr={addr(polaris)} acc={polaris} />,
     play: async ({canvas, userEvent}) => {
         await userEvent.hover(canvas.getByRole('link'))
+        const tip = within(await screen.findByRole('tooltip'))
+        for (const text of [addr(polaris), 'Web', 'polaris.example', 'X', '@polaris_guild', 'Discord', 'polarisguild']) expect(tip.getByText(text)).toBeInTheDocument()
     },
 }

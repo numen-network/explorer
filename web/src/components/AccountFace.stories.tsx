@@ -54,7 +54,7 @@ export const SharedOrder: Story = {
 }
 
 // a page opened after the swap starts on the identicon
-export const StoredOrder: Story = {
+export const OpensOnStoredOrder: Story = {
     args: {json: json(`${AVATAR_HOST}/aurora.png`)},
     beforeEach: () => localStorage.setItem('faceOrder', JSON.stringify({state: {identicon: true}, version: 0})),
     play: async ({canvas, canvasElement}) => {

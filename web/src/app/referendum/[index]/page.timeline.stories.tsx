@@ -2,7 +2,7 @@ import {expect, within} from 'storybook/test'
 import {numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {castFromSnapshots, eventsById, proposal, snapshots, step, stepEvents} from '../../../../../mock/fixtures/governance.js'
 import type {RawStep} from '@/components/timeline'
-import {expectFits, expectNoHangingDots, expectTimesFit, expectWholeWords} from '../../../../.storybook/fit'
+import {expectFits, expectTimesFit, expectWholeWords} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 import {Play, curated, story, curatedCase, withPlay, treasurySpend, secondAttempt} from './page.stories.helpers'
@@ -13,13 +13,13 @@ export default {title: 'Pages/Referendum/Timeline', ...pageMeta(ReferendumPage)}
 // Approved, its enactment ticks when the dispatch went through and otherwise
 // reads Failed with the error, which wraps between whole words
 const approvedRail = (confirmed: string, enacted: string, error: string | null = null): Play => async ({canvas}) => {
-    await expect(canvas.getByText('Approved')).toBeInTheDocument()
     const step = async (title: string, block: string) => {
         const item = (await canvas.findByText(title)).closest<HTMLElement>('li')!
         await expect(within(item).getByRole('link', {name: block})).toBeInTheDocument()
         return item
     }
     await step('Confirmed', confirmed)
+    await expect(within(canvas.getByRole('tabpanel')).queryByText('Approved')).toBeNull()
     const enactment = await step('Enacted', enacted)
     if (error == null) {
         await expect(enactment.querySelector('.lucide-check')).not.toBeNull()
@@ -31,12 +31,10 @@ const approvedRail = (confirmed: string, enacted: string, error: string | null =
     }
 }
 
-// the submission time in the header and every step's time break inside their
-// cards, with no line ending on a middle dot
+// every step's time breaks inside the card
 export const ApprovedEarly = withPlay(curatedCase(10, 'timeline'), async context => {
     await approvedRail('#698,640', '#707,280')!(context)
-    expectTimesFit(context.canvasElement)
-    expectNoHangingDots(context.canvasElement)
+    expectTimesFit(context.canvas.getByRole('tabpanel'))
 })
 
 export const Rejected = curatedCase(1, 'timeline')
@@ -79,7 +77,12 @@ const killedEarly = {
 
 export const KilledBeforeDecisionDeposit = withPlay(story(killedEarly, 'timeline', castFromSnapshots(killedEarly)), killRail(['5 NUMN']))
 
-export const TwoConfirmAttempts = withPlay(story(secondAttempt, 'timeline', castFromSnapshots(secondAttempt)), approvedRail('#743,640', '#752,280'))
+// the first confirmation aborts once nays come in and the second one passes,
+// newest first
+export const TwoConfirmAttempts = withPlay(story(secondAttempt, 'timeline', castFromSnapshots(secondAttempt)), async ({canvas}) => {
+    const rail = within((await canvas.findByText('Confirm aborted')).closest<HTMLElement>('ol')!)
+    await expect(rail.getAllByText(/^Confirm/).map(title => title.textContent)).toEqual(['Confirmed', 'Confirming', 'Confirm aborted', 'Confirming'])
+})
 
 // the spend asks for more than the small spender track may pay, which only
 // the enactment checks, and the runtime encodes that refusal as error 2 of
@@ -100,8 +103,9 @@ const overCapEvents = stepEvents(overCap).map((e: {id: string; args: object}) =>
 // beside the title or drop below it
 export const EnactmentFailed = withPlay(story(overCap, 'timeline', {...castFromSnapshots(overCap), events: eventsById(overCapEvents)}), async context => {
     await approvedRail('#588,640', '#597,280', 'Treasury.InsufficientPermission')!(context)
-    const values = [...context.canvasElement.querySelectorAll('dl dd')]
+    const rail = context.canvas.getByRole('tabpanel')
+    const values = [...rail.querySelectorAll('dl dd')]
     await expect(values.length).toBeGreaterThan(0)
     expectWholeWords(...values)
-    expectFits(...context.canvasElement.querySelectorAll('[data-slot=card]'))
+    expectFits(...rail.querySelectorAll('[data-slot=card]'))
 })

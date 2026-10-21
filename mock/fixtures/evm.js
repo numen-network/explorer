@@ -142,7 +142,9 @@ export const holdings = count =>
 export const EVERY_HOLDING = [
     holding(token(8, {name: 'A token name long enough to crowd its balance off a phone screen'}), units(42, 18)),
     holding(token(4, {totalSupply: UINT256_MAX}), UINT256_MAX),
+    holding(token(9, {totalSupply: null}), units(64, 18)),
     holding(token(3, {decimals: null}), units(77, 12)),
+    holding(pair(10, NUMN, {address: WTMR.id, symbol: WTMR.symbol, decimals: WTMR.decimals}), units(3.5, 18)),
     holding(token(0), units(12.5, 6)),
     holding(token(1), units(5_000_000, 18)),
     holding(token(6, {symbol: null}), units(1_234, 9)),

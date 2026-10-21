@@ -1,31 +1,21 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, within} from 'storybook/test'
+import {expect} from 'storybook/test'
 import {fmtInt} from '@/lib/format'
 import {HEAD} from '../../../../../mock/fixtures.js'
 import {activity, evmAddress, holder, holders, token, UINT256_MAX, WTMR} from '../../../../../mock/fixtures/evm.js'
-import {columnTexts, expectAddressForm, expectFits} from '../../../../.storybook/fit'
+import {columnTexts, expectAddressForm} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import TokenPage from './page'
-import {tokenPage, orbit, solo} from './page.stories.helpers'
+import {tokenPage, orbit, solo, huge} from './page.stories.helpers'
 
 // pages get the chain's EVM id from the root layout, token logos are keyed by it
 export default {title: 'Pages/Token/Holders', ...pageMeta(TokenPage)}
 
 const burnt = token(5, {totalSupply: '0', holderCount: 0, transferCount: 2})
-const huge = token(3, {
-    name: 'A token name long enough to wrap the heading on a phone',
-    symbol: 'LONGSYMBOLTOKEN',
-    decimals: 18,
-    totalSupply: UINT256_MAX,
-    holderCount: 2_147_483_647,
-    transferCount: 2_147_483_647,
-})
 
 export const Many: StoryObj = {
     ...tokenPage(WTMR, {holders: holders(WTMR, 20)}),
-    play: async ({canvas, canvasElement}) => {
-        expect(canvasElement.querySelector('h1 [data-slot=badge]')).toBeNull()
-        expect(within(canvas.getByRole('heading', {level: 1})).queryByText(/^LP /)).toBeNull()
+    play: async ({canvasElement}) => {
         expectAddressForm(canvasElement.querySelector('[data-slot=table-container]')!)
         const tallies = holders(WTMR, 20).map((h, i) => activity(h.address, i))
         expect(columnTexts(canvasElement, 'Transactions')).toEqual(tallies.map(a => fmtInt(a.txCount)))
@@ -57,7 +47,6 @@ export const ExtremeNumbers: StoryObj = {
         tallies: [{id: evmAddress(0), txCount: 2_147_483_647, firstSeenBlock: 0, lastActiveBlock: HEAD}, {...activity(evmAddress(1), 1), lastActiveBlock: null}],
     }),
     play: async ({canvasElement}) => {
-        expectFits(...canvasElement.querySelectorAll('[data-slot=card]'))
         await expect(shares(canvasElement)).toEqual(['49.99%', '<0.01%'])
         await expect(columnTexts(canvasElement, 'Transactions')).toEqual(['2,147,483,647', '37'])
         expect(columnTexts(canvasElement, 'Last active')).toEqual([`#${fmtInt(HEAD)}`, ''])

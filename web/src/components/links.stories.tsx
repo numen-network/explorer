@@ -20,7 +20,7 @@ function Case({label, children}: {label: string; children: ReactNode}) {
 
 const ADDRESS = '0x' + hashOf('evm', 1).slice(2, 42)
 
-export const BlockLinks: Story = {
+export const BlockHeightLengths: Story = {
     render: () => (
         <>
             <Case label="genesis">
@@ -36,7 +36,7 @@ export const BlockLinks: Story = {
     ),
 }
 
-export const ExtrinsicLinks: Story = {
+export const ExtrinsicIdForms: Story = {
     render: () => (
         <>
             <Case label="first in its block">
@@ -52,7 +52,7 @@ export const ExtrinsicLinks: Story = {
     ),
 }
 
-export const EventLinks: Story = {
+export const EventIdLengths: Story = {
     render: () => (
         <>
             <Case label="first event of genesis">
@@ -69,7 +69,7 @@ const SHORT_ADDRESS = `${ADDRESS.slice(0, 6)}…${ADDRESS.slice(-4)}`
 
 // an EVM address shortens like any hex, 0x4…4, and a full one in a table cell
 // falls back to that on a phone
-export const EvmAddressLinks: Story = {
+export const EvmAddressShortFullAndInCell: Story = {
     render: () => (
         <>
             <Case label="short">
@@ -107,7 +107,7 @@ const SHORT_TX = `${TX.slice(0, 6)}…${TX.slice(-4)}`
 
 // a tx hash shows the way an EVM address does, 0x4…4 short, and a full one in
 // a table cell falls back to that on a phone
-export const EvmTxLinks: Story = {
+export const EvmTxShortFullAndInCell: Story = {
     render: () => (
         <>
             <Case label="short">
@@ -139,7 +139,7 @@ export const EvmTxLinks: Story = {
     },
 }
 
-export const JumpMark: Story = {
+export const JumpAtThreeTextSizes: Story = {
     render: () => (
         <>
             {['text-xs', 'text-sm', 'text-lg'].map(size => (

@@ -1,4 +1,3 @@
-import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {PEOPLE, acct, identity, paged} from '../../../../mock/fixtures.js'
 import {type Play} from '../../../.storybook/fit'
@@ -26,14 +25,11 @@ export const NOVA = tokenAt(0x0a7a, 'Nova Points', 'NOVA')
 
 export const named = (n: number, display: string) => acct(100 + n, identity(display))
 
-export const GUILDS = [PEOPLE[0], named(1, 'Guild of Scanners'), named(2, 'guildhall')]
 export const WTMRS = [WTMR, tokenAt(0x5c4a, 'WTMR Liquidity Share', 'WTMR-LP')]
 
 // more of each kind than one page holds, and a different number of pages each
 export const SCANNERS = Array.from({length: 45}, (_, i) => named(10 + i, `Scanner ${String(i + 1).padStart(2, '0')}`))
 export const SCAN_TOKENS = Array.from({length: 65}, (_, i) => tokenAt(0x1000 + i, `Scan Token ${i + 1}`, `SCN${i + 1}`))
-
-export const opens = (tab: RegExp): StoryObj['play'] => async ({canvas}) => expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(tab)
 
 // every link on the pager keeps the query and the tab it pages
 export const pagesTab = (tab: string, pages: number): Play => async ({canvas, canvasElement}) => {

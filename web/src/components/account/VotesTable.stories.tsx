@@ -40,7 +40,7 @@ const EVERY_KIND_DELEGATIONS = {6: [counted(1, 'Locked3x', 1_500)], 10: [counted
 
 export const Empty: Story = {render: () => table([])}
 
-// aye, nay, split and abstain, every conviction, each phase a referendum ends in, one untitled and one removed
+// aye, nay, split and abstain, every conviction, each phase a referendum ends in, #6 and #10 counting delegations, one untitled and one removed
 export const EveryKind: Story = {
     render: () => table(voteRows(), EVERY_KIND_DELEGATIONS),
     play: async ({canvasElement}) => {
@@ -96,13 +96,7 @@ export const EveryKind: Story = {
             '#790,000 · Unlockable',
             '#996,000 · Unlocked',
         ])
-    },
-}
-
-// only a standard vote opens, a split has no conviction to show and carries no delegations
-export const OnlyStandardOpens: Story = {
-    render: () => table(voteRows(), EVERY_KIND_DELEGATIONS),
-    play: async ({canvasElement}) => {
+        // only a standard vote opens, a split has no conviction to show and carries no delegations
         const rows = within(canvasElement).getAllByRole('row').slice(1)
         expect(rows.map(r => within(r).queryByRole('button', {name: 'expand'}) != null)).toEqual([true, false, true, true, true, false, true, true, true, true])
     },

@@ -8,16 +8,15 @@ const meta = {title: 'Pages/Bounties/List'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-const table = (rows: object[], filtered?: boolean): Story => ({
+const table = (rows: object[]): Story => ({
     render: () => (
         <Card size="flush">
-            <BountyTable rows={rows as BountyRow[]} chain={CHAIN} filtered={filtered} />
+            <BountyTable rows={rows as BountyRow[]} chain={CHAIN} />
         </Card>
     ),
 })
 
-export const FilteredEmpty = table([], true)
-
+// a proposal with no description or referendum, a description too long for its cell, a zero value and a value past u64
 export const EdgeCases = table([
     bounty(3, 'Proposed', {description: null, referendum: null}),
     bounty(2, 'Active', {description: 'Maintain the community archive node, the snapshot mirror and the public RPC endpoint for twelve months'}),

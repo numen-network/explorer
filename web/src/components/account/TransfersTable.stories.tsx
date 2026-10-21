@@ -16,10 +16,11 @@ const meta = {title: 'Pages/Account/Transfers | Native', decorators: [wellKnown]
 export default meta
 type Story = StoryObj<typeof meta>
 
-const table = (rows: TransferRow[], filtered?: boolean) => (
+const table = (rows: TransferRow[]) => (
     <Card size="flush">
-        <TransfersTable rows={rows} hex={SUBJECT} chain={CHAIN} filtered={filtered} />
+        <TransfersTable rows={rows} hex={SUBJECT} chain={CHAIN} />
     </Card>
 )
 
+// a treasury payout with no extrinsic or call, an EVM and a vesting transfer, a transfer_all, one planck and the u128 ceiling
 export const EdgeCases: Story = {render: () => table(accountTransferCases())}

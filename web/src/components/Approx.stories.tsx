@@ -2,6 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {CHAIN, MAX_U128, PLANCK} from '../../../mock/fixtures/accounts.js'
 import {numn} from '../../../mock/fixtures.js'
+import {expectFits} from '../../.storybook/fit'
 import Approx from './Approx'
 
 const meta = {title: 'Components/Approx'} satisfies Meta
@@ -15,6 +16,7 @@ const VALUES: Case[] = [
     ['two decimals', numn(1.15), '1.15 NUMN', 'NUMN'],
     ['cut', numn(99.999), '≈99.99 NUMN', 'NUMN'],
     ['one planck', PLANCK, '≈0 NUMN', 'NUMN'],
+    ['four digits', numn(9_999.999), '≈9,999.99 NUMN', 'NUMN'],
     ['millions', numn(603_623_456), '≈603.62M NUMN', 'NUMN'],
     ['fall', `-${numn(528.456)}`, '≈−528.45 NUMN', 'NUMN'],
     ['u128 ceiling', MAX_U128, '≈340.28E NUMN', 'NUMN'],
@@ -61,3 +63,24 @@ const figures =
 export const Values: Story = {render: () => sheet(VALUES), play: figures(VALUES)}
 
 export const Moves: Story = {render: () => sheet(MOVES, true), play: figures(MOVES)}
+
+// breakable lets a figure too long for its box wrap after a comma
+export const BreakableWrapsAfterComma: Story = {
+    render: () => (
+        <div className="max-w-14 font-mono text-sm">
+            <Approx planck={numn(9_999.999)} decimals={CHAIN.decimals} symbol="NUMN" breakable />
+        </div>
+    ),
+    play: async ({canvasElement}) => {
+        const box = canvasElement.querySelector('.max-w-14')!
+        const [head, comma, tail] = [...box.childNodes].filter(node => node.nodeType === Node.TEXT_NODE)
+        const top = (node: Node) => {
+            const range = document.createRange()
+            range.selectNodeContents(node)
+            return range.getClientRects()[0].top
+        }
+        expect([head.textContent, comma.textContent, tail.textContent]).toEqual(['9', ',', '999.99 NUMN'])
+        expect(top(tail)).toBeGreaterThan(top(comma))
+        expectFits(box)
+    },
+}

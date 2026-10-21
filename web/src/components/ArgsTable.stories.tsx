@@ -1,9 +1,11 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {describeArgs, nodesOf, type Preimage} from '@/lib/args'
+import {ss58Encode} from '@/lib/ss58'
 import {block, PEOPLE} from '../../../mock/fixtures.js'
 import {CHAIN_PROPS} from '../../../mock/fixtures/blocks.js'
-import {expectFits} from '../../.storybook/fit'
+import {all, expectFits} from '../../.storybook/fit'
+import {shortAddr} from './AddressText'
 import {ArgsTable} from './ArgsTable'
 
 const meta = {title: 'Components/ArgsTable'} satisfies Meta
@@ -50,8 +52,7 @@ export const SubIdentities = story(
     ['AccountId32', 'Data', 'Validator1', 'Validator2', 'Raw10']
 )
 
-// a variant that carries nothing spans the cells a deeper one splits into
-export const SubIdentitiesMixedDepth = story(
+const mixedDepth = story(
     'Identity',
     'set_subs',
     {
@@ -63,7 +64,13 @@ export const SubIdentitiesMixedDepth = story(
     ['Raw10', 'Validator1', 'None']
 )
 
-export const EmptyList =story('Identity', 'set_subs', {subs: []}, ['subs', '—'])
+// a variant that carries nothing spans the cells a deeper one splits into
+export const SubIdentitiesMixedDepth: Story = {
+    ...mixedDepth,
+    play: all(mixedDepth.play!, ({canvas}) => expect(canvas.getByText('None').closest('td')!.colSpan).toBe(2)),
+}
+
+export const EmptySequence = story('Identity', 'set_subs', {subs: []}, ['subs', '—'])
 
 export const Judgement = story(
     'Identity',
@@ -82,7 +89,13 @@ export const Heartbeat = story(
     ['#239,068', '3,984', 'validatorsLen']
 )
 
-export const IdentityWithEmptyFields = story('Identity', 'set_identity', {info: {display: '0x68617070796368696e61', x: '0x', bio: '0x', web: '0x', email: '0x', avatar: '0x', github: '0x', matrix: '0x', discord: '0x', telegram: '0x'}}, ['happychina', 'telegram'])
+const INFO = {display: '0x68617070796368696e61', x: '0x', bio: '0x', web: '0x', email: '0x', avatar: '0x', github: '0x', matrix: '0x', discord: '0x', telegram: '0x'}
+const emptyFields = story('Identity', 'set_identity', {info: INFO}, ['happychina', 'telegram'])
+
+export const IdentityWithEmptyFields: Story = {
+    ...emptyFields,
+    play: all(emptyFields.play!, ({canvas}) => expect(canvas.getAllByText('—')).toHaveLength(Object.values(INFO).filter(v => v === '0x').length)),
+}
 
 export const ReferendumSubmit = story(
     'Referenda',
@@ -99,7 +112,8 @@ export const PreimageBinary = story('Preimage', 'note_preimage', {bytes: '0x00ff
 
 export const BatchListedBelow = story('Utility', 'batch_all', {calls: [{__kind: 'Balances', value: {__kind: 'transfer_keep_alive', dest: ID(ALICE), value: '1'}}]}, ['1 call', 'listed below'], true)
 
-export const BatchNotRun = story(
+// with no calls listed under it, a batch draws them in its own args
+export const BatchCallsInline = story(
     'Utility',
     'batch_all',
     {
@@ -123,13 +137,25 @@ export const Narrow: Story = {
     ),
 }
 
+const REMARK = {__kind: 'System', value: {__kind: 'remark', remark: '0x'}}
+
 // a block number field that counts blocks reads as a span, the one that names a block links to it
-export const BlockSpanAndHeight = story(
-    'Scheduler',
-    'schedule_after',
-    {after: 100, maybePeriodic: null, priority: 63, call: {__kind: 'System', value: {__kind: 'remark', remark: '0x'}}},
-    ['100 blocks', 'System.remark', 'priority']
-)
+export const BlockSpanAndHeight: Story = {
+    render: () => (
+        <div className="space-y-3">
+            <ArgsTable node={view('Scheduler', 'schedule_after', {after: 100, maybePeriodic: null, priority: 63, call: REMARK})} chain={CHAIN_PROPS} />
+            <ArgsTable node={view('Scheduler', 'schedule', {when: 100, maybePeriodic: null, priority: 63, call: REMARK})} chain={CHAIN_PROPS} />
+        </div>
+    ),
+    play: async ({canvasElement}) => {
+        const [span, height] = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=args-table]')].map(table => within(table))
+        await expect(span.getByText('100 blocks')).toBeVisible()
+        expect(span.queryByRole('link')).toBeNull()
+        await expect(height.getByRole('link', {name: '#100'})).toHaveAttribute('href', '/block/100')
+        expect(height.queryByText('100 blocks')).toBeNull()
+        expectFits(...canvasElement.querySelectorAll('[data-slot=args-table]'))
+    },
+}
 
 export const ProxyDelay = story('Proxy', 'add_proxy', {delegate: ID(ALICE), proxyType: {__kind: 'Governance'}, delay: 14400}, ['14,400 blocks', 'Governance'])
 
@@ -181,7 +207,7 @@ function withIdentities(people: (typeof PEOPLE)[number][], shows: string[]): Sto
     }
 }
 
-export const AccountsByIdentity = withIdentities([PEOPLE[0], PEOPLE[8], PEOPLE[2]], ['Polaris Guild', 'payouts'])
+export const AccountsByIdentity = withIdentities([PEOPLE[0], PEOPLE[8], PEOPLE[2]], ['Polaris Guild', 'payouts', shortAddr(ss58Encode(PEOPLE[2].id, CHAIN_PROPS.ss58))])
 
 export const TransferToIdentity: Story = (() => {
     const node = view('Balances', 'transfer_keep_alive', {dest: ID(PEOPLE[1].id), value: '1000000000000000000'})

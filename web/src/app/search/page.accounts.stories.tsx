@@ -5,15 +5,18 @@ import {PEOPLE, acct, chainInfo, identity, subOf} from '../../../../mock/fixture
 import {all, expectFits, expectPagersFit} from '../../../.storybook/fit'
 import {lastPage, pageMeta} from '../../../.storybook/page'
 import SearchPage from './page'
-import {results, NOVA, named, GUILDS, WTMRS, SCANNERS, SCAN_TOKENS, opens, pagesTab, long} from './page.stories.helpers'
+import {results, NOVA, named, WTMRS, SCANNERS, SCAN_TOKENS, pagesTab, long} from './page.stories.helpers'
 
 export default {title: 'Pages/Search/Accounts', ...pageMeta(SearchPage)}
 
 const accountRows = (root: Element) => [...root.querySelectorAll<HTMLElement>('a[href^="/account/"]')]
 
-export const NoTokenHits: StoryObj = {...results('guild', GUILDS, []), play: opens(/^Accounts/)}
+const hrefs = (accounts: {id: string}[]) => accounts.map(a => `/account/${ss58Encode(a.id, chainInfo.ss58)}`)
 
-export const AccountAndToken: StoryObj = {...results('nova', [PEOPLE[5]], [NOVA]), play: opens(/^Accounts/)}
+export const One: StoryObj = {
+    ...results('nova', [PEOPLE[5]], [NOVA], {tab: 'accounts'}),
+    play: async ({canvasElement}) => expect(accountRows(canvasElement).map(r => r.getAttribute('href'))).toEqual(hrefs([PEOPLE[5]])),
+}
 
 export const Empty: StoryObj = {...results('wtmr', [], WTMRS, {tab: 'accounts'}), play: async ({canvas}) => expect(canvas.getByText('None')).toBeVisible()}
 
@@ -22,6 +25,7 @@ export const Many = results('scan', SCANNERS, SCAN_TOKENS)
 export const PageTwo: StoryObj = {
     ...results('scan', SCANNERS, SCAN_TOKENS, {page: '2'}),
     play: all(pagesTab('accounts', 3), async ({canvasElement}) => {
+        expect(accountRows(canvasElement).map(r => r.getAttribute('href'))).toEqual(hrefs(SCANNERS.slice(20, 40)))
         expectPagersFit(canvasElement)
         expectFits(...accountRows(canvasElement))
     }),
@@ -29,7 +33,7 @@ export const PageTwo: StoryObj = {
 
 export const LastPage: StoryObj = {
     ...results('scan', SCANNERS, SCAN_TOKENS, {page: lastPage(SCANNERS.length)}),
-    play: async ({canvasElement}) => expect(accountRows(canvasElement).map(r => r.getAttribute('href'))).toEqual(SCANNERS.slice(40).map(a => `/account/${ss58Encode(a.id, chainInfo.ss58)}`)),
+    play: async ({canvasElement}) => expect(accountRows(canvasElement).map(r => r.getAttribute('href'))).toEqual(hrefs(SCANNERS.slice(40))),
 }
 
 // an account found by its username shows it, after the identity name when there is one

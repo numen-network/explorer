@@ -15,9 +15,9 @@ export const One = story({account: voting(numn(1_000)), votes: [vote(0)], voteAc
 export const EveryCase: StoryObj = {
     ...story({account: voting(numn(250_000)), votes: voteRows(), voteActions: voteActionRows()}, {tab: 'vote-history'}),
     play: async ({canvasElement}) => {
-        expect(columnTexts(canvasElement, 'Action')).toEqual(['Voted Aye', 'Removed Nay', 'Voted Nay', 'Voted Split', 'Voted Abstain', 'Voted Aye', 'Voted Aye'])
-        expect(columnTexts(canvasElement, 'Conviction')).toEqual(['1x', '3x', '3x', '0.1x', '0.1x', '0.1x', '6x'])
-        expect(columnTexts(canvasElement, 'Votes').map(t => t!.includes('delegated'))).toEqual([true, false, false, false, false, false, false])
+        expect(columnTexts(canvasElement, 'Action')).toEqual(['Voted Aye', 'Removed Nay', 'Voted Nay', 'Voted Split', 'Voted Abstain', 'Voted Aye', 'Voted Aye', 'Voted Nay', 'Voted Aye', 'Voted Aye'])
+        expect(columnTexts(canvasElement, 'Conviction')).toEqual(['1x', '3x', '3x', '0.1x', '0.1x', '0.1x', '2x', '4x', '5x', '6x'])
+        expect(columnTexts(canvasElement, 'Votes').map(t => t!.includes('delegated'))).toEqual([true, false, false, false, false, false, false, false, false, false])
     },
 }
 

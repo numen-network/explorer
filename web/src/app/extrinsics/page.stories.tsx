@@ -84,7 +84,12 @@ const MY_BLOCKS = [
     mined(HEAD - 812_003, [timestampSet, (height: number) => signedCall(height, 'Identity.set_identity', {info: {display: {__kind: 'Raw13', value: hex('Polaris Guild')}}}, {from: ME})]),
 ]
 
-const SEPTEMBER = Array.from({length: 10}, (_, i) => mined(HEAD - 30_000 - i * 1_200, [timestampSet, heartbeat]))
+// dated inside the month whatever day the story runs, every third day back from the 28th
+const inSeptember = (b: Mined, i: number) => {
+    const timestamp = `2026-09-${String(28 - i * 3).padStart(2, '0')}T12:00:00.000Z`
+    return {...b, extrinsics: b.extrinsics.map((x: Row) => ({...x, block: {...x.block, timestamp}}))}
+}
+const SEPTEMBER = Array.from({length: 10}, (_, i) => inSeptember(mined(HEAD - 30_000 - i * 1_200, [timestampSet, heartbeat]), i))
 
 export const Many = list(take(RECENT))
 

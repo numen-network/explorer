@@ -31,8 +31,8 @@ const chartIn = async (root: HTMLElement) => {
     return chart!.getOption() as {series: {data: number[][]}[]; dataZoom: {show?: boolean; endValue: number}[]}
 }
 
-// five to a column, top to bottom, the last column part full
-export const RecordEveryVote: Story = {
+// five to a column, top to bottom, the last column part full, and three columns fit with no slider
+export const RecordFiveToAColumn: Story = {
     ...grid(14),
     play: async ({canvasElement}) => {
         const {series, dataZoom} = await chartIn(canvasElement)
@@ -40,6 +40,7 @@ export const RecordEveryVote: Story = {
             [0, 4],
             [1, 0],
         ])
+        expect(series[0].data.at(-1)).toEqual([2, 3])
         expect(dataZoom[1].show).toBe(false)
     },
 }

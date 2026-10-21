@@ -23,18 +23,26 @@ const lookalike = evmAddress(70)
 const poison = evmTx(HEAD - 70, 0, {from: evmAddress(71), to: WTMR.id, input: calldata(SELECTOR.transferFrom, alice, lookalike, 0), gasLimit: '60000', gasUsed: '31000', ...exit(EXIT.returned)})
 const poisonTransfer = erc20Transfer(poison, 0, WTMR, alice, lookalike, '0')
 
+const rows = (root: HTMLElement) => [...root.querySelectorAll('[data-slot=card] .divide-y > *')]
+
 export const Poisoning: StoryObj = {
     ...txPage(poison, {logs: [poisonTransfer.log], transfers: [poisonTransfer.transfer]}, {tab: 'transfers'}),
-    play: async ({canvasElement}) => expect(poisonedRows([...canvasElement.querySelectorAll('[data-slot=card] .divide-y > *')])).toEqual([true]),
+    play: async ({canvasElement}) => expect(poisonedRows(rows(canvasElement))).toEqual([true]),
+}
+
+// a stranger moving a real amount between two other accounts is no poisoning
+const approved = evmTx(HEAD - 75, 0, {from: evmAddress(72), to: WTMR.id, input: calldata(SELECTOR.transferFrom, alice, bob, units(25, WTMR.decimals)), gasLimit: '60000', gasUsed: '31000', ...exit(EXIT.returned)})
+const approvedTransfer = erc20Transfer(approved, 0, WTMR, alice, bob, units(25, WTMR.decimals))
+
+export const ThirdPartyRealAmount: StoryObj = {
+    ...txPage(approved, {logs: [approvedTransfer.log], transfers: [approvedTransfer.transfer]}, {tab: 'transfers'}),
+    play: async ({canvasElement}) => expect(poisonedRows(rows(canvasElement))).toEqual([false]),
 }
 
 // in log order, the wrap ahead of the payout
 export const Swap: StoryObj = {
     ...txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, {tab: 'transfers'}),
-    play: async ({canvasElement}) => {
-        expect(tokenLabels(canvasElement)).toEqual([shortHash(wrapped.id), shortHash(ore.id)])
-        expect(poisonedRows([...canvasElement.querySelectorAll('[data-slot=card] .divide-y > *')])).toEqual([false, false])
-    },
+    play: async ({canvasElement}) => expect(tokenLabels(canvasElement)).toEqual([shortHash(wrapped.id), shortHash(ore.id)]),
 }
 
 export const Airdrop = airdropPage('transfers')

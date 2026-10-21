@@ -23,7 +23,7 @@ const expandPool = async ({canvas, userEvent}: {canvas: ReturnType<typeof within
 
 export const Empty: Story = {args: {rows: []}}
 
-// a long name, a balance at the uint256 ceiling, no decimals, no symbol, no name and no transfer in
+// a long name, a balance at the uint256 ceiling, no total supply, no decimals, a pair's share token, no symbol, no name and no transfer in
 export const EveryCase: Story = {args: {rows: EVERY_HOLDING}}
 
 // a pair's share token names the two tokens it pools, the plain one beside it shows no badge
@@ -33,7 +33,7 @@ export const PairHolding: Story = {
 }
 
 // the panel tallies transfers in and out since genesis
-export const Expanded: Story = {
+export const ExpandedTransferTally: Story = {
     args: {rows: [WTMR_HOLDING]},
     play: async ({canvas, userEvent}) => {
         await userEvent.click(canvas.getByRole('button', {name: 'expand'}))
@@ -78,7 +78,11 @@ export const PairNeverSynced: Story = {
 // a supply that answered nothing leaves no share to work out
 export const PairNoSupply: Story = {
     args: {rows: [holding(pair(10, NUMN, TEST, {totalSupply: null}), units(3.5, 18))]},
-    play: async ctx => expect((await expandPool(ctx))('Underlying NUMN')).toBeUndefined(),
+    play: async ctx => {
+        const stat = await expandPool(ctx)
+        expect(stat('Underlying NUMN')).toBeUndefined()
+        expect(stat('Transfer-in Count')).toBe('1')
+    },
 }
 
 // no transfer in leaves the first block empty, the balance still shows
