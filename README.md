@@ -65,6 +65,25 @@ docker compose up -d --build web
 
 A runtime upgrade is the exception. Regenerate the typed accessors and commit them before the server pulls, the way Development describes.
 
+## Reindexing
+
+A processor change means indexing from genesis again. `reindex.sh` builds the new index next to the live one, so the site keeps serving while it catches up. It runs for hours, so detach it from the shell.
+
+```bash
+(nohup setsid ./reindex.sh > /tmp/explorer-reindex.log 2>&1 < /dev/null &)
+```
+
+Two compose projects take turns, `explorer` and `explorer-alt`. The script pulls, builds the idle one and starts its database, processor and internal GraphQL. Once the new index is within two blocks of the chain head, it moves the web and the public GraphQL to the new project on the same ports. Then it stops the rest of the old one. `COMPOSE_PROJECT_NAME` in `.env` records the new name, so plain `docker compose` follows it.
+
+The old project stays stopped until the next reindex wipes it. Rolling back from `explorer-alt` to `explorer` takes four commands.
+
+```bash
+docker compose -p explorer-alt stop web graphql-public
+docker compose -p explorer start
+docker compose -p explorer-alt stop
+sed -i 's/^COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=explorer/' .env
+```
+
 ## Public GraphQL
 
 `graphql-public` answers outside traffic from the same database through its own pool. Heavy queries stall that server, never the web. The web stays on the internal server because some of its queries fetch whole lists, which the public limits refuse.
