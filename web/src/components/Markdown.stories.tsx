@@ -95,7 +95,7 @@ export const RawHtml: Story = {
     play: async ({canvasElement}) => expect(canvasElement.querySelector('script, b')).toBeNull(),
 }
 
-// a link opens in a new tab with no opener or referrer, and a script url keeps no href
+// a link that leaves the page opens in a new tab with no opener or referrer, and a script url keeps no href
 export const SafeLinks: Story = {
     args: {text: 'See the [forum thread](https://forum.example.com/t/42), or [click](javascript:alert(1))'},
     play: async ({canvas, canvasElement}) => {
@@ -104,6 +104,16 @@ export const SafeLinks: Story = {
             ['_blank', 'noopener noreferrer'],
         ])
         await expect(canvas.getByText('click').getAttribute('href') ?? '').not.toMatch(/^javascript:/i)
+    },
+}
+
+export const FootnoteLinksStayOnPage: Story = {
+    args: {text: 'A late report moves its payout, never its amount.[^1]\n\n[^1]: As agreed in the forum thread.'},
+    play: async ({canvasElement}) => {
+        await expect([...canvasElement.querySelectorAll('a')].map(a => [a.getAttribute('href'), a.target])).toEqual([
+            ['#user-content-fn-1', ''],
+            ['#user-content-fnref-1', ''],
+        ])
     },
 }
 

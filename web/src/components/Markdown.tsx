@@ -5,7 +5,7 @@ import {cn} from 'cn'
 import {https} from '@/lib/url'
 
 const components: Components = {
-    a: ({node: _, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+    a: ({node: _, ...props}) => (props.href?.startsWith('#') ? <a {...props} /> : <a {...props} target="_blank" rel="noopener noreferrer" />),
     img: ({src, alt}) => {
         const href = typeof src === 'string' ? src : undefined
         if (https(href)) return <img src={href} alt={alt ?? ''} loading="lazy" referrerPolicy="no-referrer" />
