@@ -62,14 +62,14 @@ type MinedObject @entity {
   block: Block! @unique
   protocol: String!
   "gzip of little endian f64 xyz triples in node emission order"
-  vertices: Bytes!
+  vertices: Bytes! @byteWeight(value: 1000.0)
   vertexCount: Int!
 }
 
 type MeshTopology @entity {
   id: ID!
   "gzip of little endian u16 index triples, one row per protocol version"
-  faces: Bytes!
+  faces: Bytes! @byteWeight(value: 400.0)
   faceCount: Int!
 }
 

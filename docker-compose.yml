@@ -46,6 +46,34 @@ services:
       db:
         condition: service_healthy
 
+  graphql-public:
+    build: ./squid
+    restart: unless-stopped
+    command: >-
+      npx squid-graphql-server
+      --max-request-size 8
+      --max-root-fields 10
+      --max-response-size 10000
+      --sql-statement-timeout 3000
+      --dumb-cache in-memory
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-squid}
+      DB_USER: ${DB_USER:-squid}
+      DB_PASS: ${DB_PASS:-squid}
+      GQL_PORT: 4350
+      GQL_DB_CONNECTION_POOL_SIZE: ${PUBLIC_GQL_POOL_SIZE:-2}
+      PGOPTIONS: "-c max_parallel_workers_per_gather=0 -c log_min_duration_statement=1000"
+      NODE_OPTIONS: "--max-old-space-size=1024"
+      NODE_ENV: development
+    mem_limit: 1536m
+    ports:
+      - "127.0.0.1:4351:4350"
+    depends_on:
+      db:
+        condition: service_healthy
+
   web:
     build:
       context: ./web

@@ -6,9 +6,9 @@ Block explorer for the Numen chain. A Subsquid processor feeds Postgres, served 
 archive node (WSS/RPC)
       │
       ▼
-squid processor ──► Postgres ──► GraphQL (4350)
-                                    │
-Next.js SSR (3000) ◄────────────────┘
+squid processor ──► Postgres ──┬──► GraphQL (4350) ──► Next.js SSR (3000)
+                               │
+                               └──► public GraphQL (4351)
 ```
 
 The web never talks to the node. Chain properties and the chain head reach it through a row the processor keeps fresh, so GraphQL is its only dependency.
@@ -34,13 +34,14 @@ A numen archive node, `--state-pruning archive` is mandatory. Docker with the co
 docker compose up -d --build
 ```
 
-Brings up Postgres, the processor, GraphQL and the web. Only the web is published, on 3000 and only to this machine, so everything else stays on the compose network. The node is expected on the host. Environment overrides, all optional.
+Brings up Postgres, the processor, both GraphQL servers and the web. The web and the public GraphQL are published on 3000 and 4351. Both bind to this machine only, so a reverse proxy decides what the world sees. Everything else stays on the compose network. The node is expected on the host. Environment overrides, all optional.
 
-| var            | default                            |
-| -------------- | ---------------------------------- |
-| `RPC_ENDPOINT` | `ws://host.docker.internal:9944`   |
-| `DB_NAME`      | `squid`                            |
-| `DB_PASS`      | `squid`                            |
+| var                    | default                          |
+| ---------------------- | -------------------------------- |
+| `RPC_ENDPOINT`         | `ws://host.docker.internal:9944` |
+| `DB_NAME`              | `squid`                          |
+| `DB_PASS`              | `squid`                          |
+| `PUBLIC_GQL_POOL_SIZE` | `2`                              |
 
 Switching networks means pointing the indexer at another node and using a fresh database. Postgres creates only `squid` on its first start, so any other `DB_NAME` has to exist before the processor can reach it, otherwise it restarts forever.
 
@@ -63,6 +64,25 @@ docker compose up -d --build web
 ```
 
 A runtime upgrade is the exception. Regenerate the typed accessors and commit them before the server pulls, the way Development describes.
+
+## Public GraphQL
+
+`graphql-public` answers outside traffic from the same database through its own pool. Heavy queries stall that server, never the web. The web stays on the internal server because some of its queries fetch whole lists, which the public limits refuse.
+
+| limit         | value                                                 |
+| ------------- | ----------------------------------------------------- |
+| request body  | 8 KB                                                  |
+| root fields   | 10                                                    |
+| response      | 10000 nodes, `vertices` weighs 1000 and `faces` 400   |
+| SQL statement | 3 s                                                   |
+| connections   | `PUBLIC_GQL_POOL_SIZE`, no parallel workers           |
+| heap          | 1 GB                                                  |
+
+The body cap and the in-memory cache keep Apollo's memory bounded. Drop either and a stream of unique queries runs the server out of heap in minutes. The cache also serves repeats for 5 s. Statements over a second land in the Postgres log.
+
+`NODE_ENV=development` turns introspection on, since Apollo disables it in production. Errors then carry the SQL and a stack trace.
+
+Rate limits belong to the reverse proxy.
 
 ## Development
 
