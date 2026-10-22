@@ -25,16 +25,15 @@ interface FilterRowProps {
     counts?: Record<string, number>
     allCount?: number
     className?: string
-    labelClassName?: string
 }
 
 // a value counting 0 drops out, but All and the active value always stay, so
 // a filter that matches nothing can still be undone
-export function FilterRow({label, values, value, href, labelOf = v => v, counts, allCount, className, labelClassName}: FilterRowProps) {
+export function FilterRow({label, values, value, href, labelOf = v => v, counts, allCount, className}: FilterRowProps) {
     const shown = values.filter(v => !counts || counts[v] > 0 || v === value)
     return (
         <div className={cn('flex flex-wrap items-center gap-2', className)}>
-            <span className={cn('mr-1 shrink-0 text-xs text-muted-foreground', labelClassName)}>{label}</span>
+            <span className="mr-1 shrink-0 text-xs text-muted-foreground">{label}</span>
             <FilterChip label="All" count={allCount} href={href('')} active={!value} />
             {shown.map(v => (
                 <FilterChip key={v} label={labelOf(v)} count={counts?.[v]} href={href(v)} active={v === value} />
@@ -47,7 +46,7 @@ export function FilterRow({label, values, value, href, labelOf = v => v, counts,
 // values. every value stays listed, one counting 0 too, and the select also
 // leaves room for the labels in fit. a pick that has to land on one value
 // leaves All out
-export function FilterSelect({label, values, value, href, labelOf = v => v, iconOf, noteOf, counts, allCount, fit, className, labelClassName, all = true}: FilterRowProps & {fit?: string[]; all?: boolean; iconOf?: (value: string) => ReactNode; noteOf?: (value: string) => string | undefined}) {
+export function FilterSelect({label, values, value, href, labelOf = v => v, iconOf, noteOf, counts, allCount, fit, className, labelClassName, all = true}: FilterRowProps & {labelClassName?: string; fit?: string[]; all?: boolean; iconOf?: (value: string) => ReactNode; noteOf?: (value: string) => string | undefined}) {
     const options = [...(all ? [{label: 'All', count: allCount, href: href('')}] : []), ...values.map(v => ({label: labelOf(v), count: counts && (counts[v] ?? 0), href: href(v), icon: iconOf?.(v), note: noteOf?.(v)}))]
     return (
         <div className={cn('flex min-w-0 items-center gap-2', className)}>

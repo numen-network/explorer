@@ -16,7 +16,7 @@ import {NONE} from '@/components/Detail'
 
 const col = columnsFor<BountyRow>()
 
-export function BountyTable({rows, chain, filtered}: {rows: BountyRow[]; chain: {ss58: number; decimals: number; symbol: string}; filtered?: boolean}) {
+export function BountyTable({rows, chain}: {rows: BountyRow[]; chain: {ss58: number; decimals: number; symbol: string}}) {
     const columns = useMemo(
         () => [
             col.display({id: 'index', header: '#', meta: {cellClassName: 'font-mono text-muted-foreground'}, cell: ({row}) => row.original.index}),
@@ -43,5 +43,5 @@ export function BountyTable({rows, chain, filtered}: {rows: BountyRow[]; chain: 
         ],
         [chain]
     )
-    return <DataTable columns={columns} rows={rows} empty={emptyText('bounties', filtered)} getRowId={b => b.id} />
+    return <DataTable columns={columns} rows={rows} empty={emptyText('bounties')} getRowId={b => b.id} />
 }
