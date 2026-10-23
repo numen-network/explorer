@@ -8,7 +8,7 @@ import CopyBtn from '@/components/CopyBtn'
 import Pager from '@/components/Pager'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
 import StatTile from '@/components/StatTile'
-import {TabPanels} from '@/components/Tabs'
+import {TabNav, panelTabs} from '@/components/Tabs'
 import {BlockLink, EvmAddrLink, EvmTxLink} from '@/components/links'
 import {TimeCell} from '@/components/TimeCell'
 import PairBadge from '@/components/PairBadge'
@@ -104,6 +104,12 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
         </>
     )
 
+    const tabs = panelTabs([
+        {slug: 'holders', label: 'Holders', count: token.holderCount, body: () => holders},
+        {slug: 'transfers', label: 'Transfers', count: token.transferCount, body: () => transfers},
+        {slug: 'contract', label: 'Contract', body: () => contract && <ContractPanel address={address} data={contract} />},
+    ], tab, s => `/token/${address}?tab=${s}`)
+
     return (
         <div>
             <div className="mt-6">
@@ -154,15 +160,10 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                 )}
             </div>
 
-            <TabPanels
-                at={tab}
-                href={s => `/token/${address}?tab=${s}`}
-                panels={[
-                    {slug: 'holders', label: 'Holders', count: token.holderCount, body: () => holders},
-                    {slug: 'transfers', label: 'Transfers', count: token.transferCount, body: () => transfers},
-                    {slug: 'contract', label: 'Contract', body: () => contract && <ContractPanel address={address} data={contract} />},
-                ]}
-            />
+            <div className="mt-7">
+                <TabNav aria-label="Token" items={tabs.items} />
+                <div className="mt-4">{tabs.active.body()}</div>
+            </div>
         </div>
     )
 }

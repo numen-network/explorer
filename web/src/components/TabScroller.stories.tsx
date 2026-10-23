@@ -17,15 +17,15 @@ const BOUNTIES = LABELS.indexOf('Bounties')
 
 function Strip({count, selected}: {count: number; selected?: number}) {
     return (
-        <div role="tablist" className="border-b">
+        <nav aria-label="Tabs" className="border-b">
             <TabScroller>
                 {LABELS.slice(0, count).map((label, i) => (
-                    <a key={label} href={`#${label}`} role="tab" aria-selected={i === selected} className="shrink-0 pb-3 text-sm whitespace-nowrap text-muted-foreground hover:text-foreground aria-selected:font-semibold aria-selected:text-foreground">
+                    <a key={label} href={`#${label}`} aria-current={i === selected ? 'page' : undefined} className="shrink-0 pb-3 text-sm whitespace-nowrap text-muted-foreground hover:text-foreground aria-[current=page]:font-semibold aria-[current=page]:text-foreground">
                         {label}
                     </a>
                 ))}
             </TabScroller>
-        </div>
+        </nav>
     )
 }
 
@@ -33,7 +33,7 @@ const scroller = (root: HTMLElement) => root.querySelector<HTMLElement>('.overfl
 
 // the selected tab lies inside the strip and clear of whichever arrows are up
 function selectedInView(list: HTMLElement) {
-    const tab = within(list).getByRole('tab', {selected: true}).getBoundingClientRect()
+    const tab = within(list).getByRole('link', {current: 'page'}).getBoundingClientRect()
     const strip = scroller(list).getBoundingClientRect()
     const arrows = within(list).queryAllByRole('button').map(b => b.getBoundingClientRect())
     return tab.left >= strip.left && tab.right <= strip.right && arrows.every(a => tab.right <= a.left || tab.left >= a.right)
@@ -112,7 +112,7 @@ export const SelectedOffscreen: Story = {
         </div>
     ),
     play: async ({canvas, canvasElement}) => {
-        for (const list of canvas.getAllByRole('tablist')) {
+        for (const list of canvas.getAllByRole('navigation')) {
             await within(list).findByRole('button', {name: 'Scroll left'})
             expect(selectedInView(list)).toBe(true)
         }
@@ -128,7 +128,7 @@ export const SelectedInView: Story = {
     ),
     play: async ({canvas, canvasElement}) => {
         await canvas.findByRole('button', {name: 'Scroll right'})
-        expect(selectedInView(canvas.getByRole('tablist'))).toBe(true)
+        expect(selectedInView(canvas.getByRole('navigation'))).toBe(true)
         expect(scroller(canvasElement).scrollLeft).toBe(0)
         expectArrowsOnLabelLine(canvasElement)
     },
@@ -143,7 +143,7 @@ export const SelectedUnderArrow: Story = {
         </div>
     ),
     play: async ({canvas, canvasElement}) => {
-        const list = canvas.getByRole('tablist')
+        const list = canvas.getByRole('navigation')
         await within(list).findByRole('button', {name: 'Scroll left'})
         expect(selectedInView(list)).toBe(true)
         expectArrowsOnLabelLine(canvasElement)
@@ -170,7 +170,7 @@ function Moving() {
 export const SelectionMoves: Story = {
     render: () => <Moving />,
     play: async ({canvas, canvasElement, userEvent}) => {
-        const list = canvas.getByRole('tablist')
+        const list = canvas.getByRole('navigation')
         await userEvent.click(canvas.getByRole('button', {name: 'Select Mining'}))
         await within(list).findByRole('button', {name: 'Scroll left'})
         expect(selectedInView(list)).toBe(true)

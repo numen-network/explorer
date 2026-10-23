@@ -1,6 +1,6 @@
 import {expect, within} from 'storybook/test'
 import {castFromSnapshots} from '../../../../../mock/fixtures/governance.js'
-import {expectNoHangingDots} from '../../../../.storybook/fit'
+import {expectNoHangingDots, tabPanel} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 import {Play, approvedHeld, approvedRefunded, curated, story, withPlay} from './page.stories.helpers'
@@ -18,7 +18,7 @@ const depositorsInline: Play = async ({canvas}) => {
 // every row holds a value, and no deposit row ends a line on its middle dot
 export const EveryField = withPlay(story(approvedHeld, 'metadata', castFromSnapshots(approvedHeld)), async context => {
     await depositorsInline!(context)
-    const rows = context.canvas.getByRole('tabpanel').querySelector('[data-slot=card]')!
+    const rows = tabPanel(context.canvasElement, 'Referendum').querySelector('[data-slot=card]')!
     expect([...rows.children].filter(row => row.lastElementChild!.textContent === '—').map(row => row.firstElementChild!.textContent)).toEqual([])
     expectNoHangingDots(rows)
 })

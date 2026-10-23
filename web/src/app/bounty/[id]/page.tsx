@@ -1,7 +1,7 @@
 import {notFound} from 'next/navigation'
 import AccountLink from '@/components/AccountLink'
 import Pager from '@/components/Pager'
-import {TabPanels, type Panel} from '@/components/Tabs'
+import {TabNav, panelTabs, type Panel} from '@/components/Tabs'
 import {DetailCard, DetailRow, NONE} from '@/components/Detail'
 import {BlockLink} from '@/components/links'
 import {bountyStatusTone} from '@/components/bounties'
@@ -110,6 +110,11 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
         </TimelineList>
     )
 
+    const tabs = panelTabs([
+        {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
+        ...(data.childCount.totalCount > 0 ? ([{slug: 'children', label: 'Child bounties', count: data.childCount.totalCount, body: () => children}] as Panel[]) : []),
+    ], tab, s => `/bounty/${b.index}?tab=${s}`)
+
     return (
         <div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -120,14 +125,10 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
 
             <div className="mt-4">{overview}</div>
 
-            <TabPanels
-                at={tab}
-                href={s => `/bounty/${b.index}?tab=${s}`}
-                panels={[
-                    {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
-                    ...(data.childCount.totalCount > 0 ? ([{slug: 'children', label: 'Child bounties', count: data.childCount.totalCount, body: () => children}] as Panel[]) : []),
-                ]}
-            />
+            <div className="mt-7">
+                <TabNav aria-label="Bounty" items={tabs.items} />
+                <div className="mt-4">{tabs.active.body()}</div>
+            </div>
         </div>
     )
 }

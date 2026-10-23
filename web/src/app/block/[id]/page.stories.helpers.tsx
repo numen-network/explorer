@@ -2,6 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {HEAD} from '../../../../../mock/fixtures.js'
 import {busy, GENESIS, heartbeat, mined, minedObject, timestampSet, topology, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
+import {tabPanel} from '../../../../.storybook/fit'
 import {pageStory} from '../../../../.storybook/page'
 
 type Mined = ReturnType<typeof mined>
@@ -30,5 +31,5 @@ export function detail(b: Mined, {tab = '', page = 1, protocols = ['poscan-v1']}
 // genesis carries no extrinsic, event or log, so whichever tab it opens lists none
 export const genesis = (tab = ''): StoryObj => ({
     ...pageStory({blocks: [GENESIS]}, {params: {id: '0'}, searchParams: tab ? {tab} : {}}),
-    play: async ({canvas}) => expect(within(canvas.getByRole('tabpanel')).getByText('None')).toBeVisible(),
+    play: async ({canvasElement}) => expect(within(tabPanel(canvasElement, 'Block contents')).getByText('None')).toBeVisible(),
 })

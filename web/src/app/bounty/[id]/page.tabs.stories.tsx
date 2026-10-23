@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {bounty, CHILD_STATUSES, childBounty} from '../../../../../mock/fixtures/governance.js'
 import {tabCount} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
@@ -14,7 +14,7 @@ const parent = bounty(12, 'Active')
 export const EveryTab: StoryObj = {
     ...detail(parent, CHILD_STATUSES.slice(0, 3).map((status, i) => childBounty(12, i, status))),
     play: async ({canvas, canvasElement}) => {
-        expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^Timeline/)
+        expect(within(canvas.getByRole('navigation', {name: 'Bounty'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Timeline/)
         expect(['timeline', 'children'].map(slug => tabCount(canvasElement, slug))).toEqual(['6', '3'])
     },
 }

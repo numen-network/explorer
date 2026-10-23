@@ -2,7 +2,7 @@ import IdentityCards from '@/components/IdentityCards'
 import {BlockLink} from '@/components/links'
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
-import {TabBar} from '@/components/Tabs'
+import {TabNav} from '@/components/Tabs'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
@@ -69,7 +69,7 @@ export default async function PeoplePage(props: PageProps<'/people'>) {
             </div>
 
             <div className="mt-7">
-                <TabBar
+                <TabNav
                     aria-label="People"
                     items={[
                         {label: 'Identities', count: counts.direct, href: href('identities'), active: tab === 'identities'},

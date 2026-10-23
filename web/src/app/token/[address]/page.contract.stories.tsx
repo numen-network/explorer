@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {bytecode, evmAddress, evmTx, exit, EXIT, WTMR} from '../../../../../mock/fixtures/evm.js'
 import {NST} from '../../../../../mock/fixtures/sourcify.js'
-import {expectFits} from '../../../../.storybook/fit'
+import {expectFits, tabPanel} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import {sourcify} from '../../../../.storybook/sourcify'
 import TokenPage from './page'
@@ -16,8 +16,8 @@ const wtmrDeploy = evmTx(WTMR.deployTx.block.height, 0, {from: evmAddress(0), to
 // the token's own contract, read from Sourcify
 export const Verified: StoryObj = {
     ...tokenPage(WTMR, {created: [wtmrDeploy], msw: [sourcify({body: NST})]}, {tab: 'contract'}),
-    play: async ({canvas}) => {
-        const panel = canvas.getByRole('tabpanel')
+    play: async ({canvasElement}) => {
+        const panel = tabPanel(canvasElement, 'Token')
         expect(within(panel).getByText('Exact match')).toBeVisible()
         expect(within(panel).getByText('Creation code', {selector: 'div'}).nextElementSibling).toHaveTextContent('3,072 bytes')
         expectFits(...panel.querySelectorAll('[data-slot=card]'))

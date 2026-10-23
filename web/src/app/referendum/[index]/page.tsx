@@ -5,7 +5,7 @@ import CopyBtn from '@/components/CopyBtn'
 import Markdown from '@/components/Markdown'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
-import {TabPanels} from '@/components/Tabs'
+import {TabNav, panelTabs} from '@/components/Tabs'
 import {CurvesChart, type TallyStep} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import Approx from '@/components/Approx'
@@ -479,6 +479,16 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         </TimelineList>
     )
 
+    const tabs = panelTabs([
+        {slug: 'call', label: 'Call', body: () => call},
+        {slug: 'metadata', label: 'Metadata', body: () => metadata},
+        {slug: 'text', label: 'Text history', count: data.metadataCount.totalCount, body: () => texts},
+        {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
+        {slug: 'votes', label: 'Votes', count: data.voteCount.totalCount, body: () => votes},
+        {slug: 'curves', label: 'Curves', body: () => curves},
+        {slug: 'statistics', label: 'Statistics', body: () => stats},
+    ], tab, s => `/referendum/${r.index}?tab=${s}`)
+
     return (
         <div>
             <h1 className="mt-6 text-lg font-semibold">Referendum #{r.index}</h1>
@@ -504,20 +514,10 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     {tally}
                 </div>
 
-                <TabPanels
-                    className="min-w-0 lg:mt-3"
-                    at={tab}
-                    href={s => `/referendum/${r.index}?tab=${s}`}
-                    panels={[
-                        {slug: 'call', label: 'Call', body: () => call},
-                        {slug: 'metadata', label: 'Metadata', body: () => metadata},
-                        {slug: 'text', label: 'Text history', count: data.metadataCount.totalCount, body: () => texts},
-                        {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},
-                        {slug: 'votes', label: 'Votes', count: data.voteCount.totalCount, body: () => votes},
-                        {slug: 'curves', label: 'Curves', body: () => curves},
-                        {slug: 'statistics', label: 'Statistics', body: () => stats},
-                    ]}
-                />
+                <div className="min-w-0 lg:mt-3">
+                    <TabNav aria-label="Referendum" items={tabs.items} />
+                    <div className="mt-4">{tabs.active.body()}</div>
+                </div>
             </div>
         </div>
     )

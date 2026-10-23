@@ -5,7 +5,7 @@ import CopyBtn from '@/components/CopyBtn'
 import HoldingsTable from '@/components/HoldingsTable'
 import Pager from '@/components/Pager'
 import {AddrMark} from '@/components/addrHot'
-import {TabPanels, type Panel} from '@/components/Tabs'
+import {TabNav, panelTabs, type Panel} from '@/components/Tabs'
 import PairBadge from '@/components/PairBadge'
 import TokenIcon from '@/components/TokenIcon'
 import {Jump} from '@/components/links'
@@ -61,6 +61,8 @@ export default async function EvmAddressPage(props: PageProps<'/address/[address
     if (data.holdingCount.totalCount > 0) panels.push({slug: 'holdings', label: 'Tokens', count: data.holdingCount.totalCount, body: () => holdings})
     if (isContract) panels.push({slug: 'contract', label: 'Contract', body: () => contract && <ContractPanel address={address} data={contract} />})
 
+    const tabs = panelTabs(panels, tab, s => `/address/${address}?tab=${s}`)
+
     return (
         <div>
             <div className="mt-6">
@@ -90,7 +92,10 @@ export default async function EvmAddressPage(props: PageProps<'/address/[address
                 </div>
             </div>
 
-            <TabPanels at={tab} href={s => `/address/${address}?tab=${s}`} panels={panels} />
+            <div className="mt-7">
+                <TabNav aria-label="Address" items={tabs.items} />
+                <div className="mt-4">{tabs.active.body()}</div>
+            </div>
         </div>
     )
 }

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import Balance from '@/components/Balance'
 import {AmountGroup, AmountRow, AmountRows, DetailCard, DetailRow} from '@/components/Detail'
-import {TabBar, type Panel} from '@/components/Tabs'
+import {TabNav, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {Card} from '@/components/ui/card'
 import {Empty, EmptyDescription, EmptyHeader, EmptyTitle} from '@/components/ui/empty'
@@ -250,7 +250,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
             </div>
 
             <div className="mt-7">
-                <TabBar
+                <TabNav
                     aria-label="Account"
                     items={groups.map(g => {
                         const members = tabs.filter(t => (t.group ?? t.label) === g)
@@ -266,7 +266,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                 {active.group && groupHeads[active.group]?.()}
                 {active.group && (
                     <div className="mt-4">
-                        <TabBar aria-label={active.group} items={tabs.filter(t => t.group === active.group).map(t => ({label: t.label, count: t.count, href: tabHref(addr, t.slug), active: t.slug === active.slug}))} />
+                        <TabNav aria-label={active.group} items={tabs.filter(t => t.group === active.group).map(t => ({label: t.label, count: t.count, href: tabHref(addr, t.slug), active: t.slug === active.slug}))} />
                     </div>
                 )}
                 <div className="mt-4">{active.body()}</div>

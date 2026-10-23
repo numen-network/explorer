@@ -3,7 +3,7 @@ import {expect, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import {Tabs, TabsContent} from '@/components/ui/tabs'
 import {all, expectArrowsOnLabelLine, tabCount} from '../../.storybook/fit'
-import {TabBar, TabPanels, TabSwitch, type Panel, type TabItem} from './Tabs'
+import {TabNav, TabSwitch, panelTabs, type Panel, type TabItem} from './Tabs'
 
 const meta = {title: 'Components/Tabs'} satisfies Meta
 export default meta
@@ -61,19 +61,19 @@ const panel = (label: string, count?: number): Panel => ({
     body: () => <Card className="px-5 py-6 text-sm text-muted-foreground">{label} panel</Card>,
 })
 
-export const LineSingleTab: Story = {render: () => <TabBar aria-label="Account" items={items(['Transfers'], 0, [42])} />, play: linkStrip('Account', 'Transfers')}
+export const LineSingleTab: Story = {render: () => <TabNav aria-label="Account" items={items(['Transfers'], 0, [42])} />, play: linkStrip('Account', 'Transfers')}
 
 const TOKEN_TABS = items(['Holders', 'Transfers', 'Contract'], 1, [0, 1, 1_234_567])
 
 export const LineWithCounts: Story = {
-    render: () => <TabBar aria-label="Token" items={TOKEN_TABS} />,
+    render: () => <TabNav aria-label="Token" items={TOKEN_TABS} />,
     play: all(linkStrip('Token', 'Transfers'), async ({canvasElement}) => expect(['holders', 'transfers', 'contract'].map(slug => tabCount(canvasElement, slug))).toEqual(['0', '1', '1,234,567'])),
 }
 
-export const LineKeyboard: Story = {render: () => <TabBar aria-label="Token" items={TOKEN_TABS} />, play: keyboard}
+export const LineKeyboard: Story = {render: () => <TabNav aria-label="Token" items={TOKEN_TABS} />, play: keyboard}
 
 export const LineWithoutCounts: Story = {
-    render: () => <TabBar aria-label="Governance" items={items(['Referenda', 'Treasury spends', 'Bounties', 'Tracks'], 0)} />,
+    render: () => <TabNav aria-label="Governance" items={items(['Referenda', 'Treasury spends', 'Bounties', 'Tracks'], 0)} />,
     play: all(linkStrip('Governance', 'Referenda'), async ({canvasElement}) => expect(canvasElement.querySelector('[data-slot=badge]')).toBeNull()),
 }
 
@@ -81,13 +81,13 @@ export const LineWithoutCounts: Story = {
 export const LineOverflowing: Story = {
     render: () => (
         <div className="max-w-80">
-            <TabBar aria-label="Account" items={items(ACCOUNT_TABS, 12, ACCOUNT_TABS.map((_, i) => i * 37))} />
+            <TabNav aria-label="Account" items={items(ACCOUNT_TABS, 12, ACCOUNT_TABS.map((_, i) => i * 37))} />
         </div>
     ),
     play: all(linkStrip('Account', 'Mining'), currentInView),
 }
 
-export const LineNoneActive: Story = {render: () => <TabBar aria-label="Token" items={items(['Holders', 'Transfers', 'Contract'], -1)} />, play: linkStrip('Token')}
+export const LineNoneActive: Story = {render: () => <TabNav aria-label="Token" items={items(['Holders', 'Transfers', 'Contract'], -1)} />, play: linkStrip('Token')}
 
 // pill and segment strips stand one control tall, like the dropdowns and buttons beside them
 const controlHeight =
@@ -95,10 +95,10 @@ const controlHeight =
     async ({canvas}) =>
         expect(canvas.getByRole('navigation', {name}).getBoundingClientRect().height).toBe(32)
 
-export const Pill: Story = {render: () => <TabBar aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], 2)} />, play: all(linkStrip('Range', '365D'), keyboard, controlHeight('Range'))}
+export const Pill: Story = {render: () => <TabNav aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], 2)} />, play: all(linkStrip('Range', '365D'), keyboard, controlHeight('Range'))}
 
 // the presets of a chart set to a custom date range
-export const PillNoneActive: Story = {render: () => <TabBar aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], -1)} />, play: linkStrip('Range')}
+export const PillNoneActive: Story = {render: () => <TabNav aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], -1)} />, play: linkStrip('Range')}
 
 // tailwind spells no shadow as a stack of transparent layers, the browser default as none
 const visibleShadow = (el: Element) =>
@@ -111,7 +111,7 @@ const visibleShadow = (el: Element) =>
 export const PillSwitch: Story = {
     render: () => (
         <div className="space-y-3">
-            <TabBar aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], 2)} />
+            <TabNav aria-label="Range" variant="pill" items={items(['30D', '90D', '365D', 'ALL'], 2)} />
             <Tabs defaultValue="table">
                 <TabSwitch
                     options={[
@@ -152,32 +152,31 @@ export const PillSwitchSmall: Story = {
     play: async ({canvas}) => expect(canvas.getByRole('tablist').getBoundingClientRect().height).toBe(24),
 }
 
-export const Segment: Story = {render: () => <TabBar aria-label="Window" variant="segment" items={items(['24h', '7d', '30d'], 0)} />, play: all(linkStrip('Window', '24h'), keyboard, controlHeight('Window'))}
+export const Segment: Story = {render: () => <TabNav aria-label="Window" variant="segment" items={items(['24h', '7d', '30d'], 0)} />, play: all(linkStrip('Window', '24h'), keyboard, controlHeight('Window'))}
 
-export const SegmentLastActive: Story = {render: () => <TabBar aria-label="Window" variant="segment" items={items(['24h', '7d', '30d'], 2)} />, play: linkStrip('Window', '30d')}
+export const SegmentLastActive: Story = {render: () => <TabNav aria-label="Window" variant="segment" items={items(['24h', '7d', '30d'], 2)} />, play: linkStrip('Window', '30d')}
 
-export const PanelsSingle: Story = {render: () => <TabPanels panels={[panel('Events', 7)]} href={s => `?tab=${s}`} />}
+const PANELS = [panel('Events', 7), panel('Calls', 3), panel('Logs')]
 
-// the second tab is the open one and controls the panel under the strip
-export const PanelsSecondActive: Story = {
-    render: () => <TabPanels panels={[panel('Events', 7), panel('Calls', 3), panel('Logs')]} at="calls" href={s => `?tab=${s}`} />,
-    play: async ({canvas}) => {
-        const open = canvas.getByRole('tab', {selected: true})
-        await expect(open).toHaveAccessibleName(/^Calls/)
-        await expect(open).toHaveAttribute('aria-controls', canvas.getByRole('tabpanel').id)
-        await expect(canvas.getByRole('tabpanel')).toHaveTextContent('Calls panel')
-    },
+// a page's own strip over its open panel, laid out the way the pages do it
+const PanelsPage = ({at}: {at: string}) => {
+    const tabs = panelTabs(PANELS, at, s => `?tab=${s}`)
+    return (
+        <>
+            <TabNav aria-label="Block" items={tabs.items} />
+            <div className="mt-4">{tabs.active.body()}</div>
+        </>
+    )
 }
 
-export const PanelsUnknownSlug: Story = {render: () => <TabPanels panels={[panel('Events', 7), panel('Calls', 3)]} at="nope" href={s => `?tab=${s}`} />}
+const opens =
+    (current: string): Play =>
+    async ({canvas}) => {
+        await expect(within(canvas.getByRole('navigation', {name: 'Block'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(new RegExp(`^${current}`))
+        await expect(canvas.getByText(`${current} panel`)).toBeVisible()
+    }
 
-export const PanelsOverflowing: Story = {render: () => <TabPanels panels={ACCOUNT_TABS.map((label, i) => panel(label, i * 1_111))} at="mining" href={s => `?tab=${s}`} />}
+export const PanelsSecondActive: Story = {render: () => <PanelsPage at="calls" />, play: all(linkStrip('Block', 'Calls'), opens('Calls'))}
 
-export const PanelsEmpty: Story = {
-    render: () => (
-        <div className="text-sm text-muted-foreground">
-            <TabPanels panels={[]} href={s => s} />
-            No panels, nothing above this line
-        </div>
-    ),
-}
+// an unknown slug opens the first panel
+export const PanelsUnknownSlug: Story = {render: () => <PanelsPage at="nope" />, play: all(linkStrip('Block', 'Events'), opens('Events'))}

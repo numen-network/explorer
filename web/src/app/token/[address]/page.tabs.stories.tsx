@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {tabCount} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import TokenPage from './page'
@@ -12,8 +12,8 @@ export default {title: 'Pages/Token/Tabs', ...pageMeta(TokenPage)}
 export const EveryTab: StoryObj = {
     ...tokenPage(orbit),
     play: async ({canvas, canvasElement}) => {
-        expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^Holders/)
+        expect(within(canvas.getByRole('navigation', {name: 'Token'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Holders/)
         expect(['holders', 'transfers'].map(slug => tabCount(canvasElement, slug))).toEqual(['4,286', '30,000'])
-        expect(canvas.getByRole('tab', {name: 'Contract'})).toBeVisible()
+        expect(within(canvas.getByRole('navigation', {name: 'Token'})).getByRole('link', {name: 'Contract'})).toBeVisible()
     },
 }

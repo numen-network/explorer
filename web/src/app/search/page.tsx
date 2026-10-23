@@ -10,7 +10,7 @@ import AddressText from '@/components/AddressText'
 import HashText from '@/components/HashText'
 import IdentityName from '@/components/IdentityName'
 import Pager from '@/components/Pager'
-import {TabPanels} from '@/components/Tabs'
+import {TabNav, panelTabs} from '@/components/Tabs'
 import PairBadge from '@/components/PairBadge'
 import TokenIcon from '@/components/TokenIcon'
 import {isTokenAddress, searchLookups, searchNames, type AccountRef} from '@/lib/gql'
@@ -118,6 +118,11 @@ export default async function SearchPage(props: PageProps<'/search'>) {
         </Item>
     ))
 
+    const tabs = panelTabs([
+        {slug: 'accounts', label: 'Accounts', count: accountCount.totalCount, body: () => <HitList rows={accountRows} total={accountCount.totalCount} pg={pg} href={href('accounts')} />},
+        {slug: 'tokens', label: 'Tokens', count: tokenCount.totalCount, body: () => <HitList rows={tokenRows} total={tokenCount.totalCount} pg={pg} href={href('tokens')} />},
+    ], String(sp.tab ?? (accountCount.totalCount > 0 ? 'accounts' : 'tokens')), href)
+
     return (
         <div>
             <h1 className="mt-6 text-lg font-semibold">
@@ -130,15 +135,10 @@ export default async function SearchPage(props: PageProps<'/search'>) {
                     </Empty>
                 </Card>
             ) : (
-                <TabPanels
-                    at={String(sp.tab ?? (accountCount.totalCount > 0 ? 'accounts' : 'tokens'))}
-                    href={href}
-                    className="mt-3"
-                    panels={[
-                        {slug: 'accounts', label: 'Accounts', count: accountCount.totalCount, body: () => <HitList rows={accountRows} total={accountCount.totalCount} pg={pg} href={href('accounts')} />},
-                        {slug: 'tokens', label: 'Tokens', count: tokenCount.totalCount, body: () => <HitList rows={tokenRows} total={tokenCount.totalCount} pg={pg} href={href('tokens')} />},
-                    ]}
-                />
+                <div className="mt-3">
+                    <TabNav aria-label="Search" items={tabs.items} />
+                    <div className="mt-4">{tabs.active.body()}</div>
+                </div>
             )}
         </div>
     )

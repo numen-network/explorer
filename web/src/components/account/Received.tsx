@@ -2,7 +2,7 @@ import Approx from '@/components/Approx'
 import Pager from '@/components/Pager'
 import SearchBox from '@/components/SearchBox'
 import StatTile from '@/components/StatTile'
-import {TabBar} from '@/components/Tabs'
+import {TabNav} from '@/components/Tabs'
 import {FilterSelect} from '@/components/pills'
 import {Card} from '@/components/ui/card'
 import {fmtInt, trackLabel} from '@/lib/format'
@@ -65,7 +65,7 @@ export default async function Received(props: TabCtx & {delegations: Delegations
 
     return (
         <>
-            <TabBar
+            <TabNav
                 aria-label="Received"
                 items={[
                     {label: 'Tracks', count: rows.length, href: tabHref(addr, 'received', {rtab: 'tracks'}), active: view === 'tracks'},

@@ -17,11 +17,10 @@ const texts = [
 // timeline and the votes count their entries
 export const EveryTab = withPlay(story(curated(6), '', castFromSnapshots(curated(6)), texts), async ({canvas, canvasElement}) => {
     // the call panel holds a table and json switch of its own
-    const call = canvas.getByRole('tab', {name: /^Call/})
-    const slugs = within(call.closest<HTMLElement>('[role=tablist]')!)
-        .getAllByRole('tab')
-        .map(tab => new URL(tab.getAttribute('href')!, 'http://x').searchParams.get('tab'))
+    const strip = within(canvas.getByRole('navigation', {name: 'Referendum'}))
+    const call = strip.getByRole('link', {name: /^Call/})
+    const slugs = strip.getAllByRole('link').map(tab => new URL(tab.getAttribute('href')!, 'http://x').searchParams.get('tab'))
     expect(slugs).toEqual(['call', 'metadata', 'text', 'timeline', 'votes', 'curves', 'statistics'])
-    expect(call).toHaveAttribute('aria-selected', 'true')
+    expect(call).toHaveAttribute('aria-current', 'page')
     expect(['text', 'timeline', 'votes'].map(slug => tabCount(canvasElement, slug))).toEqual(['3', '4', '5'])
 })

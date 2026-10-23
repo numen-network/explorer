@@ -7,7 +7,7 @@ import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
-import {TabPanels, type Panel} from '@/components/Tabs'
+import {TabNav, panelTabs, type Panel} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import TokenIcon from '@/components/TokenIcon'
 import {BlockLink, EvmAddrLink, ExtrinsicLink} from '@/components/links'
@@ -114,6 +114,8 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
     if (data.tokenTransferCount.totalCount > 0) panels.unshift({slug: 'transfers', label: 'Token transfers', count: data.tokenTransferCount.totalCount, body: () => tokenTransfers})
     if (tx.extrinsic.transfers.length > 0) panels.unshift({slug: 'native', label: 'Native transfers', count: tx.extrinsic.transfers.length, body: () => transfers})
 
+    const tabs = panelTabs(panels, tab, s => `/tx/${hash}?tab=${s}`)
+
     return (
         <div>
             <div className="mt-6 flex items-center gap-3">
@@ -161,7 +163,10 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
                 </DetailCard>
             </div>
 
-            <TabPanels at={tab} href={s => `/tx/${hash}?tab=${s}`} panels={panels} />
+            <div className="mt-7">
+                <TabNav aria-label="Transaction" items={tabs.items} />
+                <div className="mt-4">{tabs.active.body()}</div>
+            </div>
         </div>
     )
 }

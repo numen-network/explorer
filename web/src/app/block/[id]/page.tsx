@@ -7,7 +7,7 @@ import DownloadObj from '@/components/DownloadObj'
 import {EventsTable} from '@/components/EventsTable'
 import {ExtrinsicsTable} from '@/components/ExtrinsicsTable'
 import Pager from '@/components/Pager'
-import {TabPanels} from '@/components/Tabs'
+import {TabNav, panelTabs} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
 import AccountLink from '@/components/AccountLink'
@@ -72,6 +72,12 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
             <DigestTable rows={logs} />
         </Card>
     )
+
+    const tabs = panelTabs([
+        {slug: 'extrinsics', label: 'Extrinsics', count: block.extrinsicCount, body: () => extrinsics},
+        {slug: 'events', label: 'Events', count: block.eventCount, body: () => events},
+        {slug: 'logs', label: 'Logs', count: logs.length, body: () => digest},
+    ], tab, s => `/block/${id}?tab=${s}`)
 
     return (
         <div>
@@ -172,15 +178,10 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
                 </DetailCard>
             </div>
 
-            <TabPanels
-                at={tab}
-                href={s => `/block/${id}?tab=${s}`}
-                panels={[
-                    {slug: 'extrinsics', label: 'Extrinsics', count: block.extrinsicCount, body: () => extrinsics},
-                    {slug: 'events', label: 'Events', count: block.eventCount, body: () => events},
-                    {slug: 'logs', label: 'Logs', count: logs.length, body: () => digest},
-                ]}
-            />
+            <div className="mt-7">
+                <TabNav aria-label="Block contents" items={tabs.items} />
+                <div className="mt-4">{tabs.active.body()}</div>
+            </div>
         </div>
     )
 }

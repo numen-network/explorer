@@ -1,7 +1,7 @@
 import Form from 'next/form'
 import ApplyButton from '@/components/ApplyButton'
 import DateRange from '@/components/DateRange'
-import {TabBar} from '@/components/Tabs'
+import {TabNav} from '@/components/Tabs'
 import {windowStart, type DbHead} from '@/lib/chain'
 import {isDay} from '@/lib/day'
 
@@ -47,7 +47,7 @@ export default function ChartRange({win, head, action, keep = {}, href}: {win: C
                 <DateRange key={`${win.after}|${win.before}`} after={win.after} before={win.before} lastDay={head.timestamp?.slice(0, 10) ?? null} active={win.custom} />
                 <ApplyButton />
             </Form>
-            <TabBar aria-label="Range" variant="pill" items={RANGES.map(([k, label]) => ({label, href: href(k === DEFAULT_RANGE ? null : k), active: k === win.range}))} />
+            <TabNav aria-label="Range" variant="pill" items={RANGES.map(([k, label]) => ({label, href: href(k === DEFAULT_RANGE ? null : k), active: k === win.range}))} />
         </div>
     )
 }

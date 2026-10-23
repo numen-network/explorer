@@ -3,7 +3,7 @@ import type {ReactNode} from 'react'
 import {cn} from 'cn'
 import TabScroller from '@/components/TabScroller'
 import {Badge} from '@/components/ui/badge'
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
+import {TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {fmtInt} from '@/lib/format'
 
 export type TabVariant = 'line' | 'pill' | 'segment'
@@ -27,12 +27,6 @@ const STYLE: Record<TabVariant, {strip: string; link: string}> = {
         strip: 'flex h-8 w-fit items-center justify-center overflow-hidden rounded-lg border bg-card',
         link: 'h-full flex-1 px-3.5 text-sm text-foreground hover:text-primary data-active:bg-primary data-active:font-medium data-active:text-primary-foreground data-active:hover:text-primary-foreground',
     },
-}
-
-// cancels the chrome shadcn's tabs bring, leaving TabPanels with the line look
-const TABS_RESET = {
-    list: 'w-full p-0 group-data-horizontal/tabs:h-auto',
-    trigger: 'h-auto rounded-none border-0 pt-0 group-data-horizontal/tabs:after:bottom-0',
 }
 
 export interface TabItem {
@@ -70,7 +64,7 @@ function Caption({item, variant}: {item: TabItem; variant: TabVariant}) {
 
 // a tab is a link, so the strip is the url and only the page being read is built.
 // a tab switches the view in place, so the page keeps its scroll
-export function TabBar({items, variant = 'line', className, 'aria-label': label}: {items: TabItem[]; variant?: TabVariant; className?: string; 'aria-label': string}) {
+export function TabNav({items, variant = 'line', className, 'aria-label': label}: {items: TabItem[]; variant?: TabVariant; className?: string; 'aria-label': string}) {
     const links = items.map(t => (
         <Link key={t.href} href={t.href} scroll={false} aria-current={t.active ? 'page' : undefined} data-active={t.active} className={cn(LINK, STYLE[variant].link)}>
             <Caption item={t} variant={variant} />
@@ -106,31 +100,10 @@ export interface Panel {
     body: () => ReactNode
 }
 
-function Trigger({item}: {item: TabItem}) {
-    return (
-        <TabsTrigger value={item.href} asChild className={cn(LINK, STYLE.line.link, TABS_RESET.trigger)}>
-            <Link href={item.href}>
-                <Caption item={item} variant="line" />
-            </Link>
-        </TabsTrigger>
-    )
-}
-
-export function TabPanels({panels, at, href, className = 'mt-7'}: {panels: Panel[]; at?: string; href: (slug: string) => string; className?: string}) {
-    if (panels.length === 0) return null
+// the open panel, the one the url names or else the first, and the strip
+// linking every panel
+export function panelTabs(panels: Panel[], at: string | undefined, href: (slug: string) => string) {
     const active = panels.find(p => p.slug === at) ?? panels[0]
-    return (
-        <Tabs value={href(active.slug)} className={cn('gap-4', className)}>
-            <TabsList variant="line" className={cn(STYLE.line.strip, TABS_RESET.list)}>
-                <TabScroller>
-                    {panels.map(p => (
-                        <Trigger key={p.slug} item={{label: p.label, count: p.count, href: href(p.slug), active: p.slug === active.slug}} />
-                    ))}
-                </TabScroller>
-            </TabsList>
-            <TabsContent value={href(active.slug)} className="leading-normal">
-                {active.body()}
-            </TabsContent>
-        </Tabs>
-    )
+    const items = panels.map((p): TabItem => ({label: p.label, count: p.count, href: href(p.slug), active: p === active}))
+    return {active, items}
 }

@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {evmTx, holding, NOT_HELD, token, units, WTMR} from '../../../../../mock/fixtures/evm.js'
 import {tabCount} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
@@ -22,7 +22,7 @@ export const EoaNoTokensTab: StoryObj = {
     ...addressPage(alice, {txs: TXS, notHeld: NOT_HELD}, {tab: 'holdings'}),
     play: async ({canvas, canvasElement}) => {
         expect(tabCount(canvasElement, 'holdings')).toBeNull()
-        expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^Transactions/)
+        expect(within(canvas.getByRole('navigation', {name: 'Address'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Transactions/)
     },
 }
 
@@ -31,6 +31,6 @@ export const EoaNoContractTab: StoryObj = {
     ...addressPage(alice, {txs: TXS}, {tab: 'contract'}),
     play: async ({canvas}) => {
         expect(canvas.queryByRole('tab', {name: /^Contract/})).toBeNull()
-        expect(canvas.getByRole('tab', {selected: true})).toHaveAccessibleName(/^Transactions/)
+        expect(within(canvas.getByRole('navigation', {name: 'Address'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Transactions/)
     },
 }

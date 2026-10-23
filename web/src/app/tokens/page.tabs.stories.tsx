@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {token, WTMR} from '../../../../mock/fixtures/evm.js'
 import {pageMeta} from '../../../.storybook/page'
 import TokensPage from './page'
@@ -11,8 +11,8 @@ export default {title: 'Pages/Tokens/Tabs', ...pageMeta(TokensPage)}
 const counts =
     (plain: string, pairs: string): StoryObj['play'] =>
     async ({canvas}) => {
-        await expect(canvas.getByRole('tab', {name: new RegExp(`^Tokens\\s*${plain}$`)})).toBeVisible()
-        await expect(canvas.getByRole('tab', {name: new RegExp(`^LP\\s*${pairs}$`)})).toBeVisible()
+        await expect(within(canvas.getByRole('navigation', {name: 'Tokens'})).getByRole('link', {name: new RegExp(`^Tokens\\s*${plain}$`)})).toBeVisible()
+        await expect(within(canvas.getByRole('navigation', {name: 'Tokens'})).getByRole('link', {name: new RegExp(`^LP\\s*${pairs}$`)})).toBeVisible()
     }
 
 // each tab counts its own kind, digits grouped

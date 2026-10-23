@@ -1,6 +1,6 @@
 import {expect, within} from 'storybook/test'
 import {castFromSnapshots, metadataAction} from '../../../../../mock/fixtures/governance.js'
-import {expectFits, expectTimesFit} from '../../../../.storybook/fit'
+import {expectFits, expectTimesFit, tabPanel} from '../../../../.storybook/fit'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 import {curated, story, curatedCase, withPlay, markdownPitch, refundTitle, refundPitch} from './page.stories.helpers'
@@ -49,8 +49,8 @@ export const MarkdownKeptRaw = withPlay(
 // the entry, and so does its time
 export const LongTokens = withPlay(
     story({...curated(6), title: refundTitle, description: refundPitch}, 'text', {}, [metadataAction(990_500, 4, 'MetadataSet', {title: refundTitle, description: refundPitch})]),
-    async ({canvas}) => {
-        const history = canvas.getByRole('tabpanel')
+    async ({canvasElement}) => {
+        const history = tabPanel(canvasElement, 'Referendum')
         expectFits(within(history).getByText(refundTitle), within(history).getByText(refundPitch))
         expectTimesFit(history)
     }

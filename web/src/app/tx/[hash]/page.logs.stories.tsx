@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import {expectAddressForm, expectFits} from '../../../../.storybook/fit'
+import {expectAddressForm, expectFits, tabPanel} from '../../../../.storybook/fit'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import EvmTxPage from './page'
 import {txPage, call, callTransfer, plain, swap, wrap, payout, swapLogs, drops, airdropPage, crowdedPage} from './page.stories.helpers'
@@ -17,8 +17,8 @@ export const Empty = txPage(plain, {}, LOGS_TAB)
 // every log address keeps its full form and wraps inside its row
 export const Swap: StoryObj = {
     ...txPage(swap, {logs: swapLogs, transfers: [wrap.transfer, payout.transfer]}, LOGS_TAB),
-    play: async ({canvas}) => {
-        const logs = canvas.getByRole('tabpanel')
+    play: async ({canvasElement}) => {
+        const logs = tabPanel(canvasElement, 'Transaction')
         expectAddressForm(logs)
         expectFits(...[...logs.querySelectorAll('a[href^="/address/"]')].map(link => link.closest('[data-slot=card] > *')!))
     },

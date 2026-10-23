@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {tabCount} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import ExtrinsicPage from './page'
@@ -11,7 +11,7 @@ export default {title: 'Pages/Extrinsic/Tabs', ...pageMeta(ExtrinsicPage)}
 export const EveryTab: StoryObj = {
     ...detail(payout),
     play: async ({canvas, canvasElement}) => {
-        expect(canvas.getByRole('tab', {name: /^Calls/})).toHaveAttribute('aria-selected', 'true')
+        expect(within(canvas.getByRole('navigation', {name: 'Extrinsic'})).getByRole('link', {name: /^Calls/})).toHaveAttribute('aria-current', 'page')
         expect(['calls', 'events'].map(slug => tabCount(canvasElement, slug))).toEqual(['527', '3,689'])
     },
 }

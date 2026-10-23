@@ -475,9 +475,12 @@ export function expectNamedNavs(root: HTMLElement) {
 
 // the count on the tab that opens slug, or null when the page shows no such tab
 export function tabCount(root: Element, slug: string) {
-    const tab = root.querySelector(`:is([role=tablist], nav) a[href$="?tab=${slug}"]`)
+    const tab = root.querySelector(`nav a[href$="?tab=${slug}"]`)
     return tab && tab.querySelector('[data-slot=badge]')!.textContent
 }
+
+// the open panel below the tab strip called name
+export const tabPanel = (root: HTMLElement, name: string) => within(root).getByRole('navigation', {name}).nextElementSibling as HTMLElement
 
 // the chips of the filter row named label, each read as its label and count,
 // the active one in brackets, or null when no such row shows

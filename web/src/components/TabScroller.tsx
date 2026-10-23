@@ -5,7 +5,7 @@ import {Button} from '@/components/ui/button'
 
 // its source also ships as the inline script below, so it may only touch its argument and globals
 function reveal(strip: HTMLElement) {
-    const tab = strip.querySelector('[aria-selected="true"], [aria-current="page"]')
+    const tab = strip.querySelector('[aria-current="page"]')
     if (!tab) return
     const covered = parseFloat(getComputedStyle(strip).scrollPaddingLeft)
     const s = strip.getBoundingClientRect()

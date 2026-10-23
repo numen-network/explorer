@@ -1,6 +1,6 @@
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
-import {TabBar} from '@/components/Tabs'
+import {TabNav} from '@/components/Tabs'
 import {Card} from '@/components/ui/card'
 import {fmtInt} from '@/lib/format'
 import {markArgs} from '@/lib/argMarks'
@@ -20,7 +20,7 @@ export async function MultisigAddress({hex, addr, chain, sp, set}: TabCtx & {set
     const view = sp.mtab === 'signatories' ? 'signatories' : 'operations'
     return (
         <>
-            <TabBar
+            <TabNav
                 aria-label="As a multisig address"
                 items={[
                     {label: 'Operations', count: set.operations, href: tabHref(addr, ADDRESS, {mtab: 'operations'}), active: view === 'operations'},
@@ -84,7 +84,7 @@ export async function MultisigSignatory({hex, addr, chain, sp, operations, membe
     const view = sp.mtab === 'memberships' ? 'memberships' : 'operations'
     return (
         <>
-            <TabBar
+            <TabNav
                 aria-label="As a multisig signatory"
                 items={[
                     {label: 'Operations', count: operations, href: tabHref(addr, SIGNATORY, {mtab: 'operations'}), active: view === 'operations'},

@@ -4,7 +4,7 @@ import Approx from '@/components/Approx'
 import EmptyList from '@/components/EmptyList'
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
-import {TabBar} from '@/components/Tabs'
+import {TabNav} from '@/components/Tabs'
 import {Tip} from '@/components/Tip'
 import {FilterSelect} from '@/components/pills'
 import {ThresholdChart} from '@/components/charts'
@@ -190,7 +190,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
             </div>
 
             <div className="mt-7">
-                <TabBar
+                <TabNav
                     aria-label="Governance"
                     items={[
                         {label: 'Referenda', count: sum.refs.totalCount, href: '/governance?tab=referenda', active: tab === 'referenda'},

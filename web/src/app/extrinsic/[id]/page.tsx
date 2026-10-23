@@ -4,7 +4,7 @@ import CopyBtn from '@/components/CopyBtn'
 import {DetailCard, DetailRow, JsonBlock} from '@/components/Detail'
 import {EventsTable} from '@/components/EventsTable'
 import Pager from '@/components/Pager'
-import {TabPanels} from '@/components/Tabs'
+import {TabNav, panelTabs} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, EvmTxLink} from '@/components/links'
@@ -96,6 +96,11 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
         </>
     )
 
+    const tabs = panelTabs([
+        {slug: 'calls', label: 'Calls', count: data.callCount.totalCount, body: () => calls},
+        {slug: 'events', label: 'Events', count: data.eventCount.totalCount, body: () => events},
+    ], typeof sp.tab === 'string' ? sp.tab : undefined, slug => `${path}?tab=${slug}`)
+
     return (
         <div>
             <div className="mt-6 flex items-center gap-3">
@@ -162,14 +167,10 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
                 </DetailCard>
             </div>
 
-            <TabPanels
-                at={typeof sp.tab === 'string' ? sp.tab : undefined}
-                href={slug => `${path}?tab=${slug}`}
-                panels={[
-                    {slug: 'calls', label: 'Calls', count: data.callCount.totalCount, body: () => calls},
-                    {slug: 'events', label: 'Events', count: data.eventCount.totalCount, body: () => events},
-                ]}
-            />
+            <div className="mt-7">
+                <TabNav aria-label="Extrinsic" items={tabs.items} />
+                <div className="mt-4">{tabs.active.body()}</div>
+            </div>
         </div>
     )
 }

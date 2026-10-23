@@ -1,5 +1,5 @@
 import Pager from '@/components/Pager'
-import {TabPanels} from '@/components/Tabs'
+import {TabNav, panelTabs} from '@/components/Tabs'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {paging} from '@/lib/paging'
@@ -28,18 +28,18 @@ export default async function TokensPage(props: PageProps<'/tokens'>) {
         </>
     )
 
+    const tabs = panelTabs([
+        {slug: 'tokens', label: 'Tokens', count: plain.totalCount, body: () => list('tokens', plain.totalCount)},
+        {slug: 'lp', label: 'LP', count: pairs.totalCount, body: () => list('lp', pairs.totalCount)},
+    ], tab, href)
+
     return (
         <div>
             <h1 className="mt-6 text-lg font-semibold">ERC20 tokens</h1>
-            <TabPanels
-                at={tab}
-                href={href}
-                className="mt-4"
-                panels={[
-                    {slug: 'tokens', label: 'Tokens', count: plain.totalCount, body: () => list('tokens', plain.totalCount)},
-                    {slug: 'lp', label: 'LP', count: pairs.totalCount, body: () => list('lp', pairs.totalCount)},
-                ]}
-            />
+            <div className="mt-4">
+                <TabNav aria-label="Tokens" items={tabs.items} />
+                <div className="mt-4">{tabs.active.body()}</div>
+            </div>
         </div>
     )
 }

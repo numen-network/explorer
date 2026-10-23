@@ -1,7 +1,7 @@
 import {expect, waitFor, within} from 'storybook/test'
 import {numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {standard} from '../../../../../mock/fixtures/governance.js'
-import {axisTexts, barWidthsIn, expectFits, expectLegibleAxes, stacksIn} from '../../../../.storybook/fit'
+import {axisTexts, barWidthsIn, expectFits, expectLegibleAxes, stacksIn, tabPanel} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 import {story, curatedCase, cast, withPlay, deciding, single, singleVote, everyAction, convictionVotes, manyVotes, many, delegatedVotes, delegatedRef, fewAndMany, extremeAmounts} from './page.stories.helpers'
@@ -144,7 +144,7 @@ export const ExtremeAmounts = withPlay(extremeAmounts('statistics'), async ({can
         ['Votes', '≈52M NUMN'],
     ])
     await expect(ranges.totals).toEqual(['1', '0', '0', '0', '1'])
-    const tab = canvas.getByRole('tabpanel')
+    const tab = tabPanel(canvasElement, 'Referendum')
     expectFits(...tab.querySelectorAll('[data-slot=card]'))
     expectLegibleAxes(tab)
 })

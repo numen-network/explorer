@@ -1,4 +1,4 @@
-import {TabBar} from '@/components/Tabs'
+import {TabNav} from '@/components/Tabs'
 import {Card} from '@/components/ui/card'
 import {chainDbHead, chainProps, windowStart} from '@/lib/chain'
 import {minerDays} from '@/lib/gql'
@@ -23,7 +23,7 @@ export default async function MinersPage(props: PageProps<'/miners'>) {
         <div>
             <div className="mt-6 flex items-center justify-between">
                 <h1 className="text-lg font-semibold">Miners</h1>
-                <TabBar aria-label="Window" variant="segment" items={(Object.keys(WINDOWS) as WindowKey[]).map(k => ({label: k, href: `/miners?w=${k}`, active: k === w}))} />
+                <TabNav aria-label="Window" variant="segment" items={(Object.keys(WINDOWS) as WindowKey[]).map(k => ({label: k, href: `/miners?w=${k}`, active: k === w}))} />
             </div>
             <Card size="flush" className="mt-3">
                 <MinersTable rows={miners} totalBlocks={totalBlocks} chain={chain} />

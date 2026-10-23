@@ -2,7 +2,7 @@ import {expect, within} from 'storybook/test'
 import {numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {castFromSnapshots, eventsById, proposal, snapshots, step, stepEvents} from '../../../../../mock/fixtures/governance.js'
 import type {RawStep} from '@/components/timeline'
-import {expectFits, expectTimesFit, expectWholeWords} from '../../../../.storybook/fit'
+import {expectFits, expectTimesFit, expectWholeWords, tabPanel} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 import {Play, curated, story, curatedCase, withPlay, treasurySpend, secondAttempt} from './page.stories.helpers'
@@ -12,14 +12,14 @@ export default {title: 'Pages/Referendum/Timeline', ...pageMeta(ReferendumPage)}
 // an approved referendum ends where it confirmed and no step of its own reads
 // Approved, its enactment ticks when the dispatch went through and otherwise
 // reads Failed with the error, which wraps between whole words
-const approvedRail = (confirmed: string, enacted: string, error: string | null = null): Play => async ({canvas}) => {
+const approvedRail = (confirmed: string, enacted: string, error: string | null = null): Play => async ({canvas, canvasElement}) => {
     const step = async (title: string, block: string) => {
         const item = (await canvas.findByText(title)).closest<HTMLElement>('li')!
         await expect(within(item).getByRole('link', {name: block})).toBeInTheDocument()
         return item
     }
     await step('Confirmed', confirmed)
-    await expect(within(canvas.getByRole('tabpanel')).queryByText('Approved')).toBeNull()
+    await expect(within(tabPanel(canvasElement, 'Referendum')).queryByText('Approved')).toBeNull()
     const enactment = await step('Enacted', enacted)
     if (error == null) {
         await expect(enactment.querySelector('.lucide-check')).not.toBeNull()
@@ -34,7 +34,7 @@ const approvedRail = (confirmed: string, enacted: string, error: string | null =
 // every step's time breaks inside the card
 export const ApprovedEarly = withPlay(curatedCase(10, 'timeline'), async context => {
     await approvedRail('#698,640', '#707,280')!(context)
-    expectTimesFit(context.canvas.getByRole('tabpanel'))
+    expectTimesFit(tabPanel(context.canvasElement, 'Referendum'))
 })
 
 export const Rejected = curatedCase(1, 'timeline')
@@ -103,7 +103,7 @@ const overCapEvents = stepEvents(overCap).map((e: {id: string; args: object}) =>
 // beside the title or drop below it
 export const EnactmentFailed = withPlay(story(overCap, 'timeline', {...castFromSnapshots(overCap), events: eventsById(overCapEvents)}), async context => {
     await approvedRail('#588,640', '#597,280', 'Treasury.InsufficientPermission')!(context)
-    const rail = context.canvas.getByRole('tabpanel')
+    const rail = tabPanel(context.canvasElement, 'Referendum')
     const values = [...rail.querySelectorAll('dl dd')]
     await expect(values.length).toBeGreaterThan(0)
     expectWholeWords(...values)
