@@ -479,6 +479,34 @@ export function tabCount(root: Element, slug: string) {
     return tab && tab.querySelector('[data-slot=badge]')!.textContent
 }
 
+// a named nav of links that marks only the open page current, with no tab
+// roles and no aria-controls naming an element that isn't there
+export const linkStrip =
+    (name: string, current?: string): Play =>
+    async ({canvas, canvasElement}) => {
+        const nav = canvas.getByRole('navigation', {name})
+        await expect(canvas.queryAllByRole('tablist')).toEqual([])
+        await expect(canvas.queryAllByRole('tab')).toEqual([])
+        const dangling = [...canvasElement.querySelectorAll('[aria-controls]')].filter(el => el.getAttribute('aria-controls')!.split(' ').some(id => !document.getElementById(id)))
+        await expect(dangling).toEqual([])
+        const marked = within(nav).queryAllByRole('link', {current: 'page'})
+        await expect(marked).toHaveLength(current ? 1 : 0)
+        if (current) await expect(marked[0]).toHaveAccessibleName(new RegExp(`^${current}`))
+    }
+
+// the tab key stops on every link in turn, and enter follows the focused one
+export const linksByKeyboard: Play = async ({canvas, canvasElement, userEvent}) => {
+    const links = canvas.getAllByRole('link')
+    for (const link of links) {
+        await userEvent.tab()
+        await expect(link).toHaveFocus()
+    }
+    const followed: (string | null)[] = []
+    canvasElement.addEventListener('click', e => followed.push((e.target as Element).closest('a')!.getAttribute('href')))
+    await userEvent.keyboard('{Enter}')
+    await expect(followed).toEqual([links.at(-1)!.getAttribute('href')])
+}
+
 // the open panel below the tab strip called name
 export const tabPanel = (root: HTMLElement, name: string) => within(root).getByRole('navigation', {name}).nextElementSibling as HTMLElement
 

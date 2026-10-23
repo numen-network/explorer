@@ -1,5 +1,5 @@
 import ChartRange, {chartWindow, DEFAULT_RANGE} from '@/components/ChartRange'
-import {TabNav} from '@/components/Tabs'
+import SegmentedControl from '@/components/SegmentedControl'
 import {ComboChart} from '@/components/charts'
 import {Card, CardContent, CardHeader} from '@/components/ui/card'
 import {Empty, EmptyDescription} from '@/components/ui/empty'
@@ -23,7 +23,7 @@ export default async function Charts({hex, addr, chain, sp}: TabCtx) {
     return (
         <Card className="min-w-0 gap-3 py-4 [--card-spacing:--spacing(5)]">
             <CardHeader className="flex flex-wrap items-center justify-between gap-3">
-                <TabNav aria-label="Chart" variant="pill" items={ACCOUNT_CHARTS.map(([k, label]) => ({label, href: tabHref(addr, 'charts', {...range, chart: k === 'balance' ? '' : k}), active: k === chart}))} />
+                <SegmentedControl aria-label="Chart" options={ACCOUNT_CHARTS.map(([k, label]) => ({label, href: tabHref(addr, 'charts', {...range, chart: k === 'balance' ? '' : k}), active: k === chart}))} />
                 <ChartRange win={win} head={head} action={`/account/${addr}`} keep={{tab: 'charts', ...keep}} href={r => tabHref(addr, 'charts', {...keep, r: r ?? ''})} />
             </CardHeader>
             <CardContent>

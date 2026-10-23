@@ -5,7 +5,7 @@ import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
 import {JsonBlock, NONE} from '@/components/Detail'
 import {BlockLink, ReferendumLink} from '@/components/links'
-import {TabSwitch} from '@/components/Tabs'
+import SegmentedControl from '@/components/SegmentedControl'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Tabs, TabsContent} from '@/components/ui/tabs'
@@ -242,7 +242,7 @@ export function ArgsTable({node, chain}: {node: ArgNode; chain: ChainProps}) {
 /** Switches a Tabs root between the args table and the raw JSON the indexer stored. */
 export function ArgsToggle({className}: {className?: string}) {
     return (
-        <TabSwitch
+        <SegmentedControl
             options={[
                 ['table', 'Table'],
                 ['json', 'JSON'],
