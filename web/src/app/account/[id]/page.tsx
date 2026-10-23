@@ -24,7 +24,7 @@ import Proposed from '@/components/account/Proposed'
 import Proxies from '@/components/account/Proxies'
 import ReceivedJudgements from '@/components/account/ReceivedJudgements'
 import Received from '@/components/account/Received'
-import {RegistrarTile} from '@/components/account/Registrar'
+import Registrar from '@/components/account/Registrar'
 import Subs from '@/components/account/Subs'
 import Timeline from '@/components/account/Timeline'
 import TokenTransfers from '@/components/account/TokenTransfers'
@@ -42,7 +42,7 @@ import {shortAddr} from '@/components/AddressText'
 import {AddrMark} from '@/components/addrHot'
 import {votesPower} from '@/lib/conviction'
 import {fmtInt, fmtPct} from '@/lib/format'
-import {accountRefs, accountSummary, blockTime, evmCounts, type AccountRef} from '@/lib/gql'
+import {accountRefs, accountSummary, blockTime, evmCounts, seatEventCount, type AccountRef} from '@/lib/gql'
 import {identityJudgements} from '@/lib/identity'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {CONFIG, datedOrGenesis} from '@/lib/config'
@@ -94,10 +94,12 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (!a) return <NotActivated hex={hex} addr={addr} symbol={chain.symbol} />
 
     const refIds = controlRefIds(s)
-    const [evm, lastActiveTime, refs] = await Promise.all([
+    const registrar = s.registrar[0]
+    const [evm, lastActiveTime, refs, seatCount] = await Promise.all([
         a.evmAddress ? evmCounts(a.evmAddress) : {transfers: 0, holdings: 0, contracts: 0, tokens: 0},
         a.lastActiveBlock != null ? blockTime(a.lastActiveBlock) : null,
         refIds.length > 0 ? accountRefs(refIds).then(r => new Map(r.accounts.map(acc => [acc.id, acc]))) : new Map<string, AccountRef>(),
+        registrar ? seatEventCount(registrar.index) : 0,
     ])
 
     const ctx: TabCtx = {hex, addr, chain, sp}
@@ -105,7 +107,6 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const minedBlocks = s.nMined.totalCount
     const locks = lockRows(a, addr, validator, s)
     const vest = schedules(a.vestingJson)
-    const registrar = s.registrar[0]
     const hasIdentity = a.identityJson != null || a.identitySuper != null
     const judgements = identityJudgements(a.identityJson)
 
@@ -148,7 +149,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     // the tab answers to its own rows rather than to the identity standing now
     if (s.nTimeline.totalCount > 0)
         tabs.push({slug: 'timeline', label: 'Timeline', group: 'Identity', count: s.nTimeline.totalCount, body: () => <Timeline {...ctx} />})
-    if (registrar) tabs.push({slug: 'registrar', label: 'Registrar', body: () => <RegistrarTile r={registrar} chain={chain} />})
+    if (registrar) tabs.push({slug: 'registrar', label: 'Registrar', count: seatCount, body: () => <Registrar {...ctx} r={registrar} />})
     // an exemption alone leaves no Validator row, so the steps answer for themselves
     if (s.nValidatorSteps.totalCount > 0)
         tabs.push({slug: 'validator-timeline', label: 'Timeline', group: 'Validator', count: s.nValidatorSteps.totalCount, body: () => <ValidatorTimeline {...ctx} />})

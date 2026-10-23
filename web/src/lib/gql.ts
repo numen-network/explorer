@@ -1385,6 +1385,32 @@ export function identityTimeline(idHex: string, limit: number, offset: number) {
     )
 }
 
+export interface SeatEventRow {
+    id: string
+    method: string
+    args: {who?: string; target?: string}
+    block: {height: number; timestamp: string}
+    extrinsic: {id: string} | null
+}
+
+const seatWhere = (index: number) =>
+    `{pallet_eq: "Identity", method_in: ["JudgementRequested", "JudgementUnrequested", "JudgementGiven"], args_jsonContains: {registrarIndex: ${index}}}`
+
+export function seatEventCount(index: number) {
+    return gql<{conn: {totalCount: number}}>(`query { conn: eventsConnection(orderBy: id_ASC, where: ${seatWhere(index)}) { totalCount } }`).then(r => r.conn.totalCount)
+}
+
+export function seatEvents(index: number, limit: number, offset: number) {
+    const where = seatWhere(index)
+    return gql<{events: SeatEventRow[]; conn: {totalCount: number}}>(
+        `query ($limit: Int!, $offset: Int!) {
+            events(where: ${where}, orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { id method args block { height timestamp } extrinsic { id } }
+            conn: eventsConnection(orderBy: ${TIMELINE_ORDER}, where: ${where}) { totalCount }
+        }`,
+        {limit, offset}
+    )
+}
+
 export function subIdentitiesPage(idHex: string, limit: number, offset: number) {
     return gql<{accounts: {id: string; identitySubName: string | null; identitySubData: unknown}[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {

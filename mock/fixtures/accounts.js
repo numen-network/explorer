@@ -483,6 +483,25 @@ export const timelineVerdicts = () => [
     {id: squidId(HEAD - 5_400, 2), kind: 'KnownGood', fee: numn(12.5)},
 ]
 
+// the requests and judgements seat 2 dealt with, newest first, the seat judging its own holder among them
+export const seatTimeline = () => [
+    step(HEAD - 60, 3, 'JudgementRequested', {who: PEOPLE[4].id, registrarIndex: 2}),
+    step(HEAD - 200, 4, 'JudgementGiven', {target: PEOPLE[4].id, registrarIndex: 2}),
+    step(HEAD - 900, 2, 'JudgementGiven', {target: SUBJECT, registrarIndex: 2}, null, false),
+    step(HEAD - 1_400, 2, 'JudgementUnrequested', {who: PEOPLE[3].id, registrarIndex: 2}),
+    step(HEAD - 2_000, 5, 'JudgementGiven', {target: PEOPLE[1].id, registrarIndex: 2}),
+    step(HEAD - 2_100, 2, 'JudgementRequested', {who: PEOPLE[1].id, registrarIndex: 2}),
+    step(HEAD - 3_000, 3, 'JudgementGiven', {target: PEOPLE[0].id, registrarIndex: 2}),
+]
+
+// the verdicts behind the JudgementGiven rows above, the one at HEAD - 2_000 lost to a clear in its own block
+export const seatVerdicts = () => [
+    {id: squidId(HEAD - 200, 4), kind: 'Erroneous', fee: null},
+    {id: squidId(HEAD - 900, 2), kind: 'KnownGood', fee: null},
+    {id: squidId(HEAD - 2_000, 5), kind: null, fee: null},
+    {id: squidId(HEAD - 3_000, 3), kind: 'FeePaid', fee: numn(12)},
+]
+
 export const validatorRow = (traits = {}) => ({
     id: SUBJECT,
     active: true,
@@ -769,6 +788,7 @@ export function accountPage({
     transfers = [],
     extrinsics = [],
     timeline = [],
+    seatEvents = [],
     verdicts = [],
     subs = [],
     delegationsOut = [],
@@ -850,8 +870,9 @@ export function accountPage({
         transfers: ({where}) => (where.OR ? transfers : sent(where)),
         extrinsicsConnection: count(counts.extrinsics ?? extrinsics.length),
         extrinsics,
-        eventsConnection: count(counts.timeline ?? timeline.length),
-        events: ({where}) => (where.method_eq === 'PureCreated' ? (pure ? [pure] : []) : timeline),
+        // the seat query filters on event kinds, the identity timeline on its subject
+        eventsConnection: ({where}) => count(where.method_in ? (counts.seat ?? seatEvents.length) : (counts.timeline ?? timeline.length)),
+        events: ({where}) => (where.method_eq === 'PureCreated' ? (pure ? [pure] : []) : where.method_in ? seatEvents : timeline),
         judgements: verdicts,
         accountsConnection: count(counts.subs ?? subs.length),
         accounts: ({where}) => (where?.id_in ? refs : subs),
