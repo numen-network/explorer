@@ -6,7 +6,7 @@ import Nav from './Nav'
 const meta = {
     title: 'Components/Nav',
     component: Nav,
-    args: {chain: 'Numen Mainnet'},
+    args: {chain: 'Numen Mainnet', api: 'https://graphql.numen-network.org/graphql'},
     parameters: {layout: 'fullscreen'},
 } satisfies Meta<typeof Nav>
 export default meta
@@ -68,5 +68,26 @@ export const MenuOpen: Story = {
         const menu = await screen.findByRole('dialog')
         expectNamedNavs(document.body)
         await expect(hrefs(within(menu).queryAllByRole('link', {current: 'page'}))).toEqual(['/transfers'])
+    },
+}
+
+// one in the row, one in the menu
+export const ApiLink: Story = {
+    parameters: at('/'),
+    play: async ({args, canvas}) => {
+        await fireEvent.click(canvas.getByLabelText('Menu'))
+        await screen.findByRole('dialog')
+        const links = screen.getAllByRole('link', {name: 'API', hidden: true})
+        await expect(links.map(link => [link.getAttribute('href'), link.getAttribute('target')])).toEqual([[args.api, '_blank'], [args.api, '_blank']])
+    },
+}
+
+export const NoApiLink: Story = {
+    args: {api: ''},
+    parameters: at('/'),
+    play: async ({canvas}) => {
+        await fireEvent.click(canvas.getByLabelText('Menu'))
+        await screen.findByRole('dialog')
+        await expect(screen.queryAllByRole('link', {name: 'API', hidden: true})).toEqual([])
     },
 }

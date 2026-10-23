@@ -42,6 +42,7 @@ Brings up Postgres, the processor, both GraphQL servers and the web. The web and
 | `DB_NAME`              | `squid`                          |
 | `DB_PASS`              | `squid`                          |
 | `PUBLIC_GQL_POOL_SIZE` | `2`                              |
+| `PUBLIC_GQL_URL`       | unset                            |
 
 Switching networks means pointing the indexer at another node and using a fresh database. Postgres creates only `squid` on its first start, so any other `DB_NAME` has to exist before the processor can reach it, otherwise it restarts forever.
 
@@ -101,7 +102,7 @@ The body cap and the in-memory cache keep Apollo's memory bounded. Drop either a
 
 `NODE_ENV=development` turns introspection on, since Apollo disables it in production. Errors then carry the SQL and a stack trace.
 
-Rate limits belong to the reverse proxy.
+Rate limits belong to the reverse proxy, and so does the public address. Set `PUBLIC_GQL_URL` to it and the nav gets an API link there. Leave it unset and the nav has none.
 
 ## Development
 

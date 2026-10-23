@@ -37,7 +37,7 @@ export default async function RootLayout({children}: {children: ReactNode}) {
             <body className="flex min-h-dvh flex-col">
                 <WellKnownProvider treasury={addr(chain?.treasuryAccount)} prime={addr(prime)} evmChainId={chain?.evmChainId ?? 0}>
                     <TooltipProvider>
-                        <Nav chain={chain?.chain ?? ''} />
+                        <Nav chain={chain?.chain ?? ''} api={process.env.PUBLIC_GQL_URL} />
                         <div className="mx-auto w-full max-w-[1400px] grow px-6 pb-16">
                             <div className="mt-5">
                                 <SearchBar />

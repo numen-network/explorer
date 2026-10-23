@@ -4,6 +4,7 @@ import {usePathname} from 'next/navigation'
 import {useState} from 'react'
 import {Menu} from 'lucide-react'
 import logo from '@/app/icon.svg'
+import {Jump} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
@@ -24,7 +25,7 @@ const ITEMS: [string, string][] = [
     ['/charts', 'Charts'],
 ]
 
-export default function Nav({chain}: {chain: string}) {
+export default function Nav({chain, api}: {chain: string; api?: string}) {
     const path = usePathname()
     const [open, setOpen] = useState(false)
     const tone = (href: string) => ((href === '/' ? path === '/' : path.startsWith(href)) ? 'font-medium text-primary' : 'hover:text-primary')
@@ -47,6 +48,11 @@ export default function Nav({chain}: {chain: string}) {
                                         {label}
                                     </Link>
                                 ))}
+                                {api && (
+                                    <a href={api} target="_blank" rel="noopener" onClick={() => setOpen(false)} className="block py-2 hover:text-primary">
+                                        API <Jump />
+                                    </a>
+                                )}
                             </nav>
                         </SheetContent>
                     </Sheet>
@@ -57,7 +63,7 @@ export default function Nav({chain}: {chain: string}) {
                         </span>
                     </Link>
                 </div>
-                {/* twelve labels fit beside the brand only on a wide screen,
+                {/* the labels fit beside the brand only on a wide screen,
                     so narrower screens tuck them behind the burger */}
                 <nav aria-label="Main" className="hidden items-center gap-5 text-sm xl:flex">
                     {ITEMS.map(([href, label]) => (
@@ -65,6 +71,11 @@ export default function Nav({chain}: {chain: string}) {
                             {label}
                         </Link>
                     ))}
+                    {api && (
+                        <a href={api} target="_blank" rel="noopener" className="whitespace-nowrap hover:text-primary">
+                            API <Jump />
+                        </a>
+                    )}
                 </nav>
                 {chain && (
                     <Tip text={chain}>
