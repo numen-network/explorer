@@ -18,6 +18,8 @@ interface Where {
     lastMinedTimestamp_gt?: string | null
     lastMinedTimestamp_isNull?: boolean
     block?: {timestamp_gt?: string | null; timestamp_lte?: string | null}
+    status_eq?: string
+    validFrom_gt?: number
 }
 
 interface Scene {
@@ -28,9 +30,18 @@ interface Scene {
     objects?: object[]
     transfers?: object[]
     referendums?: object[]
+    upcoming?: Upcoming
     validators?: number
     windows?: Partial<Windows>
     sessionLength?: number
+}
+
+// what the deadline strips read, the ongoing referenda and the spends and bounties already cut to the window
+interface Upcoming {
+    ongoing?: object[]
+    spendsValid?: object[]
+    spendsExpire?: object[]
+    bountiesDue?: object[]
 }
 
 export const PROTOCOL = 'poscan-v1'
@@ -65,7 +76,7 @@ function windowsOf(days: Day[]): Windows {
 
 const close = (d: Day) => ({difficulty: d.difficultyClose, issuanceTotal: d.issuanceTotal, issuanceInactive: d.issuanceInactive, treasuryPot: d.treasuryPot})
 
-export function home({head, best = head, finalized = Math.max(0, best - 5), days, objects = [], transfers = [], referendums = [], validators = 4, windows = {}, sessionLength = chainInfo.sessionLength}: Scene) {
+export function home({head, best = head, finalized = Math.max(0, best - 5), days, objects = [], transfers = [], referendums = [], upcoming = {}, validators = 4, windows = {}, sessionLength = chainInfo.sessionLength}: Scene) {
     const counts = {...windowsOf(days), ...windows}
     // a baseline exists once the chain is older than its window
     const baseline = (since: string) => {
@@ -91,7 +102,9 @@ export function home({head, best = head, finalized = Math.max(0, best - 5), days
         minedObjects: objects,
         meshTopologies: objects.length ? [{id: PROTOCOL, faceCount: 8}] : [],
         transfers,
-        referendums,
+        referendums: ({where = {}}: {where?: Where}) => (where.status_eq === 'Ongoing' ? (upcoming.ongoing ?? []) : referendums),
+        treasurySpends: ({where = {}}: {where?: Where}) => ((where.validFrom_gt != null ? upcoming.spendsValid : upcoming.spendsExpire) ?? []),
+        bounties: upcoming.bountiesDue ?? [],
         validatorsConnection: {totalCount: validators},
         validators: validators ? [{lastActiveSession: Math.floor(head / sessionLength)}] : [],
         accountsConnection: (args: {where?: Where}) => windowed(args.where?.lastMinedTimestamp_gt || args.where?.lastMinedTimestamp_isNull === false ? counts.miners : counts.accounts)(args),

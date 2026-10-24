@@ -4,7 +4,7 @@ import {Runtime} from '@subsquid/substrate-runtime'
 import type {Field, Type} from '@subsquid/substrate-runtime/lib/metadata'
 import {fmtCount, fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
-import {specVersionsJsonl} from '@/lib/specVersions'
+import {runtimeAt} from '@/lib/runtime'
 
 /** A call argument the way a reader sees it, worked out from the runtime types. */
 export type ArgNode =
@@ -37,19 +37,6 @@ declare module '@subsquid/substrate-runtime/lib/metadata/types' {
 const NONE: ArgNode = {kind: 'none'}
 const CALL = 'numen_runtime::RuntimeCall'
 const SPANS = new Set(['delay', 'after', 'period'])
-
-let runtimes: Map<number, Runtime> | undefined
-
-function runtimeAt(specVersion: number | null): Runtime | undefined {
-    runtimes ??= new Map(
-        specVersionsJsonl()
-            .split('\n')
-            .filter(Boolean)
-            .map(line => JSON.parse(line))
-            .map(v => [v.specVersion, new Runtime(v, v.metadata)])
-    )
-    return specVersion == null ? undefined : runtimes.get(specVersion)
-}
 
 class Walker {
     constructor(readonly rt: Runtime) {}

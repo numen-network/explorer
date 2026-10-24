@@ -11,6 +11,7 @@ import Section from '@/components/Section'
 import StatTile, {type StatChip} from '@/components/StatTile'
 import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
+import Upcoming from '@/components/Upcoming'
 import {LinesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import {ExtrinsicLink, Jump} from '@/components/links'
@@ -23,13 +24,16 @@ import {phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
 import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
+import {blocksConstant} from '@/lib/runtime'
 import {ss58Encode} from '@/lib/ss58'
+import {deadlines, rowHidden, upcomingWindow} from '@/lib/upcoming'
 
 export const dynamic = 'force-dynamic'
 
 // both lists hold five slots so the pair stays level however little data lands
 const ROW_H = 'sm:h-[66px]'
 const LIST_H = 'min-h-[332px]'
+const PAIR_H = 'lg:h-[332px]'
 
 function StatusRow({label, children}: {label: string; children: React.ReactNode}) {
     return (
@@ -55,7 +59,8 @@ function Bar({ratio}: {ratio: number}) {
 
 export default async function Home() {
     const [props, heads, head] = await Promise.all([chainProps(), chainHeads(), chainDbHead()])
-    const data = await homeData(windowStart(head, 1), windowStart(head, 30))
+    const cut = upcomingWindow(head.height, props.blockTime)
+    const data = await homeData(windowStart(head, 1), windowStart(head, 30), cut)
     const days = data.dailyStats
     const today: DailyRow | undefined = days[0]
 
@@ -82,6 +87,7 @@ export default async function Home() {
         faces: o.topology.faces,
     }))
     const genesisHash = data.genesis[0].hash
+    const upcoming = data.blocks[0] ? deadlines(data, cut, blocksConstant(data.blocks[0].specVersion, 'Referenda.UndecidingTimeout')) : []
 
     const chrono = [...days].reverse().slice(-30)
     const txLabels = chrono.map(d => d.id.slice(5))
@@ -282,14 +288,14 @@ export default async function Home() {
                             View all <Jump />
                         </Link>
                     </div>
-                    <Card size="flush" className={`divide-y ${LIST_H}`}>
+                    <Upcoming items={upcoming} blockTime={props.blockTime} className={`divide-y ${LIST_H} ${PAIR_H}`}>
                         {data.referendums.length === 0 && <EmptyList what="referenda" />}
-                        {data.referendums.map(r => {
+                        {data.referendums.map((r, i) => {
                             const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
                             // phones stack the title, the facts, then the amount beside the status,
                             // wider rows give the amount the title's line and the status the facts' line
                             return (
-                                <div key={r.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3 ${ROW_H} sm:flex-col sm:flex-nowrap sm:items-stretch sm:justify-center sm:gap-1 sm:py-0`}>
+                                <div key={r.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3 ${ROW_H} ${rowHidden(i, upcoming.length)} sm:flex-col sm:flex-nowrap sm:items-stretch sm:justify-center sm:gap-1 sm:py-0`}>
                                     <div className="contents sm:flex sm:items-baseline sm:gap-3">
                                         <div className="flex min-w-0 basis-full items-baseline gap-2 sm:grow sm:basis-0">
                                             <Link href={`/referendum/${r.index}`} className="shrink-0 font-mono text-primary hover:underline">
@@ -317,7 +323,7 @@ export default async function Home() {
                                 </div>
                             )
                         })}
-                    </Card>
+                    </Upcoming>
                 </div>
             </div>
 

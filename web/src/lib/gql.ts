@@ -171,11 +171,46 @@ export interface HomeData {
     transfers30: {totalCount: number}
     evm24: {totalCount: number}
     evm30: {totalCount: number}
+    ongoing: UpcomingReferendumRow[]
+    spendsValid: UpcomingSpendRow[]
+    spendsExpire: UpcomingSpendRow[]
+    bountiesDue: UpcomingBountyRow[]
 }
 
-export async function homeData(since24: string | null, since30: string | null) {
+export interface UpcomingReferendumRow {
+    index: number
+    title: string | null
+    submittedAt: number
+    decidingSince: number | null
+    confirmingSince: number | null
+    track: {preparePeriod: number; decisionPeriod: number; confirmPeriod: number}
+}
+
+export interface UpcomingSpendRow {
+    id: string
+    validFrom: number
+    expireAt: number
+    referendum: {index: number; title: string | null} | null
+}
+
+export interface UpcomingBountyRow {
+    index: number
+    description: string | null
+    updateDue: number
+}
+
+// the heights the deadlines are cut at, a spend turning valid counts only within the nearer one
+export interface UpcomingWindow {
+    head: number
+    until: number
+    validUntil: number
+}
+
+const CLAIMABLE = '["AssetSpendApproved", "PaymentFailed"]'
+
+export async function homeData(since24: string | null, since30: string | null, upcoming: UpcomingWindow) {
     const data = await gql<HomeData>(
-        `query ($since24: DateTime, $since30: DateTime) {
+        `query ($since24: DateTime, $since30: DateTime, $head: Int!, $until: Int!, $validUntil: Int!) {
             blocks(orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
             genesis: blocks(where: {height_eq: 0}, limit: 1) { hash }
             minedObjects(orderBy: id_DESC, limit: 5) { block { height hash timestamp finalized extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
@@ -201,8 +236,12 @@ export async function homeData(since24: string | null, since30: string | null) {
             transfers30: transfersConnection(orderBy: id_ASC, where: {timestamp_gt: $since30}) { totalCount }
             evm24: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since24}) { totalCount }
             evm30: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since30}) { totalCount }
+            ongoing: referendums(where: {status_eq: Ongoing}, orderBy: index_ASC, limit: 500) { index title submittedAt decidingSince confirmingSince track { preparePeriod decisionPeriod confirmPeriod } }
+            spendsValid: treasurySpends(where: {kind_eq: "spend", status_in: ${CLAIMABLE}, validFrom_gt: $head, validFrom_lte: $validUntil}, orderBy: validFrom_ASC, limit: 500) { id validFrom expireAt referendum { index title } }
+            spendsExpire: treasurySpends(where: {kind_eq: "spend", status_in: ${CLAIMABLE}, validFrom_lte: $head, expireAt_gt: $head, expireAt_lte: $until}, orderBy: expireAt_ASC, limit: 500) { id validFrom expireAt referendum { index title } }
+            bountiesDue: bounties(where: {status_eq: "Active", updateDue_gt: $head, updateDue_lte: $until}, orderBy: updateDue_ASC, limit: 500) { index description updateDue }
         }`,
-        {since24, since30}
+        {since24, since30, ...upcoming}
     )
     return {...data, minedObjects: await withTopology(data.minedObjects)}
 }
