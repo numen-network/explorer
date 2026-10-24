@@ -39,7 +39,7 @@ const preview: Preview = {
                     'Pages',
                     [
                         'Home',
-                        ['Daily transactions', 'Network status', 'Stats', 'Latest blocks', 'Transfers', 'Referenda', 'Network info'],
+                        ['Daily transactions', 'Network status', 'Stats', 'Latest blocks', 'Transfers', 'Tabs', 'Referenda', 'Spends', 'Network info'],
                         'Blocks',
                         'Transfers',
                         'Extrinsics',

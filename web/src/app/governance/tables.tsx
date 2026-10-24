@@ -11,19 +11,8 @@ import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {camelLabel, fmtBalance, fmtCount, fmtInt, fmtSpan, trackLabel} from '@/lib/format'
 import type {DelegateRow, TrackRow, TreasurySpendRow} from '@/lib/gql'
+import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
-
-const SPEND_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle'> = {
-    SpendApproved: 'warn',
-    AssetSpendApproved: 'warn',
-    Awarded: 'pos',
-    Paid: 'pos',
-    AssetSpendVoided: 'neg',
-    PaymentFailed: 'neg',
-    SpendProcessed: 'idle',
-}
-
-const SPEND_KIND_LABEL: Record<string, string> = {spend_local: 'Local', spend: 'Spend'}
 
 const scol = columnsFor<TreasurySpendRow>()
 

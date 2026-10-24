@@ -156,6 +156,9 @@ export interface HomeData {
     sessionHead: {lastActiveSession: number | null}[]
     evmTotal: {totalCount: number}
     referendums: ReferendumRow[]
+    referendaCount: {totalCount: number}
+    spends: HomeSpendRow[]
+    spendsCount: {totalCount: number}
     fresh24: {totalCount: number}
     fresh30: {totalCount: number}
     base24: BaselineRow[]
@@ -175,6 +178,15 @@ export interface HomeData {
     spendsValid: UpcomingSpendRow[]
     spendsExpire: UpcomingSpendRow[]
     bountiesDue: UpcomingBountyRow[]
+}
+
+export interface HomeSpendRow {
+    id: string
+    kind: string
+    status: string
+    amount: string
+    beneficiary: AccountRef
+    referendum: {index: number; title: string | null} | null
 }
 
 export interface UpcomingReferendumRow {
@@ -221,6 +233,9 @@ export async function homeData(since24: string | null, since30: string | null, u
             sessionHead: validators(orderBy: lastActiveSession_DESC_NULLS_LAST, limit: 1) { lastActiveSession }
             evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
+            referendaCount: referendumsConnection(orderBy: id_ASC) { totalCount }
+            spends: treasurySpends(orderBy: [block_DESC, indexInBlock_DESC], limit: 5) { id kind status amount beneficiary { ${ACCOUNT_REF} } referendum { index title } }
+            spendsCount: treasurySpendsConnection(orderBy: id_ASC) { totalCount }
             fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since24}) { totalCount }
             fresh30: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since30}) { totalCount }
             base24: blocks(orderBy: timestamp_DESC, limit: 1, where: {timestamp_lte: $since24}) { ${BASELINE_FIELDS} }

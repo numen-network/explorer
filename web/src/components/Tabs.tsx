@@ -41,9 +41,23 @@ function Caption({item}: {item: TabItem}) {
     )
 }
 
+// a section title that switches what the card under it lists, as tall as a plain title
+const HEADING = 'text-[17px] font-semibold whitespace-nowrap text-muted-foreground hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring data-active:text-foreground'
+
 // a tab is a link, so the strip is the url and only the page being read is built.
 // a tab switches the view in place, so the page keeps its scroll
-export function TabNav({items, className, 'aria-label': label}: {items: TabItem[]; className?: string; 'aria-label': string}) {
+export function TabNav({items, className, variant, 'aria-label': label}: {items: TabItem[]; className?: string; variant?: 'heading'; 'aria-label': string}) {
+    if (variant === 'heading')
+        return (
+            <nav aria-label={label} className={cn('flex items-baseline gap-5', className)}>
+                {items.map(t => (
+                    <Link key={t.href} href={t.href} scroll={false} aria-current={t.active ? 'page' : undefined} data-active={t.active} className={HEADING}>
+                        {t.label}
+                        {t.count != null && <span className="ml-1.5 text-sm font-medium text-muted-foreground">{fmtInt(t.count)}</span>}
+                    </Link>
+                ))}
+            </nav>
+        )
     return (
         <nav aria-label={label} className={cn('flex items-center border-b', className)}>
             <TabScroller>

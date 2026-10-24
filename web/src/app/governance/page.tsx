@@ -17,6 +17,7 @@ import {camelLabel, fmtCount, fmtInt, trackLabel, truncFixed} from '@/lib/format
 import {isLive, phaseFraction} from '@/lib/referendum'
 import {delegatesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
+import {SPEND_KIND_LABEL} from '@/lib/spends'
 import {DelegatesTable, TracksTable, TreasuryTable} from './tables'
 
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,6 @@ type Tab = (typeof TABS)[number]
 // the Treasury call families and the Treasury events a spend can end on
 const SPEND_KINDS = ['spend_local', 'spend']
 const SPEND_STATUSES = ['SpendApproved', 'Awarded', 'AssetSpendApproved', 'Paid', 'AssetSpendVoided', 'PaymentFailed', 'SpendProcessed']
-const SPEND_KIND_LABEL: Record<string, string> = {spend_local: 'Local', spend: 'Spend'}
 
 export default async function GovernancePage(props: PageProps<'/governance'>) {
     const sp = await props.searchParams

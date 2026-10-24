@@ -11,6 +11,8 @@ import Section from '@/components/Section'
 import StatTile, {type StatChip} from '@/components/StatTile'
 import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
+import {TabNav, panelTabs} from '@/components/Tabs'
+import {Badge} from '@/components/ui/badge'
 import Upcoming from '@/components/Upcoming'
 import {LinesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
@@ -22,9 +24,10 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge} from '@/components/referenda'
 import {phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
-import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
+import {camelLabel, fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {blocksConstant} from '@/lib/runtime'
+import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
 import {deadlines, rowHidden, upcomingWindow} from '@/lib/upcoming'
 
@@ -53,12 +56,38 @@ function InfoCell({label, children}: {label: string; children: React.ReactNode})
     )
 }
 
+// phones stack the title, the facts, then the amount beside the status,
+// wider rows give the amount the title's line and the status the facts' line
+function GovRow({href, index, title, amount, facts, status, className}: {href: string; index: string | number; title: string; amount: React.ReactNode; facts: React.ReactNode[]; status: React.ReactNode; className: string}) {
+    return (
+        <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3 ${ROW_H} ${className} sm:flex-col sm:flex-nowrap sm:items-stretch sm:justify-center sm:gap-1 sm:py-0`}>
+            <div className="contents sm:flex sm:items-baseline sm:gap-3">
+                <div className="flex min-w-0 basis-full items-baseline gap-2 sm:grow sm:basis-0">
+                    <Link href={href} className="shrink-0 font-mono text-primary hover:underline">
+                        #{index}
+                    </Link>
+                    <Tip text={title}>
+                        <span className="truncate text-[13px]">{title}</span>
+                    </Tip>
+                </div>
+                <div className="order-1 font-mono text-sm whitespace-nowrap">{amount}</div>
+            </div>
+            <div className="contents sm:flex sm:items-center sm:gap-3">
+                <DotRow className="min-w-0 basis-full gap-y-0 text-[11px] text-muted-foreground sm:grow sm:basis-0">{facts}</DotRow>
+                <div className="order-1 ml-auto">{status}</div>
+            </div>
+        </div>
+    )
+}
+
+const GOV_MORE: Record<string, string> = {referenda: '/governance', spends: '/governance?tab=treasury'}
+
 function Bar({ratio}: {ratio: number}) {
     return <Progress value={Math.min(100, ratio * 100)} className="mt-1.5 h-1.5" />
 }
 
-export default async function Home() {
-    const [props, heads, head] = await Promise.all([chainProps(), chainHeads(), chainDbHead()])
+export default async function Home({searchParams}: PageProps<'/'>) {
+    const [sp, props, heads, head] = await Promise.all([searchParams, chainProps(), chainHeads(), chainDbHead()])
     const cut = upcomingWindow(head.height, props.blockTime)
     const data = await homeData(windowStart(head, 1), windowStart(head, 30), cut)
     const days = data.dailyStats
@@ -88,6 +117,71 @@ export default async function Home() {
     }))
     const genesisHash = data.genesis[0].hash
     const upcoming = data.blocks[0] ? deadlines(data, cut, blocksConstant(data.blocks[0].specVersion, 'Referenda.UndecidingTimeout')) : []
+
+    const coins = (planck: string) => `${fmtInt(truncFixed(planck, 0, props.decimals))} ${props.symbol}`
+    const referendaList = () => (
+        <>
+            {data.referendums.length === 0 && <EmptyList what="referenda" />}
+            {data.referendums.map((r, i) => (
+                <GovRow
+                    key={r.id}
+                    href={`/referendum/${r.index}`}
+                    index={r.index}
+                    title={r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}
+                    amount={r.proposalAmount != null ? coins(r.proposalAmount) : <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>}
+                    facts={[
+                        <span key="track" className="whitespace-nowrap">
+                            {trackLabel(r.track.name)}
+                        </span>,
+                        <TimeCell key="time" iso={r.submittedTimestamp} cycle />,
+                    ]}
+                    status={<StatusBadge phase={phaseOf(r)} />}
+                    className={rowHidden(i, upcoming.length)}
+                />
+            ))}
+        </>
+    )
+    const spendsList = () => (
+        <>
+            {data.spends.length === 0 && <EmptyList what="spends" />}
+            {data.spends.map((s, i) => {
+                const index = s.id.split('-')[1]
+                return (
+                    <GovRow
+                        key={s.id}
+                        href={s.referendum ? `/referendum/${s.referendum.index}` : GOV_MORE.spends}
+                        index={index}
+                        title={s.referendum?.title ?? `Treasury spend #${index}`}
+                        amount={coins(s.amount)}
+                        facts={[
+                            <span key="kind" className="whitespace-nowrap">
+                                {SPEND_KIND_LABEL[s.kind] ?? s.kind}
+                            </span>,
+                            <AccountLink key="beneficiary" addr={ss58Encode(s.beneficiary.id, props.ss58)} acc={s.beneficiary} className="min-w-0" />,
+                            s.referendum && (
+                                <span key="referendum" className="whitespace-nowrap">
+                                    Referendum{' '}
+                                    <Link href={`/referendum/${s.referendum.index}`} className="text-primary hover:underline">
+                                        #{s.referendum.index}
+                                    </Link>
+                                </span>
+                            ),
+                        ]}
+                        status={<Badge variant={SPEND_TONE[s.status] ?? 'idle'}>{camelLabel(s.status)}</Badge>}
+                        className={rowHidden(i, upcoming.length)}
+                    />
+                )
+            })}
+        </>
+    )
+    const gov = panelTabs(
+        [
+            {slug: 'referenda', label: 'Referenda', count: data.referendaCount.totalCount, body: referendaList},
+            {slug: 'spends', label: 'Spends', count: data.spendsCount.totalCount, body: spendsList},
+        ],
+        typeof sp.tab === 'string' ? sp.tab : undefined,
+        slug => (slug === 'referenda' ? '/' : `/?tab=${slug}`)
+    )
 
     const chrono = [...days].reverse().slice(-30)
     const txLabels = chrono.map(d => d.id.slice(5))
@@ -283,46 +377,13 @@ export default async function Home() {
                 </div>
                 <div className="min-w-0">
                     <div className="mb-3 flex items-baseline justify-between gap-4">
-                        <h2 className="text-[17px] font-semibold whitespace-nowrap">Referenda</h2>
-                        <Link href="/governance" className="pr-2 text-sm whitespace-nowrap text-primary hover:underline">
+                        <TabNav variant="heading" items={gov.items} aria-label="Governance" />
+                        <Link href={GOV_MORE[gov.active.slug]} className="pr-2 text-sm whitespace-nowrap text-primary hover:underline">
                             View all <Jump />
                         </Link>
                     </div>
                     <Upcoming items={upcoming} blockTime={props.blockTime} className={`divide-y ${LIST_H} ${PAIR_H}`}>
-                        {data.referendums.length === 0 && <EmptyList what="referenda" />}
-                        {data.referendums.map((r, i) => {
-                            const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
-                            // phones stack the title, the facts, then the amount beside the status,
-                            // wider rows give the amount the title's line and the status the facts' line
-                            return (
-                                <div key={r.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3 ${ROW_H} ${rowHidden(i, upcoming.length)} sm:flex-col sm:flex-nowrap sm:items-stretch sm:justify-center sm:gap-1 sm:py-0`}>
-                                    <div className="contents sm:flex sm:items-baseline sm:gap-3">
-                                        <div className="flex min-w-0 basis-full items-baseline gap-2 sm:grow sm:basis-0">
-                                            <Link href={`/referendum/${r.index}`} className="shrink-0 font-mono text-primary hover:underline">
-                                                #{r.index}
-                                            </Link>
-                                            <Tip text={title}>
-                                                <span className="truncate text-[13px]">{title}</span>
-                                            </Tip>
-                                        </div>
-                                        <div className="order-1 font-mono text-sm whitespace-nowrap">
-                                            {r.proposalAmount != null ? (
-                                                `${fmtInt(truncFixed(r.proposalAmount, 0, props.decimals))} ${props.symbol}`
-                                            ) : (
-                                                <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="contents sm:flex sm:items-center sm:gap-3">
-                                        <DotRow className="min-w-0 basis-full gap-y-0 text-[11px] text-muted-foreground sm:grow sm:basis-0">
-                                            <span className="whitespace-nowrap">{trackLabel(r.track.name)}</span>
-                                            <TimeCell iso={r.submittedTimestamp} cycle />
-                                        </DotRow>
-                                        <StatusBadge phase={phaseOf(r)} className="order-1 ml-auto" />
-                                    </div>
-                                </div>
-                            )
-                        })}
+                        {gov.active.body()}
                     </Upcoming>
                 </div>
             </div>

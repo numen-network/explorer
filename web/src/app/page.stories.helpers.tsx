@@ -1,6 +1,7 @@
-import {within} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {minedObject, topology} from '../../../mock/fixtures/blocks.js'
+import {spend} from '../../../mock/fixtures/governance.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
 import {expectFits, expectNoHangingDots, expectOneLine} from '../../.storybook/fit'
@@ -20,6 +21,7 @@ interface Where {
     block?: {timestamp_gt?: string | null; timestamp_lte?: string | null}
     status_eq?: string
     validFrom_gt?: number
+    expireAt_gt?: number
 }
 
 interface Scene {
@@ -30,6 +32,7 @@ interface Scene {
     objects?: object[]
     transfers?: object[]
     referendums?: object[]
+    spends?: object[]
     upcoming?: Upcoming
     validators?: number
     windows?: Partial<Windows>
@@ -76,7 +79,7 @@ function windowsOf(days: Day[]): Windows {
 
 const close = (d: Day) => ({difficulty: d.difficultyClose, issuanceTotal: d.issuanceTotal, issuanceInactive: d.issuanceInactive, treasuryPot: d.treasuryPot})
 
-export function home({head, best = head, finalized = Math.max(0, best - 5), days, objects = [], transfers = [], referendums = [], upcoming = {}, validators = 4, windows = {}, sessionLength = chainInfo.sessionLength}: Scene) {
+export function home({head, best = head, finalized = Math.max(0, best - 5), days, objects = [], transfers = [], referendums = [], spends = [], upcoming = {}, validators = 4, windows = {}, sessionLength = chainInfo.sessionLength}: Scene) {
     const counts = {...windowsOf(days), ...windows}
     // a baseline exists once the chain is older than its window
     const baseline = (since: string) => {
@@ -103,7 +106,9 @@ export function home({head, best = head, finalized = Math.max(0, best - 5), days
         meshTopologies: objects.length ? [{id: PROTOCOL, faceCount: 8}] : [],
         transfers,
         referendums: ({where = {}}: {where?: Where}) => (where.status_eq === 'Ongoing' ? (upcoming.ongoing ?? []) : referendums),
-        treasurySpends: ({where = {}}: {where?: Where}) => ((where.validFrom_gt != null ? upcoming.spendsValid : upcoming.spendsExpire) ?? []),
+        referendumsConnection: {totalCount: referendums.length},
+        treasurySpends: ({where = {}}: {where?: Where}) => (where.validFrom_gt != null ? (upcoming.spendsValid ?? []) : where.expireAt_gt != null ? (upcoming.spendsExpire ?? []) : spends),
+        treasurySpendsConnection: {totalCount: spends.length},
         bounties: upcoming.bountiesDue ?? [],
         validatorsConnection: {totalCount: validators},
         validators: validators ? [{lastActiveSession: Math.floor(head / sessionLength)}] : [],
@@ -202,8 +207,10 @@ export const far = {
 }
 
 // the card holding the list under heading, and the rows in it
-export const listCard = (root: HTMLElement, heading: string) => within(root).getByRole('heading', {name: heading}).parentElement!.nextElementSibling as HTMLElement
-export const listRows = (root: HTMLElement, heading: string) => [...listCard(root, heading).children] as HTMLElement[]
+// a column's title row holds a heading or the tab strip standing in for one
+const titleOf = (root: HTMLElement, name: string) => within(root).queryByRole('heading', {name}) ?? within(root).getByRole('navigation', {name})
+export const listCard = (root: HTMLElement, name: string) => titleOf(root, name).parentElement!.nextElementSibling as HTMLElement
+export const listRows = (root: HTMLElement, name: string) => [...listCard(root, name).children] as HTMLElement[]
 
 // a crowded transfer row keeps its amount whole and on one line and cuts its call short rather than overflowing
 export function expectTransfersFit(root: HTMLElement) {
@@ -213,7 +220,7 @@ export function expectTransfersFit(root: HTMLElement) {
 }
 
 // a crowded referendum row squeezes its title and wraps its facts rather than overflowing
-export const expectReferendaFit = (root: HTMLElement) => expectFits(...listRows(root, 'Referenda').flatMap(row => [row, ...row.querySelectorAll(':scope > * > *')]))
+export const expectReferendaFit = (root: HTMLElement) => expectFits(...listRows(root, 'Governance').flatMap(row => [row, ...row.querySelectorAll(':scope > * > *')]))
 
 export const railOf = (root: HTMLElement) => within(root).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
 
@@ -229,4 +236,48 @@ export function expectBlockCardsFit(root: HTMLElement) {
     expectFits(...cards.flatMap(card => [...card.children]).filter(row => !miners.includes(row)))
     expectOneLine(...ages, ...miners, ...within(rail).getAllByText(/^(Extrinsics|Events) /))
     expectNoHangingDots(rail)
+}
+
+// one deadline of every kind at a block count that reads cleanly, nearest first, with HEAD at
+// a million and ten-second blocks. the referendum deciding for ten more days is left out
+const track = (preparePeriod: number, decisionPeriod: number, confirmPeriod: number) => ({preparePeriod, decisionPeriod, confirmPeriod})
+const ongoing = (index: number, title: string | null, submittedAt: number, decidingSince: number | null = null, confirmingSince: number | null = null) => ({
+    index, title, submittedAt, decidingSince, confirmingSince, track: track(1440, 241_920, 8640),
+})
+export const UPCOMING = {
+    ongoing: [
+        ongoing(11, 'Fund the block explorer for a year', HEAD - 1000),
+        ongoing(7, 'Raise the validator cap', HEAD - 20_000, HEAD - 18_000, HEAD - 7488),
+        ongoing(9, null, HEAD - 98_280),
+        ongoing(8, 'Mining pool grant', HEAD - 200_000, HEAD - 198_360),
+        ongoing(5, 'Ten days to go', HEAD - 160_000, HEAD - 155_520),
+    ],
+    spendsValid: [{id: 'spend-4', validFrom: HEAD + 10_800, expireAt: HEAD + 270_000, referendum: {index: 6, title: 'Wallet audit, second stage'}}],
+    spendsExpire: [{id: 'spend-3', validFrom: HEAD - 100, expireAt: HEAD + 59_040, referendum: {index: 4, title: 'Wallet audit, first stage'}}],
+    bountiesDue: [{index: 2, description: 'GPU miner for Apple silicon', updateDue: HEAD + 37_800}],
+}
+// the two spends the strips name, as the Spends tab lists them
+export const UPCOMING_SPENDS = [
+    spend(4, 'AssetSpendApproved', {referendum: {index: 6, title: 'Wallet audit, second stage'}}),
+    spend(3, 'AssetSpendApproved', {referendum: {index: 4, title: 'Wallet audit, first stage'}}),
+]
+export const NEAREST = [
+    'Referendum #11 will end preparing in 1h 13m',
+    'Referendum #7 will end confirming in 3h 12m',
+    'Treasury spend #4 will be valid in 1d 6h',
+    'Referendum #9 will time out in 2d 15h',
+    'Bounty #2 curator update due in 4d 9h',
+    'Referendum #8 will end deciding in 5d 1h',
+    'Treasury spend #3 will expire in 6d 20h',
+]
+
+export const strips = (root: HTMLElement) => [...listCard(root, 'Governance').querySelectorAll('.bg-muted')].map(s => s.textContent!.replace(/ /g, ' '))
+const shownRows = (root: HTMLElement) => listRows(root, 'Governance').filter(r => r.checkVisibility() && within(r).queryAllByRole('link', {name: /^#\d+$/}).length > 0)
+const sideBySide = () => matchMedia('(min-width: 64rem)').matches
+
+// side by side the card stays as tall as Transfers, a strip taking one row's place
+export function expectLevel(root: HTMLElement, rowsLeft: number, rowsNarrow = 5) {
+    if (!sideBySide()) return expect(shownRows(root)).toHaveLength(rowsNarrow)
+    expect(listCard(root, 'Governance').getBoundingClientRect().height).toBe(listCard(root, 'Transfers').getBoundingClientRect().height)
+    expect(shownRows(root)).toHaveLength(rowsLeft)
 }
