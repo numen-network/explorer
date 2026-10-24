@@ -83,7 +83,7 @@ export default function StatTile({
                 ))}
             </CardHeader>
             {chips && (
-                <CardContent className="flex flex-wrap gap-x-4 text-xs">
+                <CardContent className="flex flex-wrap gap-x-2.5 text-xs">
                     <StatChips chips={chips} />
                 </CardContent>
             )}

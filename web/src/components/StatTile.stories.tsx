@@ -14,7 +14,7 @@ const meta = {
     decorators: [
         Story => (
             <div className="@container">
-                <div className="grid grid-cols-1 gap-4 @min-[544px]:grid-cols-2 @min-[824px]:grid-cols-3 @min-[1104px]:grid-cols-4 @min-[1384px]:grid-cols-5">
+                <div className="grid grid-cols-1 gap-4 @min-[528px]:grid-cols-2 @min-[800px]:grid-cols-3 @min-[1072px]:grid-cols-4 @min-[1344px]:grid-cols-5">
                     <Story />
                 </div>
             </div>
@@ -41,17 +41,18 @@ export const FallingChips: Story = {
     },
 }
 
-// the widest chips a home page tile can print keep to one line at the grid's 264px budget
+// the widest chips a home page tile can print keep to one line at the grid's 256px budget
 export const WidestChips: Story = {
     args: {
         label: 'Active issuance',
         value: <Approx planck={numn(65_589_123)} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />,
         href: '/charts/active-issuance',
+        className: 'sm:[--card-spacing:--spacing(4)]',
         chips: chips([<Approx planck={`-${numn(888_889)}`} decimals={CHAIN.decimals} move />, '24h', 'neg'], [<Approx planck={`-${numn(888_889_000)}`} decimals={CHAIN.decimals} move />, '30d', 'neg']),
     },
     decorators: [
         Story => (
-            <div className="col-span-full max-w-[264px]">
+            <div className="col-span-full max-w-[256px]">
                 <Story />
             </div>
         ),
@@ -61,7 +62,7 @@ export const WidestChips: Story = {
         const tile = canvasElement.querySelector('[data-slot=card]')!
         const chipTops = [...tile.querySelectorAll('[data-slot=card-content] > span')].map(chip => Math.round(chip.getBoundingClientRect().top))
         await expect(chipTops.length).toBe(2)
-        if (tile.getBoundingClientRect().width >= 264) await expect(new Set(chipTops).size).toBe(1)
+        if (tile.getBoundingClientRect().width >= 256) await expect(new Set(chipTops).size).toBe(1)
     },
 }
 

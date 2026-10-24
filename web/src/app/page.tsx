@@ -459,14 +459,14 @@ export default async function Home({searchParams}: PageProps<'/'>) {
                 </Card>
             </div>
 
-            {/* a tile needs 264px to keep its figure and its widest chips on one line each,
+            {/* a tile needs 256px to keep its figure and its widest chips on one line each,
                 a row takes one more each time the box fits another tile and gap, five at most.
                 a box too narrow for two folds the tiles into one list */}
             <div className="mt-4 @container">
-                <StatList items={stats} className="@min-[544px]:hidden" />
-                <div className="hidden gap-4 @min-[544px]:grid @min-[544px]:grid-cols-2 @min-[824px]:grid-cols-3 @min-[1104px]:grid-cols-4 @min-[1384px]:grid-cols-5">
+                <StatList items={stats} className="@min-[528px]:hidden" />
+                <div className="hidden gap-4 @min-[528px]:grid @min-[528px]:grid-cols-2 @min-[800px]:grid-cols-3 @min-[1072px]:grid-cols-4 @min-[1344px]:grid-cols-5">
                     {stats.map(s => (
-                        <StatTile key={s.label} {...s} />
+                        <StatTile key={s.label} {...s} className="sm:[--card-spacing:--spacing(4)]" />
                     ))}
                 </div>
             </div>
