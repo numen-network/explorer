@@ -151,12 +151,12 @@ const BIOS = [
 const cardOf = (canvasElement: HTMLElement, name: string) =>
     [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=card]')].find(c => c.querySelector('a[href^="/account/"]')?.textContent === name)!
 
-// a card shows the first line of its bio on one line and a button that opens the rest
+// a card shows the first line of its bio on one line and a button that opens its detail
 export const Bios: StoryObj = {
     ...identities(BIOS),
     play: async ({canvasElement}) => {
         const names = BIOS.map(r => r.identityDisplay!)
-        expect(names.filter(n => cardOf(canvasElement, n).querySelector('button[aria-label=Bio]'))).toEqual(['Lines', 'Full bio only', 'Markdown'])
+        expect(names.filter(n => cardOf(canvasElement, n).querySelector('button[aria-label=Bio]'))).toEqual(names)
         const shorts = names.map(n => cardOf(canvasElement, n).querySelector('p')!)
         expect(shorts.map(p => p.textContent)).toEqual(['Validator operator since genesis.', LONG_BIO, 'Root and Treasurer tracks', '', 'Treasury-minded validator', 'x'.repeat(2048), ''])
         for (const p of shorts.filter(p => p.textContent)) expect(p.getBoundingClientRect().height).toBeLessThanOrEqual(parseFloat(getComputedStyle(p).lineHeight))
@@ -216,6 +216,18 @@ export const BioOpenMarkdown: StoryObj = {
         expect(dialog.getByText('Root').tagName).toBe('STRONG')
         expect(dialog.getByRole('link', {name: 'the forum'})).toHaveAttribute('href', 'https://forum.example.com/u/markdown')
         expect(dialog.getByRole('link', {name: 'Web'})).toHaveAttribute('href', 'https://markdown.example.com/')
+    },
+}
+
+// with no bio the dialog keeps the face, name and socials
+export const BioOpenNoBio: StoryObj = {
+    ...identities(BIOS),
+    play: async ({canvasElement}) => {
+        const dialog = await openBio(canvasElement, 'No bio')
+        expect(within(dialog).getByText('No bio')).toBeInTheDocument()
+        expect(within(dialog).getByLabelText('Discord')).toBeInTheDocument()
+        expect(dialog.querySelector('p[dir=auto]')).toBeNull()
+        expect(dialog.querySelector('.prose')).toBeNull()
     },
 }
 
