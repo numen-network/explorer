@@ -22,13 +22,13 @@ const chipsOf = (stat: Element) => [...stat.querySelectorAll('[data-slot=card-co
 // each stat's figure and the line of chips under it
 const linesOf = (stats: Element[]) => stats.flatMap(stat => [...stat.querySelectorAll('[data-slot=card-title], [data-slot=card-content], [data-slot=stat-value], [data-slot=stat-chips]')])
 
-// a tile needs 240px to keep its figure and its chips on one line each, a row
+// a tile needs 264px to keep its figure and its widest chips on one line each, a row
 // holds as many of those as fit and a box too narrow for two folds them into one list
 const statsFit: Play = async ({canvasElement}) => {
     const stats = statsOf(canvasElement)
     expectOneLine(...linesOf(stats))
     const box = stats[0].parentElement!.parentElement!
-    await expect(stats[0].matches('[data-slot=stat-row]')).toBe(box.clientWidth < 2 * 240 + 16)
+    await expect(stats[0].matches('[data-slot=stat-row]')).toBe(box.clientWidth < 2 * 264 + 16)
 }
 
 // a chip under ten thousand groups its digits like the value above it

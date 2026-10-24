@@ -14,7 +14,7 @@ const meta = {
     decorators: [
         Story => (
             <div className="@container">
-                <div className="grid grid-cols-1 gap-4 @min-[496px]:grid-cols-2 @min-[752px]:grid-cols-3 @min-[1008px]:grid-cols-4 @min-[1264px]:grid-cols-5">
+                <div className="grid grid-cols-1 gap-4 @min-[544px]:grid-cols-2 @min-[824px]:grid-cols-3 @min-[1104px]:grid-cols-4 @min-[1384px]:grid-cols-5">
                     <Story />
                 </div>
             </div>
@@ -38,6 +38,30 @@ export const FallingChips: Story = {
         value: <Approx planck={numn(549_923_456)} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />,
         href: '/charts/treasury',
         chips: chips([<Approx planck={`-${numn(528.4012)}`} decimals={CHAIN.decimals} move />, '24h', 'neg'], [<Approx planck={`-${numn(70_000)}`} decimals={CHAIN.decimals} move />, '30d', 'neg']),
+    },
+}
+
+// the widest chips a home page tile can print keep to one line at the grid's 264px budget
+export const WidestChips: Story = {
+    args: {
+        label: 'Active issuance',
+        value: <Approx planck={numn(65_589_123)} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />,
+        href: '/charts/active-issuance',
+        chips: chips([<Approx planck={`-${numn(888_889)}`} decimals={CHAIN.decimals} move />, '24h', 'neg'], [<Approx planck={`-${numn(888_889_000)}`} decimals={CHAIN.decimals} move />, '30d', 'neg']),
+    },
+    decorators: [
+        Story => (
+            <div className="col-span-full max-w-[264px]">
+                <Story />
+            </div>
+        ),
+    ],
+    play: async ({canvasElement}) => {
+        await document.fonts.ready
+        const tile = canvasElement.querySelector('[data-slot=card]')!
+        const chipTops = [...tile.querySelectorAll('[data-slot=card-content] > span')].map(chip => Math.round(chip.getBoundingClientRect().top))
+        await expect(chipTops.length).toBe(2)
+        if (tile.getBoundingClientRect().width >= 264) await expect(new Set(chipTops).size).toBe(1)
     },
 }
 
