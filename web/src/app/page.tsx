@@ -21,8 +21,8 @@ import {StatusDot} from '@/components/pills'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {CallPill} from '@/components/calls'
-import {StatusBadge} from '@/components/referenda'
-import {phaseOf} from '@/lib/referendum'
+import {StatusBadge, ThresholdPair} from '@/components/referenda'
+import {needsNow, phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
 import {camelLabel, fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
@@ -58,7 +58,7 @@ function InfoCell({label, children}: {label: string; children: React.ReactNode})
 
 // phones stack the title, the facts, then the amount beside the status,
 // wider rows give the amount the title's line and the status the facts' line
-function GovRow({href, index, title, amount, facts, status, className}: {href: string; index: string | number; title: string; amount: React.ReactNode; facts: React.ReactNode[]; status: React.ReactNode; className: string}) {
+function GovRow({href, index, title, mark, amount, facts, status, className}: {href: string; index: string | number; title: string; mark?: React.ReactNode; amount: React.ReactNode; facts: React.ReactNode[]; status: React.ReactNode; className: string}) {
     return (
         <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3 ${ROW_H} ${className} sm:flex-col sm:flex-nowrap sm:items-stretch sm:justify-center sm:gap-1 sm:py-0`}>
             <div className="contents sm:flex sm:items-baseline sm:gap-3">
@@ -70,6 +70,7 @@ function GovRow({href, index, title, amount, facts, status, className}: {href: s
                         <span className="truncate text-[13px]">{title}</span>
                     </Tip>
                 </div>
+                {mark && <div className="order-1 flex self-center">{mark}</div>}
                 <div className="order-1 font-mono text-sm whitespace-nowrap">{amount}</div>
             </div>
             <div className="contents sm:flex sm:items-center sm:gap-3">
@@ -122,23 +123,27 @@ export default async function Home({searchParams}: PageProps<'/'>) {
     const referendaList = () => (
         <>
             {data.referendums.length === 0 && <EmptyList what="referenda" />}
-            {data.referendums.map((r, i) => (
-                <GovRow
-                    key={r.id}
-                    href={`/referendum/${r.index}`}
-                    index={r.index}
-                    title={r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}
-                    amount={r.proposalAmount != null ? coins(r.proposalAmount) : <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>}
-                    facts={[
-                        <span key="track" className="whitespace-nowrap">
-                            {trackLabel(r.track.name)}
-                        </span>,
-                        <TimeCell key="time" iso={r.submittedTimestamp} cycle />,
-                    ]}
-                    status={<StatusBadge phase={phaseOf(r)} />}
-                    className={rowHidden(i, upcoming.length)}
-                />
-            ))}
+            {data.referendums.map((r, i) => {
+                const need = needsNow(r, head.height)
+                return (
+                    <GovRow
+                        key={r.id}
+                        href={`/referendum/${r.index}`}
+                        index={r.index}
+                        title={r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}
+                        mark={need && <ThresholdPair ayes={BigInt(r.ayes)} nays={BigInt(r.nays)} support={BigInt(r.support)} issuance={issNow - inactiveNow} need={need} />}
+                        amount={r.proposalAmount != null ? coins(r.proposalAmount) : <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>}
+                        facts={[
+                            <span key="track" className="whitespace-nowrap">
+                                {trackLabel(r.track.name)}
+                            </span>,
+                            <TimeCell key="time" iso={r.submittedTimestamp} cycle />,
+                        ]}
+                        status={<StatusBadge phase={phaseOf(r)} />}
+                        className={rowHidden(i, upcoming.length)}
+                    />
+                )
+            })}
         </>
     )
     const spendsList = () => (

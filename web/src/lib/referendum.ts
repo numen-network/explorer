@@ -1,3 +1,4 @@
+import {curveAt, type Curve} from './curves'
 import {variantName, variantValue} from './variant'
 
 // a system origin is one variant deep, a custom origin nests its name one level down
@@ -23,3 +24,11 @@ export const isLive = (r: RefPhaseFields) => r.status === 'Ongoing' && r.decidin
 
 // how far a phase has run, past one once its period is over, null before it starts
 export const phaseFraction = (since: number | null, period: number, head: number) => (since !== null && period > 0 ? (head - since) / period : null)
+
+// what the two curves demand of a referendum still deciding, in percent, null for one that is not
+export function needsNow(r: RefPhaseFields & {track: {decisionPeriod: number; minApproval: unknown; minSupport: unknown}}, head: number): {approval: number; support: number} | null {
+    const ran = isLive(r) ? phaseFraction(r.decidingSince, r.track.decisionPeriod, head) : null
+    if (ran === null) return null
+    const at = Math.min(1, Math.max(0, ran))
+    return {approval: curveAt(r.track.minApproval as Curve, at) * 100, support: curveAt(r.track.minSupport as Curve, at) * 100}
+}

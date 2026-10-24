@@ -122,3 +122,35 @@ export const DeadlinesUntitled: StoryObj = {
         await expect(await screen.findByRole('tooltip')).toHaveTextContent('Referendum #9')
     },
 }
+
+const pairs = (root: HTMLElement) => [...listCard(root, 'Governance').querySelectorAll('[data-slot=threshold-pair]')]
+const deciding = referenda.find(r => r.status === 'Ongoing' && r.decidingSince != null && r.confirmingSince == null)!
+
+// only the referenda still deciding or confirming carry both thresholds
+export const ThresholdsLive: StoryObj = {
+    ...pageStory(home(many)),
+    play: async ({canvasElement}) => {
+        const marked = listRows(canvasElement, 'Governance').filter(row => row.querySelector('[data-slot=threshold-pair]'))
+        expect(marked.map(row => row.querySelector('[data-slot=badge]')!.textContent)).toEqual(['Confirming', 'Deciding'])
+        expectReferendaFit(canvasElement)
+    },
+}
+
+export const ThresholdsHovered: StoryObj = {
+    ...pageStory(home({...many, referendums: [deciding]})),
+    play: async ({canvasElement, userEvent}) => {
+        await userEvent.hover(pairs(canvasElement)[0])
+        const tip = await screen.findByRole('tooltip')
+        expect(tip).toHaveTextContent(/^Approval \S+% need \S+%Support \S+% need \S+%$/)
+    },
+}
+
+// with nothing cast the approval bar has no split to draw and stays grey
+export const ThresholdsNoVotes: StoryObj = {
+    ...pageStory(home({...many, referendums: [{...deciding, ayes: '0', nays: '0'}]})),
+    play: async ({canvasElement}) => {
+        const [approval] = pairs(canvasElement)[0].children
+        expect(approval.querySelector('.bg-good')).toBeNull()
+        expect(approval.querySelector('.bg-border')).not.toBeNull()
+    },
+}

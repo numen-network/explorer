@@ -11,10 +11,10 @@ import {ThresholdChart} from '@/components/charts'
 import {ReferendumByline, ThresholdBar} from '@/components/referenda'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
-import {curveAt, type Curve} from '@/lib/curves'
 import {chainDbHead, chainProps} from '@/lib/chain'
 import {camelLabel, fmtCount, fmtInt, trackLabel, truncFixed} from '@/lib/format'
-import {isLive, phaseFraction} from '@/lib/referendum'
+import type {Curve} from '@/lib/curves'
+import {needsNow} from '@/lib/referendum'
 import {delegatesPage, governanceSummary, referendaPage, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {SPEND_KIND_LABEL} from '@/lib/spends'
@@ -85,8 +85,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
             {refs.referendums.map(r => {
                 const ayes = BigInt(r.ayes)
                 const nays = BigInt(r.nays)
-                const ran = isLive(r) ? phaseFraction(r.decidingSince, r.track.decisionPeriod, head.height) : null
-                const at = ran !== null ? Math.min(1, Math.max(0, ran)) : null
+                const need = needsNow(r, head.height)
                 const title = r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`
                 return (
                     <Card key={r.id} size="flush" className="px-7 py-5">
@@ -121,14 +120,14 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                         </div>
                         <Separator className="my-3" />
                         <ReferendumByline r={r} chain={chain} />
-                        {at !== null && (
+                        {need && (
                             <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-3 sm:grid-cols-2">
                                 <ThresholdBar
                                     label="Approval"
                                     variant="split"
                                     part={ayes}
                                     whole={ayes + nays}
-                                    need={curveAt(r.track.minApproval as Curve, at) * 100}
+                                    need={need.approval}
                                     foot={
                                         <>
                                             <span>aye <Approx planck={r.ayes} decimals={chain.decimals} /></span>
@@ -141,7 +140,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                                     variant="solid"
                                     part={BigInt(r.support)}
                                     whole={activeIssuance}
-                                    need={curveAt(r.track.minSupport as Curve, at) * 100}
+                                    need={need.support}
                                     foot={
                                         <>
                                             <span>voted <Approx planck={r.support} decimals={chain.decimals} /></span>

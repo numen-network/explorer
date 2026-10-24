@@ -4,6 +4,7 @@ import AccountLink from '@/components/AccountLink'
 import {NONE} from '@/components/Detail'
 import DotRow from '@/components/DotRow'
 import {TimeCell} from '@/components/TimeCell'
+import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {camelLabel, fmtPct, pctToNum, trackLabel} from '@/lib/format'
@@ -62,22 +63,47 @@ export function ReferendumByline({r, chain, className}: {r: ReferendumRow; chain
 // split reads green aye against red nay with the tally line between them,
 // solid reads support against the issuance that never voted, the tick is
 // what the curve demands right now
-export function Gauge({value, need, variant}: {value: number | null; need?: number | null; variant: 'split' | 'solid'}) {
+export function Gauge({value, need, variant, thin}: {value: number | null; need?: number | null; variant: 'split' | 'solid'; thin?: boolean}) {
     const clamp = (n: number) => Math.min(100, Math.max(0, n))
     const v = clamp(value ?? 0)
     return (
-        <div className="relative flex h-2 overflow-hidden rounded-full">
+        <div className={cn('relative flex overflow-hidden rounded-full', thin ? 'h-1' : 'h-2')}>
             {value === null ? (
                 <div className="flex-1 bg-border" />
             ) : (
                 <>
                     <div className={variant === 'split' ? 'bg-good' : 'bg-support'} style={{width: `${v}%`}} />
-                    {variant === 'split' && v > 0 && v < 100 && <div className="w-[3px] shrink-0 bg-card" />}
+                    {variant === 'split' && v > 0 && v < 100 && <div className={cn('shrink-0 bg-card', thin ? 'w-0.5' : 'w-[3px]')} />}
                     <div className={`flex-1 ${variant === 'split' ? 'bg-destructive' : 'bg-background'}`} />
                 </>
             )}
             {need != null && <span className="absolute top-0 h-full w-px bg-foreground" style={{left: `${clamp(need)}%`}} />}
         </div>
+    )
+}
+
+// both thresholds of a live referendum in a row's 40px slot, approval over support
+export function ThresholdPair({ayes, nays, support, issuance, need}: {ayes: bigint; nays: bigint; support: bigint; issuance: bigint; need: {approval: number; support: number}}) {
+    const cast = ayes + nays
+    const line = (label: string, part: bigint, whole: bigint, at: number) => (
+        <div>
+            {label} {fmtPct(part, whole)} need {fmtPct(at, 100)}
+        </div>
+    )
+    return (
+        <Tip
+            text={
+                <div className="font-mono">
+                    {line('Approval', ayes, cast, need.approval)}
+                    {line('Support', support, issuance, need.support)}
+                </div>
+            }
+        >
+            <div data-slot="threshold-pair" className="flex w-10 shrink-0 flex-col gap-[3px] self-center">
+                <Gauge value={cast > 0n ? pctToNum(ayes, cast) : null} need={need.approval} variant="split" thin />
+                <Gauge value={issuance > 0n ? pctToNum(support, issuance) : null} need={need.support} variant="solid" thin />
+            </div>
+        </Tip>
     )
 }
 
