@@ -14,11 +14,22 @@ export function runtimeAt(specVersion: number | null): Runtime | undefined {
     return specVersion == null ? undefined : runtimes.get(specVersion)
 }
 
-// a block count constant such as Referenda.UndecidingTimeout, as the runtime at that version declares it
-export function blocksConstant(specVersion: number, name: `${string}.${string}`): number {
+function constantAt(specVersion: number, name: `${string}.${string}`): unknown {
     const rt = runtimeAt(specVersion)
     if (!rt) throw new Error(`no metadata for spec ${specVersion}`)
-    const value = rt.getConstant(name)
+    return rt.getConstant(name)
+}
+
+// a block count constant such as Referenda.UndecidingTimeout, as the runtime at that version declares it
+export function blocksConstant(specVersion: number, name: `${string}.${string}`): number {
+    const value = constantAt(specVersion, name)
     if (typeof value !== 'number') throw new Error(`${name} of spec ${specVersion} is not a block count`)
+    return value
+}
+
+// an amount constant such as BlockReward.InitialReward, in planck
+export function balanceConstant(specVersion: number, name: `${string}.${string}`): bigint {
+    const value = constantAt(specVersion, name)
+    if (typeof value !== 'bigint') throw new Error(`${name} of spec ${specVersion} is not an amount`)
     return value
 }

@@ -24,8 +24,9 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge, ThresholdPair} from '@/components/referenda'
 import {needsNow, phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
-import {camelLabel, fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
+import {camelLabel, fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, fmtSpan, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
+import {halvingAt} from '@/lib/halving'
 import {blocksConstant} from '@/lib/runtime'
 import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
@@ -117,6 +118,7 @@ export default async function Home({searchParams}: PageProps<'/'>) {
         faces: o.topology.faces,
     }))
     const genesisHash = data.genesis[0].hash
+    const halving = data.blocks[0] ? halvingAt(data.blocks[0].height, data.blocks[0].specVersion) : null
     const upcoming = data.blocks[0] ? deadlines(data, cut, blocksConstant(data.blocks[0].specVersion, 'Referenda.UndecidingTimeout')) : []
 
     const coins = (planck: string) => `${fmtInt(truncFixed(planck, 0, props.decimals))} ${props.symbol}`
@@ -406,6 +408,17 @@ export default async function Home({searchParams}: PageProps<'/'>) {
                         <InfoCell label="Spec version">{data.blocks[0]?.specVersion ?? '—'}</InfoCell>
                         <InfoCell label="PoScan protocol">{data.minedObjects[0]?.protocol ?? '—'}</InfoCell>
                         <InfoCell label="EVM chain id">{props.evmChainId}</InfoCell>
+                        <InfoCell label="Block reward">{halving ? fmtBalance(halving.reward, props.decimals, props.symbol) : '—'}</InfoCell>
+                        <InfoCell label="Next halving">
+                            {halving?.next ? (
+                                <DotRow className="justify-end">
+                                    <span>#{fmtInt(halving.next.height)}</span>
+                                    <span>in {fmtSpan(halving.next.blocksLeft * props.blockTime)}</span>
+                                </DotRow>
+                            ) : (
+                                '—'
+                            )}
+                        </InfoCell>
                     </dl>
                     <div className="mt-1 border-t pt-1">
                         <DetailRow label="Native ERC20">
