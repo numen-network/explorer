@@ -22,6 +22,14 @@ const railHashes: Play = async ({canvasElement}) => {
     expectShortHashes(...[...rail.querySelectorAll('[data-slot=badge]'), ...within(rail).getAllByText(/^OBJ /)].map(el => el.textContent!))
 }
 
+// phones scroll the cards sideways in one row, sm up lays them out in a grid
+const railScrolls: Play = async ({canvasElement}) => {
+    const cards = cardsIn(canvasElement)
+    const strip = cards[0].parentElement!
+    const phone = !matchMedia('(width >= 40rem)').matches
+    await expect(new Set(cards.map(card => card.getBoundingClientRect().top)).size === 1 && strip.scrollWidth > strip.clientWidth).toBe(phone)
+}
+
 export const Empty: StoryObj = {
     ...pageStory(home(genesisOnly)),
     play: async ({canvasElement}) => expect(within(railOf(canvasElement)).getByText('No mined blocks yet.')).toBeVisible(),
@@ -34,7 +42,7 @@ export const One: StoryObj = {
 
 export const Many: StoryObj = {
     ...pageStory(home(many)),
-    play: all(async ({canvasElement}) => expectBlockCardsFit(canvasElement), railObjectsFit, railHashes),
+    play: all(async ({canvasElement}) => expectBlockCardsFit(canvasElement), railObjectsFit, railHashes, railScrolls),
 }
 
 export const MixedProtocols: StoryObj = {

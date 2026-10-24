@@ -8,6 +8,7 @@ import {DetailRow} from '@/components/Detail'
 import HashText from '@/components/HashText'
 import Refresh from '@/components/Refresh'
 import Section from '@/components/Section'
+import StatList, {type StatItem} from '@/components/StatList'
 import StatTile, {type StatChip} from '@/components/StatTile'
 import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
@@ -218,6 +219,59 @@ export default async function Home({searchParams}: PageProps<'/'>) {
     const inactiveNow = BigInt(today?.issuanceInactive ?? 0)
     const traNow = today ? BigInt(today.issuanceTransferable) - inactiveNow : 0n
 
+    const stats: StatItem[] = [
+        {
+            label: 'Signed extrinsics', href: '/charts/extrinsics-total',
+            value: fmtInt(today?.cumExtrinsicsSigned ?? '0'),
+            chips: [chip(data.ext24.totalCount, '24h'), chip(data.ext30.totalCount, '30d')],
+        },
+        {
+            label: 'Transfers', href: '/charts/transfers-total',
+            value: fmtInt(today?.cumTransfers ?? '0'),
+            chips: [chip(data.transfers24.totalCount, '24h'), chip(data.transfers30.totalCount, '30d')],
+        },
+        {
+            label: 'EVM txs', href: '/charts/evm-transactions',
+            value: fmtInt(data.evmTotal.totalCount),
+            chips: [chip(data.evm24.totalCount, '24h'), chip(data.evm30.totalCount, '30d')],
+        },
+        {
+            label: 'Accounts', href: '/charts/accounts',
+            value: fmtInt(data.accounts.totalCount),
+            chips: [chip(data.fresh24.totalCount, '24h'), chip(data.fresh30.totalCount, '30d')],
+        },
+        {
+            label: 'Miners', href: '/charts/miners',
+            value: fmtInt(data.miners24.totalCount),
+            chips: [countChip(data.miners30.totalCount, '30d'), countChip(data.minersTotal.totalCount, 'total')],
+        },
+        {
+            label: 'Total issuance', href: '/charts/issuance',
+            value: <Approx planck={today?.issuanceTotal ?? '0'} decimals={props.decimals} symbol={props.symbol} breakable />,
+            chips: stockChips(issNow, r => BigInt(r.issuanceTotal)),
+        },
+        {
+            label: 'Active issuance', href: '/charts/active-issuance',
+            value: <Approx planck={today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n} decimals={props.decimals} symbol={props.symbol} breakable />,
+            chips: stockChips(issNow - inactiveNow, r => BigInt(r.issuanceTotal) - BigInt(r.issuanceInactive)),
+        },
+        {
+            label: 'Transferable issuance', href: '/charts/transferable-issuance',
+            value: <Approx planck={today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n} decimals={props.decimals} symbol={props.symbol} breakable />,
+            chips: [amountChip(traNow - traAt(data.tra24[0]), '24h'), amountChip(traNow - traAt(data.tra30[0]), '30d')],
+        },
+        {
+            label: 'Treasury pot', href: '/charts/treasury',
+            value: <Approx planck={today?.treasuryPot ?? '0'} decimals={props.decimals} symbol={props.symbol} breakable />,
+            chips: stockChips(BigInt(today?.treasuryPot ?? 0), r => BigInt(r.treasuryPot)),
+        },
+        {
+            label: 'Difficulty', href: '/charts/difficulty',
+            value: curDifficulty > 0n ? fmtCompact(curDifficulty) : '—',
+            chips: [pctChip(curDifficulty, diffAt(base24), '24h'), pctChip(curDifficulty, diffAt(base30), '30d')],
+        },
+    ]
+
     return (
         <div>
             <Refresh ms={10000} />
@@ -284,59 +338,14 @@ export default async function Home({searchParams}: PageProps<'/'>) {
             </div>
 
             {/* a tile needs 240px to keep its figure and its chips on one line each, a
-                row takes one more each time the box fits another tile and gap, five at most */}
+                row takes one more each time the box fits another tile and gap, five at most.
+                a box too narrow for two folds the tiles into one list */}
             <div className="mt-4 @container">
-                <div className="grid grid-cols-1 gap-4 @min-[496px]:grid-cols-2 @min-[752px]:grid-cols-3 @min-[1008px]:grid-cols-4 @min-[1264px]:grid-cols-5">
-                    <StatTile
-                        label="Signed extrinsics" href="/charts/extrinsics-total"
-                        value={fmtInt(today?.cumExtrinsicsSigned ?? '0')}
-                        chips={[chip(data.ext24.totalCount, '24h'), chip(data.ext30.totalCount, '30d')]}
-                    />
-                    <StatTile
-                        label="Transfers" href="/charts/transfers-total"
-                        value={fmtInt(today?.cumTransfers ?? '0')}
-                        chips={[chip(data.transfers24.totalCount, '24h'), chip(data.transfers30.totalCount, '30d')]}
-                    />
-                    <StatTile
-                        label="EVM txs" href="/charts/evm-transactions"
-                        value={fmtInt(data.evmTotal.totalCount)}
-                        chips={[chip(data.evm24.totalCount, '24h'), chip(data.evm30.totalCount, '30d')]}
-                    />
-                    <StatTile
-                        label="Accounts" href="/charts/accounts"
-                        value={fmtInt(data.accounts.totalCount)}
-                        chips={[chip(data.fresh24.totalCount, '24h'), chip(data.fresh30.totalCount, '30d')]}
-                    />
-                    <StatTile
-                        label="Miners" href="/charts/miners"
-                        value={fmtInt(data.miners24.totalCount)}
-                        chips={[countChip(data.miners30.totalCount, '30d'), countChip(data.minersTotal.totalCount, 'total')]}
-                    />
-                    <StatTile
-                        label="Total issuance" href="/charts/issuance"
-                        value={<Approx planck={today?.issuanceTotal ?? '0'} decimals={props.decimals} symbol={props.symbol} breakable />}
-                        chips={stockChips(issNow, r => BigInt(r.issuanceTotal))}
-                    />
-                    <StatTile
-                        label="Active issuance" href="/charts/active-issuance"
-                        value={<Approx planck={today ? BigInt(today.issuanceTotal) - BigInt(today.issuanceInactive) : 0n} decimals={props.decimals} symbol={props.symbol} breakable />}
-                        chips={stockChips(issNow - inactiveNow, r => BigInt(r.issuanceTotal) - BigInt(r.issuanceInactive))}
-                    />
-                    <StatTile
-                        label="Transferable issuance" href="/charts/transferable-issuance"
-                        value={<Approx planck={today ? BigInt(today.issuanceTransferable) - BigInt(today.issuanceInactive) : 0n} decimals={props.decimals} symbol={props.symbol} breakable />}
-                        chips={[amountChip(traNow - traAt(data.tra24[0]), '24h'), amountChip(traNow - traAt(data.tra30[0]), '30d')]}
-                    />
-                    <StatTile
-                        label="Treasury pot" href="/charts/treasury"
-                        value={<Approx planck={today?.treasuryPot ?? '0'} decimals={props.decimals} symbol={props.symbol} breakable />}
-                        chips={stockChips(BigInt(today?.treasuryPot ?? 0), r => BigInt(r.treasuryPot))}
-                    />
-                    <StatTile
-                        label="Difficulty" href="/charts/difficulty"
-                        value={curDifficulty > 0n ? fmtCompact(curDifficulty) : '—'}
-                        chips={[pctChip(curDifficulty, diffAt(base24), '24h'), pctChip(curDifficulty, diffAt(base30), '30d')]}
-                    />
+                <StatList items={stats} className="@min-[496px]:hidden" />
+                <div className="hidden gap-4 @min-[496px]:grid @min-[496px]:grid-cols-2 @min-[752px]:grid-cols-3 @min-[1008px]:grid-cols-4 @min-[1264px]:grid-cols-5">
+                    {stats.map(s => (
+                        <StatTile key={s.label} {...s} />
+                    ))}
                 </div>
             </div>
 

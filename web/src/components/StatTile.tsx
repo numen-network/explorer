@@ -21,17 +21,35 @@ interface Stat {
     tip?: string
 }
 
+// the arrow wraps along with the label's last word
+export function StatLabel({label, href}: {label: string; href?: string}) {
+    const cut = label.lastIndexOf(' ') + 1
+    return href ? (
+        <Link href={href} className="hover:text-primary">
+            {label.slice(0, cut)}
+            <span className="whitespace-nowrap">
+                {label.slice(cut)} <Jump />
+            </span>
+        </Link>
+    ) : (
+        label
+    )
+}
+
+export function StatChips({chips}: {chips: StatChip[]}) {
+    return chips.map(c => (
+        <span key={c.note}>
+            <span className={CHIP_TONE[c.tone]}>{c.text}</span>
+            <span className="text-dim"> · {c.note}</span>
+        </span>
+    ))
+}
+
 function StatFigure({label, value, href, tip, className}: Stat & {className?: string}) {
     return (
         <div className={cn('grid min-w-0 gap-1.5', className)}>
             <CardDescription className="text-xs">
-                {href ? (
-                    <Link href={href} className="hover:text-primary">
-                        {label} <Jump />
-                    </Link>
-                ) : (
-                    label
-                )}
+                <StatLabel label={label} href={href} />
                 {tip && (
                     <Tip text={tip}>
                         <CircleQuestionMark aria-label={tip} className="ml-1 inline size-3 align-[-1px]" />
@@ -66,12 +84,7 @@ export default function StatTile({
             </CardHeader>
             {chips && (
                 <CardContent className="flex flex-wrap gap-x-4 text-xs">
-                    {chips.map(c => (
-                        <span key={c.note}>
-                            <span className={CHIP_TONE[c.tone]}>{c.text}</span>
-                            <span className="text-dim"> · {c.note}</span>
-                        </span>
-                    ))}
+                    <StatChips chips={chips} />
                 </CardContent>
             )}
         </Card>
