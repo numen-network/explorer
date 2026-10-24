@@ -1,10 +1,12 @@
 import {expect, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {minedObject, topology} from '../../../mock/fixtures/blocks.js'
+import {EXIT, ZERO_ADDRESS, evmAddress, evmTx, exit, units} from '../../../mock/fixtures/evm.js'
 import {spend} from '../../../mock/fixtures/governance.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
-import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, transfer} from '../../../mock/fixtures.js'
+import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, squidId, transfer} from '../../../mock/fixtures.js'
 import {expectFits, expectNoHangingDots, expectOneLine} from '../../.storybook/fit'
+import {evmMappedAccount} from '@/lib/evm'
 
 type Day = (typeof DAILY)[number]
 type Window = [total: number, day: number, month: number]
@@ -31,6 +33,7 @@ interface Scene {
     days: Day[]
     objects?: object[]
     transfers?: object[]
+    evmTxs?: object[]
     referendums?: object[]
     spends?: object[]
     upcoming?: Upcoming
@@ -79,7 +82,7 @@ function windowsOf(days: Day[]): Windows {
 
 const close = (d: Day) => ({difficulty: d.difficultyClose, issuanceTotal: d.issuanceTotal, issuanceInactive: d.issuanceInactive, treasuryPot: d.treasuryPot})
 
-export function home({head, best = head, finalized = Math.max(0, best - 5), days, objects = [], transfers = [], referendums = [], spends = [], upcoming = {}, validators = 4, windows = {}, sessionLength = chainInfo.sessionLength}: Scene) {
+export function home({head, best = head, finalized = Math.max(0, best - 5), days, objects = [], transfers = [], evmTxs = [], referendums = [], spends = [], upcoming = {}, validators = 4, windows = {}, sessionLength = chainInfo.sessionLength}: Scene) {
     const counts = {...windowsOf(days), ...windows}
     // a baseline exists once the chain is older than its window
     const baseline = (since: string) => {
@@ -105,6 +108,7 @@ export function home({head, best = head, finalized = Math.max(0, best - 5), days
         minedObjects: objects,
         meshTopologies: objects.length ? [{id: PROTOCOL, faceCount: 8}] : [],
         transfers,
+        evmTransactions: evmTxs,
         referendums: ({where = {}}: {where?: Where}) => (where.status_eq === 'Ongoing' ? (upcoming.ongoing ?? []) : referendums),
         referendumsConnection: {totalCount: referendums.length},
         treasurySpends: ({where = {}}: {where?: Where}) => (where.validFrom_gt != null ? (upcoming.spendsValid ?? []) : where.expireAt_gt != null ? (upcoming.spendsExpire ?? []) : spends),
@@ -139,7 +143,25 @@ const manyTransfers = [
 ]
 
 // DAILY rolls with the clock, so the chip the story checks reads a fixed window
-export const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: minedUpTo(HEAD, 5, MANY_FINALIZED), transfers: manyTransfers, referendums: referenda.slice(4, 9), windows: {extrinsics: [89_181, 1_139, 33_800] satisfies Window}}
+const NDEX = {id: evmAddress(1000), symbol: 'NDEX', decimals: 18}
+const NDEX_LP = {id: evmAddress(1001), symbol: 'NDEX-LP', decimals: 18}
+const SENDER = evmAddress(0)
+const PAIR = evmAddress(30)
+const coin = (token: typeof NDEX, from: string, n: number) => ({from, amount: units(n, token.decimals), token})
+const native = (from: string, to: string, amount: string) => ({amount, from: {id: evmMappedAccount(from)}, to: {id: evmMappedAccount(to)}})
+// the sender's token and native transfers, as the home query asks for them
+const legs = (height: number, index: number, tokens: object[], natives: object[] = []) => ({tokenTransfers: tokens, extrinsic: {id: squidId(height, index + 1), transfers: natives}})
+
+// adding liquidity, removing it, a payment, a deployment and a reverted call, newest first
+const manyEvm = [
+    evmTx(HEAD - 1, 0, {from: SENDER, timestamp: timeAt(HEAD, HEAD - 1), ...legs(HEAD - 1, 0, [coin(NDEX, SENDER, 29_014.66), coin(NDEX_LP, ZERO_ADDRESS, 166.66)], [native(SENDER, PAIR, numn(1))])}),
+    evmTx(HEAD - 4, 0, {from: SENDER, timestamp: timeAt(HEAD, HEAD - 4), ...legs(HEAD - 4, 0, [coin(NDEX_LP, SENDER, 66.35), coin(NDEX, PAIR, 11_551.02)], [native(PAIR, SENDER, numn(0.3835))])}),
+    evmTx(HEAD - 8, 0, {from: SENDER, value: numn(2_500), timestamp: timeAt(HEAD, HEAD - 8), ...legs(HEAD - 8, 0, [], [native(SENDER, evmAddress(7), numn(2_500))])}),
+    evmTx(HEAD - 13, 0, {to: null, contractAddress: evmAddress(20), timestamp: timeAt(HEAD, HEAD - 13), ...legs(HEAD - 13, 0, [])}),
+    evmTx(HEAD - 20, 2, {...exit(EXIT.reverted), timestamp: timeAt(HEAD, HEAD - 20), ...legs(HEAD - 20, 2, [])}),
+]
+
+export const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: minedUpTo(HEAD, 5, MANY_FINALIZED), transfers: manyTransfers, evmTxs: manyEvm, referendums: referenda.slice(4, 9), windows: {extrinsics: [89_181, 1_139, 33_800] satisfies Window}}
 
 // only genesis is indexed, with no timestamp and no validator row
 export const genesisOnly = {head: 0, days: [], validators: 0}
@@ -150,6 +172,7 @@ export const firstBlock = {
     days: [{...chainDays(1)[0], blocks: 2, extrinsicsSigned: 2, transfers: 1, transferVolume: numn(17), cumExtrinsicsSigned: '2', cumTransfers: '1', cumTransferVolume: numn(17), referendaTotal: 1, accountsTotal: 13}],
     objects: minedUpTo(1, 5),
     transfers: [transfer(1, 1, {amount: numn(17), timestamp: timeAt(1, 1)})],
+    evmTxs: [evmTx(1, 0, {from: SENDER, value: numn(17), timestamp: timeAt(1, 1), ...legs(1, 0, [], [native(SENDER, evmAddress(7), numn(17))])})],
     referendums: [{...referenda[2], id: '0', index: 0, submittedAt: 1, submittedTimestamp: timeAt(1, 1)}],
 }
 
@@ -191,6 +214,11 @@ export const far = {
         transfer(FAR, 2, {amount: '1', from: PEOPLE[8], to: PEOPLE[2], timestamp: timeAt(FAR, FAR)}),
         transfer(FAR - 1, 1, {amount: '549926000123456789012345678', from: TREASURY, call: {pallet: 'Balances', method: 'force_transfer'}, timestamp: timeAt(FAR, FAR - 1)}),
     ],
+    evmTxs: [
+        evmTx(FAR, 0, {from: SENDER, timestamp: timeAt(FAR, FAR), ...legs(FAR, 0, [coin({...NDEX, symbol: 'NDEX-LP-WRAPPED'}, SENDER, 987_654_321.12)], [native(SENDER, PAIR, '12345678123456789123456789')])}),
+        evmTx(FAR, 1, {to: null, contractAddress: evmAddress(21), value: '1', timestamp: timeAt(FAR, FAR), ...legs(FAR, 1, [])}),
+        evmTx(FAR - 1, 2, {...exit(EXIT.notSupported), value: '549926000123456789012345678', timestamp: timeAt(FAR, FAR - 1), ...legs(FAR - 1, 2, [])}),
+    ],
     referendums: [
         {...referenda[4], id: '123456', index: 123_456, proposalAmount: '199999999999999999999999'},
         {...referenda[8], id: '123455', index: 123_455},
@@ -212,11 +240,11 @@ const titleOf = (root: HTMLElement, name: string) => within(root).queryByRole('h
 export const listCard = (root: HTMLElement, name: string) => titleOf(root, name).parentElement!.nextElementSibling as HTMLElement
 export const listRows = (root: HTMLElement, name: string) => [...listCard(root, name).children] as HTMLElement[]
 
-// a crowded transfer row keeps its amount whole and on one line and cuts its call short rather than overflowing
-export function expectTransfersFit(root: HTMLElement) {
-    const rows = listRows(root, 'Transfers')
+// a crowded activity row keeps its amount whole and on one line and cuts its mark short rather than overflowing
+export function expectActivityFit(root: HTMLElement) {
+    const rows = listRows(root, 'Activity')
     expectFits(...rows)
-    expectOneLine(...rows.map(row => within(row).getByText(/ NUMN$/)))
+    expectOneLine(...rows.map(row => row.querySelector('[data-slot=activity-amount]')!))
 }
 
 // a crowded referendum row squeezes its title and wraps its facts rather than overflowing
@@ -275,9 +303,9 @@ export const strips = (root: HTMLElement) => [...listCard(root, 'Governance').qu
 const shownRows = (root: HTMLElement) => listRows(root, 'Governance').filter(r => r.checkVisibility() && within(r).queryAllByRole('link', {name: /^#\d+$/}).length > 0)
 const sideBySide = () => matchMedia('(min-width: 64rem)').matches
 
-// side by side the card stays as tall as Transfers, a strip taking one row's place
+// side by side the card stays as tall as the activity card, a strip taking one row's place
 export function expectLevel(root: HTMLElement, rowsLeft: number, rowsNarrow = 5) {
     if (!sideBySide()) return expect(shownRows(root)).toHaveLength(rowsNarrow)
-    expect(listCard(root, 'Governance').getBoundingClientRect().height).toBe(listCard(root, 'Transfers').getBoundingClientRect().height)
+    expect(listCard(root, 'Governance').getBoundingClientRect().height).toBe(listCard(root, 'Activity').getBoundingClientRect().height)
     expect(shownRows(root)).toHaveLength(rowsLeft)
 }

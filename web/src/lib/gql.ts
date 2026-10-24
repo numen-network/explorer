@@ -145,6 +145,11 @@ export interface HourlyRow {
     issuanceInactive: string
 }
 
+export interface HomeEvmTxRow extends EvmTxRow {
+    tokenTransfers: {from: string; amount: string; token: {id: string; symbol: string | null; decimals: number | null}}[]
+    extrinsic: {id: string; transfers: {amount: string; from: {id: string}; to: {id: string}}[]}
+}
+
 export interface HomeData {
     blocks: BlockRow[]
     genesis: {hash: string}[]
@@ -155,6 +160,7 @@ export interface HomeData {
     validators: {totalCount: number}
     sessionHead: {lastActiveSession: number | null}[]
     evmTotal: {totalCount: number}
+    evmTxs: HomeEvmTxRow[]
     referendums: ReferendumRow[]
     referendaCount: {totalCount: number}
     spends: HomeSpendRow[]
@@ -232,6 +238,7 @@ export async function homeData(since24: string | null, since30: string | null, u
             validators: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
             sessionHead: validators(orderBy: lastActiveSession_DESC_NULLS_LAST, limit: 1) { lastActiveSession }
             evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
+            evmTxs: evmTransactions(orderBy: [timestamp_DESC, txIndex_DESC], limit: 5) { ${EVM_TX_FIELDS} tokenTransfers(where: {thirdParty_eq: false}, orderBy: logIndex_ASC, limit: 20) { from amount token { id symbol decimals } } extrinsic { transfers(orderBy: id_ASC, limit: 20) { amount from { id } to { id } } } }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
             referendaCount: referendumsConnection(orderBy: id_ASC) { totalCount }
             spends: treasurySpends(orderBy: [block_DESC, indexInBlock_DESC], limit: 5) { id kind status amount beneficiary { ${ACCOUNT_REF} } referendum { index title } }

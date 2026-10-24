@@ -1,10 +1,11 @@
 import Link from 'next/link'
+import {Fragment} from 'react'
 import Approx from '@/components/Approx'
 import BlocksRail, {type BlockCard} from '@/components/BlocksRail'
 import CopyBtn from '@/components/CopyBtn'
 import DotRow from '@/components/DotRow'
 import EmptyList from '@/components/EmptyList'
-import {DetailRow} from '@/components/Detail'
+import {DetailRow, NONE} from '@/components/Detail'
 import HashText from '@/components/HashText'
 import Refresh from '@/components/Refresh'
 import Section from '@/components/Section'
@@ -12,12 +13,12 @@ import StatList, {type StatItem} from '@/components/StatList'
 import StatTile, {type StatChip} from '@/components/StatTile'
 import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
-import {TabNav, panelTabs} from '@/components/Tabs'
+import {TabNav, panelTabs, type Panel} from '@/components/Tabs'
 import {Badge} from '@/components/ui/badge'
 import Upcoming from '@/components/Upcoming'
 import {LinesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
-import {ExtrinsicLink, Jump} from '@/components/links'
+import {EvmAddrLink, EvmTxLink, ExtrinsicLink, Jump} from '@/components/links'
 import {StatusDot} from '@/components/pills'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
@@ -25,8 +26,9 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge, ThresholdPair} from '@/components/referenda'
 import {needsNow, phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
-import {camelLabel, fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, fmtSpan, planckToNum, signOf, trackLabel, truncFixed} from '@/lib/format'
-import {homeData, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
+import {camelLabel, fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, fmtSpan, planckToNum, shortHash, signOf, trackLabel, truncFixed} from '@/lib/format'
+import {evmMappedAccount} from '@/lib/evm'
+import {homeData, type HomeEvmTxRow, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {halvingAt} from '@/lib/halving'
 import {blocksConstant} from '@/lib/runtime'
 import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
@@ -83,7 +85,76 @@ function GovRow({href, index, title, mark, amount, facts, status, className}: {h
     )
 }
 
+// a transfer or an EVM tx, the parties in the middle and the amount over its mark
+function ActivityRow({lead, time, from, to, amount, mark}: {lead: React.ReactNode; time: string; from: React.ReactNode; to: React.ReactNode; amount: React.ReactNode; mark: React.ReactNode}) {
+    return (
+        <div className={`flex flex-col justify-center gap-1.5 px-5 py-3 ${ROW_H} sm:col-span-3 sm:grid sm:grid-cols-subgrid sm:items-center sm:gap-3 sm:py-0`}>
+            <div>
+                {lead}
+                <div className="mt-0.5 text-[11px] text-muted-foreground sm:whitespace-nowrap">
+                    <TimeCell iso={time} cycle />
+                </div>
+            </div>
+            <div className="min-w-0 flex-1 text-[12.5px]">
+                <div className="flex min-w-0 items-baseline gap-2">
+                    <span className="w-9 shrink-0 text-[11px] text-dim">From</span>
+                    {from}
+                </div>
+                <div className="mt-0.5 flex min-w-0 items-baseline gap-2">
+                    <span className="w-9 shrink-0 text-[11px] text-dim">To</span>
+                    {to}
+                </div>
+            </div>
+            <div className="flex shrink-0 items-baseline justify-between gap-3 sm:block sm:text-right">
+                <div data-slot="activity-amount" className="flex min-w-0 items-baseline font-mono text-sm whitespace-nowrap sm:justify-end">{amount}</div>
+                <div className="flex min-w-0 justify-end sm:mt-1">{mark}</div>
+            </div>
+        </div>
+    )
+}
+
+// what the sender paid, then what it got back, token legs in log order ahead of native ones.
+// a call that moved nothing for the sender shows the value it carried
+function EvmMoved({tx, chain}: {tx: HomeEvmTxRow; chain: {decimals: number; symbol: string}}) {
+    const me = evmMappedAccount(tx.from)
+    const legs = [
+        ...tx.tokenTransfers.map(t => ({out: t.from === tx.from, amount: t.amount, decimals: t.token.decimals ?? 0, symbol: t.token.symbol ?? shortHash(t.token.id)})),
+        ...tx.extrinsic.transfers.filter(t => t.from.id === me || t.to.id === me).map(t => ({out: t.from.id === me, amount: t.amount, decimals: chain.decimals, symbol: chain.symbol})),
+    ]
+    const moved = [...legs.filter(l => l.out), ...legs.filter(l => !l.out)]
+    const [first, ...rest] = moved.length > 0 ? moved : [{amount: tx.value, decimals: chain.decimals, symbol: chain.symbol}]
+    const list = (
+        <div className="grid grid-cols-[auto_auto] gap-x-3 gap-y-0.5 font-mono">
+            {moved.map((l, i) => (
+                <Fragment key={i}>
+                    <span className="text-dim">{l.out ? 'Out' : 'In'}</span>
+                    <span className="text-right">
+                        <Approx planck={l.amount} decimals={l.decimals} symbol={l.symbol} />
+                    </span>
+                </Fragment>
+            ))}
+        </div>
+    )
+    // a symbol is whatever the contract answered, so a long one gives way before the figure does
+    return (
+        <>
+            <Approx planck={first.amount} decimals={first.decimals} />{' '}
+            <Tip text={first.symbol}>
+                <span className="ml-[0.25em] truncate">{first.symbol}</span>
+            </Tip>
+            {rest.length > 0 && (
+                <Tip text={list}>
+                    <span className="ml-1.5 text-xs text-muted-foreground">+{rest.length}</span>
+                </Tip>
+            )}
+        </>
+    )
+}
+
 const GOV_MORE: Record<string, string> = {referenda: '/governance', spends: '/governance?tab=treasury'}
+const ACTIVITY_MORE: Record<string, string> = {transfers: '/transfers', evm: '/extrinsics?pallet=Ethereum&method=transact'}
+
+const chosen = (panels: Panel[], param: string | string[] | undefined) => (panels.find(p => p.slug === param) ?? panels[0]).slug
 
 function Bar({ratio}: {ratio: number}) {
     return <Progress value={Math.min(100, ratio * 100)} className="mt-1.5 h-1.5" />
@@ -182,14 +253,65 @@ export default async function Home({searchParams}: PageProps<'/'>) {
             })}
         </>
     )
-    const gov = panelTabs(
-        [
-            {slug: 'referenda', label: 'Referenda', count: data.referendaCount.totalCount, body: referendaList},
-            {slug: 'spends', label: 'Spends', count: data.spendsCount.totalCount, body: spendsList},
-        ],
-        typeof sp.tab === 'string' ? sp.tab : undefined,
-        slug => (slug === 'referenda' ? '/' : `/?tab=${slug}`)
+    const transfersList = () => (
+        <>
+            {data.transfers.length === 0 && <EmptyList what="transfers" />}
+            {data.transfers.map(t => (
+                <ActivityRow
+                    key={t.id}
+                    lead={t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} /> : <span className="font-mono text-muted-foreground">—</span>}
+                    time={t.timestamp}
+                    from={<AccountLink addr={ss58Encode(t.from.id, props.ss58)} acc={t.from} className="min-w-0" />}
+                    to={<AccountLink addr={ss58Encode(t.to.id, props.ss58)} acc={t.to} className="min-w-0" />}
+                    amount={<Approx planck={t.amount} decimals={props.decimals} symbol={props.symbol} />}
+                    mark={<CallPill call={t.call} />}
+                />
+            ))}
+        </>
     )
+    const evmList = () => (
+        <>
+            {data.evmTxs.length === 0 && <EmptyList what="EVM transactions" />}
+            {data.evmTxs.map(tx => (
+                <ActivityRow
+                    key={tx.id}
+                    lead={<EvmTxLink hash={tx.id} />}
+                    time={tx.timestamp}
+                    from={<EvmAddrLink addr={tx.from} />}
+                    to={
+                        tx.to ? (
+                            <EvmAddrLink addr={tx.to} />
+                        ) : tx.contractAddress ? (
+                            <span>
+                                create → <EvmAddrLink addr={tx.contractAddress} />
+                            </span>
+                        ) : (
+                            NONE
+                        )
+                    }
+                    amount={<EvmMoved tx={tx} chain={props} />}
+                    mark={<Badge variant={tx.status === 'Succeed' ? 'pos' : 'neg'}>{tx.status === 'Succeed' ? 'OK' : tx.status}</Badge>}
+                />
+            ))}
+        </>
+    )
+    const govPanels: Panel[] = [
+        {slug: 'referenda', label: 'Referenda', count: data.referendaCount.totalCount, body: referendaList},
+        {slug: 'spends', label: 'Spends', count: data.spendsCount.totalCount, body: spendsList},
+    ]
+    const activityPanels: Panel[] = [
+        {slug: 'transfers', label: 'Transfers', count: Number(today?.cumTransfers ?? 0), body: transfersList},
+        {slug: 'evm', label: 'EVM txs', count: data.evmTotal.totalCount, body: evmList},
+    ]
+    // each strip's links keep the other strip's open tab, and a strip's first tab stays out of the url
+    const shown = {tab: chosen(govPanels, sp.tab), activity: chosen(activityPanels, sp.activity)}
+    const firsts = {tab: govPanels[0].slug, activity: activityPanels[0].slug}
+    const homeHref = (q: typeof shown) => {
+        const query = new URLSearchParams(Object.entries(q).filter(([k, v]) => v !== firsts[k as keyof typeof q])).toString()
+        return query ? `/?${query}` : '/'
+    }
+    const gov = panelTabs(govPanels, shown.tab, slug => homeHref({...shown, tab: slug}))
+    const activity = panelTabs(activityPanels, shown.activity, slug => homeHref({...shown, activity: slug}))
 
     const chrono = [...days].reverse().slice(-30)
     const txLabels = chrono.map(d => d.id.slice(5))
@@ -356,39 +478,13 @@ export default async function Home({searchParams}: PageProps<'/'>) {
             <div className="mt-7 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                 <div className="min-w-0">
                     <div className="mb-3 flex items-baseline justify-between gap-4">
-                        <h2 className="text-[17px] font-semibold whitespace-nowrap">Transfers</h2>
-                        <Link href="/transfers" className="pr-2 text-sm whitespace-nowrap text-primary hover:underline">
+                        <TabNav variant="heading" items={activity.items} aria-label="Activity" />
+                        <Link href={ACTIVITY_MORE[activity.active.slug]} className="pr-2 text-sm whitespace-nowrap text-primary hover:underline">
                             View all <Jump />
                         </Link>
                     </div>
                     <Card size="flush" className={`divide-y ${LIST_H} sm:grid sm:grid-cols-[max-content_minmax(0,1fr)_max-content] sm:content-start`}>
-                        {data.transfers.length === 0 && <EmptyList what="transfers" />}
-                        {data.transfers.map(t => (
-                            <div key={t.id} className={`flex flex-col justify-center gap-1.5 px-5 py-3 ${ROW_H} sm:col-span-3 sm:grid sm:grid-cols-subgrid sm:items-center sm:gap-3 sm:py-0`}>
-                                <div>
-                                    {t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} /> : <span className="font-mono text-muted-foreground">—</span>}
-                                    <div className="mt-0.5 text-[11px] text-muted-foreground sm:whitespace-nowrap">
-                                        <TimeCell iso={t.timestamp} cycle />
-                                    </div>
-                                </div>
-                                <div className="min-w-0 flex-1 text-[12.5px]">
-                                    <div className="flex min-w-0 items-baseline gap-2">
-                                        <span className="w-9 shrink-0 text-[11px] text-dim">From</span>
-                                        <AccountLink addr={ss58Encode(t.from.id, props.ss58)} acc={t.from} className="min-w-0" />
-                                    </div>
-                                    <div className="mt-0.5 flex min-w-0 items-baseline gap-2">
-                                        <span className="w-9 shrink-0 text-[11px] text-dim">To</span>
-                                        <AccountLink addr={ss58Encode(t.to.id, props.ss58)} acc={t.to} className="min-w-0" />
-                                    </div>
-                                </div>
-                                <div className="flex shrink-0 items-baseline justify-between gap-3 sm:block sm:text-right">
-                                    <div className="font-mono text-sm whitespace-nowrap"><Approx planck={t.amount} decimals={props.decimals} symbol={props.symbol} /></div>
-                                    <div className="flex min-w-0 justify-end sm:mt-1">
-                                        <CallPill call={t.call} />
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                        {activity.active.body()}
                     </Card>
                 </div>
                 <div className="min-w-0">

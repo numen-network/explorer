@@ -1,6 +1,7 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, ManyToOne as ManyToOne_, IntColumn as IntColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, BytesColumn as BytesColumn_, JSONColumn as JSONColumn_, DateTimeColumn as DateTimeColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, ManyToOne as ManyToOne_, IntColumn as IntColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, BytesColumn as BytesColumn_, JSONColumn as JSONColumn_, DateTimeColumn as DateTimeColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Extrinsic} from "./extrinsic.model"
 import {Block} from "./block.model"
+import {TokenTransfer} from "./tokenTransfer.model"
 
 @Entity_()
 export class EvmTransaction {
@@ -78,4 +79,7 @@ export class EvmTransaction {
     @Index_("idx_evm_transaction_timestamp_2aa7be18")
     @DateTimeColumn_({nullable: false})
     timestamp!: Date
+
+    @OneToMany_(() => TokenTransfer, e => e.transaction)
+    tokenTransfers!: Relation_<TokenTransfer[]>
 }

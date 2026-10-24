@@ -49,7 +49,7 @@ const HEADING = 'text-[17px] font-semibold whitespace-nowrap text-muted-foregrou
 export function TabNav({items, className, variant, 'aria-label': label}: {items: TabItem[]; className?: string; variant?: 'heading'; 'aria-label': string}) {
     if (variant === 'heading')
         return (
-            <nav aria-label={label} className={cn('flex items-baseline gap-5', className)}>
+            <nav aria-label={label} className={cn('flex min-w-0 flex-wrap items-baseline gap-x-5', className)}>
                 {items.map(t => (
                     <Link key={t.href} href={t.href} scroll={false} aria-current={t.active ? 'page' : undefined} data-active={t.active} className={HEADING}>
                         {t.label}

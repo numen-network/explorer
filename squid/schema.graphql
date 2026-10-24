@@ -193,6 +193,7 @@ type EvmTransaction @entity {
   "the ExitReason the runtime reported, whole"
   exitReason: JSON!
   timestamp: DateTime! @index
+  tokenTransfers: [TokenTransfer!]! @derivedFrom(field: "transaction")
 }
 
 type EvmLog @entity @index(fields: ["address", "logIndex"]) {
