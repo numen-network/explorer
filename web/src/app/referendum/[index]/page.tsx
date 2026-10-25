@@ -1,5 +1,6 @@
 import {Fragment, type ReactNode} from 'react'
-import type {LucideIcon} from 'lucide-react'
+import {Vote, type LucideIcon} from 'lucide-react'
+import {SiDiscord} from '@icons-pack/react-simple-icons'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import Markdown from '@/components/Markdown'
@@ -15,11 +16,13 @@ import {Gauge, ReferendumByline} from '@/components/referenda'
 import {RequestCard, requestAccounts} from '@/components/RequestCard'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
 import {Badge} from '@/components/ui/badge'
+import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
 import {withProposalViews} from '@/lib/args'
 import {chainDbHead, chainProps, type ChainProps} from '@/lib/chain'
+import {CONFIG} from '@/lib/config'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
@@ -27,6 +30,7 @@ import {accountRefs, bountiesByIndex, eventsByIds, referendumDetail, specVersion
 import {paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
 import {ss58Encode} from '@/lib/ss58'
+import {voteHref, WALLET_URL} from '@/lib/wallet'
 import {actionsPanel} from './actions'
 import {statsPanel} from './stats'
 import {votesPanel} from './votes'
@@ -327,6 +331,25 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         </Card>
     )
 
+    const links = (
+        <div className="flex gap-2">
+            {r.status === 'Ongoing' && (
+                <Button asChild size="lg" className="flex-1 hover:bg-primary-hover">
+                    <a href={voteHref(WALLET_URL, r.index, chain.genesis)} target="_blank" rel="noopener noreferrer">
+                        <Vote />
+                        Vote
+                    </a>
+                </Button>
+            )}
+            <Button asChild variant="outline" size="lg" className="flex-1 bg-card">
+                <a href={CONFIG.discordInvite} target="_blank" rel="noopener">
+                    <SiDiscord title="" />
+                    Discuss
+                </a>
+            </Button>
+        </div>
+    )
+
     const curves = (
         <div className="space-y-4">
             <Card size="flush" className="px-5 py-4">
@@ -512,6 +535,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     {request}
                     {status}
                     {tally}
+                    {links}
                 </div>
 
                 <div className="min-w-0 lg:mt-3">

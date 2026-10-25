@@ -23,7 +23,7 @@ export const story = (r: Referendum, tab: string, extra: Record<string, unknown>
             ...data,
             accounts,
             // the block the proposal was submitted in, which the call args are read against
-            blocks: (args: {where?: {height_eq?: number}}) => (args.where?.height_eq === r.submittedAt ? [block(r.submittedAt)] : data.blocks()),
+            blocks: (args: {where?: {height_eq?: number}}) => (args.where?.height_eq === r.submittedAt ? [block(r.submittedAt)] : data.blocks(args)),
             referendums: [r],
             referendumTallySnapshots: paged(r.snapshots),
             metadataActions: paged(texts),

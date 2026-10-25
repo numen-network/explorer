@@ -1,6 +1,8 @@
-import {expect} from 'storybook/test'
-import {numn, PEOPLE} from '../../../../../mock/fixtures.js'
+import {expect, within} from 'storybook/test'
+import {GENESIS_HASH, numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {standard} from '../../../../../mock/fixtures/governance.js'
+import {CONFIG} from '@/lib/config'
+import {WALLET_URL} from '@/lib/wallet'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 import {card, curatedCase, cast, withPlay, deciding, extremeAmounts} from './page.stories.helpers'
@@ -31,3 +33,17 @@ export const NearlyAllAye = withPlay(
         for (const figure of ['99.96%', '0.04%', '<0.01%']) await expect(card(canvasElement, 'Tally').getByText(figure)).toBeInTheDocument()
     }
 )
+
+// a running referendum links to its ballot in the wallet and to Discord
+export const VoteAndDiscuss = withPlay(curatedCase(5), async ({canvasElement}) => {
+    const page = within(canvasElement)
+    await expect(page.getByRole('link', {name: 'Vote'})).toHaveAttribute('href', `${WALLET_URL}/?vote=5&genesis=${GENESIS_HASH}`)
+    await expect(page.getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', CONFIG.discordInvite)
+})
+
+// an approved referendum takes no more votes, so only the discussion is left
+export const DiscussOnly = withPlay(curatedCase(0), async ({canvasElement}) => {
+    const page = within(canvasElement)
+    await expect(page.queryByRole('link', {name: 'Vote'})).toBeNull()
+    await expect(page.getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', CONFIG.discordInvite)
+})

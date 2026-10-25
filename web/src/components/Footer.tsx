@@ -1,10 +1,11 @@
 import type {IconType} from '@icons-pack/react-simple-icons'
 import {SiBitcoin, SiDiscord, SiGithub, SiTelegram, SiX, SiYoutube} from '@icons-pack/react-simple-icons'
 import {Button} from '@/components/ui/button'
+import {CONFIG} from '@/lib/config'
 
 const SOCIAL: [label: string, href: string, Mark: IconType][] = [
     ['GitHub', 'https://github.com/numen-network/explorer', SiGithub],
-    ['Discord', 'https://discord.gg/ajPKdvrvJK', SiDiscord],
+    ['Discord', CONFIG.discordInvite, SiDiscord],
     ['X', 'https://x.com/NumenOnchain', SiX],
     ['Telegram', 'https://t.me/numen_network', SiTelegram],
     ['Bitcointalk', 'https://bitcointalk.org/index.php?action=profile;u=3763959', SiBitcoin],

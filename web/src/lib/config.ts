@@ -14,6 +14,7 @@ interface Network {
 
 // every value the explorer shows that the chain does not hold, filled in by hand
 export const CONFIG = {
+    discordInvite: 'https://discord.gg/ajPKdvrvJK',
     // a sovereign account has no key to register an identity with, so the name
     // it goes by is the explorer's to give
     wellKnown: {

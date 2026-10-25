@@ -17,6 +17,7 @@ import {fmtInt} from '@/lib/format'
 import type {IdentityRow} from '@/lib/gql'
 import {identityLabel, splitBio} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
+import {delegateHref} from '@/lib/wallet'
 
 function Subs({row, ss58}: {row: IdentityRow; ss58: number}) {
     if (row.subs.length === 0) return fmtInt(0)
@@ -33,13 +34,6 @@ function Subs({row, ss58}: {row: IdentityRow; ss58: number}) {
             </PopoverContent>
         </Popover>
     )
-}
-
-export function delegateHref(wallet: string, addr: string, genesis: string): string {
-    const url = new URL(wallet)
-    url.searchParams.set('delegate', addr)
-    url.searchParams.set('genesis', genesis)
-    return url.href
 }
 
 function IdentityCard({row, chain, wallet}: {row: IdentityRow; chain: ChainProps; wallet: string}) {
