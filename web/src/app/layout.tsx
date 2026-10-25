@@ -3,12 +3,13 @@ import type {ReactNode} from 'react'
 import {Inter} from 'next/font/google'
 import {NuqsAdapter} from 'nuqs/adapters/next/app'
 import Footer from '@/components/Footer'
+import {LiveHeads} from '@/components/blockStatus'
 import IndexerBanner from '@/components/IndexerBanner'
 import Nav from '@/components/Nav'
 import SearchBar from '@/components/SearchBar'
 import {TooltipProvider} from '@/components/ui/tooltip'
 import {WellKnownProvider} from '@/components/wellKnown'
-import {chainProps} from '@/lib/chain'
+import {chainHeads, chainProps} from '@/lib/chain'
 import {primeState} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import './globals.css'
@@ -21,9 +22,13 @@ export const metadata: Metadata = {
 }
 
 export default async function RootLayout({children}: {children: ReactNode}) {
-    const [chain, prime] = await Promise.all([
+    const [chain, heads, prime] = await Promise.all([
         chainProps().then(
             p => p,
+            () => null
+        ),
+        chainHeads().then(
+            h => h,
             () => null
         ),
         primeState().then(
@@ -32,6 +37,7 @@ export default async function RootLayout({children}: {children: ReactNode}) {
         ),
     ])
     const addr = (hex: string | undefined) => (chain && hex ? ss58Encode(hex, chain.ss58) : '')
+    const page = <NuqsAdapter>{children}</NuqsAdapter>
     return (
         <html lang="en" className={inter.variable}>
             <body className="flex min-h-dvh flex-col">
@@ -43,7 +49,13 @@ export default async function RootLayout({children}: {children: ReactNode}) {
                                 <SearchBar />
                             </div>
                             <IndexerBanner />
-                            <NuqsAdapter>{children}</NuqsAdapter>
+                            {chain && heads ? (
+                                <LiveHeads initial={heads} ms={chain.blockTime * 1000}>
+                                    {page}
+                                </LiveHeads>
+                            ) : (
+                                page
+                            )}
                         </div>
                         <Footer />
                     </TooltipProvider>

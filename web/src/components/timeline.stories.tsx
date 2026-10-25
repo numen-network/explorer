@@ -57,8 +57,9 @@ export const StepLinksEveryForm: Story = {
     play: async ({canvasElement}) => {
         const steps = [...canvasElement.querySelectorAll('li')].map(step => [...step.querySelectorAll('a')])
         await expect(steps.map(links => links.map(link => link.textContent))).toEqual([['#520,000', '520000-3', '520000-7'], ['#521,440', '521440-0'], ['#0']])
-        await expect(steps.map(links => links[0].parentElement!.parentElement!.textContent)).toEqual(steps.map(links => links.map(link => link.textContent).join('')))
-        for (const link of steps.flat()) await expect(link.previousElementSibling).toHaveClass('text-muted-foreground')
+        const items = steps.map(links => links.map(link => link.closest('[data-slot=step-link]')!))
+        await expect(items.map(row => row[0].parentElement!.textContent)).toEqual(steps.map(links => links.map(link => link.textContent).join('')))
+        for (const item of items.flat()) await expect(item.firstElementChild).toHaveClass('text-muted-foreground')
         const stacked = matchMedia('(width < 40rem)').matches
         for (const links of steps) {
             const tops = links.map(link => Math.round(link.getBoundingClientRect().top))

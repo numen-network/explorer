@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {ArrowUpRight} from 'lucide-react'
 import {AddrMark} from '@/components/addrHot'
+import {BlockStatus} from '@/components/blockStatus'
 import HashText from '@/components/HashText'
 import {Tip} from '@/components/Tip'
 import {extrinsicPath, fmtInt} from '@/lib/format'
@@ -12,9 +13,12 @@ export function Jump() {
 
 export function BlockLink({height}: {height: number}) {
     return (
-        <Link href={`/block/${height}`} className="font-mono text-primary hover:underline">
-            #{fmtInt(height)}
-        </Link>
+        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+            <Link href={`/block/${height}`} className="font-mono text-primary hover:underline">
+                #{fmtInt(height)}
+            </Link>
+            <BlockStatus height={height} />
+        </span>
     )
 }
 

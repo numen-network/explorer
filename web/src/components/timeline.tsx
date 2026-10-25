@@ -75,7 +75,7 @@ export function TimelineRows({rows}: {rows: [string, ReactNode][]}) {
 
 function Tagged({icon: Icon, children}: {icon: LucideIcon; children: ReactNode}) {
     return (
-        <span className="inline-flex items-center gap-1">
+        <span data-slot="step-link" className="inline-flex items-center gap-1">
             <Icon className="size-3 shrink-0 text-muted-foreground" />
             {children}
         </span>

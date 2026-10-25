@@ -23,6 +23,12 @@ interface InfoRow extends Omit<ChainProps, 'chain'> {
     finalizedHead: number
 }
 
+export interface Heads {
+    best: number
+    finalized: number
+    indexed: number
+}
+
 export interface DbHead {
     height: number
     timestamp: string | null
@@ -45,9 +51,9 @@ export async function chainProps(): Promise<ChainProps> {
     return {chain: name, ...props}
 }
 
-export async function chainHeads(): Promise<{best: number; finalized: number}> {
-    const {info} = await chainInfo()
-    return {best: info.head, finalized: info.finalizedHead}
+export async function chainHeads(): Promise<Heads> {
+    const {info, dbHead} = await chainInfo()
+    return {best: info.head, finalized: info.finalizedHead, indexed: dbHead.height}
 }
 
 export async function chainDbHead(): Promise<DbHead> {

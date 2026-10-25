@@ -1,7 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
 import {expect} from 'storybook/test'
-import {HEAD, hashOf, squidId} from '../../../mock/fixtures.js'
+import {HEAD, chainInfo, hashOf, squidId} from '../../../mock/fixtures.js'
 import {evmTxHash} from '../../../mock/fixtures/blocks.js'
 import {BlockLink, EventLink, EvmAddrLink, EvmTxLink, ExtrinsicLink, Jump} from './links'
 
@@ -34,6 +34,26 @@ export const BlockHeightLengths: Story = {
             </Case>
         </>
     ),
+}
+
+export const BlockStatuses: Story = {
+    render: () => (
+        <>
+            <Case label="finalized">
+                <BlockLink height={chainInfo.finalizedHead} />
+            </Case>
+            <Case label="indexed, not finalized yet">
+                <BlockLink height={HEAD} />
+            </Case>
+            <Case label="past the indexed head">
+                <BlockLink height={HEAD + 1} />
+            </Case>
+        </>
+    ),
+    play: async ({canvas}) => {
+        await expect(canvas.getAllByRole('img').map(icon => icon.getAttribute('aria-label'))).toEqual(['Finalized', 'Confirming'])
+        await expect(canvas.getByRole('link', {name: `#${(HEAD + 1).toLocaleString('en-US')}`}).parentElement!.querySelector('svg')).toBeNull()
+    },
 }
 
 export const ExtrinsicIdForms: Story = {

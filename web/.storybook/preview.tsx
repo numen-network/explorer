@@ -4,10 +4,11 @@ import {Inter} from 'next/font/google'
 import {NuqsTestingAdapter} from 'nuqs/adapters/testing'
 import {MINIMAL_VIEWPORTS} from 'storybook/viewport'
 import {useFaceOrder} from '../src/components/AccountFace'
+import {HeadsProvider} from '../src/components/blockStatus'
 import {TooltipProvider} from '../src/components/ui/tooltip'
 import {WellKnownProvider} from '../src/components/wellKnown'
 import {ss58Encode} from '../src/lib/ss58'
-import {chainInfo} from '../../mock/fixtures.js'
+import {HEAD, chainInfo} from '../../mock/fixtures.js'
 import {urlUpdates} from './url'
 import '../src/app/globals.css'
 
@@ -153,9 +154,11 @@ const preview: Preview = {
         siteGutters,
         Story => (
             <WellKnownProvider treasury={ss58Encode(chainInfo.treasuryAccount, chainInfo.ss58)} prime="" evmChainId={chainInfo.evmChainId}>
-                <TooltipProvider>
-                    <Story />
-                </TooltipProvider>
+                <HeadsProvider heads={{best: chainInfo.head, finalized: chainInfo.finalizedHead, indexed: HEAD}}>
+                    <TooltipProvider>
+                        <Story />
+                    </TooltipProvider>
+                </HeadsProvider>
             </WellKnownProvider>
         ),
     ],
