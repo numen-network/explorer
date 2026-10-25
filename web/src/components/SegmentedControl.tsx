@@ -3,7 +3,8 @@ import {cn} from 'cn'
 import {TabsList, TabsTrigger} from '@/components/ui/tabs'
 
 const STRIP = 'flex h-8 w-fit items-center justify-center gap-1 rounded-lg border bg-card p-0.5'
-const ITEM = 'relative inline-flex h-full flex-1 items-center justify-center rounded-lg px-2.5 text-sm font-normal whitespace-nowrap text-muted-foreground transition-all hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring data-active:bg-primary/8 data-active:font-medium data-active:text-primary'
+// a hidden medium-weight copy of the label reserves each option's picked width
+const ITEM = 'relative inline-flex h-full flex-1 flex-col items-center gap-0 justify-center rounded-lg px-2.5 text-sm font-normal whitespace-nowrap text-muted-foreground transition-all before:invisible before:h-0 before:overflow-hidden before:font-medium before:select-none before:content-[attr(data-label)] hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring data-active:bg-primary/8 data-active:font-medium data-active:text-primary'
 const SM = {strip: 'h-6 group-data-horizontal/tabs:h-6 rounded-md', item: 'rounded-[5px] px-2 text-xs'}
 
 export interface SegmentLink {
@@ -26,7 +27,7 @@ export default function SegmentedControl(props: Props) {
         return (
             <nav aria-label={props['aria-label']} className={strip}>
                 {props.options.map(o => (
-                    <Link key={o.href} href={o.href} scroll={false} aria-current={o.active ? 'page' : undefined} data-active={o.active} className={item}>
+                    <Link key={o.href} href={o.href} scroll={false} aria-current={o.active ? 'page' : undefined} data-active={o.active} data-label={o.label} className={item}>
                         {o.label}
                     </Link>
                 ))}
@@ -36,7 +37,7 @@ export default function SegmentedControl(props: Props) {
     return (
         <TabsList className={strip}>
             {props.options.map(([value, label]) => (
-                <TabsTrigger key={value} value={value} className={cn(item, 'border-0 group-data-[variant=default]/tabs-list:data-active:shadow-none')}>
+                <TabsTrigger key={value} value={value} data-label={label} className={cn(item, 'border-0 group-data-[variant=default]/tabs-list:data-active:shadow-none')}>
                     {label}
                 </TabsTrigger>
             ))}

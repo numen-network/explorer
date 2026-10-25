@@ -76,6 +76,12 @@ const visibleShadow = (el: Element) =>
         .map(layer => layer.trim())
         .filter(layer => layer !== 'none' && !layer.startsWith('rgba(0, 0, 0, 0)'))
 
+const labelTop = (el: Element) => {
+    const text = document.createRange()
+    text.selectNodeContents(el)
+    return text.getBoundingClientRect().top - el.getBoundingClientRect().top
+}
+
 // links and tabs read as one control, the picked option painted the same in both
 export const OneLook: Story = {
     render: () => (
@@ -94,6 +100,37 @@ export const OneLook: Story = {
             }
             await expect(visibleShadow(tab)).toEqual(visibleShadow(link))
             await expect(tab.getBoundingClientRect().height).toBe(link.getBoundingClientRect().height)
+            await expect(labelTop(tab)).toBe(labelTop(link))
         }
     ),
+}
+
+const CHARTS = ['Balance', 'Activity', 'Fees']
+
+const geometry = (strip: Element) => [strip, ...strip.children].map(el => {
+    const r = el.getBoundingClientRect()
+    return [r.left - strip.getBoundingClientRect().left, r.width]
+})
+
+// picking another option shifts and resizes nothing
+export const SteadyWidth: Story = {
+    render: () => (
+        <div className="space-y-3">
+            {CHARTS.map((label, i) => (
+                <SegmentedControl key={label} aria-label={label} options={links(CHARTS, i)} />
+            ))}
+            <Tabs defaultValue="balance">
+                <SegmentedControl options={CHARTS.map((label): [string, string] => [label.toLowerCase(), label])} />
+            </Tabs>
+        </div>
+    ),
+    play: async ({canvas, userEvent}) => {
+        await document.fonts.ready
+        const [first, ...rest] = canvas.getAllByRole('navigation').map(geometry)
+        for (const g of rest) await expect(g).toEqual(first)
+        for (const label of CHARTS) {
+            await userEvent.click(canvas.getByRole('tab', {name: label}))
+            await expect(geometry(canvas.getByRole('tablist'))).toEqual(first)
+        }
+    },
 }
