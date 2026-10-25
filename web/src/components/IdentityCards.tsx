@@ -35,9 +35,10 @@ function Subs({row, ss58}: {row: IdentityRow; ss58: number}) {
     )
 }
 
-export function delegateHref(wallet: string, addr: string): string {
+export function delegateHref(wallet: string, addr: string, genesis: string): string {
     const url = new URL(wallet)
     url.searchParams.set('delegate', addr)
+    url.searchParams.set('genesis', genesis)
     return url.href
 }
 
@@ -65,7 +66,7 @@ function IdentityCard({row, chain, wallet}: {row: IdentityRow; chain: ChainProps
                 </div>
                 <div className="ml-auto flex shrink-0 gap-2">
                     <Button asChild variant="outline" className="bg-card">
-                        <a href={delegateHref(wallet, addr)} target="_blank" rel="noopener noreferrer">
+                        <a href={delegateHref(wallet, addr, chain.genesis)} target="_blank" rel="noopener noreferrer">
                             <Plus />
                             Delegate
                         </a>

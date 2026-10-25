@@ -1,9 +1,8 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, screen, waitFor, within} from 'storybook/test'
-import {acct, chainInfo, identity, numn, person} from '../../../../mock/fixtures.js'
+import {GENESIS_HASH, acct, chainInfo, identity, numn, person} from '../../../../mock/fixtures.js'
 import {approxParts} from '@/lib/format'
 import {ss58Encode} from '@/lib/ss58'
-import {delegateHref} from '@/components/IdentityCards'
 import {WALLET_URL} from '@/lib/wallet'
 import {AVATAR_HOST} from '../../../.storybook/avatar'
 import {lastPage, pageMeta} from '../../../.storybook/page'
@@ -170,7 +169,7 @@ const ACTIONS = [registered(170, 'Named'), nameless(171, {})]
 export const CardActions: StoryObj = {
     ...identities(ACTIONS),
     play: async ({canvas, canvasElement}) => {
-        expect((await canvas.findAllByRole('link', {name: 'Delegate'})).map(a => a.getAttribute('href'))).toEqual(ACTIONS.map(r => delegateHref(WALLET_URL, ss58Encode(r.id, chainInfo.ss58))))
+        expect((await canvas.findAllByRole('link', {name: 'Delegate'})).map(a => a.getAttribute('href'))).toEqual(ACTIONS.map(r => `${WALLET_URL}/?delegate=${ss58Encode(r.id, chainInfo.ss58)}&genesis=${GENESIS_HASH}`))
         expect(cardsOf(canvasElement, ACTIONS).map(card => within(card).getAllByRole('button', {name: 'copy'}).length)).toEqual([1, 1])
     },
 }
