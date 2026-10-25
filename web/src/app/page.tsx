@@ -189,7 +189,6 @@ export default async function Home({searchParams}: PageProps<'/'>) {
         vertices: o.vertices,
         faces: o.topology.faces,
     }))
-    const genesisHash = data.genesis[0].hash
     const halving = data.blocks[0] ? halvingAt(data.blocks[0].height, data.blocks[0].specVersion) : null
     const upcoming = data.blocks[0] ? deadlines(data, cut, blocksConstant(data.blocks[0].specVersion, 'Referenda.UndecidingTimeout')) : []
 
@@ -531,8 +530,8 @@ export default async function Home({searchParams}: PageProps<'/'>) {
                             <CopyBtn text={props.nativeErc20} />
                         </DetailRow>
                         <DetailRow label="Genesis hash">
-                            {genesisHash}
-                            <CopyBtn text={genesisHash} />
+                            {props.genesis}
+                            <CopyBtn text={props.genesis} />
                         </DetailRow>
                     </div>
                 </Card>

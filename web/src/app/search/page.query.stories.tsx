@@ -19,7 +19,7 @@ export const OneAccountRedirects = pageStory(hits([PEOPLE[5]], []), {searchParam
 export const OneTokenRedirects = pageStory(hits([], [NOVA]), {searchParams: {q: 'nova points'}, redirect: `/token/${NOVA.id}`})
 
 const HASH = '0x' + 'ab'.repeat(32)
-const lookups = (account: object | null) => ({blocks: ({where}: {where?: object}) => (where ? [] : base.blocks()), extrinsics: [], evmTransactions: [], accountById: account, ...hits([], [])})
+const lookups = (account: object | null) => ({blocks: ({where}: {where?: {OR?: object}}) => (where?.OR ? [] : base.blocks({where})), extrinsics: [], evmTransactions: [], accountById: account, ...hits([], [])})
 
 // a 32 byte hex that is no block, extrinsic or transaction opens the account it names
 export const HashOfAnAccountRedirects = pageStory(lookups({id: HASH}), {searchParams: {q: HASH}, redirect: `/account/${ss58Encode(HASH, chainInfo.ss58)}`})

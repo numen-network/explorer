@@ -21,6 +21,7 @@ export const blockId = height => `${String(height).padStart(10, '0')}-${hashOf('
 export const squidId = (height, index) => `${blockId(height)}-${String(index).padStart(6, '0')}`
 
 export const SUBMISSION_DEPOSIT = numn(5)
+export const GENESIS_HASH = hashOf('block', 0)
 
 export const chainInfo = {
     name: 'Numen Mainnet',
@@ -46,10 +47,10 @@ export const issuance = {
     treasuryPot: '550000154663232139351368277',
 }
 
-// what every page reads before its own data, the chain and the newest indexed block
+// what every page reads before its own data, the chain, its genesis and the newest indexed block
 export const base = {
     chainInfos: [chainInfo],
-    blocks: () => [{height: HEAD, timestamp: new Date().toISOString()}],
+    blocks: ({where} = {}) => (where?.height_eq === 0 ? [{height: 0, hash: GENESIS_HASH}] : [{height: HEAD, timestamp: new Date().toISOString()}]),
 }
 
 const FIELDS = ['display', 'avatar', 'bio', 'web', 'email', 'github', 'matrix', 'x', 'telegram', 'discord']

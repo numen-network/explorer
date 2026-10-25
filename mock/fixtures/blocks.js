@@ -1,11 +1,11 @@
 import {gzipSync} from 'fflate'
 import {toHex} from '../engine.js'
-import {at, block, chainInfo, event, extrinsic, hashOf, hex, numn, person, squidId} from '../fixtures.js'
+import {at, block, chainInfo, GENESIS_HASH, event, extrinsic, hashOf, hex, numn, person, squidId} from '../fixtures.js'
 
 export const REWARD = numn(16)
 const TREASURY = chainInfo.treasuryAccount
 
-export const CHAIN_PROPS = (({name, head, finalizedHead, ...rest}) => ({chain: name, ...rest}))(chainInfo)
+export const CHAIN_PROPS = (({name, head, finalizedHead, ...rest}) => ({chain: name, genesis: GENESIS_HASH, ...rest}))(chainInfo)
 
 const ascii = text => Array.from(text, c => c.charCodeAt(0))
 const bytesOf = h => Array.from(h.slice(2).match(/../g) ?? [], b => parseInt(b, 16))

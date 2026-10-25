@@ -1,5 +1,5 @@
 import data from '../data.js'
-import {account, acct, at, base, block, chainInfo, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer} from '../fixtures.js'
+import {account, acct, at, base, block, chainInfo, GENESIS_HASH, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer} from '../fixtures.js'
 import {mined, pick, timestampSet} from './blocks.js'
 import {holding} from './evm.js'
 
@@ -12,7 +12,7 @@ export const TREASURY = {id: chainInfo.treasuryAccount, identityDisplay: null}
 export const PRIME_KEY = acct(90, identity('Numen Prime Council', {judgements: ['KnownGood']}))
 
 // the chain row the way chainProps() hands it to components
-export const CHAIN = (({name, head, finalizedHead, ...rest}) => ({chain: name, ...rest}))(chainInfo)
+export const CHAIN = (({name, head, finalizedHead, ...rest}) => ({chain: name, genesis: GENESIS_HASH, ...rest}))(chainInfo)
 
 export const MAX_U128 = ((1n << 128n) - 1n).toString()
 export const PLANCK = '1'

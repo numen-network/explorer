@@ -152,7 +152,6 @@ export interface HomeEvmTxRow extends EvmTxRow {
 
 export interface HomeData {
     blocks: BlockRow[]
-    genesis: {hash: string}[]
     minedObjects: ObjectRow[]
     transfers: TransferRow[]
     dailyStats: DailyRow[]
@@ -230,7 +229,6 @@ export async function homeData(since24: string | null, since30: string | null, u
     const data = await gql<HomeData>(
         `query ($since24: DateTime, $since30: DateTime, $head: Int!, $until: Int!, $validUntil: Int!) {
             blocks(orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
-            genesis: blocks(where: {height_eq: 0}, limit: 1) { hash }
             minedObjects(orderBy: id_DESC, limit: 5) { block { height hash timestamp finalized extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
             transfers(orderBy: ${TRANSFER_ORDER}, limit: 5) { ${TRANSFER_FIELDS} }
             dailyStats(orderBy: date_DESC, limit: 90) { ${DAILY_FIELDS} }

@@ -1,11 +1,11 @@
-import {at, chainInfo, hashOf, HEAD, issuance, numn, paged, PEOPLE, person, squidId, SUBMISSION_DEPOSIT} from '../fixtures.js'
+import {at, chainInfo, GENESIS_HASH, hashOf, HEAD, issuance, numn, paged, PEOPLE, person, squidId, SUBMISSION_DEPOSIT} from '../fixtures.js'
 
 const heightOf = id => Number(id.split('-')[0])
 const indexOf = id => Number(id.split('-').at(-1))
 const newestFirst = (a, b) => heightOf(b.id) - heightOf(a.id) || indexOf(b.id) - indexOf(a.id)
 const descending = key => (a, b) => (key(b) > key(a) ? 1 : key(b) < key(a) ? -1 : 0)
 
-export const CHAIN = (({name, head, finalizedHead, ...rest}) => ({chain: name, ...rest}))(chainInfo)
+export const CHAIN = (({name, head, finalizedHead, ...rest}) => ({chain: name, genesis: GENESIS_HASH, ...rest}))(chainInfo)
 
 const KNOWN = new Map(PEOPLE.map(p => [p.id, p]))
 

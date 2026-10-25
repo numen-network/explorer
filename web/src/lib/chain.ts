@@ -15,9 +15,10 @@ export interface ChainProps {
     voteLockingPeriod: number
     submissionDeposit: string
     treasuryAccount: string
+    genesis: string
 }
 
-interface InfoRow extends Omit<ChainProps, 'chain'> {
+interface InfoRow extends Omit<ChainProps, 'chain' | 'genesis'> {
     name: string
     head: number
     finalizedHead: number
@@ -34,21 +35,24 @@ export interface DbHead {
     timestamp: string | null
 }
 
-const chainInfo = cache(async (): Promise<{info: InfoRow; dbHead: DbHead}> => {
-    const {chainInfos, dbHead} = await gql<{chainInfos: InfoRow[]; dbHead: DbHead[]}>(
+const chainInfo = cache(async (): Promise<{info: InfoRow; genesis: string; dbHead: DbHead}> => {
+    const {chainInfos, genesis, dbHead} = await gql<{chainInfos: InfoRow[]; genesis: {hash: string}[]; dbHead: DbHead[]}>(
         `query {
             chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod submissionDeposit treasuryAccount head finalizedHead }
+            genesis: blocks(where: {height_eq: 0}, limit: 1) { hash }
             dbHead: blocks(orderBy: height_DESC, limit: 1) { height timestamp }
         }`
     )
     if (!chainInfos[0]) throw new Error('chain info row is missing, the indexer has not written it yet')
+    if (!genesis[0]) throw new Error('the genesis block is missing, the indexer has not written it yet')
     if (!dbHead[0]) throw new Error('the block table is empty, the indexer has not written it yet')
-    return {info: chainInfos[0], dbHead: dbHead[0]}
+    return {info: chainInfos[0], genesis: genesis[0].hash, dbHead: dbHead[0]}
 })
 
 export async function chainProps(): Promise<ChainProps> {
-    const {name, head, finalizedHead, ...props} = (await chainInfo()).info
-    return {chain: name, ...props}
+    const {info, genesis} = await chainInfo()
+    const {name, head, finalizedHead, ...props} = info
+    return {chain: name, genesis, ...props}
 }
 
 export async function chainHeads(): Promise<Heads> {
