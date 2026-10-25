@@ -13,6 +13,7 @@ export const EveryTab: StoryObj = {
         const links = within(canvas.getByRole('navigation', {name: 'People'})).getAllByRole('link')
         expect(links.map(a => [a.getAttribute('href'), a.querySelector('[data-slot=badge]')!.textContent, a.getAttribute('aria-current')])).toEqual([
             ['/people', '4', 'page'],
+            ['/people?tab=pending', '0', null],
             ['/people?tab=registrars', '3', null],
             ['/people?tab=usernames', '7', null],
             ['/people?tab=authorities', '4', null],

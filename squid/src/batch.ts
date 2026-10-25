@@ -17,6 +17,7 @@ import {
     EvmTransaction,
     Extrinsic,
     HourlyStat,
+    IdentityJudgement,
     MetadataAction,
     MinedObject,
     MinerDayStat,
@@ -164,6 +165,10 @@ export class BatchData {
     judgements: Judgement[] = []
     registrarStats = new Map<number, {requests: number; given: number; block: number; at: Date}>()
     registrars: Registrar[] = []
+    // the last event in the batch to write a judgement entry, per account and registrar
+    judgementWrites = new Map<string, {event: string; kind: 'request' | 'given'; block: number; at: Date}>()
+    identityJudgements: IdentityJudgement[] = []
+    identityJudgementRemovals: string[] = []
     identityRefresh = new Set<string>()
     // the first IdentitySet since the last clear, per account
     identitySetAt = new Map<string, number>()

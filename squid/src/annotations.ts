@@ -1,13 +1,16 @@
 import {toJSON} from '@subsquid/util-internal-json'
 import {In} from 'typeorm'
 import {Store} from '@subsquid/typeorm-store'
-import {Account, Delegation, Judgement, PrimeState, ProxyRelation, Registrar, Track} from './model'
+import {Account, Delegation, Event, IdentityJudgement, Judgement, PrimeState, ProxyRelation, Registrar, Track} from './model'
 import {BatchData} from './batch'
 import {convictionLevel, convictionVotes} from './conviction'
 import {events, storage} from './types'
+import type {Judgement as ChainJudgement} from './types/v100'
 import {decodeUtf8} from './utf8'
 
 type ChainEvent = Parameters<(typeof events.convictionVoting.delegated.v100)['is']>[0]
+
+const judgementId = (who: string, registrar: number) => `${who}-${registrar}`
 
 function registrarStat(batch: BatchData, index: number, at: Date) {
     let s = batch.registrarStats.get(index)
@@ -39,6 +42,7 @@ export function collectAnnotationEvent(batch: BatchData, id: string, name: strin
             break
         case 'Identity.JudgementRequested':
             registrarStat(batch, args.registrarIndex, at).requests += 1
+            batch.judgementWrites.set(judgementId(args.who, args.registrarIndex), {event: id, kind: 'request', block: height, at})
             batch.touch(args.who, height)
             batch.identityRefresh.add(args.who)
             break
@@ -55,6 +59,7 @@ export function collectAnnotationEvent(batch: BatchData, id: string, name: strin
                 s.block = height
                 s.at = at
                 batch.judgementsGiven.push({id, registrar: args.registrarIndex, target: who, block: height, at, header: ev.block})
+                batch.judgementWrites.set(judgementId(who, args.registrarIndex), {event: id, kind: 'given', block: height, at})
             }
             break
         }
@@ -194,6 +199,40 @@ function judgementOf(json: unknown, registrar: number): {kind?: string; fee?: bi
     return {kind: found?.__kind, fee: found?.value != null ? BigInt(found.value) : undefined}
 }
 
+// an entry no event in the batch wrote must match the row already stored. a
+// request leaves FeePaid behind, a verdict anything else
+async function syncJudgementEntries(batch: BatchData, store: Store, who: string[], entries: [number, ChainJudgement][][]): Promise<void> {
+    const held = new Map((await store.find(IdentityJudgement, {where: {account: {id: In(who)}}})).map(j => [j.id, j]))
+    const keep = new Set<string>()
+    who.forEach((account, i) => {
+        for (const [registrar, j] of entries[i]) {
+            const id = judgementId(account, registrar)
+            const fee = j.__kind === 'FeePaid' ? j.value : null
+            keep.add(id)
+            const w = batch.judgementWrites.get(id)
+            if (w == null) {
+                const prev = held.get(id)
+                if (prev == null || prev.kind !== j.__kind || (prev.fee ?? null) !== fee) throw new Error(`judgement ${id} became ${j.__kind} without an event writing it`)
+                continue
+            }
+            if ((w.kind === 'request') !== (j.__kind === 'FeePaid')) throw new Error(`judgement ${id} is ${j.__kind} after a ${w.kind} event ${w.event}`)
+            batch.identityJudgements.push(
+                new IdentityJudgement({
+                    id,
+                    account: new Account({id: account}),
+                    registrar: new Registrar({id: String(registrar)}),
+                    kind: j.__kind,
+                    fee,
+                    event: new Event({id: w.event}),
+                    block: w.block,
+                    timestamp: w.at,
+                })
+            )
+        }
+    })
+    for (const id of held.keys()) if (!keep.has(id)) batch.identityJudgementRemovals.push(id)
+}
+
 // only the fee, the account and the field mask ever move, so the whole short
 // list is reread rather than tracked slot by slot
 export async function finalizeRegistrars(batch: BatchData, lastHeader: any, store: Store): Promise<void> {
@@ -306,6 +345,7 @@ export async function finalizeAnnotations(batch: BatchData, lastHeader: any, sto
             a.identityRank = reg ? rankOf(reg.judgements) : null
             a.identitySetBlock = reg ? identitySince(batch, a) : null
         })
+        await syncJudgementEntries(batch, store, who, regs.map(r => r?.judgements ?? []))
     }
     // the event names no verdict, the registration at its own block does
     for (const g of batch.judgementsGiven) {

@@ -6,20 +6,11 @@ import {pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
 import {wellKnown, story, named} from './page.stories.helpers'
 
-export default {title: 'Pages/Account/Registrar', ...pageMeta(AccountPage), decorators: [wellKnown]}
+export default {title: 'Pages/Account/Registrar | History', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
 const seat = (spec = {}) => story({account: named(), registrar: 2, refs: PEOPLE, verdicts: seatVerdicts(), ...spec}, {tab: 'registrar'})
 
 const cells = (root: HTMLElement, col: number) => within(root).getAllByRole('row').slice(1).map(r => r.children[col].textContent)
-
-// a registrar seat is a tab of its own with no strip under it
-export const NoSubStrip: StoryObj = {
-    ...seat(),
-    play: async ({canvas}) => {
-        expect(canvas.queryByRole('navigation', {name: 'Registrar'})).toBeNull()
-        expect(canvas.getByText('Requests received')).toBeVisible()
-    },
-}
 
 export const Empty: StoryObj = {
     ...seat(),

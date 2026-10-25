@@ -5,6 +5,7 @@ import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
 import {JsonBlock, NONE} from '@/components/Detail'
 import {BlockLink, BountyLink, ReferendumLink} from '@/components/links'
+import RegistrarSeat from '@/components/RegistrarSeat'
 import SegmentedControl from '@/components/SegmentedControl'
 import {TimeCell} from '@/components/TimeCell'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
@@ -98,17 +99,7 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
                 </>
             )
         case 'registrar':
-            return (
-                <>
-                    <span className="font-mono">#{fmtInt(node.index)}</span>
-                    {node.account && (
-                        <>
-                            {' · '}
-                            <AccountLink addr={ss58Encode(node.account.id, ctx.chain.ss58)} acc={node.account} />
-                        </>
-                    )}
-                </>
-            )
+            return <RegistrarSeat index={node.index} account={node.account} ss58={ctx.chain.ss58} />
         case 'delay':
             return <span className="whitespace-nowrap">{fmtCount(node.blocks, 'block')}</span>
         case 'vote':

@@ -1,4 +1,5 @@
 import IdentityCards from '@/components/IdentityCards'
+import {JudgementEntriesTable} from '@/components/JudgementEntriesTable'
 import {BlockLink} from '@/components/links'
 import Pager from '@/components/Pager'
 import StatTile from '@/components/StatTile'
@@ -7,28 +8,29 @@ import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
 import {paging} from '@/lib/paging'
-import {identitiesPage, peopleCounts, registrarsPage, usernameAuthoritiesPage, usernamesPage} from '@/lib/gql'
+import {identitiesPage, peopleCounts, pendingRequestsPage, registrarsPage, usernameAuthoritiesPage, usernamesPage} from '@/lib/gql'
 import {WALLET_URL} from '@/lib/wallet'
 import {RegistrarsTable, UsernameAuthoritiesTable, UsernamesTable} from './tables'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'People'}
 
-const TABS = ['identities', 'registrars', 'usernames', 'authorities'] as const
+const TABS = ['identities', 'pending', 'registrars', 'usernames', 'authorities'] as const
 
 export default async function PeoplePage(props: PageProps<'/people'>) {
     const sp = await props.searchParams
     const tab = TABS.find(t => t === sp.tab) ?? 'identities'
     const pg = paging(sp)
-    const [chain, counts, identities, usernames, authorities, registrars] = await Promise.all([
+    const [chain, counts, identities, pending, usernames, authorities, registrars] = await Promise.all([
         chainProps(),
         peopleCounts(),
         tab === 'identities' ? identitiesPage(pg.size, pg.offset) : null,
+        tab === 'pending' ? pendingRequestsPage(pg.size, pg.offset) : null,
         tab === 'usernames' ? usernamesPage(pg.size, pg.offset) : null,
         tab === 'authorities' ? usernameAuthoritiesPage(pg.size, pg.offset) : null,
         tab === 'registrars' ? registrarsPage(pg.size, pg.offset) : null,
     ])
-    const total = {identities: counts.direct, usernames: counts.usernames, authorities: counts.authorities, registrars: counts.registrars}
+    const total = {identities: counts.direct, pending: counts.requests, usernames: counts.usernames, authorities: counts.authorities, registrars: counts.registrars}
     const href = (t: (typeof TABS)[number]) => (t === 'identities' ? '/people' : `/people?tab=${t}`)
 
     return (
@@ -73,12 +75,18 @@ export default async function PeoplePage(props: PageProps<'/people'>) {
                     aria-label="People"
                     items={[
                         {label: 'Identities', count: counts.direct, href: href('identities'), active: tab === 'identities'},
+                        {label: 'Pending', count: counts.requests, href: href('pending'), active: tab === 'pending'},
                         {label: 'Registrars', count: counts.registrars, href: href('registrars'), active: tab === 'registrars'},
                         {label: 'Usernames', count: counts.usernames, href: href('usernames'), active: tab === 'usernames'},
                         {label: 'Authorities', count: counts.authorities, href: href('authorities'), active: tab === 'authorities'},
                     ]}
                 />
                 {identities && <IdentityCards rows={identities.accounts} chain={chain} wallet={WALLET_URL} className="mt-4" />}
+                {pending && (
+                    <Card size="flush" className="mt-4">
+                        <JudgementEntriesTable rows={pending.identityJudgements} chain={chain} pending />
+                    </Card>
+                )}
                 {usernames && (
                     <Card size="flush" className="mt-4">
                         <UsernamesTable rows={usernames.usernames} chain={chain} />

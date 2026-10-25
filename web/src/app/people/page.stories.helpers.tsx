@@ -1,4 +1,4 @@
-import {acct, at, chainInfo, hashOf, HEAD, identity, numn, paged, person, subOf} from '../../../../mock/fixtures.js'
+import {acct, at, chainInfo, hashOf, HEAD, identity, numn, paged, person, squidId, subOf} from '../../../../mock/fixtures.js'
 import {shortAddr} from '@/components/AddressText'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
@@ -118,9 +118,28 @@ export interface Username {
     status: string
 }
 
+// a FeePaid entry as the index keeps it, waiting on a seat since the given block
+export const request = (who: object, seat: {index: number; account: object | null}, block: number, fee = numn(25)) => ({
+    id: `${(who as {id: string}).id}-${seat.index}`,
+    kind: 'FeePaid',
+    fee,
+    timestamp: at(block),
+    account: who,
+    registrar: seat,
+    event: {extrinsic: {id: squidId(block, 1)}},
+})
+
 export const identities = (
     rows: Row[],
-    {counts = countsOf(rows), registrars = REGISTRARS as Registrar[], usernames = [] as Username[], authorities = [] as object[], tab = 'identities', page = '1'} = {}
+    {
+        counts = countsOf(rows),
+        registrars = REGISTRARS as Registrar[],
+        pending = [] as object[],
+        usernames = [] as Username[],
+        authorities = [] as object[],
+        tab = 'identities',
+        page = '1',
+    } = {}
 ) =>
     pageStory(
         {
@@ -128,6 +147,8 @@ export const identities = (
             accountsConnection: tallies(counts),
             registrars: registrarRows(registrars),
             registrarsConnection: ({where}: {where?: {retiredAt_isNull?: boolean}}) => ({totalCount: where?.retiredAt_isNull === false ? registrars.filter(r => r.retiredAt != null).length : registrars.length}),
+            identityJudgements: paged(pending),
+            identityJudgementsConnection: {totalCount: pending.length},
             usernames: paged(usernames),
             usernamesConnection: ({where}: {where?: {status_eq?: string}}) => ({totalCount: usernames.filter(u => where?.status_eq == null || u.status === where.status_eq).length}),
             usernameAuthorities: paged(authorities),

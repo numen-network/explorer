@@ -24,7 +24,7 @@ import Proposed from '@/components/account/Proposed'
 import Proxies from '@/components/account/Proxies'
 import ReceivedJudgements from '@/components/account/ReceivedJudgements'
 import Received from '@/components/account/Received'
-import Registrar from '@/components/account/Registrar'
+import Registrar, {RegistrarCurrent, RegistrarTile} from '@/components/account/Registrar'
 import Subs from '@/components/account/Subs'
 import Timeline from '@/components/account/Timeline'
 import TokenTransfers from '@/components/account/TokenTransfers'
@@ -42,7 +42,7 @@ import {shortAddr} from '@/components/AddressText'
 import {AddrMark} from '@/components/addrHot'
 import {votesPower} from '@/lib/conviction'
 import {fmtInt, fmtPct} from '@/lib/format'
-import {accountRefs, accountSummary, blockTime, evmCounts, seatEventCount, type AccountRef} from '@/lib/gql'
+import {accountRefs, accountSummary, blockTime, evmCounts, seatCounts, type AccountRef} from '@/lib/gql'
 import {identityJudgements} from '@/lib/identity'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {CONFIG, datedOrGenesis} from '@/lib/config'
@@ -95,11 +95,11 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
 
     const refIds = controlRefIds(s)
     const registrar = s.registrar[0]
-    const [evm, lastActiveTime, refs, seatCount] = await Promise.all([
+    const [evm, lastActiveTime, refs, seat] = await Promise.all([
         a.evmAddress ? evmCounts(a.evmAddress) : {transfers: 0, holdings: 0, contracts: 0, tokens: 0},
         a.lastActiveBlock != null ? blockTime(a.lastActiveBlock) : null,
         refIds.length > 0 ? accountRefs(refIds).then(r => new Map(r.accounts.map(acc => [acc.id, acc]))) : new Map<string, AccountRef>(),
-        registrar ? seatEventCount(registrar.index) : 0,
+        registrar ? seatCounts(registrar.index) : null,
     ])
 
     const ctx: TabCtx = {hex, addr, chain, sp}
@@ -149,7 +149,10 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     // the tab answers to its own rows rather than to the identity standing now
     if (s.nTimeline.totalCount > 0)
         tabs.push({slug: 'timeline', label: 'Timeline', group: 'Identity', count: s.nTimeline.totalCount, body: () => <Timeline {...ctx} />})
-    if (registrar) tabs.push({slug: 'registrar', label: 'Registrar', count: seatCount, body: () => <Registrar {...ctx} r={registrar} />})
+    if (registrar && seat) {
+        tabs.push({slug: 'registrar-current', label: 'Current', group: 'Registrar', count: seat.current, body: () => <RegistrarCurrent {...ctx} r={registrar} total={seat.current} />})
+        tabs.push({slug: 'registrar', label: 'History', group: 'Registrar', count: seat.history, body: () => <Registrar {...ctx} r={registrar} />})
+    }
     // an exemption alone leaves no Validator row, so the steps answer for themselves
     if (s.nValidatorSteps.totalCount > 0)
         tabs.push({slug: 'validator-timeline', label: 'Timeline', group: 'Validator', count: s.nValidatorSteps.totalCount, body: () => <ValidatorTimeline {...ctx} />})
@@ -178,6 +181,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     // what a group shows above its tab strip, whichever of its tabs is open
     const groupHeads: Record<string, () => ReactNode> = {}
     if (validator) groupHeads.Validator = () => <ValidatorHead hex={hex} chain={chain} v={validator} />
+    if (registrar && seat) groupHeads.Registrar = () => <RegistrarTile r={registrar} chain={chain} pending={seat.pending} latestExtrinsic={seat.latestExtrinsic} className="mt-4" />
 
     // dtrack filters Received, so a delegations link carrying one opens there,
     // and multisig opens the signatory side of an account that is no multisig

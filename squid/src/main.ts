@@ -15,7 +15,7 @@ import type {Runtime} from '@subsquid/substrate-runtime'
 import {toJSON} from '@subsquid/util-internal-json'
 import pLimit from 'p-limit'
 import {In, LessThanOrEqual} from 'typeorm'
-import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EventKind, EvmAddress, EvmLog, EvmTransaction, Extrinsic, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer} from './model'
+import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EventKind, EvmAddress, EvmLog, EvmTransaction, Extrinsic, IdentityJudgement, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer} from './model'
 import {constants, events, storage} from './types'
 import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
@@ -740,6 +740,8 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert(batch.proxyRelations)
     await ctx.store.upsert(batch.registrars)
     await ctx.store.upsert(batch.judgements)
+    await ctx.store.upsert(batch.identityJudgements)
+    if (batch.identityJudgementRemovals.length > 0) await ctx.store.remove(IdentityJudgement, batch.identityJudgementRemovals)
     if (batch.proxyRemovals.length > 0) await ctx.store.remove(ProxyRelation, batch.proxyRemovals)
     await ctx.store.upsert([...batch.bounties.values()])
     await ctx.store.upsert([...batch.childBounties.values()])

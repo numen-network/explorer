@@ -393,3 +393,9 @@ export const RegistrarByIdentity = titled(
 )
 
 export const RegistrarUnknown = story('Identity', 'request_judgement', {regIndex: 1, maxFee: '1000000000000000000'}, ['#1'])
+
+export const RegistrarRetired = titled(
+    view('Identity', 'request_judgement', {regIndex: 3, maxFee: '1000000000000000000'}),
+    node => (nodesOf([node], 'registrar')[0].account = null),
+    ['#3', 'Retired']
+)

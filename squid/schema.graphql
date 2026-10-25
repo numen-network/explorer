@@ -312,6 +312,21 @@ type Judgement @entity @index(fields: ["registrar", "block"]) {
   timestamp: DateTime!
 }
 
+"one entry of a registration's judgements as storage holds it now, FeePaid while the request waits for the registrar"
+type IdentityJudgement @entity @index(fields: ["registrar", "block"]) @index(fields: ["kind", "block"]) {
+  "the account id and the registrar index"
+  id: ID!
+  account: Account! @index
+  registrar: Registrar! @index
+  kind: String!
+  "only a FeePaid entry carries one, the fee held for the registrar"
+  fee: BigInt
+  "the JudgementRequested or JudgementGiven that wrote the entry"
+  event: Event!
+  block: Int!
+  timestamp: DateTime!
+}
+
 type Registrar @entity {
   "the index into the registrar list, which is what judgements point at"
   id: ID!

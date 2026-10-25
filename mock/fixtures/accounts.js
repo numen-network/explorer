@@ -502,6 +502,25 @@ export const seatVerdicts = () => [
     {id: squidId(HEAD - 3_000, 3), kind: 'FeePaid', fee: numn(12)},
 ]
 
+// a judgement entry as the index keeps it now, FeePaid with the fee it holds
+export const judgementEntry = (who, index, h, kind = 'FeePaid', signed = true) => ({
+    id: `${who.id}-${index}`,
+    kind,
+    fee: kind === 'FeePaid' ? numn(10 + index) : null,
+    timestamp: at(h),
+    account: who,
+    registrar: {index, account: REGISTRARS.find(r => r.index === index).account},
+    event: {extrinsic: signed ? {id: squidId(h, 1)} : null},
+})
+
+// what seat 2 holds now, newest first, the seat's own holder judged by a dispatch with no extrinsic
+export const seatEntries = () => [
+    judgementEntry(PEOPLE[4], 2, HEAD - 60),
+    judgementEntry({id: SUBJECT}, 2, HEAD - 900, 'KnownGood', false),
+    judgementEntry(PEOPLE[1], 2, HEAD - 2_100, 'Reasonable'),
+    judgementEntry(PEOPLE[0], 2, HEAD - 3_000, 'Erroneous'),
+]
+
 export const validatorRow = (traits = {}) => ({
     id: SUBJECT,
     active: true,
@@ -790,6 +809,7 @@ export function accountPage({
     timeline = [],
     seatEvents = [],
     verdicts = [],
+    entries = [],
     subs = [],
     delegationsOut = [],
     delegationsIn = [],
@@ -874,6 +894,10 @@ export function accountPage({
         eventsConnection: ({where}) => count(where.method_in ? (counts.seat ?? seatEvents.length) : (counts.timeline ?? timeline.length)),
         events: ({where}) => (where.method_eq === 'PureCreated' ? (pure ? [pure] : []) : where.method_in ? seatEvents : timeline),
         judgements: verdicts,
+        eventById: ({id}) => ({extrinsic: seatEvents.find(e => e.id === id)?.extrinsic ?? null}),
+        // the pending count narrows the seat's entries to FeePaid
+        identityJudgementsConnection: ({where}) => count(where.AND ? (counts.pending ?? entries.filter(e => e.kind === 'FeePaid').length) : (counts.current ?? entries.length)),
+        identityJudgements: paged(entries),
         accountsConnection: count(counts.subs ?? subs.length),
         accounts: ({where}) => (where?.id_in ? refs : subs),
         delegationsConnection: ({where}) => count(!where.target ? delegationsOut.length : where.track ? perTrack(where.track.id_eq) : allIn),

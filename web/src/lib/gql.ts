@@ -1002,6 +1002,7 @@ export interface IdentityRow extends AccountRef {
 }
 
 const HAS_IDENTITY = '{identityJson_isNull: false}'
+const FEE_PAID = '{kind_eq: "FeePaid"}'
 const IDENTITY_ORDER = '[identityRank_ASC, delegate_delegated_DESC_NULLS_LAST, identitySetBlock_ASC, id_ASC]'
 const SUB_ORDER = '[identitySubName_ASC_NULLS_LAST, id_ASC]'
 
@@ -1015,7 +1016,7 @@ export async function peopleCounts() {
     const good = judged(GOOD_JUDGEMENTS)
     const bad = judged(BAD_JUDGEMENTS)
     const r = await gql<
-        Record<'direct' | 'good' | 'goodAndBad' | 'bad' | 'subs' | 'usernames' | 'pending' | 'unbinding' | 'registrars' | 'retired', {totalCount: number}> & {
+        Record<'direct' | 'good' | 'goodAndBad' | 'bad' | 'subs' | 'usernames' | 'pending' | 'unbinding' | 'registrars' | 'requests' | 'retired', {totalCount: number}> & {
             authorities: {allocation: number}[]
             latest: {lastJudgementBlock: number | null}[]
         }
@@ -1031,6 +1032,7 @@ export async function peopleCounts() {
             unbinding: ${names('Unbinding')}
             authorities: usernameAuthorities(orderBy: id_ASC) { allocation }
             registrars: registrarsConnection(orderBy: index_ASC) { totalCount }
+            requests: identityJudgementsConnection(orderBy: id_ASC, where: ${FEE_PAID}) { totalCount }
             retired: registrarsConnection(orderBy: index_ASC, where: {retiredAt_isNull: false}) { totalCount }
             latest: registrars(orderBy: [lastJudgementBlock_DESC_NULLS_LAST, index_ASC], limit: 1) { lastJudgementBlock }
         }`
@@ -1047,6 +1049,7 @@ export async function peopleCounts() {
         authorities: r.authorities.length,
         allocationLeft: r.authorities.reduce((n, a) => n + a.allocation, 0),
         registrars: r.registrars.totalCount,
+        requests: r.requests.totalCount,
         retired: r.retired.totalCount,
         latestJudgement: r.latest[0]?.lastJudgementBlock ?? null,
     }
@@ -1457,16 +1460,60 @@ export interface SeatEventRow {
 const seatWhere = (index: number) =>
     `{pallet_eq: "Identity", method_in: ["JudgementRequested", "JudgementUnrequested", "JudgementGiven"], args_jsonContains: {registrarIndex: ${index}}}`
 
-export function seatEventCount(index: number) {
-    return gql<{conn: {totalCount: number}}>(`query { conn: eventsConnection(orderBy: id_ASC, where: ${seatWhere(index)}) { totalCount } }`).then(r => r.conn.totalCount)
-}
-
 export function seatEvents(index: number, limit: number, offset: number) {
     const where = seatWhere(index)
     return gql<{events: SeatEventRow[]; conn: {totalCount: number}}>(
         `query ($limit: Int!, $offset: Int!) {
             events(where: ${where}, orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { id method args block { height timestamp } extrinsic { id } }
             conn: eventsConnection(orderBy: ${TIMELINE_ORDER}, where: ${where}) { totalCount }
+        }`,
+        {limit, offset}
+    )
+}
+
+export interface JudgementEntryRow {
+    id: string
+    kind: string
+    fee: string | null
+    timestamp: string
+    account: AccountRef
+    registrar: {index: number; account: AccountRef | null}
+    event: {extrinsic: {id: string} | null}
+}
+
+const ENTRY_FIELDS = `id kind fee timestamp account { ${ACCOUNT_REF} } registrar { index account { ${ACCOUNT_REF} } } event { extrinsic { id } }`
+const seatEntries = (index: number) => `{registrar: {index_eq: ${index}}}`
+
+/** What the Registrar tabs count, and the extrinsic behind the seat's latest judgement. */
+export async function seatCounts(index: number) {
+    const r = await gql<{history: {totalCount: number}; current: {totalCount: number}; pending: {totalCount: number}; latest: {id: string}[]}>(
+        `query {
+            history: eventsConnection(orderBy: id_ASC, where: ${seatWhere(index)}) { totalCount }
+            current: identityJudgementsConnection(orderBy: id_ASC, where: ${seatEntries(index)}) { totalCount }
+            pending: identityJudgementsConnection(orderBy: id_ASC, where: {AND: [${seatEntries(index)}, ${FEE_PAID}]}) { totalCount }
+            latest: judgements(where: ${seatEntries(index)}, orderBy: [block_DESC, id_DESC], limit: 1) { id }
+        }`
+    )
+    const latest = r.latest[0]
+        ? await gql<{eventById: {extrinsic: {id: string} | null} | null}>(`query ($id: String!) { eventById(id: $id) { extrinsic { id } } }`, {id: r.latest[0].id})
+        : null
+    return {history: r.history.totalCount, current: r.current.totalCount, pending: r.pending.totalCount, latestExtrinsic: latest?.eventById?.extrinsic?.id ?? null}
+}
+
+export function seatJudgements(index: number, limit: number, offset: number) {
+    return gql<{identityJudgements: JudgementEntryRow[]}>(
+        `query ($limit: Int!, $offset: Int!) {
+            identityJudgements(where: ${seatEntries(index)}, orderBy: [block_DESC, id_ASC], limit: $limit, offset: $offset) { ${ENTRY_FIELDS} }
+        }`,
+        {limit, offset}
+    )
+}
+
+// the longest wait first
+export function pendingRequestsPage(limit: number, offset: number) {
+    return gql<{identityJudgements: JudgementEntryRow[]}>(
+        `query ($limit: Int!, $offset: Int!) {
+            identityJudgements(where: ${FEE_PAID}, orderBy: [block_ASC, id_ASC], limit: $limit, offset: $offset) { ${ENTRY_FIELDS} }
         }`,
         {limit, offset}
     )
