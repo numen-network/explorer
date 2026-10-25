@@ -1,4 +1,4 @@
-import type {ReactNode} from 'react'
+import type {CSSProperties, ReactNode} from 'react'
 import {ChevronRight} from 'lucide-react'
 import Link from 'next/link'
 import {cn} from 'cn'
@@ -31,6 +31,21 @@ function split(node: ArgNode): {lead: string[]; tail: ArgNode | string} {
 
 const isBlock = (tail: ArgNode | string) => typeof tail !== 'string' && (tail.kind === 'fields' || tail.kind === 'list' || tail.kind === 'call')
 
+// a table of fields, bare or under a call, lays out on the columns of the one holding it
+const isSubtable = (tail: ArgNode | string) => typeof tail !== 'string' && (tail.kind === 'fields' || tail.kind === 'call')
+
+// the columns a node takes from where it starts, a key column, one per
+// variant depth and whatever a table nested in a row takes in turn
+function span(node: ArgNode): number {
+    if (node.kind === 'call') return span(node.args)
+    if (node.kind !== 'fields') return 1
+    const rows = node.fields.map(([, n]) => {
+        const {lead, tail} = split(n)
+        return lead.length + (typeof tail === 'string' ? 1 : span(tail))
+    })
+    return 1 + Math.max(1, ...rows)
+}
+
 const CELL = 'px-3 py-1.5'
 
 function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
@@ -50,15 +65,15 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
             return <AccountLink full={!ctx.short} addr={ss58Encode(node.id, ctx.chain.ss58)} acc={node.acc} />
         case 'amount':
             return (
-                <span className="whitespace-nowrap">
-                    {fmtBalance(node.planck, ctx.chain.decimals)} <span className="text-muted-foreground">{ctx.chain.symbol}</span>
-                </span>
+                <>
+                    <span className="whitespace-nowrap">{fmtBalance(node.planck, ctx.chain.decimals)}</span> <span className="text-muted-foreground">{ctx.chain.symbol}</span>
+                </>
             )
         case 'gasPrice':
             return (
-                <span className="whitespace-nowrap">
-                    {fmtBalance(node.wei, 9)} <span className="text-muted-foreground">gwei</span>
-                </span>
+                <>
+                    <span className="whitespace-nowrap">{fmtBalance(node.wei, 9)}</span> <span className="text-muted-foreground">gwei</span>
+                </>
             )
         case 'time':
             return <TimeCell iso={node.iso} cycle />
@@ -150,9 +165,9 @@ function PreimageFold({preimage, ctx}: {preimage: Preimage; ctx: Ctx}) {
     )
 }
 
-function Tail({tail, ctx, depth}: {tail: ArgNode | string; ctx: Ctx; depth: number}) {
+function Tail({tail, ctx, depth, sub = false}: {tail: ArgNode | string; ctx: Ctx; depth: number; sub?: boolean}) {
     if (typeof tail === 'string') return <div className={CELL}>{tail}</div>
-    if (isBlock(tail)) return <Body node={tail} ctx={ctx} depth={depth + 1} />
+    if (isBlock(tail)) return <Body node={tail} ctx={ctx} depth={depth + 1} sub={sub} />
     return (
         <div className={cn(CELL, 'wrap-anywhere')}>
             <Inline node={tail} ctx={ctx} />
@@ -160,65 +175,66 @@ function Tail({tail, ctx, depth}: {tail: ArgNode | string; ctx: Ctx; depth: numb
     )
 }
 
-// variant cells, then the value running to the end of the row from grid
-// column `first`. in a narrow table the cells of a variant holding a table of
-// its own make a row above that table
-function Cells({node, ctx, depth, first}: {node: ArgNode; ctx: Ctx; depth: number; first: number}) {
+// variant cells, then the value running to the end of the row from the grid
+// column the row sets in --at. in a narrow table the cells of a variant holding
+// a table of its own make a row above that table. a table of fields in a row of
+// fields takes up the columns left to it
+function Cells({node, ctx, depth, sub = false}: {node: ArgNode; ctx: Ctx; depth: number; sub?: boolean}) {
     const {lead, tail} = split(node)
+    const spread = sub && isSubtable(tail)
+    const above = isBlock(tail) && lead.length > 0
     return (
         <>
-            <div className={cn('contents', isBlock(tail) && '@max-xs:flex @max-xs:border-b @max-xs:*:last:border-r-0')}>
+            <div className={cn('contents', above && '@max-xs:col-span-full @max-xs:flex @max-xs:border-b @max-xs:*:last:border-r-0')}>
                 {lead.map((name, i) => (
-                    <div key={i} className={cn(CELL, 'border-r whitespace-nowrap')}>
+                    <div key={i} className={cn(CELL, 'border-r whitespace-nowrap [grid-column:calc(var(--at)+var(--i))]')} style={{'--i': i} as CSSProperties}>
                         {name}
                     </div>
                 ))}
             </div>
-            <div className="min-w-0 flex-1" style={{gridColumn: `${first + lead.length} / -1`}}>
-                <Tail tail={tail} ctx={ctx} depth={depth} />
+            <div className={cn('min-w-0 flex-1 [grid-column:calc(var(--at)+var(--lead))/-1]', spread && 'grid grid-cols-subgrid', above && '@max-xs:[grid-column:1/-1]')} style={{'--lead': lead.length} as CSSProperties}>
+                <Tail tail={tail} ctx={ctx} depth={depth} sub={spread} />
             </div>
         </>
     )
 }
 
-function Body({node, ctx, depth}: {node: ArgNode; ctx: Ctx; depth: number}) {
-    if (node.kind === 'fields') return <Fields fields={node.fields} ctx={ctx} depth={depth} />
+function Body({node, ctx, depth, sub = false}: {node: ArgNode; ctx: Ctx; depth: number; sub?: boolean}) {
+    if (node.kind === 'fields') return <Fields node={node} ctx={ctx} depth={depth} sub={sub} />
     if (node.kind === 'list') return <List node={node} ctx={ctx} depth={depth} />
     if (node.kind === 'call')
         return (
             <>
-                <div className={cn(CELL, 'border-b font-mono')}>{node.name}</div>
-                <Body node={node.args} ctx={ctx} depth={depth} />
+                <div className={cn(CELL, 'border-b font-mono', sub && 'col-span-full')}>{node.name}</div>
+                <Body node={node.args} ctx={ctx} depth={depth} sub={sub} />
             </>
         )
     return (
         <div className="flex">
-            <Cells node={node} ctx={ctx} depth={depth} first={1} />
+            <Cells node={node} ctx={ctx} depth={depth} />
         </div>
     )
 }
 
 // keys and variant cells line up down the whole table through subgrid, one
-// column per variant depth. in a narrow table a row holding a table of its own
-// puts its key on a line above it, a narrower one does the same for a row of
-// variant cells, and a very narrow one for every row
-function Fields({fields, ctx, depth}: {fields: [string, ArgNode][]; ctx: Ctx; depth: number}) {
-    const lead = Math.max(0, ...fields.map(([, node]) => split(node).lead.length))
-    const columns = ['max-content', ...Array<string>(lead).fill('max-content'), 'minmax(0,1fr)'].join(' ')
+// column per variant depth, and so do the keys of the tables nested in it. in a
+// narrow table a row holding a table of its own puts its key on a line above
+// and starts its cells from the first column, a narrower one does the same for
+// a row of variant cells, and a very narrow one for every row
+function Fields({node, ctx, depth, sub}: {node: Extract<ArgNode, {kind: 'fields'}>; ctx: Ctx; depth: number; sub: boolean}) {
+    const columns = [...Array<string>(span(node) - 1).fill('max-content'), 'minmax(0,1fr)'].join(' ')
     return (
-        <div className="grid" style={{gridTemplateColumns: columns}}>
-            {fields.map(([key, node]) => {
-                const {lead, tail} = split(node)
+        <div className={cn('grid grid-cols-(--cols)', sub && 'col-span-full grid-cols-subgrid')} style={{'--cols': columns} as CSSProperties}>
+            {node.fields.map(([key, value]) => {
+                const {lead, tail} = split(value)
                 const tagged = lead.length > 0
                 const nested = isBlock(tail)
                 return (
-                    <div key={key} className={cn('col-span-full grid grid-cols-subgrid border-t first:border-t-0 @max-[12rem]:block', tagged && '@max-xs:block', nested && '@max-lg:block')}>
-                        <div className={cn(CELL, 'border-r text-muted-foreground @max-[12rem]:border-r-0 @max-[12rem]:border-b', depth === 0 && 'bg-background', tagged && '@max-xs:border-r-0 @max-xs:border-b', nested && '@max-lg:border-r-0 @max-lg:border-b')}>
+                    <div key={key} className={cn('col-span-full grid grid-cols-subgrid border-t [--at:2] first:border-t-0 @max-[12rem]:[--at:1]', tagged && '@max-xs:[--at:1]', nested && '@max-lg:[--at:1]')}>
+                        <div className={cn(CELL, 'border-r text-muted-foreground @max-[12rem]:col-span-full @max-[12rem]:border-r-0 @max-[12rem]:border-b', depth === 0 && 'bg-background', tagged && '@max-xs:col-span-full @max-xs:border-r-0 @max-xs:border-b', nested && '@max-lg:col-span-full @max-lg:border-r-0 @max-lg:border-b')}>
                             {key}
                         </div>
-                        <div className={cn('contents @max-[12rem]:flex', tagged && '@max-xs:flex', nested && '@max-lg:flex @max-xs:block')}>
-                            <Cells node={node} ctx={ctx} depth={depth} first={2} />
-                        </div>
+                        <Cells node={value} ctx={ctx} depth={depth} sub />
                     </div>
                 )
             })}

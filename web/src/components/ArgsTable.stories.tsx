@@ -243,6 +243,33 @@ export const DecisionStartedTally = eventStory(
     ['Big Spender', '7,519,568', '3,273,568']
 )
 
+// every cell starts on a column line of the outermost table, whatever the width
+function expectColumnsAligned(canvasElement: HTMLElement) {
+    const grid = canvasElement.querySelector<HTMLElement>('[data-slot=args-table] > .grid')!
+    let at = grid.getBoundingClientRect().left
+    const lines = [at, ...getComputedStyle(grid).gridTemplateColumns.split(' ').map(w => (at += parseFloat(w)))]
+    for (const cell of grid.querySelectorAll<HTMLElement>('.px-3')) {
+        const left = cell.getBoundingClientRect().left
+        expect(lines.some(line => Math.abs(line - left) < 0.5), `${cell.textContent} starts at ${left}, off the lines ${lines.join(', ')}`).toBe(true)
+    }
+}
+
+// a table nested in a row takes its columns from the outer one, so the variant
+// cell of one row and the keys of the table in another line up
+export const NestedKeysAligned: Story = {
+    ...DecisionStartedTally,
+    play: async ({canvasElement}) => expectColumnsAligned(canvasElement),
+}
+
+// long keys widen the first column, the values right of it still fit their cells
+export const NestedKeysAlignedLongKeys: Story = {
+    ...ReferendumSubmit,
+    play: async ({canvasElement}) => {
+        expectColumnsAligned(canvasElement)
+        expectFits(...canvasElement.querySelectorAll('[data-slot=args-table]'))
+    },
+}
+
 // a module error reads by the pallet and the error it names
 export const ExtrinsicFailedModuleError = eventStory(
     'System',
