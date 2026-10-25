@@ -84,6 +84,16 @@ export const Images: Story = {
     },
 }
 
+// an image that won't load, like a web page address, falls back to a link named by its alt or its address
+export const BrokenImages: Story = {
+    args: {text: '![shot](https://127.0.0.1:1/shot.png)\n\n![](https://127.0.0.1:1/blank.png)'},
+    play: async ({canvas, canvasElement}) => {
+        await waitFor(() => expect(canvasElement.querySelectorAll('img')).toHaveLength(0))
+        expect(canvas.getByRole('link', {name: 'shot'})).toHaveAttribute('href', 'https://127.0.0.1:1/shot.png')
+        expect(canvas.getByRole('link', {name: 'https://127.0.0.1:1/blank.png'})).toHaveAttribute('href', 'https://127.0.0.1:1/blank.png')
+    },
+}
+
 // a lone newline stays a line break
 export const LineBreaks: Story = {
     args: {text: 'Votes within a day\nNo split votes\nAsk on Discord'},

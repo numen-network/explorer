@@ -2,18 +2,14 @@ import ReactMarkdown, {type Components} from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 import {cn} from 'cn'
-import {https} from '@/lib/url'
+import MarkdownImage from '@/components/MarkdownImage'
 
 const components: Components = {
     a: ({node: _, ...props}) => (props.href?.startsWith('#') ? <a {...props} /> : <a {...props} target="_blank" rel="noopener noreferrer" />),
     img: ({src, alt}) => {
         const href = typeof src === 'string' ? src : undefined
-        if (https(href)) return <img src={href} alt={alt ?? ''} loading="lazy" referrerPolicy="no-referrer" />
-        return (
-            <a href={href} target="_blank" rel="noopener noreferrer">
-                {alt || href}
-            </a>
-        )
+        // keyed so a fixed address gets a fresh try
+        return <MarkdownImage key={href} src={href} alt={alt} />
     },
     table: ({node: _, ...props}) => (
         <div className="overflow-x-auto">
