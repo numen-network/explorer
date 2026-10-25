@@ -38,12 +38,12 @@ export const NearlyAllAye = withPlay(
 export const VoteAndDiscuss = withPlay(curatedCase(5), async ({canvasElement}) => {
     const page = within(canvasElement)
     await expect(page.getByRole('link', {name: 'Vote'})).toHaveAttribute('href', `${WALLET_URL}/?vote=5&genesis=${GENESIS_HASH}`)
-    await expect(page.getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', CONFIG.discordInvite)
+    await expect(page.getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', CONFIG.socials.discord)
 })
 
 // an approved referendum takes no more votes, so only the discussion is left
 export const DiscussOnly = withPlay(curatedCase(0), async ({canvasElement}) => {
     const page = within(canvasElement)
     await expect(page.queryByRole('link', {name: 'Vote'})).toBeNull()
-    await expect(page.getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', CONFIG.discordInvite)
+    await expect(page.getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', CONFIG.socials.discord)
 })

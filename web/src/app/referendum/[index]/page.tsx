@@ -342,7 +342,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 </Button>
             )}
             <Button asChild variant="outline" size="lg" className="flex-1 bg-card">
-                <a href={CONFIG.discordInvite} target="_blank" rel="noopener">
+                <a href={CONFIG.socials.discord} target="_blank" rel="noopener">
                     <SiDiscord title="" />
                     Discuss
                 </a>

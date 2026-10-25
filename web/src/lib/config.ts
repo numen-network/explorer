@@ -14,7 +14,14 @@ interface Network {
 
 // every value the explorer shows that the chain does not hold, filled in by hand
 export const CONFIG = {
-    discordInvite: 'https://discord.gg/ajPKdvrvJK',
+    socials: {
+        github: 'https://github.com/numen-network/explorer',
+        discord: 'https://discord.gg/ajPKdvrvJK',
+        x: 'https://x.com/NumenOnchain',
+        telegram: 'https://t.me/numen_network',
+        bitcointalk: 'https://bitcointalk.org/index.php?action=profile;u=3763959',
+        youtube: 'https://www.youtube.com/@numen_network',
+    },
     // a sovereign account has no key to register an identity with, so the name
     // it goes by is the explorer's to give
     wellKnown: {

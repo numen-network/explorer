@@ -3,14 +3,16 @@ import {SiBitcoin, SiDiscord, SiGithub, SiTelegram, SiX, SiYoutube} from '@icons
 import {Button} from '@/components/ui/button'
 import {CONFIG} from '@/lib/config'
 
-const SOCIAL: [label: string, href: string, Mark: IconType][] = [
-    ['GitHub', 'https://github.com/numen-network/explorer', SiGithub],
-    ['Discord', CONFIG.discordInvite, SiDiscord],
-    ['X', 'https://x.com/NumenOnchain', SiX],
-    ['Telegram', 'https://t.me/numen_network', SiTelegram],
-    ['Bitcointalk', 'https://bitcointalk.org/index.php?action=profile;u=3763959', SiBitcoin],
-    ['YouTube', 'https://www.youtube.com/@numen_network', SiYoutube],
-]
+type Social = keyof typeof CONFIG.socials
+
+const MARK: Record<Social, [label: string, Mark: IconType]> = {
+    github: ['GitHub', SiGithub],
+    discord: ['Discord', SiDiscord],
+    x: ['X', SiX],
+    telegram: ['Telegram', SiTelegram],
+    bitcointalk: ['Bitcointalk', SiBitcoin],
+    youtube: ['YouTube', SiYoutube],
+}
 
 export default function Footer() {
     return (
@@ -18,13 +20,16 @@ export default function Footer() {
             <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-8 gap-y-3 px-6 py-4 text-xs text-muted-foreground">
                 <span>© 2026 Numen Network</span>
                 <div className="ml-auto flex items-center">
-                    {SOCIAL.map(([label, href, Mark]) => (
-                        <Button key={label} asChild variant="ghost" size="icon" className="text-dim hover:bg-transparent hover:text-foreground">
-                            <a href={href} target="_blank" rel="noopener" aria-label={label}>
-                                <Mark size={16} title="" />
-                            </a>
-                        </Button>
-                    ))}
+                    {(Object.keys(CONFIG.socials) as Social[]).map(key => {
+                        const [label, Mark] = MARK[key]
+                        return (
+                            <Button key={key} asChild variant="ghost" size="icon" className="text-dim hover:bg-transparent hover:text-foreground">
+                                <a href={CONFIG.socials[key]} target="_blank" rel="noopener" aria-label={label}>
+                                    <Mark size={16} title="" />
+                                </a>
+                            </Button>
+                        )
+                    })}
                 </div>
             </div>
         </footer>
