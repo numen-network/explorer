@@ -5,6 +5,7 @@ import {isRedirectError} from 'next/dist/client/components/redirect-error'
 import {cloneElement, isValidElement, type ReactNode} from 'react'
 import {paging} from '../src/lib/paging'
 import {base} from '../../mock/fixtures.js'
+import {discussions} from './discussions'
 import {graphqlData} from './graphql'
 
 interface PageProps {
@@ -50,7 +51,8 @@ export const pageStory = (
     data: Record<string, unknown>,
     {params = {}, searchParams = {}, redirect, msw = []}: {params?: object; searchParams?: object; redirect?: string; msw?: RequestHandler[]} = {}
 ): StoryObj => ({
-    parameters: {params, searchParams, redirect, msw: [graphqlData({...base, ...data}), ...msw]},
+    // a story's own handlers come before the empty thread map, so one that names a thread wins
+    parameters: {params, searchParams, redirect, msw: [graphqlData({...base, ...data}), ...msw, discussions({})]},
 })
 
 // the page a list ends on at the default page size

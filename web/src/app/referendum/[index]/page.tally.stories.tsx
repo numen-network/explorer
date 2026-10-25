@@ -1,8 +1,10 @@
+import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {GENESIS_HASH, numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {standard} from '../../../../../mock/fixtures/governance.js'
 import {CONFIG} from '@/lib/config'
 import {WALLET_URL} from '@/lib/wallet'
+import {discussions} from '../../../../.storybook/discussions'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 import {card, curatedCase, cast, withPlay, deciding, extremeAmounts} from './page.stories.helpers'
@@ -46,4 +48,20 @@ export const DiscussOnly = withPlay(curatedCase(0), async ({canvasElement}) => {
     const page = within(canvasElement)
     await expect(page.queryByRole('link', {name: 'Vote'})).toBeNull()
     await expect(page.getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', CONFIG.socials.discord)
+})
+
+// Gov Bot's thread links in front of the empty map every page story starts with
+const withThreads = (s: StoryObj, links: Record<string, string>): StoryObj => ({
+    ...s,
+    parameters: {...s.parameters, msw: [discussions(links), ...(s.parameters?.msw ?? [])]},
+})
+
+// a referendum Gov Bot opened a thread for sends the discussion straight there
+export const DiscussThread = withPlay(withThreads(curatedCase(5), {5: 'https://discord.com/channels/999/555'}), async ({canvasElement}) => {
+    await expect(within(canvasElement).getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', 'https://discord.com/channels/999/555')
+})
+
+// a link that is no Discord thread never makes it onto the page
+export const ForeignThreadLink = withPlay(withThreads(curatedCase(5), {5: 'https://evil.test/thread'}), async ({canvasElement}) => {
+    await expect(within(canvasElement).getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', CONFIG.socials.discord)
 })

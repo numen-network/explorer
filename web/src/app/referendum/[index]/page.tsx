@@ -23,6 +23,7 @@ import {Separator} from '@/components/ui/separator'
 import {withProposalViews} from '@/lib/args'
 import {chainDbHead, chainProps, type ChainProps} from '@/lib/chain'
 import {CONFIG} from '@/lib/config'
+import {discussionOf} from '@/lib/discussions'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
@@ -134,11 +135,12 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const tab = String(sp.tab ?? '')
     if (!/^\d+$/.test(rawIndex)) notFound()
     const pg = paging(sp)
-    const [chain, head, data, snapshots] = await Promise.all([
+    const [chain, head, data, snapshots, thread] = await Promise.all([
         chainProps(),
         chainDbHead(),
         referendumDetail(Number(rawIndex), {limit: pg.size, offset: pg.offset}),
         tallySnapshots(Number(rawIndex)),
+        discussionOf(Number(rawIndex)),
     ])
     const r = data.referendums[0]
     if (!r) notFound()
@@ -342,7 +344,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 </Button>
             )}
             <Button asChild variant="outline" size="lg" className="flex-1 bg-card">
-                <a href={CONFIG.socials.discord} target="_blank" rel="noopener">
+                <a href={thread ?? CONFIG.socials.discord} target="_blank" rel="noopener">
                     <SiDiscord title="" />
                     Discuss
                 </a>
