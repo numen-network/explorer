@@ -1,18 +1,19 @@
 import Link from 'next/link'
 import {notFound, redirect} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
-import {DetailCard, DetailRow, JsonBlock} from '@/components/Detail'
+import {DetailCard, DetailRow} from '@/components/Detail'
 import {EventsTable} from '@/components/EventsTable'
 import Pager from '@/components/Pager'
 import {TabNav, panelTabs} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink, EvmTxLink} from '@/components/links'
+import {ArgsView} from '@/components/ArgsTable'
 import {CallTree} from '@/components/CallTree'
 import {ResultBadge} from '@/components/calls'
 import {Card} from '@/components/ui/card'
 import {Item} from '@/components/ui/item'
-import {withCallViews, withEventViews} from '@/lib/args'
+import {describeError, withCallViews, withEventViews} from '@/lib/args'
 import {chainProps} from '@/lib/chain'
 import {extrinsicPath, fmtBalance, fmtCount, shortHash} from '@/lib/format'
 import {extrinsicDetail, extrinsicMatches, type ExtrinsicHit} from '@/lib/gql'
@@ -161,7 +162,7 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
                     )}
                     {!x.success && (
                         <DetailRow label="Error">
-                            <JsonBlock value={x.error} />
+                            <ArgsView node={describeError(x.error, x.block.specVersion)} raw={x.error} chain={chain} />
                         </DetailRow>
                     )}
                 </DetailCard>

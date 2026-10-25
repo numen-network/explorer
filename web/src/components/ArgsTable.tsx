@@ -4,8 +4,9 @@ import Link from 'next/link'
 import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
 import {JsonBlock, NONE} from '@/components/Detail'
-import {BlockLink, ReferendumLink} from '@/components/links'
+import {BlockLink, BountyLink, ReferendumLink} from '@/components/links'
 import SegmentedControl from '@/components/SegmentedControl'
+import {TimeCell} from '@/components/TimeCell'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Tabs, TabsContent} from '@/components/ui/tabs'
@@ -53,10 +54,46 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
                     {fmtBalance(node.planck, ctx.chain.decimals)} <span className="text-muted-foreground">{ctx.chain.symbol}</span>
                 </span>
             )
+        case 'gasPrice':
+            return (
+                <span className="whitespace-nowrap">
+                    {fmtBalance(node.wei, 9)} <span className="text-muted-foreground">gwei</span>
+                </span>
+            )
+        case 'time':
+            return <TimeCell iso={node.iso} cycle />
         case 'block':
             return <BlockLink height={node.height} />
+        case 'bounty':
+            return <BountyLink index={node.index} title={node.title} />
         case 'referendum':
-            return <ReferendumLink index={node.index} />
+            return <ReferendumLink index={node.index} title={node.title} />
+        case 'spend':
+            return (
+                <>
+                    <span className="font-mono">#{fmtInt(node.index)}</span>
+                    {node.referendum && (
+                        <>
+                            {' · '}
+                            <Link href={`/referendum/${node.referendum.index}`} className="text-primary hover:underline">
+                                {node.referendum.title ?? `Referendum #${fmtInt(node.referendum.index)}`}
+                            </Link>
+                        </>
+                    )}
+                </>
+            )
+        case 'registrar':
+            return (
+                <>
+                    <span className="font-mono">#{fmtInt(node.index)}</span>
+                    {node.account && (
+                        <>
+                            {' · '}
+                            <AccountLink addr={ss58Encode(node.account.id, ctx.chain.ss58)} acc={node.account} />
+                        </>
+                    )}
+                </>
+            )
         case 'delay':
             return <span className="whitespace-nowrap">{fmtCount(node.blocks, 'block')}</span>
         case 'vote':

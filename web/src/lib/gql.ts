@@ -329,7 +329,7 @@ export interface ExtrinsicRow {
     minerFee: string
     treasuryFee: string
     signer: AccountRef | null
-    block: {height: number; timestamp: string}
+    block: {height: number; timestamp: string; specVersion: number}
     // set when the row stands for one call of the extrinsic, whose name,
     // result and leaves then fill the fields above
     call?: {id: string; within: CallRef | null}
@@ -360,7 +360,7 @@ export interface EventRow {
     block: {height: number; timestamp: string; specVersion: number}
 }
 
-const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method leafCalls success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp }`
+const EXTRINSIC_FIELDS = `id indexInBlock hash pallet method leafCalls success error fee tip minerFee treasuryFee signer { ${ACCOUNT_REF} } block { height timestamp specVersion }`
 const CALL_FIELDS = `id address pallet method args success origin { ${ACCOUNT_REF} } events(orderBy: indexInBlock_ASC) { pallet method } block { specVersion } subcalls(limit: 1) { id }`
 const EVENT_FIELDS = `id indexInBlock phase pallet method args call { id pallet method } extrinsic { id } block { height timestamp specVersion }`
 
@@ -1810,6 +1810,24 @@ export function bountyDetail(index: number, page: Slice) {
             childCount: childBountiesConnection(where: {parent: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
         }`,
         {index, limit: page.limit, offset: page.offset}
+    )
+}
+
+/** What the index knows to name a referendum, bounty, treasury spend or registrar by. */
+export function indexTitles({referenda, bounties, spends, registrars}: {referenda: number[]; bounties: number[]; spends: string[]; registrars: number[]}) {
+    return gql<{
+        referendums: {index: number; title: string | null}[]
+        bounties: {index: number; description: string | null}[]
+        treasurySpends: {id: string; referendum: {index: number; title: string | null} | null}[]
+        registrars: {index: number; account: AccountRef | null}[]
+    }>(
+        `query ($referenda: [Int!], $bounties: [Int!], $spends: [String!], $registrars: [Int!]) {
+            referendums(where: {index_in: $referenda}, orderBy: index_ASC, limit: ${Math.max(1, referenda.length)}) { index title }
+            bounties(where: {index_in: $bounties}, orderBy: index_ASC, limit: ${Math.max(1, bounties.length)}) { index description }
+            treasurySpends(where: {id_in: $spends}, orderBy: id_ASC, limit: ${Math.max(1, spends.length)}) { id referendum { index title } }
+            registrars(where: {index_in: $registrars}, orderBy: index_ASC, limit: ${Math.max(1, registrars.length)}) { index account { ${ACCOUNT_REF} } }
+        }`,
+        {referenda, bounties, spends, registrars}
     )
 }
 

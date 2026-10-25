@@ -109,7 +109,7 @@ export const block = (height, traits = {}) => ({
 
 export const extrinsic = (height, index, traits = {}) => ({
     id: squidId(height, index),
-    block: {height, timestamp: at(height)},
+    block: {height, timestamp: at(height), specVersion: block(height).specVersion},
     indexInBlock: index,
     hash: hashOf('extrinsic', height, index),
     pallet: 'Balances',

@@ -2,7 +2,8 @@ import {TypeKind} from '@subsquid/scale-codec'
 import {hexToBytes} from '@noble/hashes/utils.js'
 import {Runtime} from '@subsquid/substrate-runtime'
 import type {Field, Type} from '@subsquid/substrate-runtime/lib/metadata'
-import {fmtCount, fmtInt} from '@/lib/format'
+import {fmtCount, fmtInt, fmtPct, trackLabel} from '@/lib/format'
+import type {AccountRef} from '@/lib/gql'
 import type {IdentityRef} from '@/lib/identity'
 import {runtimeAt} from '@/lib/runtime'
 
@@ -14,8 +15,13 @@ export type ArgNode =
     | {kind: 'hex'; hex: string; preimage?: Preimage}
     | {kind: 'account'; id: string; acc?: IdentityRef}
     | {kind: 'amount'; planck: string}
+    | {kind: 'gasPrice'; wei: string}
+    | {kind: 'time'; iso: string}
+    | {kind: 'bounty'; index: number; title?: string | null}
+    | {kind: 'spend'; id: string; index: number; referendum?: {index: number; title: string | null} | null}
+    | {kind: 'registrar'; index: number; account?: AccountRef | null}
     | {kind: 'block'; height: number}
-    | {kind: 'referendum'; index: number}
+    | {kind: 'referendum'; index: number; title?: string | null}
     | {kind: 'delay'; blocks: number}
     | {kind: 'vote'; aye: boolean; conviction: number}
     | {kind: 'variant'; name: string; inner: ArgNode | null}
@@ -37,8 +43,16 @@ declare module '@subsquid/substrate-runtime/lib/metadata/types' {
 const NONE: ArgNode = {kind: 'none'}
 const CALL = 'numen_runtime::RuntimeCall'
 const SPANS = new Set(['delay', 'after', 'period'])
+const GAS_PRICES = new Set(['gasPrice', 'maxFeePerGas', 'maxPriorityFeePerGas', 'fee'])
+const PER_THINGS: Record<string, number> = {
+    'sp_arithmetic::per_things::Percent': 100,
+    'sp_arithmetic::per_things::Permill': 1_000_000,
+    'sp_arithmetic::per_things::Perbill': 1_000_000_000,
+}
 
 class Walker {
+    private trackNames?: Map<number, string>
+
     constructor(readonly rt: Runtime) {}
 
     get types(): Type[] {
@@ -65,8 +79,16 @@ class Walker {
     }
 
     // a block number type also counts blocks, these fields hold a span rather than a height
+    // every EVM number is a U256, only the field name tells an amount from a gas price
+    // child bounty ids run apart from bounty ids and have no page of their own
     field(f: Field, value: any): ArgNode {
-        if (SPANS.has(f.name!) && /BlockNumber/.test(f.typeName ?? '') && value != null) return {kind: 'delay', blocks: Number(value)}
+        if (value == null) return NONE
+        const typeName = f.typeName ?? ''
+        const name = f.name!
+        if (SPANS.has(name) && /BlockNumber/.test(typeName)) return {kind: 'delay', blocks: Number(value)}
+        if (/\bU256\b/.test(typeName) && name === 'value') return {kind: 'amount', planck: String(value)}
+        if (/\bU256\b/.test(typeName) && GAS_PRICES.has(name)) return {kind: 'gasPrice', wei: String(value)}
+        if (typeName === 'BountyIndex' && !name.startsWith('child')) return {kind: 'bounty', index: Number(value)}
         return this.node(f.type, value, f.typeName)
     }
 
@@ -86,6 +108,12 @@ class Walker {
         const path = this.path(ti)
         if (path === CALL) return this.call(value)
         if (path === 'pallet_conviction_voting::vote::Vote') return {kind: 'vote', aye: (value & 0x80) !== 0, conviction: value & 0x7f}
+        if (path === 'sp_runtime::ModuleError') return {kind: 'plain', text: this.moduleError(value)}
+        if (path && path in PER_THINGS) return {kind: 'plain', text: fmtPct(value, PER_THINGS[path])}
+        if (/\b(ClassOf|TrackIdOf)\b/.test(typeName)) return {kind: 'plain', text: this.track(Number(value))}
+        if (typeName === 'T::Moment') return {kind: 'time', iso: new Date(Number(value)).toISOString()}
+        if (/\bTaskAddress\b/.test(typeName)) return {kind: 'fields', fields: [['block', {kind: 'block', height: Number(value[0])}], ['index', {kind: 'plain', text: fmtInt(value[1])}]]}
+        if (/\bschedule::Period\b/.test(typeName)) return {kind: 'fields', fields: [['period', {kind: 'delay', blocks: Number(value[0])}], ['count', {kind: 'plain', text: fmtInt(value[1])}]]}
         switch (t.kind) {
             case TypeKind.Primitive:
                 return this.primitive(t.primitive, value, typeName)
@@ -115,9 +143,13 @@ class Walker {
     primitive(primitive: string, value: any, typeName: string): ArgNode {
         if (primitive === 'Bool') return {kind: 'plain', text: String(value)}
         if (primitive === 'Str' || primitive === 'Char') return {kind: 'plain', text: value}
-        if (/Balance/.test(typeName)) return {kind: 'amount', planck: String(value)}
+        if (/Balance/.test(typeName) || typeName === 'Votes') return {kind: 'amount', planck: String(value)}
         if (/BlockNumber/.test(typeName)) return {kind: 'block', height: Number(value)}
         if (/ReferendumIndex|PollIndex/.test(typeName)) return {kind: 'referendum', index: Number(value)}
+        // the indexer keys a spend_local by its proposal index and a spend by its own
+        if (typeName === 'ProposalIndex') return {kind: 'spend', id: `local-${value}`, index: Number(value)}
+        if (typeName === 'SpendIndex') return {kind: 'spend', id: `spend-${value}`, index: Number(value)}
+        if (typeName === 'RegistrarIndex') return {kind: 'registrar', index: Number(value)}
         return {kind: 'plain', text: fmtInt(value)}
     }
 
@@ -139,6 +171,26 @@ class Walker {
         if (v.fields.length === 1 && !only.name) return {kind: 'variant', name: v.name, inner: this.node(only.type, value.value, only.typeName)}
         if (v.fields.every(f => f.name)) return {kind: 'variant', name: v.name, inner: this.fields(v.fields, value)}
         return {kind: 'variant', name: v.name, inner: {kind: 'fields', fields: v.fields.map((f, i) => [String(i), this.node(f.type, value.value[i], f.typeName)])}}
+    }
+
+    // track ids are keys into the Referenda.Tracks constant of the same runtime
+    track(id: number): string {
+        this.trackNames ??= new Map((this.rt.getConstant('Referenda.Tracks') as [number, {name: string}][]).map(([i, t]) => [i, t.name.replace(/\0+$/, '')]))
+        const name = this.trackNames.get(id)
+        if (name == null) throw new Error(`no track ${id} in spec ${this.rt.specVersion}`)
+        return trackLabel(name)
+    }
+
+    // a module error is a pallet index and an index into that pallet's error enum,
+    // the metadata of the runtime the block ran names both
+    moduleError(err: {index: number; error: string}): string {
+        const meta = this.rt.metadata
+        if (meta.__kind !== 'V14') throw new Error(`unhandled metadata ${meta.__kind}`)
+        const pallet = meta.value.pallets.find(p => p.index === err.index)
+        const def = meta.value.lookup.types.find(t => t.id === pallet?.errors?.type)?.type.def
+        const variant = def?.__kind === 'Variant' ? def.value.variants.find(v => v.index === parseInt(err.error.slice(2, 4), 16)) : undefined
+        if (pallet == null || variant == null) throw new Error(`no module error ${err.error} in pallet ${err.index}`)
+        return `${pallet.name}.${variant.name}`
     }
 
     // a proposal small enough to ride along with its referendum, still encoded
@@ -212,6 +264,16 @@ export function describeEvent(event: {pallet: string; method: string; args: unkn
     if (fields.every(f => f.name)) return w.fields(fields, event.args)
     if (fields.length === 1) return w.node(fields[0].type, event.args, fields[0].typeName)
     return {kind: 'fields', fields: fields.map((f, i) => [String(i), w.node(f.type, (event.args as unknown[])[i], f.typeName)])}
+}
+
+/** The error an extrinsic failed with, named by the runtime it ran under, null when that runtime is not among the known ones. */
+export function describeError(error: unknown, specVersion: number | null): ArgNode | null {
+    const rt = error == null ? undefined : runtimeAt(specVersion)
+    if (!rt) return null
+    const w = new Walker(rt)
+    const ti = w.types.findIndex((_, i) => w.path(i) === 'sp_runtime::DispatchError')
+    if (ti < 0) throw new Error(`no DispatchError in spec ${rt.specVersion}`)
+    return w.node(ti, error)
 }
 
 /** Every node of one kind in a set of args, for a lookup to mark up in place. */

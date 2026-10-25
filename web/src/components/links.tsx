@@ -18,12 +18,22 @@ export function BlockLink({height}: {height: number}) {
     )
 }
 
-export function ReferendumLink({index}: {index: number}) {
+// a number with its title, or the bare number when the index has none
+function NumberedLink({href, index, title}: {href: string; index: number; title?: string | null}) {
     return (
-        <Link href={`/referendum/${index}`} className="font-mono text-primary hover:underline">
-            #{fmtInt(index)}
+        <Link href={href} className="text-primary hover:underline">
+            <span className="font-mono">#{fmtInt(index)}</span>
+            {title && <span className="text-foreground"> · {title}</span>}
         </Link>
     )
+}
+
+export function ReferendumLink({index, title}: {index: number; title?: string | null}) {
+    return <NumberedLink href={`/referendum/${index}`} index={index} title={title} />
+}
+
+export function BountyLink({index, title}: {index: number; title?: string | null}) {
+    return <NumberedLink href={`/bounty/${index}`} index={index} title={title} />
 }
 
 // the hash still resolves, but our own links never leave it ambiguous

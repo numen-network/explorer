@@ -1,5 +1,5 @@
 import {describeArgs, nodesOf, type ArgNode, type Preimage} from '@/lib/args'
-import {accountRefs, preimagesByHash, specVersionAt} from '@/lib/gql'
+import {accountRefs, indexTitles, preimagesByHash, specVersionAt} from '@/lib/gql'
 
 // a hash the index knows as a referendum text or proposal
 async function markPreimages(nodes: (ArgNode | null)[]): Promise<void> {
@@ -28,7 +28,32 @@ async function markIdentities(nodes: (ArgNode | null)[]): Promise<void> {
     for (const node of found) node.acc = known.get(node.id)
 }
 
-/** Fills in what the index knows about the accounts and hashes in a set of args. */
+const unique = <T>(values: T[]) => [...new Set(values)]
+
+// a number the index can name carries that name, a title or a registrar's account
+async function markTitles(nodes: (ArgNode | null)[]): Promise<void> {
+    const referenda = nodesOf(nodes, 'referendum')
+    const bounties = nodesOf(nodes, 'bounty')
+    const spends = nodesOf(nodes, 'spend')
+    const registrars = nodesOf(nodes, 'registrar')
+    if (referenda.length + bounties.length + spends.length + registrars.length === 0) return
+    const found = await indexTitles({
+        referenda: unique(referenda.map(n => n.index)),
+        bounties: unique(bounties.map(n => n.index)),
+        spends: unique(spends.map(n => n.id)),
+        registrars: unique(registrars.map(n => n.index)),
+    })
+    const titles = new Map(found.referendums.map(r => [r.index, r.title]))
+    const descriptions = new Map(found.bounties.map(b => [b.index, b.description]))
+    const sources = new Map(found.treasurySpends.map(s => [s.id, s.referendum]))
+    const accounts = new Map(found.registrars.map(r => [r.index, r.account]))
+    for (const node of referenda) node.title = titles.get(node.index)
+    for (const node of bounties) node.title = descriptions.get(node.index)
+    for (const node of spends) node.referendum = sources.get(node.id)
+    for (const node of registrars) node.account = accounts.get(node.index)
+}
+
+/** Fills in what the index knows about the accounts, hashes and indices in a set of args. */
 export async function markArgs(nodes: (ArgNode | null)[]): Promise<void> {
-    await Promise.all([markPreimages(nodes), markIdentities(nodes)])
+    await Promise.all([markPreimages(nodes), markIdentities(nodes), markTitles(nodes)])
 }

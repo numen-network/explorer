@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {chainInfo, person} from '../../../../../mock/fixtures.js'
-import {batchInterrupted, evmTransact, mined, pick, signedCall, timestampSet, tipped, transfer} from '../../../../../mock/fixtures/blocks.js'
+import {batchInterrupted, evmTransact, failedTransfer, failedVoteRemoval, mined, pick, signedCall, timestampSet, tipped, transfer} from '../../../../../mock/fixtures/blocks.js'
 import {expectAddressForm, expectFits, expectTimesFit} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import ExtrinsicPage from './page'
@@ -76,3 +76,22 @@ export const SignedByMiner = feesAddUp((height: number) => batchInterrupted(heig
 export const RuntimeUpgradeFeeWaived = detail(of(applyUpgrade))
 
 export const ExtremeFeeAndTip = feesAddUp(whale)
+
+const errorRow = (canvas: ReturnType<typeof within>) => within(canvas.getByText('Error').nextElementSibling as HTMLElement)
+
+// a module error reads by the pallet and the error the runtime names
+export const ErrorFromModule: StoryObj = {
+    ...detail(of(failedVoteRemoval)),
+    play: async ({canvas}) => {
+        await expect(errorRow(canvas).getByText('Module')).toBeVisible()
+        await expect(errorRow(canvas).getByText('ConvictionVoting.NotVoter')).toBeVisible()
+    },
+}
+
+export const ErrorFromToken: StoryObj = {
+    ...detail(of(failedTransfer)),
+    play: async ({canvas}) => {
+        await expect(errorRow(canvas).getByText('Token')).toBeVisible()
+        await expect(errorRow(canvas).getByText('FundsUnavailable')).toBeVisible()
+    },
+}

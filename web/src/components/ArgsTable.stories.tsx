@@ -1,6 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {describeArgs, nodesOf, type Preimage} from '@/lib/args'
+import {describeArgs, describeError, describeEvent, nodesOf, type Preimage} from '@/lib/args'
 import {ss58Encode} from '@/lib/ss58'
 import {block, PEOPLE} from '../../../mock/fixtures.js'
 import {CHAIN_PROPS} from '../../../mock/fixtures/blocks.js'
@@ -25,6 +25,17 @@ const SUBMIT = {proposal: {value: SPEND, __kind: 'Inline'}, proposalOrigin: {val
 
 function story(pallet: string, method: string, args: unknown, shows: string[], nested = false): Story {
     const node = view(pallet, method, args, nested)
+    return {
+        render: () => <ArgsTable node={node} chain={CHAIN_PROPS} />,
+        play: async ({canvas, canvasElement}) => {
+            for (const text of shows) await expect(canvas.getAllByText(text, {exact: false})[0]).toBeVisible()
+            expectFits(...canvasElement.querySelectorAll('[data-slot=args-table]'))
+        },
+    }
+}
+
+function eventStory(pallet: string, method: string, args: unknown, shows: string[]): Story {
+    const node = describeEvent({pallet, method, args, specVersion: block(0).specVersion})!
     return {
         render: () => <ArgsTable node={node} chain={CHAIN_PROPS} />,
         play: async ({canvas, canvasElement}) => {
@@ -217,3 +228,141 @@ export const TransferToIdentity: Story = (() => {
         play: async ({canvas}) => expect(canvas.getByText('Orbit Labs')).toBeVisible(),
     }
 })()
+
+// a track id reads by the name the runtime gives it
+export const DelegateTrack = story('ConvictionVoting', 'delegate', {class: 30, to: ID(ALICE), conviction: {__kind: 'Locked1x'}, balance: '1000000000000000000'}, ['Small Spender', 'Locked1x'])
+
+export const UnlockTrack = story('ConvictionVoting', 'unlock', {class: 32, target: ID(BOB)}, ['Big Spender'])
+
+export const DelegatedEventTrack = eventStory('ConvictionVoting', 'Delegated', [ALICE, BOB, 30], ['Small Spender'])
+
+export const DecisionStartedTally = eventStory(
+    'Referenda',
+    'DecisionStarted',
+    {index: 0, tally: {ayes: '7519568000000000000000000', nays: '0', support: '3273568000000000000000000'}, track: 32, proposal: {value: SPEND, __kind: 'Inline'}},
+    ['Big Spender', '7,519,568', '3,273,568']
+)
+
+// a module error reads by the pallet and the error it names
+export const ExtrinsicFailedModuleError = eventStory(
+    'System',
+    'ExtrinsicFailed',
+    {dispatchInfo: {class: {__kind: 'Normal'}, weight: {refTime: '1178652000', proofSize: '219984'}, paysFee: {__kind: 'Yes'}}, dispatchError: {value: {error: '0x01000000', index: 20}, __kind: 'Module'}},
+    ['Module', 'ConvictionVoting.NotVoter']
+)
+
+export const ExtrinsicError: Story = (() => {
+    const node = describeError({value: {error: '0x0a000000', index: 21}, __kind: 'Module'}, block(0).specVersion)!
+    return {
+        render: () => <ArgsTable node={node} chain={CHAIN_PROPS} />,
+        play: async ({canvas}) => expect(canvas.getByText('Referenda.NoDeposit')).toBeVisible(),
+    }
+})()
+
+export const TimestampSet = story('Timestamp', 'set', {now: '1789347605691'}, ['2026-09-14 01:00:05'])
+
+export const SchedulerTask = eventStory('Scheduler', 'Dispatched', {task: [16812, 0], id: null, result: {__kind: 'Ok'}}, ['#16,812', 'index'])
+
+export const SchedulePeriodic = story('Scheduler', 'schedule_after', {after: 100, maybePeriodic: [14400, 3], priority: 63, call: REMARK}, ['14,400 blocks', 'count'])
+
+const evmCall = story(
+    'EVM',
+    'call',
+    {
+        source: '0x6be02d1d3665660d22ff9624b7be0551ee1ac91b',
+        target: '0x0000000000000000000000000000000000000800',
+        input: '0x',
+        value: '2500000000000000000',
+        gasLimit: '21000',
+        maxFeePerGas: '1000000000000',
+        maxPriorityFeePerGas: '1500000000',
+        nonce: null,
+        accessList: [],
+        authorizationList: [],
+    },
+    ['21,000']
+)
+
+// a value reads in the native token and a gas price in gwei, both U256 wei on chain
+export const EvmAmountAndGas: Story = {
+    ...evmCall,
+    play: all(evmCall.play!, async ({canvas}) => {
+        await expect(canvas.getByText('2.5')).toBeVisible()
+        await expect(canvas.getByText('1,000')).toBeVisible()
+        await expect(canvas.getByText('1.5')).toBeVisible()
+        expect(canvas.getAllByText('gwei')).toHaveLength(2)
+    }),
+}
+
+export const BaseFeeElasticity = story('BaseFee', 'set_elasticity', {elasticity: 125000}, ['12.5'])
+
+export const BountyIndex = story('Bounties', 'approve_bounty', {bountyId: 3}, ['#3'])
+
+// a number reads with the title or account the index has for it, marked the way the page marks it after the lookup
+function titled(node: ReturnType<typeof view>, mark: (node: ReturnType<typeof view>) => void, shows: string[]): Story {
+    mark(node)
+    return {
+        render: () => <ArgsTable node={node} chain={CHAIN_PROPS} />,
+        play: async ({canvas, canvasElement}) => {
+            for (const text of shows) await expect(canvas.getAllByText(text, {exact: false})[0]).toBeVisible()
+            expectFits(...canvasElement.querySelectorAll('[data-slot=args-table]'))
+        },
+    }
+}
+
+const DEX = 'Creation of Numen’s First DEX Liquidity Pool'
+
+export const ReferendumTitled = titled(
+    view('ConvictionVoting', 'remove_vote', {class: 32, index: 0}),
+    node => (nodesOf([node], 'referendum')[0].title = DEX),
+    ['#0', DEX]
+)
+
+export const ReferendumUntitled: Story = (() => {
+    const node = view('ConvictionVoting', 'remove_vote', {class: 32, index: 5})
+    nodesOf([node], 'referendum')[0].title = null
+    return {
+        render: () => <ArgsTable node={node} chain={CHAIN_PROPS} />,
+        play: async ({canvas}) => {
+            await expect(canvas.getByRole('link', {name: '#5'})).toHaveAttribute('href', '/referendum/5')
+            expect(canvas.queryByText('·', {exact: false})).toBeNull()
+        },
+    }
+})()
+
+export const BountyTitled = titled(
+    view('Bounties', 'approve_bounty', {bountyId: 3}),
+    node => (nodesOf([node], 'bounty')[0].title = 'Audit of the PoScan verifier'),
+    ['#3', 'Audit of the PoScan verifier']
+)
+
+export const SpendFromReferendum: Story = (() => {
+    const node = view('Treasury', 'payout', {index: 0})
+    nodesOf([node], 'spend')[0].referendum = {index: 0, title: DEX}
+    return {
+        render: () => <ArgsTable node={node} chain={CHAIN_PROPS} />,
+        play: async ({canvas}) => {
+            await expect(canvas.getByText('#0')).toBeVisible()
+            await expect(canvas.getByRole('link', {name: DEX})).toHaveAttribute('href', '/referendum/0')
+        },
+    }
+})()
+
+export const SpendUnknown = story('Treasury', 'payout', {index: 4}, ['#4'])
+
+export const SpendLocalUntitledReferendum: Story = (() => {
+    const node = describeEvent({pallet: 'Treasury', method: 'Awarded', args: {proposalIndex: 2, award: '1000000000000000000', account: BOB}, specVersion: block(0).specVersion})!
+    nodesOf([node], 'spend')[0].referendum = {index: 7, title: null}
+    return {
+        render: () => <ArgsTable node={node} chain={CHAIN_PROPS} />,
+        play: async ({canvas}) => expect(canvas.getByRole('link', {name: 'Referendum #7'})).toHaveAttribute('href', '/referendum/7'),
+    }
+})()
+
+export const RegistrarByIdentity = titled(
+    view('Identity', 'request_judgement', {regIndex: 0, maxFee: '1000000000000000000'}),
+    node => (nodesOf([node], 'registrar')[0].account = PEOPLE[0]),
+    ['#0', 'Polaris Guild']
+)
+
+export const RegistrarUnknown = story('Identity', 'request_judgement', {regIndex: 1, maxFee: '1000000000000000000'}, ['#1'])
