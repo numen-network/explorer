@@ -2343,15 +2343,49 @@ export interface ValidatorListRow extends ValidatorRow {
     offences: {kind: string}[]
 }
 
-export function validatorsPage(since: string | null, limit: number, offset: number) {
-    return gql<{validators: ValidatorListRow[]; all: {totalCount: number}; active: {totalCount: number}; pending: {totalCount: number}}>(
-        `query ($since: DateTime, $limit: Int!, $offset: Int!) {
-            validators(orderBy: [lastActiveSession_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} offences(where: {timestamp_gt: $since}) { kind } }
+// renewals leave the set unchanged, so the history skips them
+const HISTORY_STEP = 'renewals_eq: 0'
+
+export function validatorsSummary() {
+    return gql<{all: {totalCount: number}; active: {totalCount: number}; pending: {totalCount: number}; history: {totalCount: number}}>(
+        `{
             all: validatorsConnection(orderBy: id_ASC) { totalCount }
             active: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
             pending: validatorsConnection(orderBy: id_ASC, where: {active_eq: false, status_eq: "Active"}) { totalCount }
+            history: validatorStepsConnection(orderBy: id_ASC, where: {${HISTORY_STEP}}) { totalCount }
+        }`
+    )
+}
+
+export function validatorsPage(since: string | null, limit: number, offset: number) {
+    return gql<{validators: ValidatorListRow[]}>(
+        `query ($since: DateTime, $limit: Int!, $offset: Int!) {
+            validators(orderBy: [lastActiveSession_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} offences(where: {timestamp_gt: $since}) { kind } }
         }`,
         {since, limit, offset}
+    )
+}
+
+export type ValidatorHistoryRow = ValidatorStepRow & {account: AccountRef}
+
+export function validatorHistory(event: string, {account, name}: AccountSearch, limit: number, offset: number) {
+    const where = [
+        HISTORY_STEP,
+        event && 'event: {method_eq: $event}',
+        account != null && 'account: {id_eq: $account}',
+        name != null && `account: ${nameMatch('$name')}`,
+    ]
+        .filter(Boolean)
+        .join(', ')
+    const vars = [event && '$event: String!', account != null && '$account: String!', name != null && '$name: String!'].filter(Boolean).join(', ')
+    return gql<{steps: ValidatorHistoryRow[]; conn: {totalCount: number}}>(
+        `query (${vars ? `${vars}, ` : ''}$limit: Int!, $offset: Int!) {
+            steps: validatorSteps(where: {${where}}, orderBy: id_DESC, limit: $limit, offset: $offset) {
+                id renewals event { ${STEP_EVENT} } lastEvent { ${STEP_EVENT} } genesisLock genesisExempt account { ${ACCOUNT_REF} }
+            }
+            conn: validatorStepsConnection(orderBy: id_DESC, where: {${where}}) { totalCount }
+        }`,
+        {...(event && {event}), ...(account != null && {account}), ...(name != null && {name}), limit, offset}
     )
 }
 

@@ -1,3 +1,4 @@
+import {TypeKind} from '@subsquid/scale-codec'
 import {Runtime} from '@subsquid/substrate-runtime'
 import {specVersionsJsonl} from '@/lib/specVersions'
 
@@ -14,10 +15,24 @@ export function runtimeAt(specVersion: number | null): Runtime | undefined {
     return specVersion == null ? undefined : runtimes.get(specVersion)
 }
 
-function constantAt(specVersion: number, name: `${string}.${string}`): unknown {
+function knownRuntime(specVersion: number): Runtime {
     const rt = runtimeAt(specVersion)
     if (!rt) throw new Error(`no metadata for spec ${specVersion}`)
-    return rt.getConstant(name)
+    return rt
+}
+
+function constantAt(specVersion: number, name: `${string}.${string}`): unknown {
+    return knownRuntime(specVersion).getConstant(name)
+}
+
+// the events a pallet declares, in the order its metadata lists them
+export function palletEvents(specVersion: number, pallet: string): string[] {
+    const {types, event} = knownRuntime(specVersion).description
+    const all = types[event]
+    const own = all.kind === TypeKind.Variant ? all.variants.find(v => v.name === pallet) : undefined
+    const list = own && types[own.fields[0].type]
+    if (list?.kind !== TypeKind.Variant) throw new Error(`spec ${specVersion} declares no ${pallet} events`)
+    return list.variants.map(v => v.name)
 }
 
 // a block count constant such as Referenda.UndecidingTimeout, as the runtime at that version declares it

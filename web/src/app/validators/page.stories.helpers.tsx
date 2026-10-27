@@ -49,6 +49,7 @@ export const validators = (rows: Row[], page = '1') =>
     pageStory(
         {
             validators: paged(rows),
+            validatorStepsConnection: {totalCount: 0},
             validatorsConnection: ({where = {}}: {where?: {active_eq?: boolean; status_eq?: string}}) => ({
                 totalCount: rows.filter(v => (where.active_eq == null || v.active === where.active_eq) && (where.status_eq == null || v.status === where.status_eq)).length,
             }),
@@ -64,3 +65,17 @@ export const many = Array.from({length: 46}, (_, i) => {
     return validator(n, released(i * 50))
 })
 
+
+// a step as the history reads it, with the validator it belongs to
+export const withAccount = (n: number, step: object) => ({...step, account: {...person(n), id: account(n)}})
+
+export const history = (steps: object[], searchParams: Record<string, string> = {}) =>
+    pageStory(
+        {
+            validators: [],
+            validatorsConnection: {totalCount: 0},
+            validatorSteps: paged(steps),
+            validatorStepsConnection: {totalCount: steps.length},
+        },
+        {searchParams: {tab: 'history', ...searchParams}}
+    )

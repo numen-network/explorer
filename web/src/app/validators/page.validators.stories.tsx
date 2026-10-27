@@ -7,7 +7,7 @@ import {fmtInt} from '@/lib/format'
 import ValidatorsPage from './page'
 import {DAY, exempt, genesis, GENESIS, INT_MAX, kicked, inactive, many, offences, released, U128_MAX, validator, validators} from './page.stories.helpers'
 
-export default {title: 'Pages/Validators/List', ...pageMeta(ValidatorsPage)}
+export default {title: 'Pages/Validators/Validators', ...pageMeta(ValidatorsPage)}
 
 export const Empty = validators([])
 
