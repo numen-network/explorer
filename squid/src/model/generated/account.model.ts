@@ -136,4 +136,46 @@ export class Account {
 
     @BigIntColumn_({nullable: false})
     transferOutVolume!: bigint
+
+    /**
+     * blocks it sealed
+     */
+    @IntColumn_({nullable: false})
+    minedBlocks!: number
+
+    /**
+     * minted for the blocks it sealed
+     */
+    @BigIntColumn_({nullable: false})
+    minedRewards!: bigint
+
+    /**
+     * fee share and tips from the blocks it sealed
+     */
+    @BigIntColumn_({nullable: false})
+    minedFees!: bigint
+
+    /**
+     * treasury spends paid to it
+     */
+    @BigIntColumn_({nullable: false})
+    spendsReceived!: bigint
+
+    /**
+     * bounty payouts it received as beneficiary
+     */
+    @BigIntColumn_({nullable: false})
+    bountiesReceived!: bigint
+
+    /**
+     * child bounty payouts it received as beneficiary
+     */
+    @BigIntColumn_({nullable: false})
+    childBountiesReceived!: bigint
+
+    /**
+     * curator fees from bounties and child bounties
+     */
+    @BigIntColumn_({nullable: false})
+    curatorFeesReceived!: bigint
 }

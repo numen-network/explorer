@@ -115,6 +115,20 @@ type Account @entity {
   "native transfers in and out, summed since genesis"
   transferInVolume: BigInt!
   transferOutVolume: BigInt!
+  "blocks it sealed"
+  minedBlocks: Int!
+  "minted for the blocks it sealed"
+  minedRewards: BigInt!
+  "fee share and tips from the blocks it sealed"
+  minedFees: BigInt!
+  "treasury spends paid to it"
+  spendsReceived: BigInt!
+  "bounty payouts it received as beneficiary"
+  bountiesReceived: BigInt!
+  "child bounty payouts it received as beneficiary"
+  childBountiesReceived: BigInt!
+  "curator fees from bounties and child bounties"
+  curatorFeesReceived: BigInt!
 }
 
 type Extrinsic @entity {

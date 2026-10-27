@@ -875,8 +875,20 @@ export function accountPage({
     const pairs = ({where}) => counterparties[pairWay(where)]
     const pairsConnection = ({where}) => count(counts[pairCount[pairWay(where)]] ?? counterparties[pairWay(where)].length)
     const volumes = {transferInVolume: counterparties.volumeIn, transferOutVolume: counterparties.volumeOut}
+    const mining = {
+        minedBlocks: counts.mined ?? minerDays.reduce((n, d) => n + d.blocks, 0),
+        minedRewards: sum(minerDays.map(d => d.rewards)),
+        minedFees: sum(minerDays.map(d => d.fees ?? '0')),
+    }
+    const paid = pick => sum(payouts.filter(pick).map(p => p.amount))
+    const received = {
+        spendsReceived: paid(p => p.source === 'Spend'),
+        bountiesReceived: paid(p => p.source === 'Bounty' && p.role === 'Beneficiary'),
+        childBountiesReceived: paid(p => p.source === 'ChildBounty' && p.role === 'Beneficiary'),
+        curatorFeesReceived: paid(p => p.role === 'Curator'),
+    }
     return {
-        accountById: {...volumes, ...account},
+        accountById: {...volumes, ...mining, ...received, ...account},
         validators: validator ? [validator] : [],
         validatorOffences: paged(offences),
         // the two windowed counts take counts.Offline and counts.Equivocation when set
@@ -892,7 +904,6 @@ export function accountPage({
         accountDays: ({where}) => (where.day_lt != null ? (priorDay ? [priorDay] : []) : accountDays),
         accountDaysConnection: count(counts.accountDays ?? accountDays.length + (priorDay ? 1 : 0)),
         blocks: args => (args.where?.author ? mined : args.where?.height_eq != null ? [{height: account.lastActiveBlock, timestamp: at(account.lastActiveBlock)}] : base.blocks(args)),
-        blocksConnection: count(counts.mined ?? minerDays.reduce((n, d) => n + d.blocks, 0)),
         bountiesConnection: count(curated),
         childBountiesConnection: count(childCurated),
         transfersConnection: ({where}) => count(where.OR ? (counts.transfers ?? transfers.length) : (counts[side(where)] ?? sent(where).length)),

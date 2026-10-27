@@ -103,7 +103,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
 
     const ctx: TabCtx = {hex, addr, chain, sp}
     const validator = s.validators[0]
-    const minedBlocks = s.nMined.totalCount
+    const minedBlocks = a.minedBlocks
     const locks = lockRows(a, addr, validator, s)
     const vest = schedules(a.vestingJson)
     const hasIdentity = a.identityJson != null || a.identitySuper != null
@@ -156,7 +156,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nValidatorSteps.totalCount > 0)
         tabs.push({slug: 'validator-timeline', label: 'Timeline', group: 'Validator', count: s.nValidatorSteps.totalCount, body: () => <ValidatorTimeline {...ctx} />})
     if (validator) tabs.push({slug: 'validator', label: 'Offences', group: 'Validator', count: s.nOffences.totalCount, body: () => <Validator {...ctx} />})
-    if (minedBlocks > 0) tabs.push({slug: 'mining', label: 'Mining', count: minedBlocks, body: () => <Mining {...ctx} days={s.minerDays} total={minedBlocks} />})
+    if (minedBlocks > 0) tabs.push({slug: 'mining', label: 'Mining', count: minedBlocks, body: () => <Mining {...ctx} days={s.minerDays} total={minedBlocks} rewards={BigInt(a.minedRewards) + BigInt(a.minedFees)} />})
     if (s.nProxyOut.totalCount + s.nProxyIn.totalCount > 0)
         tabs.push({slug: 'proxies', label: 'Proxies', count: s.nProxyOut.totalCount + s.nProxyIn.totalCount, body: () => <Proxies {...ctx} />})
     const msig = s.multisigById
@@ -167,7 +167,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nVoteHistory.totalCount > 0)
         tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
     if (s.nProposed.totalCount > 0) tabs.push({slug: 'proposed', label: 'Proposed', group: 'Governance', count: s.nProposed.totalCount, body: () => <Proposed {...ctx} />})
-    if (s.nTreasury.totalCount > 0) tabs.push({slug: 'treasury', label: 'Treasury', group: 'Governance', count: s.nTreasury.totalCount, body: () => <Treasury {...ctx} />})
+    if (s.nTreasury.totalCount > 0) tabs.push({slug: 'treasury', label: 'Treasury', group: 'Governance', count: s.nTreasury.totalCount, body: () => <Treasury {...ctx} received={a} />})
     if (s.nDelegIn.totalCount > 0)
         tabs.push({slug: 'received', label: 'Received', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Received {...ctx} delegations={s.delegationsIn} total={s.nDelegIn.totalCount} maxDelegations={power.maxDelegations} />})
     if (s.nReceivedHistory.totalCount > 0)

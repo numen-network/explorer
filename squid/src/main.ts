@@ -15,7 +15,7 @@ import type {Runtime} from '@subsquid/substrate-runtime'
 import {toJSON} from '@subsquid/util-internal-json'
 import pLimit from 'p-limit'
 import {In, LessThanOrEqual} from 'typeorm'
-import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EventKind, EvmAddress, EvmLog, EvmTransaction, Extrinsic, IdentityJudgement, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer} from './model'
+import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EventKind, EvmAddress, EvmLog, EvmTransaction, Extrinsic, IdentityJudgement, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer, TreasuryPayoutRole} from './model'
 import {constants, events, storage} from './types'
 import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
@@ -85,6 +85,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     await finalizeUsernames(batch, lastHeader, ctx.store)
     await refreshPrime(batch, lastHeader, ctx.store)
     await finalizeAccounts(ctx, batch, lastHeader)
+    accruePayouts(batch)
     await finalizeTransferPairs(ctx, batch)
     await finalizeStats(ctx, batch)
     await finalizeAccountDays(ctx, batch)
@@ -594,6 +595,17 @@ async function seedGenesisBalances(batch: BatchData, h: BlockHeader<Fields>): Pr
     const s = storage.system.account.v100
     if (!s.is(h)) throw new Error('unhandled spec version for system accounts at genesis')
     for (const [who] of await s.getPairs(h)) batch.touch(who, 0)
+}
+
+const PAYOUT_FIELD = {Spend: 'spendsReceived', Bounty: 'bountiesReceived', ChildBounty: 'childBountiesReceived'} as const
+
+// runs after the account merge, which swaps the drafts for the stored rows
+function accruePayouts(batch: BatchData): void {
+    for (const p of batch.payouts) {
+        const a = batch.accounts.get(p.account.id)
+        if (a == null) throw new Error(`payout ${p.id} pays ${p.account.id}, which the batch never touched`)
+        a[p.role === TreasuryPayoutRole.Curator ? 'curatorFeesReceived' : PAYOUT_FIELD[p.source]] += p.amount
+    }
 }
 
 async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fields>): Promise<void> {

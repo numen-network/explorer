@@ -242,6 +242,10 @@ export async function finalizeStats(ctx: {store: any}, batch: BatchData): Promis
         row.rewards += delta.rewards
         row.fees += delta.fees
         batch.minerDays.push(row)
+        const a = batch.accounts.get(delta.account)!
+        a.minedBlocks += delta.blocks
+        a.minedRewards += delta.rewards
+        a.minedFees += delta.fees
     }
 }
 

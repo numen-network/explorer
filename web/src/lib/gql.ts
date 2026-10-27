@@ -478,6 +478,13 @@ export interface AccountRow extends AccountRef {
     locksJson: {id: string; amount: string; reasons: string}[] | null
     holdsJson: {reason: unknown; amount: string}[] | null
     depositsJson: {id: string; amount: string}[] | null
+    minedBlocks: number
+    minedRewards: string
+    minedFees: string
+    spendsReceived: string
+    bountiesReceived: string
+    childBountiesReceived: string
+    curatorFeesReceived: string
 }
 
 export interface DelegationRow {
@@ -555,7 +562,6 @@ export interface AccountSummary {
     retiredRegistrars: {index: number}[]
     prime: {id: string}[]
     minerDays: {day: string; blocks: number}[]
-    nMined: {totalCount: number}
     nAccountDays: {totalCount: number}
     curated: {totalCount: number}
     childCurated: {totalCount: number}
@@ -619,13 +625,12 @@ export function accountSummary(idHex: string) {
     const self = `{id_eq: $id}`
     return gql<AccountSummary>(
         `query ($id: String!) {
-            accountById(id: $id) { id free reserved balance frozen transferable nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData username identitySuper { ${ACCOUNT_REF} } evmAddress vestingJson locksJson holdsJson depositsJson }
+            accountById(id: $id) { id free reserved balance frozen transferable nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData username identitySuper { ${ACCOUNT_REF} } evmAddress vestingJson locksJson holdsJson depositsJson minedBlocks minedRewards minedFees spendsReceived bountiesReceived childBountiesReceived curatorFeesReceived }
             validators(where: {account: ${self}}, limit: 1) { ${VALIDATOR_FIELDS} }
             registrar: registrars(where: {account: ${self}}, orderBy: index_ASC, limit: 1) { ${REGISTRAR_FIELDS} }
             retiredRegistrars: registrars(where: {retiredAt_isNull: false}) { index }
             prime: primeStates(where: {account: ${self}}, limit: 1) { id }
             minerDays: minerDayStats(where: {account: ${self}}, orderBy: day_DESC, limit: 60) { day blocks }
-            nMined: blocksConnection(orderBy: id_ASC, where: {author: ${self}}) { totalCount }
             nAccountDays: accountDaysConnection(orderBy: id_ASC, where: {account: ${self}}) { totalCount }
             curated: bountiesConnection(orderBy: index_ASC, where: {curator: ${self}}) { totalCount }
             childCurated: childBountiesConnection(orderBy: id_ASC, where: {curator: ${self}}) { totalCount }
@@ -830,18 +835,6 @@ export async function treasuryPayoutsFor(idHex: string, source: TreasurySource |
         all: raw.all.totalCount,
         counts: Object.fromEntries(TREASURY_SOURCES.map(t => [t, raw[t].totalCount])) as Record<TreasurySource, number>,
     }
-}
-
-// every payment this account received, for the totals by source
-export function treasuryPayoutAmounts(idHex: string) {
-    return sweep(page =>
-        gql<{treasuryPayouts: Pick<TreasuryPayoutRow, 'source' | 'role' | 'amount'>[]}>(
-            `query ($id: String!, $limit: Int!, $offset: Int!) {
-                treasuryPayouts(where: {account: {id_eq: $id}}, orderBy: id_ASC, limit: $limit, offset: $offset) { source role amount }
-            }`,
-            {id: idHex, ...page}
-        ).then(r => r.treasuryPayouts)
-    )
 }
 
 export interface VoteHistoryRow extends VoteShape {
@@ -2390,29 +2383,14 @@ export function minerDays(sinceDay: string | null): Promise<MinerDayRow[]> {
     )
 }
 
-// one row per day the account mined, so a lifetime total stays a short read
-export async function minerLifetime(authorHex: string): Promise<{rewards: bigint; fees: bigint; latest: number}> {
-    const [days, latest] = await Promise.all([
-        sweep(page =>
-            gql<{minerDayStats: {rewards: string; fees: string}[]}>(
-                `query ($id: String!, $limit: Int!, $offset: Int!) {
-                    minerDayStats(where: {account: {id_eq: $id}}, orderBy: id_ASC, limit: $limit, offset: $offset) { rewards fees }
-                }`,
-                {id: authorHex, ...page}
-            ).then(r => r.minerDayStats)
-        ),
-        gql<{blocks: {height: number}[]}>(
-            `query ($id: String!) {
-                blocks(where: {author: {id_eq: $id}}, orderBy: height_DESC, limit: 1) { height }
-            }`,
-            {id: authorHex}
-        ),
-    ])
-    return {
-        rewards: days.reduce((n, d) => n + BigInt(d.rewards), 0n),
-        fees: days.reduce((n, d) => n + BigInt(d.fees), 0n),
-        latest: latest.blocks[0].height,
-    }
+export async function latestMined(authorHex: string): Promise<number> {
+    const {blocks} = await gql<{blocks: {height: number}[]}>(
+        `query ($id: String!) {
+            blocks(where: {author: {id_eq: $id}}, orderBy: height_DESC, limit: 1) { height }
+        }`,
+        {id: authorHex}
+    )
+    return blocks[0].height
 }
 
 export interface AccountDayRow {
