@@ -156,11 +156,6 @@ export const identities = (
         {searchParams: {tab, page}, msw: [avatars]}
     )
 
-export const tileText = (root: HTMLElement, label: string) => {
-    const tile = [...root.querySelectorAll<HTMLElement>('[data-slot=card]')].find(c => c.querySelector('[data-slot=card-description]')?.textContent === label)!
-    return [...tile.querySelectorAll('[data-slot=card-description], [data-slot=card-title], [data-slot=card-content]')].map(e => e.textContent)
-}
-
 export const short = (row: {id: string}) => shortAddr(ss58Encode(row.id, chainInfo.ss58))
 
 export const bare = (n: number) => acct(n, {identityDisplay: null, identityJson: null})

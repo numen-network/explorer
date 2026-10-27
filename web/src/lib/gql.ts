@@ -2344,14 +2344,28 @@ export interface ValidatorListRow extends ValidatorRow {
 }
 
 export function validatorsPage(since: string | null, limit: number, offset: number) {
-    return gql<{validators: ValidatorListRow[]; all: {totalCount: number}; active: {totalCount: number}}>(
+    return gql<{validators: ValidatorListRow[]; all: {totalCount: number}; active: {totalCount: number}; pending: {totalCount: number}}>(
         `query ($since: DateTime, $limit: Int!, $offset: Int!) {
             validators(orderBy: [lastActiveSession_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} offences(where: {timestamp_gt: $since}) { kind } }
             all: validatorsConnection(orderBy: id_ASC) { totalCount }
             active: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
+            pending: validatorsConnection(orderBy: id_ASC, where: {active_eq: false, status_eq: "Active"}) { totalCount }
         }`,
         {since, limit, offset}
     )
+}
+
+// a lock stays on an exiting or kicked validator until LockReleased zeroes it
+export async function validatorsLocked(): Promise<bigint> {
+    const rows = await sweep(page =>
+        gql<{validators: {lockedAmount: string}[]}>(
+            `query ($limit: Int!, $offset: Int!) {
+                validators(where: {lockedAmount_gt: "0"}, orderBy: id_ASC, limit: $limit, offset: $offset) { lockedAmount }
+            }`,
+            {...page}
+        ).then(r => r.validators)
+    )
+    return rows.reduce((sum, v) => sum + BigInt(v.lockedAmount), 0n)
 }
 
 export interface MinerDayRow {

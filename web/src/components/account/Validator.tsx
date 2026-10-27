@@ -8,7 +8,7 @@ import {fmtInt} from '@/lib/format'
 import {validatorOffenceCounts, validatorOffences, type ValidatorRow} from '@/lib/gql'
 import {OFFENCE_DAYS, OFFENCE_LABEL} from '@/lib/offences'
 import {paging} from '@/lib/paging'
-import {renewEvery} from '@/lib/renewal'
+import {validatorRules} from '@/lib/validatorRules'
 import {ValidatorOffencesTable} from './ValidatorOffencesTable'
 import {tabHref, type TabCtx} from './shared'
 
@@ -29,7 +29,7 @@ export default async function Validator({hex, addr, sp}: TabCtx) {
 export async function ValidatorHead({hex, chain, v}: {hex: string; chain: ChainProps; v: ValidatorRow}) {
     const head = await chainDbHead()
     const counts = await validatorOffenceCounts(hex, windowStart(head, OFFENCE_DAYS))
-    return <ValidatorTile v={v} offline={counts.offline.totalCount} equivocations={counts.equivocations.totalCount} chain={chain} head={head.height} renewEvery={renewEvery(head, chain)} className="mt-4" />
+    return <ValidatorTile v={v} offline={counts.offline.totalCount} equivocations={counts.equivocations.totalCount} chain={chain} head={head.height} renewEvery={validatorRules(head, chain).renewEvery} className="mt-4" />
 }
 
 export function ValidatorTile({v, offline, equivocations, chain, head, renewEvery, className}: {v: ValidatorRow; offline: number; equivocations: number; chain: ChainProps; head: number; renewEvery: string; className?: string}) {

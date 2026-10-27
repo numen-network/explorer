@@ -1,9 +1,8 @@
 import {cn} from 'cn'
-import {CircleQuestionMark} from 'lucide-react'
 import Link from 'next/link'
 import {ReactNode} from 'react'
+import HelpTip from '@/components/HelpTip'
 import {Jump} from '@/components/links'
-import {Tip} from '@/components/Tip'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 
 export interface StatChip {
@@ -50,11 +49,7 @@ function StatFigure({label, value, href, tip, className}: Stat & {className?: st
         <div className={cn('grid min-w-0 gap-1.5', className)}>
             <CardDescription className="text-xs">
                 <StatLabel label={label} href={href} />
-                {tip && (
-                    <Tip text={tip}>
-                        <CircleQuestionMark aria-label={tip} className="ml-1 inline size-3 align-[-1px]" />
-                    </Tip>
-                )}
+                {tip && <HelpTip text={tip} />}
             </CardDescription>
             <CardTitle className="text-[17px] leading-7 font-semibold tracking-tight wrap-anywhere sm:text-[19px]">{value}</CardTitle>
         </div>
@@ -68,6 +63,7 @@ export default function StatTile({
     label,
     value,
     href,
+    tip,
     beside = [],
     even,
     pairs,
@@ -78,7 +74,7 @@ export default function StatTile({
     return (
         <Card className={cn('gap-1 py-3.5 sm:py-4 sm:[--card-spacing:--spacing(5)]', className)}>
             <CardHeader className={cn('gap-x-10 gap-y-2', row ? 'grid grid-flow-col auto-cols-fr gap-x-4 has-data-[slot=card-description]:grid-rows-none' : pairs ? 'grid grid-cols-2 gap-y-3 sm:grid-flow-col sm:grid-cols-none sm:grid-rows-[auto_auto] sm:auto-cols-fr' : even ? 'flex flex-col sm:flex-row sm:*:flex-1 sm:*:basis-0' : 'flex flex-wrap')}>
-                {[{label, value, href}, ...beside].map(s => (
+                {[{label, value, href, tip}, ...beside].map(s => (
                     <StatFigure key={s.label} {...s} className={pairs ? 'row-span-2 grid-rows-subgrid' : undefined} />
                 ))}
             </CardHeader>

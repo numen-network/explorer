@@ -1,8 +1,9 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
+import {tileText} from '../../../.storybook/fit'
 import {pageMeta} from '../../../.storybook/page'
 import PeoplePage from './page'
-import {EVERY_AUTHORITY, EVERY_USERNAME, EVERY_VERDICT, MANY, WITH_SUBS, identities, tileText} from './page.stories.helpers'
+import {EVERY_AUTHORITY, EVERY_USERNAME, EVERY_VERDICT, MANY, WITH_SUBS, identities} from './page.stories.helpers'
 
 export default {title: 'Pages/People/Overview', ...pageMeta(PeoplePage)}
 

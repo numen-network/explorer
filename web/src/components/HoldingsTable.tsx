@@ -1,15 +1,14 @@
 'use client'
 
-import {CircleQuestionMark} from 'lucide-react'
 import Link from 'next/link'
 import Approx from '@/components/Approx'
 import {columnsFor, DataTable, expander} from '@/components/DataTable'
 import {NONE} from '@/components/Detail'
 import HashText from '@/components/HashText'
+import HelpTip from '@/components/HelpTip'
 import {BlockLink, EvmAddrLink} from '@/components/links'
 import PairBadge from '@/components/PairBadge'
 import ShareBar from '@/components/ShareBar'
-import {Tip} from '@/components/Tip'
 import TokenIcon from '@/components/TokenIcon'
 import {Stat} from '@/components/votes'
 import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
@@ -47,9 +46,7 @@ const columns = col.columns([
         header: () => (
             <>
                 Percentage
-                <Tip text={PERCENTAGE_TIP}>
-                    <CircleQuestionMark aria-label={PERCENTAGE_TIP} className="ml-1 inline size-3 align-[-1px]" />
-                </Tip>
+                <HelpTip text={PERCENTAGE_TIP} />
             </>
         ),
         meta: {align: 'right'},

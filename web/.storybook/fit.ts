@@ -463,6 +463,12 @@ export function columnTexts(root: HTMLElement, header: string | RegExp) {
     return rows.map(row => row.children[at].textContent)
 }
 
+// the label, figures and chips of the stat tile under root with the given label
+export const tileText = (root: HTMLElement, label: string) => {
+    const tile = [...root.querySelectorAll<HTMLElement>('[data-slot=card]')].find(c => c.querySelector('[data-slot=card-description]')?.textContent === label)!
+    return [...tile.querySelectorAll('[data-slot=card-description], [data-slot=card-title], [data-slot=card-content]')].map(e => e.textContent)
+}
+
 // every navigation landmark under root carries a name of its own
 export function expectNamedNavs(root: HTMLElement) {
     const navs = within(root).getAllByRole('navigation')
