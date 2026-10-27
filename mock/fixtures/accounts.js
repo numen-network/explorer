@@ -19,8 +19,13 @@ export const PLANCK = '1'
 
 const sum = amounts => amounts.reduce((n, a) => n + BigInt(a), 0n).toString()
 
+const floor0 = v => (v > 0n ? v : 0n)
+
+// free less whatever frozen asks beyond reserved, under a zero existential deposit
+const transferable = (free, reserved, frozen) => floor0(BigInt(free) - floor0(BigInt(frozen) - BigInt(reserved))).toString()
+
 // balance is free plus reserved, the way the indexer writes it
-export const funds = (free, reserved = '0', frozen = '0') => ({free, reserved, frozen, balance: sum([free, reserved])})
+export const funds = (free, reserved = '0', frozen = '0') => ({free, reserved, frozen, transferable: transferable(free, reserved, frozen), balance: sum([free, reserved])})
 
 export const reservedOf = (...amounts) => sum(amounts)
 
@@ -642,11 +647,15 @@ export const accountDayRows = (count, {quiet = true} = {}) =>
         .filter(back => !quiet || back === 0 || back % 4 !== 3)
         .map(back => {
             const k = count - back
+            const free = numn(1_000 + ((k * 137) % 900) + k * 11.5)
+            const reserved = numn(k > count / 2 ? 250 : 0)
+            const frozen = numn(k > count / 3 ? 400 : 0)
             return {
                 day: dayBefore(back),
-                free: numn(1_000 + ((k * 137) % 900) + k * 11.5),
-                reserved: numn(k > count / 2 ? 250 : 0),
-                frozen: numn(k > count / 3 ? 400 : 0),
+                free,
+                reserved,
+                frozen,
+                transferable: transferable(free, reserved, frozen),
                 extrinsics: (k * 7) % 5,
                 transfersIn: (k * 3) % 4,
                 transfersOut: (k * 5) % 6,

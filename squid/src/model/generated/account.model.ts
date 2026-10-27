@@ -22,6 +22,12 @@ export class Account {
     @BigIntColumn_({nullable: false})
     frozen!: bigint
 
+    /**
+     * how much transfer_allow_death can move, the way Balances::reducible_balance counts it
+     */
+    @BigIntColumn_({nullable: false})
+    transferable!: bigint
+
     @IntColumn_({nullable: false})
     nonce!: number
 

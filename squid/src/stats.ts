@@ -15,7 +15,7 @@ const bigMax = (a: bigint, b: bigint) => (a > b ? a : b)
 
 // how much transfer_allow_death can move, the way Balances::reducible_balance
 // counts it
-function transferable({consumers, providers, data: {free, reserved, frozen}}: v100.AccountInfo, ed: bigint): bigint {
+export function transferable({consumers, providers, data: {free, reserved, frozen}}: v100.AccountInfo, ed: bigint): bigint {
     const keepsEd = free > 0n && consumers > 0 && providers <= 1
     const untouchable = bigMax(frozen - reserved, keepsEd ? ed : 0n)
     return bigMax(free - untouchable, 0n)
@@ -255,19 +255,22 @@ export async function finalizeAccountDays(ctx: {store: any}, batch: BatchData): 
     const byDay = new Map<string, string[]>()
     for (const [id, d] of batch.accountDayDeltas) byDay.set(d.day, [...(byDay.get(d.day) ?? []), id])
     const accountStore = storage.system.account.v100
+    const edConst = constants.balances.existentialDeposit.v100
     for (const [day, dayIds] of byDay) {
         const at = batch.dayDeltas.get(day)!.header
-        if (!accountStore.is(at)) throw new Error(`unhandled spec version for system accounts at block ${at.height}`)
+        if (!accountStore.is(at) || !edConst.is(at)) throw new Error(`unhandled spec version for system accounts at block ${at.height}`)
         const infos = await accountStore.getMany(at, dayIds.map(id => batch.accountDayDeltas.get(id)!.account))
         dayIds.forEach((id, i) => {
             const d = batch.accountDayDeltas.get(id)!
-            const {free, reserved, frozen} = (infos[i] ?? accountStore.getDefault(at)).data
+            const info = infos[i] ?? accountStore.getDefault(at)
+            const {free, reserved, frozen} = info.data
             const row =
                 existing.get(id) ??
                 new AccountDay({id, day, account: new Account({id: d.account}), extrinsics: 0, transfersIn: 0, transfersOut: 0, feeTreasury: 0n, feeMiner: 0n, tip: 0n})
             row.free = free
             row.reserved = reserved
             row.frozen = frozen
+            row.transferable = transferable(info, edConst.get(at))
             row.extrinsics += d.extrinsics
             row.transfersIn += d.transfersIn
             row.transfersOut += d.transfersOut

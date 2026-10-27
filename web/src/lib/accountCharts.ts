@@ -1,5 +1,4 @@
 import type {ComboSeries} from '@/components/charts'
-import {transferableOf} from './balance'
 import {ACCENT, ACCENT_SOFT, GRAY, GREEN} from './chartColors'
 import {fmtApprox, fmtInt, planckToNum} from './format'
 import type {AccountDayRow} from './gql'
@@ -52,7 +51,7 @@ export function accountDaysFilled(rows: AccountDayRow[], prior: AccountDayRow | 
     return out
 }
 
-export function accountChartView(chart: AccountChart, days: Day[], decimals: number, symbol: string, existentialDeposit: bigint): AccountChartView {
+export function accountChartView(chart: AccountChart, days: Day[], decimals: number, symbol: string): AccountChartView {
     const amounts = (pick: (d: Day) => bigint) => {
         const v = days.map(pick)
         return {values: v.map(p => planckToNum(p, decimals)), tips: v.map(p => fmtApprox(p, decimals, symbol))}
@@ -62,7 +61,7 @@ export function accountChartView(chart: AccountChart, days: Day[], decimals: num
         return {values: v, tips: v.map(fmtInt)}
     }
     const labels = days.map(d => d.day)
-    const transferable = (r: AccountDayRow) => transferableOf(BigInt(r.free), BigInt(r.reserved), BigInt(r.frozen), existentialDeposit)
+    const transferable = (r: AccountDayRow) => BigInt(r.transferable)
     const fee = (d: Day, key: 'feeTreasury' | 'feeMiner' | 'tip') => BigInt(d.own?.[key] ?? 0)
     switch (chart) {
         case 'balance':

@@ -79,6 +79,8 @@ type Account @entity {
   reserved: BigInt!
   balance: BigInt!
   frozen: BigInt!
+  "how much transfer_allow_death can move, the way Balances::reducible_balance counts it"
+  transferable: BigInt!
   nonce: Int!
   firstSeenBlock: Int!
   "timestamp of the first seen block, null for an account born at genesis"
@@ -918,6 +920,8 @@ type AccountDay @entity @index(fields: ["account", "day"]) {
   free: BigInt!
   reserved: BigInt!
   frozen: BigInt!
+  "how much transfer_allow_death can move at the day's last block"
+  transferable: BigInt!
   "signed extrinsics"
   extrinsics: Int!
   transfersIn: Int!

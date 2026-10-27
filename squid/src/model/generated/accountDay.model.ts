@@ -33,6 +33,12 @@ export class AccountDay {
     frozen!: bigint
 
     /**
+     * how much transfer_allow_death can move at the day's last block
+     */
+    @BigIntColumn_({nullable: false})
+    transferable!: bigint
+
+    /**
      * signed extrinsics
      */
     @IntColumn_({nullable: false})

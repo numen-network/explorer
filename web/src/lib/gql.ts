@@ -466,6 +466,7 @@ export interface AccountRow extends AccountRef {
     reserved: string
     balance: string
     frozen: string
+    transferable: string
     nonce: number
     firstSeenBlock: number
     firstSeenTimestamp: string | null
@@ -618,7 +619,7 @@ export function accountSummary(idHex: string) {
     const self = `{id_eq: $id}`
     return gql<AccountSummary>(
         `query ($id: String!) {
-            accountById(id: $id) { id free reserved balance frozen nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData username identitySuper { ${ACCOUNT_REF} } evmAddress vestingJson locksJson holdsJson depositsJson }
+            accountById(id: $id) { id free reserved balance frozen transferable nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData username identitySuper { ${ACCOUNT_REF} } evmAddress vestingJson locksJson holdsJson depositsJson }
             validators(where: {account: ${self}}, limit: 1) { ${VALIDATOR_FIELDS} }
             registrar: registrars(where: {account: ${self}}, orderBy: index_ASC, limit: 1) { ${REGISTRAR_FIELDS} }
             retiredRegistrars: registrars(where: {retiredAt_isNull: false}) { index }
@@ -2419,6 +2420,7 @@ export interface AccountDayRow {
     free: string
     reserved: string
     frozen: string
+    transferable: string
     extrinsics: number
     transfersIn: number
     transfersOut: number
@@ -2427,7 +2429,7 @@ export interface AccountDayRow {
     tip: string
 }
 
-const ACCOUNT_DAY_FIELDS = 'day free reserved frozen extrinsics transfersIn transfersOut feeTreasury feeMiner tip'
+const ACCOUNT_DAY_FIELDS = 'day free reserved frozen transferable extrinsics transfersIn transfersOut feeTreasury feeMiner tip'
 
 // the days from since to until, and the last one before since, whose close
 // the window opens on. an empty since reaches back to the first day

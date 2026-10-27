@@ -29,7 +29,7 @@ import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from '
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig, refreshMultisigs} from './multisig'
 import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bounties'
-import {accountDay, accumulateDay, finalizeAccountDays, finalizeStats, treasuryAccount} from './stats'
+import {accountDay, accumulateDay, finalizeAccountDays, finalizeStats, transferable, treasuryAccount} from './stats'
 import {bookPair, finalizeTokenTransferPairs, finalizeTransferPairs} from './pairs'
 import {readBatchTracks} from './tracks'
 import {collectUsernameEvent, finalizeUsernames, persistUsernames} from './usernames'
@@ -617,7 +617,9 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
         batch.accounts.set(e.id, e)
     }
     const s = storage.system.account.v100
-    if (!s.is(last)) throw new Error(`unhandled spec version at block ${last.height}`)
+    const edConst = constants.balances.existentialDeposit.v100
+    if (!s.is(last) || !edConst.is(last)) throw new Error(`unhandled spec version at block ${last.height}`)
+    const ed = edConst.get(last)
     const locksStore = storage.balances.locks.v100
     const holdsStore = storage.balances.holds.v100
     const subsStore = storage.identity.subsOf.v100
@@ -642,6 +644,7 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
         a.reserved = info?.data.reserved ?? 0n
         a.balance = a.free + a.reserved
         a.frozen = info?.data.frozen ?? 0n
+        a.transferable = info ? transferable(info, ed) : 0n
         a.locksJson = (locks[i] ?? []).map(l => ({id: lockId(l.id), amount: l.amount.toString(), reasons: l.reasons.__kind}))
         a.holdsJson = (holds[i] ?? []).map(h => ({reason: toJSON(h.id), amount: h.amount.toString()}))
         a.depositsJson = deposits([

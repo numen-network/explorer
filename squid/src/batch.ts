@@ -224,7 +224,7 @@ export class BatchData {
     touch(id: string, height: number): Account {
         let a = this.accounts.get(id)
         if (a == null) {
-            a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: null, transferInVolume: 0n, transferOutVolume: 0n})
+            a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, transferable: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: null, transferInVolume: 0n, transferOutVolume: 0n})
             this.accounts.set(id, a)
         }
         a.firstSeenBlock = Math.min(a.firstSeenBlock, height)

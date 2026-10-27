@@ -36,7 +36,6 @@ import Vesting from '@/components/account/Vesting'
 import Votes from '@/components/account/Votes'
 import VoteHistory from '@/components/account/VoteHistory'
 import {controlRefIds, controlRoles, lockRows, multisigRole, schedules, tabHref, type Role, type TabCtx} from '@/components/account/shared'
-import {transferableOf} from '@/lib/balance'
 import {chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
 import {AddrMark} from '@/components/addrHot'
@@ -113,7 +112,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const free = BigInt(a.free)
     const reserved = BigInt(a.reserved)
     const frozen = BigInt(a.frozen)
-    const transferable = transferableOf(free, reserved, frozen, BigInt(chain.existentialDeposit))
+    const transferable = BigInt(a.transferable)
     const locked = BigInt(a.balance) - transferable
     const share = (part: bigint) => (a.balance === '0' ? undefined : fmtPct(part, a.balance))
 
