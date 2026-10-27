@@ -60,6 +60,12 @@ export class Vote {
     @BigIntColumn_({nullable: true})
     abstainAmount!: bigint | undefined | null
 
+    /**
+     * its own conviction weighted votes, each split part counted at a tenth, abstain too
+     */
+    @BigIntColumn_({nullable: false})
+    votes!: bigint
+
     @IntColumn_({nullable: false})
     block!: number
 

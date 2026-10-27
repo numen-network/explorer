@@ -508,6 +508,8 @@ type Vote @entity {
   nayAmount: BigInt
   "SplitAbstain only"
   abstainAmount: BigInt
+  "its own conviction weighted votes, each split part counted at a tenth, abstain too"
+  votes: BigInt!
   block: Int!
   removed: Boolean!
   """
@@ -540,6 +542,8 @@ type DelegatedVote @entity {
   "the Conviction variant name"
   conviction: String!
   balance: BigInt!
+  "the balance weighted by its conviction, a tenth of it for None and N times it for LockedNx"
+  votes: BigInt!
   "set while the delegation does not count, its target's vote taken off or split or the delegation undone"
   removed: Boolean!
   block: Int!
@@ -572,6 +576,8 @@ type VotingAction @entity @index(fields: ["referendum", "block", "indexInBlock"]
   nayAmount: BigInt
   "SplitAbstain only"
   abstainAmount: BigInt
+  "the row's own votes, weighed the way Vote.votes is"
+  votes: BigInt!
   "conviction weighted sum of the delegations on the voter's casting record at the end of the block, as the chain keeps it"
   delegatedVotes: BigInt!
   "how far the event moved the approval, approvalPart over approvalWhole, null when the referendum was closed or the block undid the delegation"
@@ -657,6 +663,20 @@ type Delegate @entity @index(fields: ["delegated", "delegators"]) {
   tracks: Int!
   "each delegator's largest balance across tracks, summed, since conviction locks overlap"
   delegated: BigInt!
+  "the most conviction weighted votes delegated to it on any one track"
+  maxTrackVotes: BigInt!
+  trackTotals: [DelegateTrack!]! @derivedFrom(field: "delegate")
+}
+
+"what the delegations to a delegate add up to on one track"
+type DelegateTrack @entity {
+  "the delegate and the track"
+  id: ID!
+  delegate: Delegate! @index
+  track: Track!
+  delegators: Int!
+  capital: BigInt!
+  votes: BigInt!
 }
 
 type TreasurySpend @entity {

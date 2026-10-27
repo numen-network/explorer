@@ -3,7 +3,7 @@ import {expect, within} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import type {AccountVoteRow} from '@/lib/gql'
 import {voteEntry, type CountedDelegation} from '@/lib/voteEntry'
-import {account, HEAD, numn, PEOPLE, person} from '../../../../mock/fixtures.js'
+import {account, HEAD, numn, PEOPLE, person, weigh} from '../../../../mock/fixtures.js'
 import {CHAIN, SUBJECT, vote, voteRows} from '../../../../mock/fixtures/accounts.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {VotesTable} from './VotesTable'
@@ -14,10 +14,10 @@ type Story = StoryObj<typeof meta>
 
 const MORE = `/account/${SUBJECT}?tab=received&rtab=delegators`
 
-const counted = (i: number, conviction: string, units: number): CountedDelegation => ({conviction, balance: numn(units), delegator: {id: person(i).id}})
+const counted = (i: number, conviction: string, units: number): CountedDelegation => ({conviction, balance: numn(units), votes: String(weigh(numn(units), conviction)), delegator: {id: person(i).id}})
 
 // the delegators past the named few carry no identity
-const unnamed = (i: number, units: number): CountedDelegation => ({conviction: 'Locked1x', balance: numn(units), delegator: {id: account(200 + i)}})
+const unnamed = (i: number, units: number): CountedDelegation => ({conviction: 'Locked1x', balance: numn(units), votes: numn(units), delegator: {id: account(200 + i)}})
 
 const REFS = new Map(PEOPLE.map(p => [p.id, p]))
 

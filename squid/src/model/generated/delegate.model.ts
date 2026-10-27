@@ -1,5 +1,6 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, Index as Index_, OneToOne as OneToOne_, JoinColumn as JoinColumn_, Relation as Relation_, IntColumn as IntColumn_, BigIntColumn as BigIntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, Index as Index_, OneToOne as OneToOne_, JoinColumn as JoinColumn_, Relation as Relation_, IntColumn as IntColumn_, BigIntColumn as BigIntColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
+import {DelegateTrack} from "./delegateTrack.model"
 
 /**
  * an account that delegations currently point to, one row while any do
@@ -36,4 +37,13 @@ export class Delegate {
      */
     @BigIntColumn_({nullable: false})
     delegated!: bigint
+
+    /**
+     * the most conviction weighted votes delegated to it on any one track
+     */
+    @BigIntColumn_({nullable: false})
+    maxTrackVotes!: bigint
+
+    @OneToMany_(() => DelegateTrack, e => e.delegate)
+    trackTotals!: Relation_<DelegateTrack[]>
 }

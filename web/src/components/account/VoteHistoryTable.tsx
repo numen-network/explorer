@@ -7,7 +7,7 @@ import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import type {ChainProps} from '@/lib/chain'
-import {capitalOf, convictionLabel, decisionOf, levelLabel, votesOf} from '@/lib/conviction'
+import {capitalOf, convictionLabel, decisionOf, levelLabel} from '@/lib/conviction'
 import {fmtBalance} from '@/lib/format'
 import type {VoteHistoryRow} from '@/lib/gql'
 
@@ -33,7 +33,7 @@ export function VoteHistoryTable({rows, chain}: {rows: VoteHistoryRow[]; chain: 
                     id: 'votes',
                     header: 'Votes',
                     meta: {align: 'right', cellClassName: 'font-mono'},
-                    cell: ({row}) => <VoteWeight own={votesOf(row.original)} delegated={BigInt(row.original.delegatedVotes)} decimals={chain.decimals} symbol={chain.symbol} />,
+                    cell: ({row}) => <VoteWeight own={BigInt(row.original.votes)} delegated={BigInt(row.original.delegatedVotes)} decimals={chain.decimals} symbol={chain.symbol} />,
                 }),
                 col.display({id: 'block', header: 'Block', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.block} />}),
                 col.display({id: 'time', header: () => <TimeModeButton />, meta: {cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.timestamp} />}),

@@ -1,5 +1,5 @@
 import data from '../data.js'
-import {account, acct, at, base, block, chainInfo, GENESIS_HASH, HEAD, HEAD_TIME, hashOf, hex, identity, numn, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer} from '../fixtures.js'
+import {account, acct, at, base, block, chainInfo, GENESIS_HASH, HEAD, HEAD_TIME, hashOf, hex, identity, numn, ownVotes, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer, weigh} from '../fixtures.js'
 import {mined, pick, timestampSet} from './blocks.js'
 import {holding} from './evm.js'
 
@@ -158,8 +158,8 @@ export const accountExtrinsics = count =>
         return accountExtrinsic(h, i % 4, {pallet, method, leafCalls: LEAVES[method] ?? null, success: i % 5 !== 3, error: i % 5 === 3 ? FAILED : null})
     })
 
-// votes is what the index stores beside the balance, a tenth of it for None and N times it for LockedNx
-const weighed = d => ({...d, votes: (d.conviction === 'None' ? BigInt(d.balance) / 10n : BigInt(d.balance) * BigInt(d.conviction.slice(6, -1))).toString()})
+const weighed = d => ({...d, votes: String(weigh(d.balance, d.conviction))})
+const withVotes = v => ({...v, votes: ownVotes(v)})
 
 const delegation = (i, traits = {}) =>
     weighed({
@@ -317,22 +317,23 @@ export const membership = (i, traits = {}) => ({
 
 export const memberships = count => Array.from({length: count}, (_, i) => membership(i, {threshold: 2 + (i % 2), pending: i % 3, operations: 1 + i * 3}))
 
-export const vote = (i, traits = {}) => ({
-    id: `vote-${i}`,
-    kind: 'Standard',
-    aye: true,
-    conviction: 'Locked1x',
-    balance: numn(1_000 + i * 250),
-    ayeAmount: null,
-    nayAmount: null,
-    abstainAmount: null,
-    block: HEAD - 500 * (i + 1),
-    removed: false,
-    lockedUntil: null,
-    unlockedAt: null,
-    referendum: poll(6, 'Ongoing', null),
-    ...traits,
-})
+export const vote = (i, traits = {}) =>
+    withVotes({
+        id: `vote-${i}`,
+        kind: 'Standard',
+        aye: true,
+        conviction: 'Locked1x',
+        balance: numn(1_000 + i * 250),
+        ayeAmount: null,
+        nayAmount: null,
+        abstainAmount: null,
+        block: HEAD - 500 * (i + 1),
+        removed: false,
+        lockedUntil: null,
+        unlockedAt: null,
+        referendum: poll(6, 'Ongoing', null),
+        ...traits,
+    })
 
 export function poll(index, status, endedAt, traits = {}) {
     return {index, title: `Referendum ${index} title`, status, decidingSince: status === 'Ongoing' ? HEAD - 20_000 : null, confirmingSince: null, endedAt, ...traits}
@@ -356,13 +357,13 @@ const VOTE_CASES = [
 export const voteRows = () => VOTE_CASES.map((c, i) => vote(i, c))
 
 // a delegation a referendum counts through the account's standard vote there
-export const delegatedVote = (index, conviction, units, from = person(1)) => ({conviction, balance: numn(units), voter: {id: SUBJECT}, delegator: {id: from.id}, referendum: {index}})
+export const delegatedVote = (index, conviction, units, from = person(1)) => weighed({conviction, balance: numn(units), voter: {id: SUBJECT}, delegator: {id: from.id}, referendum: {index}})
 
 // a vote the account cast or took off, newest first. delegatedVotes is what its
 // casting record held as the block ended
 export const voteAction = (i, traits = {}) => {
     const h = HEAD - 300 * (i + 1)
-    return {
+    return withVotes({
         id: `6-${squidId(h, 3)}`,
         method: 'Voted',
         kind: 'Standard',
@@ -378,7 +379,7 @@ export const voteAction = (i, traits = {}) => {
         timestamp: at(h),
         referendum: {index: 6},
         ...traits,
-    }
+    })
 }
 
 // one row per decision, each conviction label, a removal and a vote carrying delegations
@@ -790,7 +791,14 @@ const count = n => ({totalCount: n})
 const delegate = delegations => {
     const most = new Map()
     for (const d of delegations) most.set(d.who.id, BigInt(d.balance) > BigInt(most.get(d.who.id) ?? 0) ? d.balance : most.get(d.who.id))
-    return {delegators: most.size, tracks: new Set(delegations.map(d => d.track.id)).size, delegated: sum([...most.values()])}
+    const trackTotals = [...new Map(delegations.map(d => [d.track.id, d.track]))]
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([, track]) => {
+            const on = delegations.filter(d => d.track.id === track.id)
+            return {delegators: on.length, capital: sum(on.map(d => d.balance)), votes: sum(on.map(d => d.votes)), track}
+        })
+    const maxTrackVotes = String(trackTotals.reduce((m, t) => (BigInt(t.votes) > m ? BigInt(t.votes) : m), 0n))
+    return {delegators: most.size, tracks: trackTotals.length, delegated: sum([...most.values()]), maxTrackVotes, trackTotals}
 }
 
 /**

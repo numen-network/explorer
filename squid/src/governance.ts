@@ -6,8 +6,8 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In, IsNull} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, Delegate, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
-import {convictionVotes, lockPeriods} from './conviction'
+import {Account, Delegate, DelegateTrack, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
+import {convictionVotes, lockPeriods, ownVotes} from './conviction'
 import {constants, storage} from './types'
 import type {AccountVote} from './types/v100'
 
@@ -286,6 +286,7 @@ function countDelegation(batch: BatchData, ev: GovEvent, index: number, voter: s
             delegator: new Account({id: delegator}),
             conviction,
             balance,
+            votes: convictionVotes(conviction, balance),
             removed,
             block: ev.height,
         })
@@ -319,26 +320,51 @@ export async function movedDelegates(ctx: {store: any}, batch: BatchData): Promi
 
 export async function refreshDelegates(ctx: {store: any}, targets: Set<string>): Promise<void> {
     if (targets.size === 0) return
-    const rows: Delegation[] = await ctx.store.find(Delegation, {where: {target: {id: In([...targets])}}, relations: {who: true, target: true, track: true}})
+    const ids = [...targets]
+    const [rows, stale]: [Delegation[], DelegateTrack[]] = await Promise.all([
+        ctx.store.find(Delegation, {where: {target: {id: In(ids)}}, relations: {who: true, target: true, track: true}}),
+        ctx.store.find(DelegateTrack, {where: {delegate: {id: In(ids)}}}),
+    ])
     const on = new Map<string, Delegation[]>()
     for (const d of rows) on.set(d.target.id, [...(on.get(d.target.id) ?? []), d])
-    const delegates = [...on].map(([id, ds]) => {
-        const most = new Map<string, bigint>()
-        for (const d of ds) {
-            const seen = most.get(d.who.id) ?? 0n
-            most.set(d.who.id, d.balance > seen ? d.balance : seen)
-        }
-        return new Delegate({
-            id,
-            account: new Account({id}),
-            delegators: most.size,
-            tracks: new Set(ds.map(d => d.track.id)).size,
-            delegated: [...most.values()].reduce((sum, b) => sum + b, 0n),
-        })
-    })
-    await ctx.store.upsert(delegates)
-    const gone = [...targets].filter(id => !on.has(id))
+    const totals = [...on].map(([id, ds]) => ({id, tracks: trackTotals(id, ds)}))
+    await ctx.store.upsert(totals.map(({id, tracks}) => delegateOf(id, on.get(id)!, tracks)))
+    const kept = totals.flatMap(t => t.tracks)
+    await ctx.store.upsert(kept)
+    const keptIds = new Set(kept.map(t => t.id))
+    const dropped = stale.filter(t => !keptIds.has(t.id)).map(t => t.id)
+    if (dropped.length > 0) await ctx.store.remove(DelegateTrack, dropped)
+    const gone = ids.filter(id => !on.has(id))
     if (gone.length > 0) await ctx.store.remove(Delegate, gone)
+}
+
+function trackTotals(delegate: string, ds: Delegation[]): DelegateTrack[] {
+    const byTrack = new Map<string, DelegateTrack>()
+    for (const d of ds) {
+        const id = `${delegate}-${d.track.id}`
+        const t = byTrack.get(id) ?? new DelegateTrack({id, delegate: new Delegate({id: delegate}), track: new Track({id: d.track.id}), delegators: 0, capital: 0n, votes: 0n})
+        t.delegators += 1
+        t.capital += d.balance
+        t.votes += d.votes
+        byTrack.set(id, t)
+    }
+    return [...byTrack.values()]
+}
+
+function delegateOf(id: string, ds: Delegation[], tracks: DelegateTrack[]): Delegate {
+    const most = new Map<string, bigint>()
+    for (const d of ds) {
+        const seen = most.get(d.who.id) ?? 0n
+        most.set(d.who.id, d.balance > seen ? d.balance : seen)
+    }
+    return new Delegate({
+        id,
+        account: new Account({id}),
+        delegators: most.size,
+        tracks: tracks.length,
+        delegated: [...most.values()].reduce((sum, b) => sum + b, 0n),
+        maxTrackVotes: tracks.reduce((max, t) => (t.votes > max ? t.votes : max), 0n),
+    })
 }
 
 // the delegation as its block left it, nothing when the same block undid it
@@ -927,6 +953,7 @@ interface AccountVoteFields {
     ayeAmount: bigint | null
     nayAmount: bigint | null
     abstainAmount: bigint | null
+    votes: bigint
 }
 
 const voteFields = (v: Vote): AccountVoteFields => ({
@@ -937,12 +964,18 @@ const voteFields = (v: Vote): AccountVoteFields => ({
     ayeAmount: v.ayeAmount ?? null,
     nayAmount: v.nayAmount ?? null,
     abstainAmount: v.abstainAmount ?? null,
+    votes: v.votes,
 })
 
 // a standard vote packs the aye bit and the conviction index into one byte,
 // the index counts None then Locked1x up to Locked6x. a voter's row is reused
 // across recasts, so the parts the new shape lacks are cleared outright
 function decodeAccountVote(vote: any): AccountVoteFields | undefined {
+    const fields = decodeVoteParts(vote)
+    return fields && {...fields, votes: ownVotes(fields)}
+}
+
+function decodeVoteParts(vote: any): Omit<AccountVoteFields, 'votes'> | undefined {
     const blank = {aye: null, conviction: null, balance: null, ayeAmount: null, nayAmount: null, abstainAmount: null}
     if (vote?.__kind === 'Standard') {
         const v = Number(vote.vote)

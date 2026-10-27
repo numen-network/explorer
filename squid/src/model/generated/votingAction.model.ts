@@ -82,6 +82,12 @@ export class VotingAction {
     abstainAmount!: bigint | undefined | null
 
     /**
+     * the row's own votes, weighed the way Vote.votes is
+     */
+    @BigIntColumn_({nullable: false})
+    votes!: bigint
+
+    /**
      * conviction weighted sum of the delegations on the voter's casting record at the end of the block, as the chain keeps it
      */
     @BigIntColumn_({nullable: false})

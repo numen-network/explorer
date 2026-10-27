@@ -1,4 +1,4 @@
-import {at, chainInfo, GENESIS_HASH, hashOf, HEAD, issuance, numn, paged, PEOPLE, person, squidId, SUBMISSION_DEPOSIT} from '../fixtures.js'
+import {at, chainInfo, GENESIS_HASH, hashOf, HEAD, issuance, numn, ownVotes, paged, PEOPLE, person, squidId, SUBMISSION_DEPOSIT, weigh} from '../fixtures.js'
 
 const heightOf = id => Number(id.split('-')[0])
 const indexOf = id => Number(id.split('-').at(-1))
@@ -289,9 +289,11 @@ export function proposal(call) {
 
 const NO_VOTE = {aye: null, conviction: null, balance: null, ayeAmount: null, nayAmount: null, abstainAmount: null}
 
-export const standard = (voter, aye, conviction, balance) => ({...NO_VOTE, kind: 'Standard', aye, conviction, balance, voter})
-export const split = (voter, ayeAmount, nayAmount) => ({...NO_VOTE, kind: 'Split', ayeAmount, nayAmount, voter})
-export const splitAbstain = (voter, ayeAmount, nayAmount, abstainAmount) => ({...NO_VOTE, kind: 'SplitAbstain', ayeAmount, nayAmount, abstainAmount, voter})
+const withVotes = v => ({...v, votes: ownVotes(v)})
+
+export const standard = (voter, aye, conviction, balance) => withVotes({...NO_VOTE, kind: 'Standard', aye, conviction, balance, voter})
+export const split = (voter, ayeAmount, nayAmount) => withVotes({...NO_VOTE, kind: 'Split', ayeAmount, nayAmount, voter})
+export const splitAbstain = (voter, ayeAmount, nayAmount, abstainAmount) => withVotes({...NO_VOTE, kind: 'SplitAbstain', ayeAmount, nayAmount, abstainAmount, voter})
 
 // a vote list asks for one kind of vote and, for a standard one, one side
 const inList = where => v => (where?.kind_eq == null || v.kind === where.kind_eq) && (where?.aye_eq == null || v.aye === where.aye_eq)
@@ -390,9 +392,6 @@ export function castFromSnapshots(r) {
     return voteLog(r.index, cast)
 }
 
-// None counts a tenth of the balance and LockedNx counts it N times over
-const weigh = (balance, conviction) => (conviction === 'None' ? BigInt(balance) / 10n : BigInt(balance) * BigInt(conviction.slice(6, -1)))
-
 // a split counts every part at a tenth, delegations only ride along a
 // standard vote at their own conviction and an aye adds its capital to support
 function count(t, v, delegated) {
@@ -425,7 +424,7 @@ export const delegatedVoteData = (index, cast, delegated) => ({
     delegatedVotes: paged(
         delegated
             .filter(d => cast.some(v => v.kind === 'Standard' && v.voter.id === d.target.id))
-            .map(d => ({id: `${index}-${d.who.id}`, referendum: {index}, voter: d.target, delegator: d.who, conviction: d.conviction, balance: d.balance, removed: false, block: d.block}))
+            .map(d => ({id: `${index}-${d.who.id}`, referendum: {index}, voter: d.target, delegator: d.who, conviction: d.conviction, balance: d.balance, votes: String(weigh(d.balance, d.conviction)), removed: false, block: d.block}))
     ),
 })
 

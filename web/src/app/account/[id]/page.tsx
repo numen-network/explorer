@@ -116,7 +116,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     const locked = BigInt(a.balance) - transferable
     const share = (part: bigint) => (a.balance === '0' ? undefined : fmtPct(part, a.balance))
 
-    const power = votesPower(a.balance, s.delegationsIn)
+    const maxTrackVotes = BigInt(s.delegateById?.maxTrackVotes ?? 0)
 
     const roles: Role[] = []
     if (hex === chain.treasuryAccount) roles.push({text: CONFIG.wellKnown.treasury.label, tone: 'primary'})
@@ -169,7 +169,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nProposed.totalCount > 0) tabs.push({slug: 'proposed', label: 'Proposed', group: 'Governance', count: s.nProposed.totalCount, body: () => <Proposed {...ctx} />})
     if (s.nTreasury.totalCount > 0) tabs.push({slug: 'treasury', label: 'Treasury', group: 'Governance', count: s.nTreasury.totalCount, body: () => <Treasury {...ctx} received={a} />})
     if (s.nDelegIn.totalCount > 0)
-        tabs.push({slug: 'received', label: 'Received', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Received {...ctx} delegations={s.delegationsIn} total={s.nDelegIn.totalCount} maxDelegations={power.maxDelegations} />})
+        tabs.push({slug: 'received', label: 'Received', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Received {...ctx} delegate={s.delegateById} total={s.nDelegIn.totalCount} />})
     if (s.nReceivedHistory.totalCount > 0)
         tabs.push({slug: 'received-history', label: 'Received history', group: 'Governance', count: s.nReceivedHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="in" slug="received-history" />})
     if (s.nDelegOut.totalCount > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount, body: () => <Delegations {...ctx} />})
@@ -217,10 +217,10 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                             <Balance planck={frozen} chain={chain} />
                         </AmountRow>
                         <AmountRow label="Votes power **">
-                            <Balance planck={power.votesPower} chain={chain} />
+                            <Balance planck={votesPower(a.balance, maxTrackVotes)} chain={chain} />
                         </AmountRow>
                         <AmountRow label="Max delegations">
-                            <Balance planck={power.maxDelegations} chain={chain} />
+                            <Balance planck={maxTrackVotes} chain={chain} />
                         </AmountRow>
                     </AmountRows>
                     <DetailRow label="Nonce">{fmtInt(a.nonce)}</DetailRow>

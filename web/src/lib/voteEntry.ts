@@ -1,5 +1,5 @@
 import type {VoteEntry} from '@/components/votes'
-import {capitalOf, convictionLabel, votesOf, weigh, type VoteShape} from './conviction'
+import {capitalOf, convictionLabel, type VoteShape} from './conviction'
 import {accountRefs, type AccountRef} from './gql'
 import {ss58Encode} from './ss58'
 
@@ -10,6 +10,7 @@ const INLINE_DELEGATORS = 10
 export interface CountedDelegation {
     conviction: string
     balance: string
+    votes: string
     delegator: {id: string}
 }
 
@@ -28,16 +29,16 @@ export function voteEntry(v: VoteShape & {id: string}, voter: {id: string; acc?:
         acc: voter.acc,
         conviction: convictionLabel(v.conviction),
         capital: String(capitalOf(v)),
-        selfVotes: String(votesOf(v)),
+        selfVotes: v.votes,
         delegatorCount: list.length,
         delegatedCapital: String(list.reduce((n, d) => n + BigInt(d.balance), 0n)),
-        delegatedVotes: String(list.reduce((n, d) => n + weigh(d.balance, d.conviction), 0n)),
+        delegatedVotes: String(list.reduce((n, d) => n + BigInt(d.votes), 0n)),
         delegators: list.slice(0, INLINE_DELEGATORS).map(d => ({
             addr: addr(d.delegator.id),
             acc: refs.get(d.delegator.id),
             conviction: convictionLabel(d.conviction),
             capital: d.balance,
-            votes: String(weigh(d.balance, d.conviction)),
+            votes: d.votes,
         })),
     }
 }

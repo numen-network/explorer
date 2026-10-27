@@ -1,4 +1,4 @@
-import {capitalOf, convictionLevel, decisionOf, votesOf, weigh} from '@/lib/conviction'
+import {capitalOf, convictionLevel, decisionOf} from '@/lib/conviction'
 import type {BallotDelegation, BallotVote, VoteList} from '@/lib/gql'
 
 /** One account's part in a referendum, a vote of its own or a delegation riding one. */
@@ -14,11 +14,11 @@ export interface Ballot {
 export function ballotsOf(votes: BallotVote[], delegations: BallotDelegation[]): Ballot[] {
     const side = new Map<string, VoteList>(votes.filter(v => v.kind === 'Standard').map(v => [v.voter.id, decisionOf(v)]))
     return [
-        ...votes.map((v): Ballot => ({list: decisionOf(v), delegated: false, capital: capitalOf(v), votes: votesOf(v), level: convictionLevel(v.conviction)})),
+        ...votes.map((v): Ballot => ({list: decisionOf(v), delegated: false, capital: capitalOf(v), votes: BigInt(v.votes), level: convictionLevel(v.conviction)})),
         ...delegations.map((d): Ballot => {
             const list = side.get(d.voter.id)
             if (list == null) throw new Error(`a delegation counts through ${d.voter.id}, who holds no standard vote`)
-            return {list, delegated: true, capital: BigInt(d.balance), votes: weigh(d.balance, d.conviction), level: convictionLevel(d.conviction)}
+            return {list, delegated: true, capital: BigInt(d.balance), votes: BigInt(d.votes), level: convictionLevel(d.conviction)}
         }),
     ]
 }

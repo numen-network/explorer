@@ -6,6 +6,12 @@ export const BLOCK_TIME = 10
 
 export const at = height => new Date(HEAD_TIME - (HEAD - height) * BLOCK_TIME * 1000).toISOString()
 export const numn = n => (BigInt(Math.round(n * 1e6)) * 10n ** 12n).toString()
+
+// what a balance casts under a Conviction variant, a tenth of it for None and N times it for LockedNx
+export const weigh = (balance, conviction) => (conviction === 'None' ? BigInt(balance) / 10n : BigInt(balance) * BigInt(conviction.slice(6, -1)))
+
+// what a vote casts on its own as the index stores it, each split part counting at a tenth
+export const ownVotes = v => String(v.kind === 'Standard' ? weigh(v.balance, v.conviction) : [v.ayeAmount, v.nayAmount, v.abstainAmount].reduce((n, part) => n + weigh(part ?? 0, 'None'), 0n))
 export const hex = text => toHex(new TextEncoder().encode(text))
 
 const fnv = text => {

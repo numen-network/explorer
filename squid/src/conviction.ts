@@ -15,3 +15,9 @@ export function convictionVotes(conviction: string, balance: bigint): bigint {
     const level = convictionLevel(conviction)
     return level === 0 ? balance / 10n : balance * BigInt(level)
 }
+
+// what an AccountVote casts on its own, each split part weighing as None the way Tally::add does
+export function ownVotes(v: {kind: string; conviction: string | null; balance: bigint | null; ayeAmount: bigint | null; nayAmount: bigint | null; abstainAmount: bigint | null}): bigint {
+    if (v.kind === 'Standard') return convictionVotes(v.conviction!, v.balance!)
+    return [v.ayeAmount, v.nayAmount, v.abstainAmount].reduce<bigint>((sum, part) => sum + convictionVotes('None', part ?? 0n), 0n)
+}

@@ -6,26 +6,17 @@ import {TabNav} from '@/components/Tabs'
 import {FilterSelect} from '@/components/pills'
 import {Card} from '@/components/ui/card'
 import {fmtInt, trackLabel} from '@/lib/format'
-import {weigh} from '@/lib/conviction'
 import {DELEGATION_SORTS, loadDelegationSort, loadSearch} from '@/lib/actionFilters'
-import {accountSearch, delegateTally, delegationsInPage, trackList, type AccountSummary} from '@/lib/gql'
+import {accountSearch, delegationsInPage, trackList, type Delegate} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {DelegationsTable} from './DelegationsTable'
 import {ReceivedTracksTable, type ReceivedTrackRow} from './ReceivedTracksTable'
 import {tabHref, type TabCtx} from './shared'
 
-type Delegations = AccountSummary['delegationsIn']
 type Tracks = {id: string; name: string}[]
 
-// a delegator holds one delegation per track, so the rows on a track count its delegators
-function perTrack(delegations: Delegations, tracks: Tracks, hrefOf: (track: string) => string): ReceivedTrackRow[] {
-    return tracks.flatMap(t => {
-        const on = delegations.filter(d => d.track.id === t.id)
-        if (on.length === 0) return []
-        const sum = (f: (d: (typeof on)[number]) => bigint) => on.reduce((n, d) => n + f(d), 0n).toString()
-        return [{id: t.id, name: trackLabel(t.name), delegators: on.length, capital: sum(d => BigInt(d.balance)), votes: sum(d => weigh(d.balance, d.conviction)), href: hrefOf(t.id)}]
-    })
-}
+const perTrack = (delegate: Delegate | null, hrefOf: (track: string) => string): ReceivedTrackRow[] =>
+    (delegate?.trackTotals ?? []).map(t => ({id: t.track.id, name: trackLabel(t.track.name), delegators: t.delegators, capital: t.capital, votes: t.votes, href: hrefOf(t.track.id)}))
 
 async function Delegators({hex, addr, chain, sp, tracks}: TabCtx & {tracks: Tracks}) {
     const pg = paging(sp)
@@ -55,12 +46,12 @@ async function Delegators({hex, addr, chain, sp, tracks}: TabCtx & {tracks: Trac
     )
 }
 
-export default async function Received(props: TabCtx & {delegations: Delegations; total: number; maxDelegations: bigint}) {
-    const {hex, addr, chain, sp, delegations, total, maxDelegations} = props
-    const [{tracks}, {delegateById: tally}] = await Promise.all([trackList(), delegateTally(hex)])
+export default async function Received(props: TabCtx & {delegate: Delegate | null; total: number}) {
+    const {addr, chain, sp, delegate, total} = props
+    const {tracks} = await trackList()
     // a Track filter belongs to the delegator list, so a link carrying one opens it
     const view = sp.rtab === 'delegators' || (sp.rtab == null && sp.dtrack != null) ? 'delegators' : 'tracks'
-    const rows = perTrack(delegations, tracks, t => tabHref(addr, 'received', {rtab: 'delegators', dtrack: t}))
+    const rows = perTrack(delegate, t => tabHref(addr, 'received', {rtab: 'delegators', dtrack: t}))
     const amount = (planck: string | bigint) => <Approx planck={planck} decimals={chain.decimals} symbol={chain.symbol} breakable />
 
     return (
@@ -73,14 +64,14 @@ export default async function Received(props: TabCtx & {delegations: Delegations
                 ]}
             />
             <div className="mt-4">
-                {tally && (
+                {delegate && (
                     <StatTile
                         label="Tracks"
-                        value={fmtInt(tally.tracks)}
+                        value={fmtInt(delegate.tracks)}
                         beside={[
-                            {label: 'Delegators', value: fmtInt(tally.delegators)},
-                            {label: 'Capital', value: amount(tally.delegated)},
-                            {label: 'Max delegations', value: amount(maxDelegations)},
+                            {label: 'Delegators', value: fmtInt(delegate.delegators)},
+                            {label: 'Capital', value: amount(delegate.delegated)},
+                            {label: 'Max delegations', value: amount(delegate.maxTrackVotes)},
                         ]}
                         pairs
                         className="mb-3"

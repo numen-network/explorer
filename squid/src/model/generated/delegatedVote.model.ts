@@ -43,6 +43,12 @@ export class DelegatedVote {
     balance!: bigint
 
     /**
+     * the balance weighted by its conviction, a tenth of it for None and N times it for LockedNx
+     */
+    @BigIntColumn_({nullable: false})
+    votes!: bigint
+
+    /**
      * set while the delegation does not count, its target's vote taken off or split or the delegation undone
      */
     @BooleanColumn_({nullable: false})
