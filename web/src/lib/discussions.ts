@@ -7,12 +7,13 @@ const THREAD = /^https:\/\/discord\.com\/channels\/\d+\/\d+$/
 export async function discussionOf(index: number): Promise<string | null> {
     if (!DISCUSSIONS_URL) return null
     try {
-        const res = await fetch(DISCUSSIONS_URL, {cache: 'no-store', signal: AbortSignal.timeout(3_000)})
+        const res = await fetch(new URL(`/discussions/${index}`, DISCUSSIONS_URL), {cache: 'no-store', signal: AbortSignal.timeout(3_000)})
+        if (res.status === 404) return null
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const link: unknown = (await res.json())[index]
-        return typeof link === 'string' && THREAD.test(link) ? link : null
+        const {url}: {url?: unknown} = await res.json()
+        return typeof url === 'string' && THREAD.test(url) ? url : null
     } catch (e) {
-        console.error(`no discussions from ${DISCUSSIONS_URL}`, e)
+        console.error(`no discussion of referendum ${index} from ${DISCUSSIONS_URL}`, e)
         return null
     }
 }
