@@ -341,34 +341,38 @@ const approvalOf = s => {
     return cast > 0n ? [ayes, cast] : [0n, 1n]
 }
 
-// what a block moved, from the snapshot before to its own, lands on the
-// referendum's last row in that block, the way the indexer writes it
-export function withImpact(rows, history) {
-    const done = new Set()
-    return [...rows].sort(latestFirst).map(row => {
-        const i = history.findIndex(s => s.block === row.block)
-        if (done.has(row.block) || i < 0) return row
-        done.add(row.block)
-        const [now, before] = [history[i], history[i - 1]]
-        const [a1, n1] = approvalOf(now)
-        const [a0, n0] = approvalOf(before)
-        return {
-            ...row,
-            approvalPart: String(a1 * n0 - a0 * n1),
-            approvalWhole: String(n1 * n0),
-            supportPart: String(BigInt(now.support) - BigInt(before?.support ?? 0)),
-            supportWhole: String(BigInt(now.totalIssuance) - BigInt(now.inactiveIssuance)),
-        }
-    })
+// each row carries how far its own event moved the tally, the way the
+// indexer writes it
+export function withImpact(steps) {
+    let before
+    return steps
+        .map(({row, after}) => {
+            const [a1, n1] = approvalOf(after)
+            const [a0, n0] = approvalOf(before)
+            const moved = {
+                ...row,
+                approvalPart: String(a1 * n0 - a0 * n1),
+                approvalWhole: String(n1 * n0),
+                supportPart: String(BigInt(after.support) - BigInt(before?.support ?? 0)),
+                supportWhole: String(BigInt(issuance.issuanceTotal) - BigInt(issuance.issuanceInactive)),
+            }
+            before = after
+            return moved
+        })
+        .sort(latestFirst)
 }
 
 // the action list a page at a time, with the count it pages through
 export const actionLog = rows => ({votingActions: paged(rows), votingActionsConnection: {totalCount: rows.length}})
 
-const voteLog = (index, cast, history) => ({
-    ...voteData(index, cast),
-    ...actionLog(withImpact(cast.map((v, k) => votingAction(index, v.block, 20 + k, 'Voted', v)), history)),
-})
+function voteLog(index, cast, delegated = []) {
+    let t = {ayes: 0n, nays: 0n, support: 0n}
+    const steps = cast
+        .map((v, k) => ({v, row: votingAction(index, v.block, 20 + k, 'Voted', v)}))
+        .sort((a, b) => a.row.block - b.row.block || a.row.indexInBlock - b.row.indexInBlock)
+        .map(({v, row}) => ({row, after: (t = count(t, v, delegated))}))
+    return {...voteData(index, cast), ...actionLog(withImpact(steps))}
+}
 
 // one Locked1x vote per tally move, so the vote lists, the action log and the
 // curve steps all read back the history mock/data.js wrote
@@ -383,7 +387,7 @@ export function castFromSnapshots(r) {
         ayes = BigInt(s.ayes)
         nays = BigInt(s.nays)
     }
-    return voteLog(r.index, cast, r.snapshots)
+    return voteLog(r.index, cast)
 }
 
 // None counts a tenth of the balance and LockedNx counts it N times over
@@ -413,7 +417,7 @@ export function castVotes(r, cast, delegated = []) {
             for (const v of cast) if (v.block === block) t = count(t, v, delegated)
             return {block, ayes: String(t.ayes), nays: String(t.nays), support: String(t.support), totalIssuance: issuance.issuanceTotal, inactiveIssuance: issuance.issuanceInactive}
         })
-    return {referendum: {...r, ayes: String(t.ayes), nays: String(t.nays), support: String(t.support), snapshots: history}, ...voteLog(r.index, cast, history), ...delegatedVoteData(r.index, cast, delegated)}
+    return {referendum: {...r, ayes: String(t.ayes), nays: String(t.nays), support: String(t.support), snapshots: history}, ...voteLog(r.index, cast, delegated), ...delegatedVoteData(r.index, cast, delegated)}
 }
 
 // the delegations a referendum counts, the ones whose target holds a standard vote on it

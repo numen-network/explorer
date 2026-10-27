@@ -65,7 +65,7 @@ const actionList = async (root: HTMLElement) => {
 const cellsOf = (row: HTMLElement) => [...row.children].map(c => c.textContent)
 
 // a delegation row reads its delegator under the action and the target's own
-// votes beside the delegated weight, a block's move sits on its latest row only
+// votes beside the delegated weight, every row shows what its own event moved
 export const ActionsEveryKind = withPlay(story(everyAction.referendum, 'curves', everyAction.data), async ({canvasElement}) => {
     const {heading, rows} = await actionList(canvasElement)
     await expect(heading).toBe('Actions (11)')
@@ -74,7 +74,7 @@ export const ActionsEveryKind = withPlay(story(everyAction.referendum, 'curves',
     await expect(action[3]).toContain('Undelegated by')
     await expect(amount[2]).toMatch(/\+ .* delegated$/)
     await expect(amount[3]).not.toContain('delegated')
-    await expect(impact.map(i => i === '—')).toEqual([false, false, false, false, false, false, false, false, true, false, false])
+    await expect(impact.every(i => i !== '—')).toBe(true)
 })
 
 export const ActionsOne = withPlay(cast(single, singleVote, 'curves'), async ({canvasElement}) => {

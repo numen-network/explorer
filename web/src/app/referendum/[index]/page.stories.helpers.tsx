@@ -139,7 +139,7 @@ export const deciding = (index: number, title: string) => ({...curated(5), id: S
 export const single = deciding(19, 'A single conviction vote decides the tally so far')
 export const singleVote = [{...standard(PEOPLE[0], true, 'Locked3x', numn(1_000_000)), block: 952_000}]
 
-// every way to vote, delegate and take it back, with the tally after each block
+// every way to vote, delegate and take it back, with the tally after each action
 export const [alice, bob, carol, dave, erin, frank, grace] = [PEOPLE[0], PEOPLE[1], PEOPLE[2], PEOPLE[3], PEOPLE[5], PEOPLE[9], PEOPLE[6]]
 const aliceVote = standard(alice, true, 'Locked2x', numn(400_000))
 const bobFirst = standard(bob, false, 'Locked1x', numn(300_000))
@@ -150,9 +150,11 @@ const erinVote = standard(erin, true, 'None', numn(500_000))
 const graceDelegation = delegation(grace, alice, 'Locked6x', numn(50_000), '32')
 const everyVotes = [aliceVote, bobNow, carolVote, daveVote]
 
-const everySnapshots = snapshots([
+// the tally after each action, block 956,000 holding two
+const everySteps = snapshots([
     [952_000, 800_000, 0, 400_000],
     [954_000, 800_000, 300_000, 400_000],
+    [956_000, 810_000, 305_000, 500_000],
     [956_000, 812_000, 307_000, 720_000],
     [960_000, 1_262_000, 307_000, 870_000],
     [962_000, 1_312_000, 307_000, 1_370_000],
@@ -162,25 +164,24 @@ const everySnapshots = snapshots([
     [968_000, 1_112_000, 307_000, 770_000],
     [970_000, 1_112_000, 1_207_000, 770_000],
 ])
+const everySnapshots = everySteps.filter((s: {block: number}, i: number) => everySteps[i + 1]?.block !== s.block)
 
-// a delegation row carries the standing vote of the target it moves, the two
-// votes in block 956,000 share that block's move on the later one
+// a delegation row carries the standing vote of the target it moves
 const everyRow = (block: number, index: number, method: string, vote: object, extra: object = {}) => votingAction(12, block, index, method, vote, extra)
 export const everyRows = withImpact(
     [
-        everyRow(970_000, 3, 'Voted', bobNow),
-        everyRow(968_000, 3, 'Voted', aliceVote, {delegatedVotes: numn(300_000)}),
-        everyRow(967_000, 3, 'Delegated', aliceVote, {delegator: grace, delegatedVotes: numn(300_000)}),
-        everyRow(966_000, 3, 'Undelegated', aliceVote, {delegator: frank}),
-        everyRow(964_000, 3, 'VoteRemoved', erinVote),
-        everyRow(962_000, 3, 'Voted', erinVote),
-        everyRow(960_000, 3, 'Delegated', aliceVote, {delegator: frank, delegatedVotes: numn(450_000)}),
-        everyRow(956_000, 4, 'Voted', daveVote),
-        everyRow(956_000, 3, 'Voted', carolVote),
-        everyRow(954_000, 3, 'Voted', bobFirst),
         everyRow(952_000, 3, 'Voted', aliceVote),
-    ],
-    everySnapshots
+        everyRow(954_000, 3, 'Voted', bobFirst),
+        everyRow(956_000, 3, 'Voted', carolVote),
+        everyRow(956_000, 4, 'Voted', daveVote),
+        everyRow(960_000, 3, 'Delegated', aliceVote, {delegator: frank, delegatedVotes: numn(450_000)}),
+        everyRow(962_000, 3, 'Voted', erinVote),
+        everyRow(964_000, 3, 'VoteRemoved', erinVote),
+        everyRow(966_000, 3, 'Undelegated', aliceVote, {delegator: frank}),
+        everyRow(967_000, 3, 'Delegated', aliceVote, {delegator: grace, delegatedVotes: numn(300_000)}),
+        everyRow(968_000, 3, 'Voted', aliceVote, {delegatedVotes: numn(300_000)}),
+        everyRow(970_000, 3, 'Voted', bobNow),
+    ].map((row, i) => ({row, after: everySteps[i]}))
 )
 
 export const everyAction = {

@@ -7,7 +7,7 @@ import type {Runtime} from '@subsquid/substrate-runtime'
 import {In, IsNull} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
 import {Account, Delegate, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
-import {lockPeriods} from './conviction'
+import {convictionVotes, lockPeriods} from './conviction'
 import {constants, storage} from './types'
 import type {AccountVote} from './types/v100'
 
@@ -44,9 +44,9 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         await applyProposals(batch, rpc)
         matchEnactedSpends(batch)
         await applyMetadata(batch, rpc)
-        await logVotingActions(ctx, batch)
+        const folded = await logVotingActions(ctx, batch)
         await snapshotTallies(ctx, batch)
-        await attributeImpact(ctx, batch)
+        await reconcileTallies(ctx, batch, folded)
     }
     await refreshOngoing(ctx, batch, lastHeader)
 }
@@ -161,12 +161,21 @@ const VOTE_EVENTS = new Set(['ConvictionVoting.Voted', 'ConvictionVoting.VoteRem
 // a vote moves the tally on its own, a delegation change only through the
 // standard votes its target holds on open referenda, so the events replay in
 // order over those votes as the batch found them. the same replay keeps the
-// delegations each open referendum counts
-async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<void> {
+// delegations each open referendum counts and folds each event's move into
+// the tally, returning each referendum's tally as every block left it
+async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<Map<string, Tally>> {
     const targets = await delegationTargets(ctx, batch)
     const voters = new Set([...targets.values(), ...batch.govEvents.filter(ev => VOTE_EVENTS.has(ev.name)).map(ev => ev.args.who as string)])
     const standing = await standingVotes(ctx, voters)
     const delegations = await delegationsTo(ctx, voters)
+    const delegatedTo = (who: string, track: string): Delegations => {
+        let sum = NO_DELEGATIONS
+        for (const d of delegationsOn(delegations, who, track).values()) sum = addDelegations(sum, delegationsOf(d))
+        return sum
+    }
+    const tallies = new Map<number, Tally>()
+    const folded = new Map<string, Tally>()
+    const tallyOf = async (index: number): Promise<Tally> => tallies.get(index) ?? (await latestSnapshot(ctx, String(index))) ?? EMPTY_TALLY
     const weights = new Map<string, bigint>()
     // the chain keeps the conviction weighted sum of the delegations on the
     // voter's casting record, read here as the block left it
@@ -181,7 +190,16 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<vo
         }
         return votes
     }
-    const log = async (ev: GovEvent, index: number, voter: string, delegator: string | null, {track, vote}: StandingVote): Promise<void> => {
+    // a row on a closed referendum or behind an unknown delegation moved nothing it can show
+    const log = async (ev: GovEvent, index: number, voter: string, delegator: string | null, {track, vote}: StandingVote, moved: Tally | null): Promise<void> => {
+        let impact: Impact = NO_IMPACT
+        if (moved != null) {
+            const before = await tallyOf(index)
+            const after = addTally(before, moved)
+            tallies.set(index, after)
+            folded.set(`${index}-${ev.height}`, after)
+            impact = impactOf(before, after)
+        }
         batch.votingActions.push(
             new VotingAction({
                 id: `${index}-${ev.id}`,
@@ -191,10 +209,7 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<vo
                 method: ev.name.split('.')[1],
                 ...vote,
                 delegatedVotes: await delegatedVotes(ev, voter, track),
-                approvalPart: null,
-                approvalWhole: null,
-                supportPart: null,
-                supportWhole: null,
+                ...impact,
                 block: ev.height,
                 indexInBlock: ev.indexInBlock,
                 timestamp: stampOf(ev),
@@ -213,13 +228,18 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<vo
             if (r == null) throw new Error(`no referendum behind the vote at block ${ev.height}`)
             const cast = {track: r.track.id, vote: decoded}
             const held = standing.get(who)!
+            const prior = held.get(pollIndex)
             const standard = method === 'Voted' && decoded.kind === 'Standard'
             // a standard vote carries every delegation its voter holds on the
             // track, taking the vote off or splitting it drops them
-            if (standard || held.has(pollIndex)) for (const [d, delegated] of delegationsOn(delegations, who, cast.track)) countDelegation(batch, ev, pollIndex, who, d, delegated, !standard)
-            if (standard) held.set(pollIndex, cast)
+            if (standard || prior?.vote.kind === 'Standard') for (const [d, delegated] of delegationsOn(delegations, who, cast.track)) countDelegation(batch, ev, pollIndex, who, d, delegated, !standard)
+            if (method === 'Voted') held.set(pollIndex, cast)
             else held.delete(pollIndex)
-            await log(ev, pollIndex, who, null, cast)
+            // a vote taken off a closed referendum is the only one with nothing standing behind it
+            const behind = delegatedTo(who, cast.track)
+            const off = prior == null ? EMPTY_TALLY : weightOf(prior.vote, behind)
+            const moved = method === 'Voted' ? subTally(weightOf(decoded, behind), off) : prior == null ? null : subTally(EMPTY_TALLY, off)
+            await log(ev, pollIndex, who, null, cast, moved)
         } else if (pallet === 'ConvictionVoting' && (method === 'Delegated' || method === 'Undelegated')) {
             const who: string = ev.args[0]
             const track = String(method === 'Delegated' ? ev.args[2] : ev.args[1])
@@ -243,12 +263,14 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<vo
                 })
             )
             for (const [index, held] of standing.get(target)!) {
-                if (held.track !== track) continue
-                await log(ev, index, target, who, held)
+                if (held.track !== track || held.vote.kind !== 'Standard') continue
+                const moved = delegated == null ? null : sideOf(held.vote.aye!, delegationsOf(delegated))
+                await log(ev, index, target, who, held, method === 'Undelegated' && moved != null ? subTally(EMPTY_TALLY, moved) : moved)
                 if (delegated != null) countDelegation(batch, ev, index, target, who, delegated, method === 'Undelegated')
             }
         }
     }
+    return folded
 }
 
 // a referendum counts a delegation while its target holds a standard vote
@@ -349,46 +371,95 @@ async function delegationTargets(ctx: {store: any}, batch: BatchData): Promise<M
     return targets
 }
 
-// the standard votes each account holds on open referenda as the batch begins
+// the votes each account holds on open referenda as the batch begins
 async function standingVotes(ctx: {store: any}, accounts: Set<string>): Promise<Map<string, Map<number, StandingVote>>> {
     const out = new Map([...accounts].map(a => [a, new Map<number, StandingVote>()]))
     if (accounts.size === 0) return out
     const votes: Vote[] = await ctx.store.find(Vote, {
-        where: {voter: {id: In([...accounts])}, removed: false, kind: 'Standard', referendum: {status: ReferendumStatus.Ongoing}},
+        where: {voter: {id: In([...accounts])}, removed: false, referendum: {status: ReferendumStatus.Ongoing}},
         relations: {voter: true, referendum: {track: true}},
     })
     for (const v of votes) out.get(v.voter.id)!.set(v.referendum.index, {track: v.referendum.track.id, vote: voteFields(v)})
     return out
 }
 
-// a snapshot holds the tally as its block left it, so all the block moved
-// lands on the referendum's last action row there, measured from the
-// snapshot before
-async function attributeImpact(ctx: {store: any}, batch: BatchData): Promise<void> {
-    const last = new Map<string, VotingAction>()
-    for (const a of batch.votingActions) last.set(`${a.referendum.id}-${a.block}`, a)
-    const before = new Map<string, ReferendumTallySnapshot>()
-    for (const now of [...batch.tallySnapshots.values()].sort((x, y) => x.block - y.block)) {
-        const ref = now.referendum.id
-        const a = last.get(now.id)
-        if (a != null) {
-            const prev: ReferendumTallySnapshot | undefined =
-                before.get(ref) ?? (await ctx.store.findOne(ReferendumTallySnapshot, {where: {referendum: {id: ref}}, order: {block: 'DESC'}}))
-            const [a1, n1] = approvalOf(now)
-            const [a0, n0] = approvalOf(prev)
-            a.approvalPart = a1 * n0 - a0 * n1
-            a.approvalWhole = n1 * n0
-            a.supportPart = now.support - (prev?.support ?? 0n)
-            a.supportWhole = now.totalIssuance - now.inactiveIssuance
-        }
-        before.set(ref, now)
+interface Tally {
+    ayes: bigint
+    nays: bigint
+    support: bigint
+}
+
+interface Delegations {
+    votes: bigint
+    capital: bigint
+}
+
+type Impact = Pick<VotingAction, 'approvalPart' | 'approvalWhole' | 'supportPart' | 'supportWhole'>
+
+const EMPTY_TALLY: Tally = {ayes: 0n, nays: 0n, support: 0n}
+const NO_DELEGATIONS: Delegations = {votes: 0n, capital: 0n}
+const NO_IMPACT: Impact = {approvalPart: null, approvalWhole: null, supportPart: null, supportWhole: null}
+
+const addTally = (a: Tally, b: Tally): Tally => ({ayes: a.ayes + b.ayes, nays: a.nays + b.nays, support: a.support + b.support})
+const subTally = (a: Tally, b: Tally): Tally => ({ayes: a.ayes - b.ayes, nays: a.nays - b.nays, support: a.support - b.support})
+const sameTally = (a: Tally, b: Tally) => a.ayes === b.ayes && a.nays === b.nays && a.support === b.support
+const addDelegations = (a: Delegations, b: Delegations): Delegations => ({votes: a.votes + b.votes, capital: a.capital + b.capital})
+const delegationsOf = ({conviction, balance}: Delegated): Delegations => ({votes: convictionVotes(conviction, balance), capital: balance})
+
+// conviction weighted votes land on their side, the capital only counts toward support on aye
+const sideOf = (aye: boolean, {votes, capital}: Delegations): Tally => (aye ? {ayes: votes, nays: 0n, support: capital} : {ayes: 0n, nays: votes, support: 0n})
+
+// what a vote puts on a tally as pallet_conviction_voting counts it, a split
+// part weighs as no conviction and a standard vote carries the delegations
+// behind its voter
+function weightOf(v: AccountVoteFields, delegated: Delegations): Tally {
+    switch (v.kind) {
+        case 'Standard':
+            return sideOf(v.aye!, addDelegations(delegationsOf({conviction: v.conviction!, balance: v.balance!}), delegated))
+        case 'Split':
+            return addTally(sideOf(true, delegationsOf({conviction: 'None', balance: v.ayeAmount!})), sideOf(false, delegationsOf({conviction: 'None', balance: v.nayAmount!})))
+        case 'SplitAbstain':
+            return addTally(weightOf({...v, kind: 'Split'}, NO_DELEGATIONS), {ayes: 0n, nays: 0n, support: v.abstainAmount!})
     }
+    throw new Error(`unhandled vote kind ${v.kind}`)
+}
+
+// supportWhole needs the block's issuance, which the snapshot reads
+function impactOf(before: Tally, after: Tally): Impact {
+    const [a1, n1] = approvalOf(after)
+    const [a0, n0] = approvalOf(before)
+    return {approvalPart: a1 * n0 - a0 * n1, approvalWhole: n1 * n0, supportPart: after.support - before.support, supportWhole: null}
 }
 
 // approval as a fraction of the votes cast, none cast reading as none approving
-function approvalOf(s: ReferendumTallySnapshot | undefined): [part: bigint, whole: bigint] {
-    const cast = s == null ? 0n : s.ayes + s.nays
-    return cast > 0n ? [s!.ayes, cast] : [0n, 1n]
+function approvalOf({ayes, nays}: Tally): [part: bigint, whole: bigint] {
+    const cast = ayes + nays
+    return cast > 0n ? [ayes, cast] : [0n, 1n]
+}
+
+const latestSnapshot = (ctx: {store: any}, ref: string): Promise<ReferendumTallySnapshot | undefined> =>
+    ctx.store.findOne(ReferendumTallySnapshot, {where: {referendum: {id: ref}}, order: {block: 'DESC'}})
+
+// the folded tally has to land on what the chain kept at the end of every
+// block, anything else means the replay missed a rule
+async function reconcileTallies(ctx: {store: any}, batch: BatchData, folded: Map<string, Tally>): Promise<void> {
+    const rows = new Map<string, VotingAction[]>()
+    for (const a of batch.votingActions) {
+        if (a.supportPart == null) continue
+        const id = `${a.referendum.id}-${a.block}`
+        rows.set(id, [...(rows.get(id) ?? []), a])
+    }
+    const before = new Map<string, Tally>()
+    for (const now of [...batch.tallySnapshots.values()].sort((x, y) => x.block - y.block)) {
+        const ref = now.referendum.id
+        const want = folded.get(now.id) ?? before.get(ref) ?? (await latestSnapshot(ctx, ref)) ?? EMPTY_TALLY
+        if (!sameTally(now, want)) throw new Error(`folded tally of referendum ${ref} drifts from the chain at block ${now.block}`)
+        for (const a of rows.get(now.id) ?? []) a.supportWhole = now.totalIssuance - now.inactiveIssuance
+        rows.delete(now.id)
+        before.set(ref, now)
+    }
+    const [orphan] = rows.keys()
+    if (orphan != null) throw new Error(`no tally snapshot behind the actions on ${orphan}`)
 }
 
 // the referendum row keeps only the latest text, every set and clear also

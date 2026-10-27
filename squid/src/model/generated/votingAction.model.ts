@@ -88,7 +88,7 @@ export class VotingAction {
     delegatedVotes!: bigint
 
     /**
-     * how far the block moved the approval, approvalPart over approvalWhole, read off the tally snapshots and set on the referendum's last row in the block only
+     * how far the event moved the approval, approvalPart over approvalWhole, null when the referendum was closed or the block undid the delegation
      */
     @BigIntColumn_({nullable: true})
     approvalPart!: bigint | undefined | null
@@ -97,7 +97,7 @@ export class VotingAction {
     approvalWhole!: bigint | undefined | null
 
     /**
-     * the support the block added or took away, supportWhole is the active issuance at its end
+     * the support the event added or took away, supportWhole is the active issuance at the end of its block
      */
     @BigIntColumn_({nullable: true})
     supportPart!: bigint | undefined | null

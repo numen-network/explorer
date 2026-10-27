@@ -558,10 +558,10 @@ type VotingAction @entity @index(fields: ["referendum", "block", "indexInBlock"]
   abstainAmount: BigInt
   "conviction weighted sum of the delegations on the voter's casting record at the end of the block, as the chain keeps it"
   delegatedVotes: BigInt!
-  "how far the block moved the approval, approvalPart over approvalWhole, read off the tally snapshots and set on the referendum's last row in the block only"
+  "how far the event moved the approval, approvalPart over approvalWhole, null when the referendum was closed or the block undid the delegation"
   approvalPart: BigInt
   approvalWhole: BigInt
-  "the support the block added or took away, supportWhole is the active issuance at its end"
+  "the support the event added or took away, supportWhole is the active issuance at the end of its block"
   supportPart: BigInt
   supportWhole: BigInt
   block: Int!
