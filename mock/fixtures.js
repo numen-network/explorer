@@ -56,7 +56,7 @@ export const issuance = {
 // what every page reads before its own data, the chain, its genesis and the newest indexed block
 export const base = {
     chainInfos: [chainInfo],
-    blocks: ({where} = {}) => (where?.height_eq === 0 ? [{height: 0, hash: GENESIS_HASH}] : [{height: HEAD, timestamp: new Date().toISOString()}]),
+    blocks: ({where} = {}) => (where?.height_eq === 0 ? [{height: 0, hash: GENESIS_HASH}] : [{height: HEAD, timestamp: new Date().toISOString(), specVersion: block(HEAD).specVersion}]),
 }
 
 const FIELDS = ['display', 'avatar', 'bio', 'web', 'email', 'github', 'matrix', 'x', 'telegram', 'discord']

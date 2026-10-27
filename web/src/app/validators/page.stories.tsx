@@ -3,6 +3,7 @@ import {expect} from 'storybook/test'
 import {account, acct, chainInfo, HEAD, identity, numn, paged, person} from '../../../../mock/fixtures.js'
 import {columnTexts, expectAddressForm, expectFits} from '../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../.storybook/page'
+import {fmtInt} from '@/lib/format'
 import ValidatorsPage from './page'
 
 export default {title: 'Pages/Validators/List', ...pageMeta(ValidatorsPage)}
@@ -17,10 +18,12 @@ const validator = (n: number, traits: object = {}) => ({
     id: account(n),
     account: {...person(n), id: account(n)},
     active: true,
+    status: 'Active',
     lockedAmount: LOCK,
     lockExpiry: HEAD + (180 - n) * DAY,
     offences: [] as {kind: string}[],
     kicked: null,
+    rejoinCooldown: null as number | null,
     firstSeenBlock: n * 12_000,
     lastActiveSession: SESSION,
     ...traits,
@@ -41,8 +44,9 @@ const GENESIS = [
 ]
 const genesis = (traits: (g: (typeof GENESIS)[number]) => object) =>
     GENESIS.map(g => validator(0, {...exempt, id: g.id, account: {id: g.id}, ...traits(g)}))
-const inactive = (sessionsAgo: number) => ({active: false, lastActiveSession: SESSION - sessionsAgo})
-const kicked = (reason: string, sessionsAgo: number) => ({...inactive(sessionsAgo), kicked: {__kind: reason}})
+const inactive = (status: string, sessionsAgo: number) => ({active: false, status, lastActiveSession: SESSION - sessionsAgo})
+const kicked = (reason: string, sessionsAgo: number, rejoinCooldown = HEAD + DAY) => ({...inactive('Kicked', sessionsAgo), kicked: {__kind: reason}, rejoinCooldown})
+const released = (sessionsAgo: number) => ({...inactive('Released', sessionsAgo), lockedAmount: '0', lockExpiry: null})
 
 // the header counts every validator and the active ones, told apart by the filter
 const validators = (rows: ReturnType<typeof validator>[], page = '1') =>
@@ -55,29 +59,42 @@ export const Empty = validators([])
 
 export const One = validators([validator(1)])
 
-// the last one locked thirty blocks ago and has yet to sit in an active set.
-// from xl up a full address breaks onto a second line so every column stays in
-// view, narrower screens scroll the table
+// the pending one locked thirty blocks ago and has yet to sit in an active set,
+// the equivocator's cooldown is over though its lock still runs. the longest
+// display a chain can hold can make the table scroll even at xl
 export const EveryStatus: StoryObj = {
     ...validators([
         validator(1),
         validator(2, exempt),
         validator(5, {...kicked('Offline', 1), ...offences(1)}),
-        validator(6, {...kicked('Equivocation', 3), ...offences(0, 1)}),
-        validator(3, inactive(40)),
-        validator(4, {...inactive(9_000), lockedAmount: '0', lockExpiry: null}),
+        validator(6, {...kicked('Equivocation', 3, HEAD - 1), ...offences(0, 1)}),
+        validator(3, inactive('ExitRequested', 40)),
+        validator(4, released(9_000)),
         validator(7, {active: false, lastActiveSession: null, firstSeenBlock: HEAD - 30}),
     ]),
     play: async ({canvasElement}) => {
+        await expect(columnTexts(canvasElement, 'Status')).toEqual([
+            'Active',
+            'Active',
+            'Kicked · Offline',
+            'Kicked · Equivocation',
+            'Exit requested',
+            'Released',
+            'Pending',
+        ])
+        await expect(columnTexts(canvasElement, 'Lock expiry')).toEqual(['Auto-renews', 'Auto-renews', `#${fmtInt(HEAD + 175 * DAY)}`, `#${fmtInt(HEAD + 174 * DAY)}`, `#${fmtInt(HEAD + 177 * DAY)}`, '—', 'Auto-renews'])
+        await expect(columnTexts(canvasElement, 'Rejoin after')).toEqual(['—', '—', `#${fmtInt(HEAD + DAY)}`, '—', '—', '—', '—'])
         await expect(columnTexts(canvasElement, 'Last session').at(-1)).toBe('—')
-        if (matchMedia('(width >= 80rem)').matches) expectFits(canvasElement.querySelector('[data-slot=table-container]')!)
         expectAddressForm(canvasElement)
     },
 }
 
+// from xl up a full address breaks onto a second line so every column stays in
+// view, narrower screens scroll the table
 export const OfflineInWindow: StoryObj = {
     ...validators(genesis(g => offences(g.offline))),
     play: async ({canvasElement}) => {
+        if (matchMedia('(width >= 80rem)').matches) expectFits(canvasElement.querySelector('[data-slot=table-container]')!)
         await expect(columnTexts(canvasElement, 'Offline (30d)')).toEqual(['1', '2', '1', '2'])
         await expect(columnTexts(canvasElement, 'Equivocations (30d)')).toEqual(['0', '0', '0', '0'])
     },
@@ -122,7 +139,7 @@ const many = Array.from({length: 46}, (_, i) => {
     if (i < 30) return validator(n, i % 7 === 6 ? exempt : {})
     if (i < 33) return validator(n, {...kicked('Offline', i - 29), ...offences(1)})
     if (i < 35) return validator(n, {...kicked('Equivocation', i - 28), ...offences(0, 1 + (i % 2))})
-    return validator(n, inactive(i * 50))
+    return validator(n, released(i * 50))
 })
 
 export const Many = validators(many)

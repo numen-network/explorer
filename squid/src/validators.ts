@@ -36,12 +36,21 @@ async function recordStep(ctx: {store: any}, batch: BatchData, ev: {id: string; 
     batch.validatorSteps.set(step.id, step)
 }
 
-async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, height: number): Promise<Validator> {
+async function loadValidator(ctx: {store: any}, batch: BatchData, who: string): Promise<Validator> {
     let v = batch.validators.get(who)
     if (v != null) return v
     v = await ctx.store.get(Validator, who)
-    if (v == null) {
-        v = new Validator({
+    if (v == null) throw new Error(`validator ${who} has no lock on record`)
+    batch.validators.set(who, v)
+    return v
+}
+
+// lock is the only way into the pallet besides genesis
+async function lockedValidator(ctx: {store: any}, batch: BatchData, who: string, height: number): Promise<Validator> {
+    const known = batch.validators.get(who) ?? (await ctx.store.get(Validator, who))
+    const v =
+        known ??
+        new Validator({
             id: who,
             account: batch.touch(who, height),
             active: false,
@@ -49,9 +58,16 @@ async function loadValidator(ctx: {store: any}, batch: BatchData, who: string, h
             firstSeenBlock: height,
             lastActiveSession: null,
         })
-    }
     batch.validators.set(who, v)
     return v
+}
+
+async function rejoinCooldownAt(header: any, who: string, height: number): Promise<number> {
+    const s = storage.validator.rejoinCooldown.v100
+    if (!s.is(header)) throw new Error(`unhandled spec version for rejoin cooldown at block ${height}`)
+    const deadline = await s.get(header, who)
+    if (deadline == null) throw new Error(`kick of ${who} at block ${height} left no rejoin cooldown`)
+    return deadline
 }
 
 // the genesis set never gets a NewSession of its own, nor its locks and
@@ -66,6 +82,7 @@ export async function seedGenesisValidators(batch: BatchData, genesisHeader: any
     const exemptOf = await exempt.getMany(genesisHeader, set)
     set.forEach((who, i) => {
         const lock = lockOf[i]
+        if (lock == null) throw new Error(`genesis validator ${who} has no lock`)
         const account = batch.touch(who, 0)
         batch.validators.set(
             who,
@@ -73,8 +90,9 @@ export async function seedGenesisValidators(batch: BatchData, genesisHeader: any
                 id: who,
                 account,
                 active: true,
-                lockedAmount: lock?.amount ?? 0n,
-                lockExpiry: lock?.expiryBlock ?? null,
+                status: lock.status.__kind,
+                lockedAmount: lock.amount,
+                lockExpiry: lock.expiryBlock,
                 firstSeenBlock: 0,
                 lastActiveSession: 0,
             })
@@ -85,7 +103,7 @@ export async function seedGenesisValidators(batch: BatchData, genesisHeader: any
             event: null,
             lastEvent: null,
             renewals: 0,
-            genesisLock: lock == null ? null : toJSON(lock),
+            genesisLock: toJSON(lock),
             genesisExempt: exemptOf[i] !== undefined,
         })
         batch.latestSteps.set(who, step)
@@ -106,31 +124,43 @@ export async function finalizeValidators(ctx: {store: any}, batch: BatchData): P
                 await syncActiveSet(ctx, batch, Number(args.sessionIndex), ev.height, ev.header)
                 break
             case 'ValidatorLocked': {
-                const v = await loadValidator(ctx, batch, args.who, ev.height)
+                const v = await lockedValidator(ctx, batch, args.who, ev.height)
                 v.lockedAmount = BigInt(args.amount)
                 v.lockExpiry = Number(args.expiryBlock)
+                if (ev.phase === 'Initialization') break
+                v.status = 'Active'
+                v.kicked = null
+                v.rejoinCooldown = null
+                break
+            }
+            case 'ValidatorExitRequested':
+            case 'PendingValidatorDropped': {
+                const v = await loadValidator(ctx, batch, args.who)
+                v.status = 'ExitRequested'
                 break
             }
             case 'LockReleased': {
-                const v = await loadValidator(ctx, batch, args.who, ev.height)
+                const v = await loadValidator(ctx, batch, args.who)
+                v.status = 'Released'
                 v.lockedAmount = 0n
                 v.lockExpiry = null
                 break
             }
             case 'ValidatorKicked': {
-                const v = await loadValidator(ctx, batch, args.who, ev.height)
+                const v = await loadValidator(ctx, batch, args.who)
+                v.status = 'Kicked'
                 v.kicked = toJSON(args.reason)
-                v.active = false
+                v.rejoinCooldown = await rejoinCooldownAt(ev.header, args.who, ev.height)
                 break
             }
             case 'EquivocationReported': {
-                const v = await loadValidator(ctx, batch, args.who, ev.height)
+                const v = await loadValidator(ctx, batch, args.who)
                 recordOffence(batch, v, ev.id, 'Equivocation', ev)
                 break
             }
             case 'SomeOffline':
                 for (const [who] of args.offline) {
-                    const v = await loadValidator(ctx, batch, who, ev.height)
+                    const v = await loadValidator(ctx, batch, who)
                     recordOffence(batch, v, `${ev.id}-${who}`, 'Offline', ev)
                 }
                 break
@@ -159,9 +189,8 @@ async function syncActiveSet(ctx: {store: any}, batch: BatchData, index: number,
         }
     }
     for (const who of current) {
-        const v = await loadValidator(ctx, batch, who, height)
+        const v = await loadValidator(ctx, batch, who)
         v.active = true
-        v.kicked = null
         v.lastActiveSession = index
     }
 }

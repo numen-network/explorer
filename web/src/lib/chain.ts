@@ -33,6 +33,7 @@ export interface Heads {
 export interface DbHead {
     height: number
     timestamp: string | null
+    specVersion: number
 }
 
 const chainInfo = cache(async (): Promise<{info: InfoRow; genesis: string; dbHead: DbHead}> => {
@@ -40,7 +41,7 @@ const chainInfo = cache(async (): Promise<{info: InfoRow; genesis: string; dbHea
         `query {
             chainInfos(limit: 1) { name symbol decimals ss58 blockTime existentialDeposit evmChainId nativeErc20 sessionLength sessionOffset voteLockingPeriod submissionDeposit treasuryAccount head finalizedHead }
             genesis: blocks(where: {height_eq: 0}, limit: 1) { hash }
-            dbHead: blocks(orderBy: height_DESC, limit: 1) { height timestamp }
+            dbHead: blocks(orderBy: height_DESC, limit: 1) { height timestamp specVersion }
         }`
     )
     if (!chainInfos[0]) throw new Error('chain info row is missing, the indexer has not written it yet')

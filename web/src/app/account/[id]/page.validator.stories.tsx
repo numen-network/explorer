@@ -1,8 +1,10 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {JJFU_OFFLINE, MADE_UP_EQUIVOCATION, validatorRow} from '../../../../../mock/fixtures/accounts.js'
+import {HEAD} from '../../../../../mock/fixtures.js'
 import {columnTexts} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
+import {fmtInt} from '@/lib/format'
 import AccountPage from './page'
 import {wellKnown, story, staked, figure, offenceCounts} from './page.stories.helpers'
 
@@ -13,6 +15,7 @@ export const ActiveNoOffences: StoryObj = {
     ...story({account: staked(), validator: validatorRow()}, {tab: 'validator'}),
     play: async ({canvasElement}) => {
         await expect(figure(canvasElement, 'Status')).toBe('Active')
+        await expect(figure(canvasElement, 'Lock expiry')).toBe('Auto-renews')
         await offenceCounts(canvasElement, '0', '0')
         await expect(within(canvasElement).getByText('No offences yet.')).toBeVisible()
     },
@@ -44,12 +47,21 @@ export const OfflineAndEquivocation: StoryObj = {
     },
 }
 
-export const Inactive: StoryObj = {
-    ...story({validator: validatorRow({active: false, lockedAmount: '0', lockExpiry: null, lastActiveSession: 15_210})}, {tab: 'validator'}),
-    play: async ({canvasElement}) => expect(figure(canvasElement, 'Status')).toBe('Inactive'),
+export const Released: StoryObj = {
+    ...story({validator: validatorRow({active: false, status: 'Released', lockedAmount: '0', lockExpiry: null, lastActiveSession: 15_210})}, {tab: 'validator'}),
+    play: async ({canvasElement}) => {
+        await expect(figure(canvasElement, 'Status')).toBe('Released')
+        await expect(figure(canvasElement, 'Lock expiry')).toBe('—')
+        await expect(figure(canvasElement, 'Rejoin after')).toBe('—')
+    },
 }
 
+// still serving out the cooldown the kick set
 export const KickedOffline: StoryObj = {
-    ...story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE}, {tab: 'validator'}),
-    play: async ({canvasElement}) => expect(figure(canvasElement, 'Status')).toBe('Kicked · Offline'),
+    ...story({account: staked(), validator: validatorRow({active: false, status: 'Kicked', kicked: {__kind: 'Offline'}, rejoinCooldown: HEAD + 7_200}), offences: JJFU_OFFLINE}, {tab: 'validator'}),
+    play: async ({canvasElement}) => {
+        await expect(figure(canvasElement, 'Status')).toBe('Kicked · Offline')
+        await expect(figure(canvasElement, 'Lock expiry')).toBe(`#${fmtInt(HEAD + 120_960)}`)
+        await expect(figure(canvasElement, 'Rejoin after')).toBe(`#${fmtInt(HEAD + 7_200)}`)
+    },
 }

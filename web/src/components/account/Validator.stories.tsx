@@ -1,6 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {CHAIN, JJFU_OFFLINE, MADE_UP_EQUIVOCATION, validatorRow} from '../../../../mock/fixtures/accounts.js'
+import {HEAD} from '../../../../mock/fixtures.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {ValidatorTile} from './Validator'
 import {ValidatorOffencesTable} from './ValidatorOffencesTable'
@@ -12,13 +13,21 @@ type Story = StoryObj<typeof meta>
 const figure = (root: HTMLElement, label: string) => [...root.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === label)!.nextElementSibling!.textContent
 
 // locked but yet to sit in an active set, so there is no last session
-export const TileNeverActive: Story = {
-    render: () => <ValidatorTile v={validatorRow({active: false, lastActiveSession: null})} offline={0} equivocations={0} chain={CHAIN} />,
-    play: async ({canvasElement}) => expect(figure(canvasElement, 'Last active session')).toBe('—'),
+export const TilePending: Story = {
+    render: () => <ValidatorTile v={validatorRow({active: false, lastActiveSession: null})} offline={0} equivocations={0} chain={CHAIN} head={HEAD} renewEvery="1d" />,
+    play: async ({canvasElement}) => {
+        await expect(figure(canvasElement, 'Status')).toBe('Pending')
+        await expect(figure(canvasElement, 'Last active session')).toBe('—')
+    },
 }
 
+// the cooldown ran out but the lock has yet to expire
 export const TileKickedEquivocation: Story = {
-    render: () => <ValidatorTile v={validatorRow({active: false, kicked: {__kind: 'Equivocation'}})} offline={0} equivocations={1} chain={CHAIN} />,
+    render: () => <ValidatorTile v={validatorRow({active: false, status: 'Kicked', kicked: {__kind: 'Equivocation'}, rejoinCooldown: HEAD - 1})} offline={0} equivocations={1} chain={CHAIN} head={HEAD} renewEvery="1d" />,
+    play: async ({canvasElement}) => {
+        await expect(figure(canvasElement, 'Status')).toBe('Kicked · Equivocation')
+        await expect(figure(canvasElement, 'Rejoin after')).toBe('—')
+    },
 }
 
 export const OffencesOffline: Story = {

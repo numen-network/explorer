@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, BooleanColumn as BooleanColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, JSONColumn as JSONColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, BooleanColumn as BooleanColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, JSONColumn as JSONColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Account} from "./account.model"
 import {ValidatorOffence} from "./validatorOffence.model"
 
@@ -20,6 +20,12 @@ export class Validator {
     @BooleanColumn_({nullable: false})
     active!: boolean
 
+    /**
+     * the ValidatorLocks status, Released once LockReleased drops the entry
+     */
+    @StringColumn_({nullable: false})
+    status!: string
+
     @BigIntColumn_({nullable: false})
     lockedAmount!: bigint
 
@@ -27,10 +33,16 @@ export class Validator {
     lockExpiry!: number | undefined | null
 
     /**
-     * the reason ValidatorKicked carried, whole
+     * the reason ValidatorKicked carried, whole, until the next lock
      */
     @JSONColumn_({nullable: true})
     kicked!: unknown | undefined | null
+
+    /**
+     * the RejoinCooldown deadline the kick set, until the next lock
+     */
+    @IntColumn_({nullable: true})
+    rejoinCooldown!: number | undefined | null
 
     @IntColumn_({nullable: false})
     firstSeenBlock!: number

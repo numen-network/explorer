@@ -829,10 +829,14 @@ type Validator @entity {
   id: ID!
   account: Account! @unique
   active: Boolean! @index
+  "the ValidatorLocks status, Released once LockReleased drops the entry"
+  status: String!
   lockedAmount: BigInt!
   lockExpiry: Int
-  "the reason ValidatorKicked carried, whole"
+  "the reason ValidatorKicked carried, whole, until the next lock"
   kicked: JSON
+  "the RejoinCooldown deadline the kick set, until the next lock"
+  rejoinCooldown: Int
   firstSeenBlock: Int!
   "the last session it was active in, null if it never was"
   lastActiveSession: Int

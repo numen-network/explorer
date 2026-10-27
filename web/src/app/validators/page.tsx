@@ -5,6 +5,7 @@ import {fmtInt} from '@/lib/format'
 import {validatorsPage} from '@/lib/gql'
 import {OFFENCE_DAYS} from '@/lib/offences'
 import {paging} from '@/lib/paging'
+import {renewEvery} from '@/lib/renewal'
 import {ValidatorsTable} from './table'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ export default async function ValidatorsPage(props: PageProps<'/validators'>) {
                 </span>
             </div>
             <Card size="flush" className="mt-3">
-                <ValidatorsTable rows={data.validators} chain={chain} />
+                <ValidatorsTable rows={data.validators} chain={chain} head={head.height} renewEvery={renewEvery(head, chain)} />
             </Card>
             <Pager paging={pg} total={data.all.totalCount} href="/validators" />
         </div>

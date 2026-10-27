@@ -12,7 +12,7 @@ const stepRow = (root: HTMLElement, label: string) => within(root).getByText(lab
 
 // an exemption, a lock renewed day after day, a kick for going offline and the exemption taken back
 export const Lifecycle: StoryObj = {
-    ...story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE, steps: validatorLifecycle()}, {tab: 'validator-timeline'}),
+    ...story({account: staked(), validator: validatorRow({active: false, status: 'Kicked', kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE, steps: validatorLifecycle()}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) => {
         await expect(stepTitles(canvasElement)).toEqual(['Exemption revoked', 'Kicked', 'Renewed', 'Locked', 'Exemption granted'])
         await expect(stepRow(canvasElement, 'Renewals')).toBe('29')
@@ -27,7 +27,7 @@ export const Genesis: StoryObj = {
         await expect(stepTitles(canvasElement)).toEqual(['Renewed', 'Genesis'])
         const genesis = canvasElement.querySelector<HTMLElement>('[data-slot=card] > ol > li:last-child')!
         await expect(stepRow(genesis, 'Amount')).toBe('0 NUMN')
-        await expect(stepRow(genesis, 'Lock expiry')).toBe('1,555,200')
+        await expect(stepRow(genesis, 'Lock expiry')).toBe('#1,555,200')
         await expect(stepRow(genesis, 'Stake exempt')).toBe('Yes')
         await expect(within(genesis).getAllByRole('link').map(a => a.textContent)).toEqual(['#0'])
         await expect(stepRow(canvasElement, 'Renewals')).toBe('29')

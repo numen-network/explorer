@@ -83,7 +83,7 @@ export const UsernameOnlyNoIdentityTab: StoryObj = {
 
 // a validator's two tabs, counted, under the tile they share
 export const EveryValidatorTab: StoryObj = {
-    ...story({account: staked(), validator: validatorRow({active: false, kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE, steps: validatorLifecycle()}, {tab: 'validator-timeline'}),
+    ...story({account: staked(), validator: validatorRow({active: false, status: 'Kicked', kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE, steps: validatorLifecycle()}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) => {
         expect(strip(canvasElement, 'Validator', 'tab')).toEqual([
             ['validator-timeline', '5', 'page'],

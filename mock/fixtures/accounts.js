@@ -530,9 +530,11 @@ export const seatEntries = () => [
 export const validatorRow = (traits = {}) => ({
     id: SUBJECT,
     active: true,
+    status: 'Active',
     lockedAmount: numn(100_000_000),
     lockExpiry: HEAD + 120_960,
     kicked: null,
+    rejoinCooldown: null,
     firstSeenBlock: 12_000,
     lastActiveSession: 16_666,
     account: ME,

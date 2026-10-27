@@ -49,7 +49,7 @@ function stepRows(s: ValidatorEventStepRow, chain: ChainProps): [string, ReactNo
     const rows: [string, ReactNode][] = []
     if (s.renewals > 0) rows.push(['Renewals', fmtInt(s.renewals)], ['Start time', <TimeCell key="start" iso={s.event.block.timestamp} cycle />])
     else if (args.amount != null) rows.push(['Amount', fmtBalance(args.amount, chain.decimals, chain.symbol)])
-    if (args.expiryBlock != null) rows.push(['Lock expiry', fmtInt(args.expiryBlock)])
+    if (args.expiryBlock != null) rows.push(['Lock expiry', `#${fmtInt(args.expiryBlock)}`])
     if (args.reason != null) rows.push(['Reason', variantName(args.reason)])
     return rows
 }
@@ -71,7 +71,7 @@ function EventStep({s, chain}: {s: ValidatorEventStepRow; chain: ChainProps}) {
 
 function GenesisStep({s, chain}: {s: ValidatorGenesisStepRow; chain: ChainProps}) {
     const rows: [string, ReactNode][] = []
-    if (s.genesisLock != null) rows.push(['Amount', fmtBalance(s.genesisLock.amount, chain.decimals, chain.symbol)], ['Lock expiry', fmtInt(s.genesisLock.expiryBlock)])
+    if (s.genesisLock != null) rows.push(['Amount', fmtBalance(s.genesisLock.amount, chain.decimals, chain.symbol)], ['Lock expiry', `#${fmtInt(s.genesisLock.expiryBlock)}`])
     rows.push(['Stake exempt', s.genesisExempt ? 'Yes' : 'No'])
     return (
         <TimelineItem

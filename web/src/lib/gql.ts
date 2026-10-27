@@ -2251,15 +2251,17 @@ export function countedDelegations(index: number, voters: string[]) {
 export interface ValidatorRow {
     id: string
     active: boolean
+    status: string
     lockedAmount: string
     lockExpiry: number | null
     kicked: unknown
+    rejoinCooldown: number | null
     firstSeenBlock: number
     lastActiveSession: number | null
     account: AccountRef
 }
 
-const VALIDATOR_FIELDS = `id active lockedAmount lockExpiry kicked firstSeenBlock lastActiveSession account { ${ACCOUNT_REF} }`
+const VALIDATOR_FIELDS = `id active status lockedAmount lockExpiry kicked rejoinCooldown firstSeenBlock lastActiveSession account { ${ACCOUNT_REF} }`
 
 export interface ValidatorOffenceRow {
     id: string
