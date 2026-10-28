@@ -1047,16 +1047,19 @@ export async function peopleCounts() {
     }
 }
 
-export async function identitiesPage(limit: number, offset: number): Promise<{accounts: IdentityRow[]}> {
-    const {accounts} = await gql<{accounts: (Omit<IdentityRow, 'delegators' | 'delegated'> & {delegate: {delegators: number; delegated: string} | null})[]}>(
-        `query ($limit: Int!, $offset: Int!) {
-            accounts(where: ${HAS_IDENTITY}, orderBy: ${IDENTITY_ORDER}, limit: $limit, offset: $offset) {
+export async function identitiesPage({account, name}: AccountSearch, limit: number, offset: number): Promise<{accounts: IdentityRow[]; total: number}> {
+    const where = `{${['identityJson_isNull: false', account != null && 'id_eq: $account', name != null && `AND: ${nameMatch('$name')}`].filter(Boolean).join(', ')}}`
+    const vars = [account != null && '$account: String!', name != null && '$name: String!'].filter(Boolean).join(', ')
+    const {accounts, conn} = await gql<{accounts: (Omit<IdentityRow, 'delegators' | 'delegated'> & {delegate: {delegators: number; delegated: string} | null})[]; conn: {totalCount: number}}>(
+        `query (${vars ? `${vars}, ` : ''}$limit: Int!, $offset: Int!) {
+            accounts(where: ${where}, orderBy: ${IDENTITY_ORDER}, limit: $limit, offset: $offset) {
                 ${ACCOUNT_REF} subs(orderBy: ${SUB_ORDER}) { ${ACCOUNT_REF} } delegate { delegators delegated }
             }
+            conn: accountsConnection(where: ${where}, orderBy: id_ASC) { totalCount }
         }`,
-        {limit, offset}
+        {...(account != null && {account}), ...(name != null && {name}), limit, offset}
     )
-    return {accounts: accounts.map(({delegate, ...a}) => ({...a, delegators: delegate?.delegators ?? 0, delegated: delegate?.delegated ?? '0'}))}
+    return {accounts: accounts.map(({delegate, ...a}) => ({...a, delegators: delegate?.delegators ?? 0, delegated: delegate?.delegated ?? '0'})), total: conn.totalCount}
 }
 
 export interface DelegateRow {
@@ -1126,15 +1129,35 @@ export interface UsernameRow {
 }
 
 // the owner leaves its username out, the row already names it
-export function usernamesPage(limit: number, offset: number) {
-    return gql<{usernames: UsernameRow[]}>(
-        `query ($limit: Int!, $offset: Int!) {
-            usernames(orderBy: [grantedBlock_DESC, id_ASC], limit: $limit, offset: $offset) {
+// a suffix no authority holds reads as every suffix, and the suffix counts
+// follow the search so each option says what picking it shows
+export async function usernamesPage(suffix: string, {account, name}: AccountSearch, limit: number, offset: number) {
+    const {usernameAuthorities} = await gql<{usernameAuthorities: {id: string}[]}>(`query { usernameAuthorities(orderBy: id_ASC) { id } }`)
+    const suffixes = usernameAuthorities.map(a => a.id)
+    const picked = suffixes.includes(suffix) ? suffix : ''
+    const match = [account != null && 'owner: {id_eq: $account}', name != null && `AND: {OR: [{id_containsInsensitive: $name}, {owner: ${nameMatch('$name')}}]}`].filter(Boolean).join(', ')
+    const where = (s: string) => `{${[match, s && `suffix_eq: ${s}`].filter(Boolean).join(', ')}}`
+    const counts = suffixes.map((_, i) => `s${i}: usernamesConnection(where: ${where(`$s${i}`)}, orderBy: id_ASC) { totalCount }`)
+    const vars = [account != null && '$account: String!', name != null && '$name: String!', picked && '$suffix: String!', ...suffixes.map((_, i) => `$s${i}: String!`)].filter(Boolean).join(', ')
+    const raw = await gql<{usernames: UsernameRow[]; conn: {totalCount: number}; all: {totalCount: number}} & Record<string, {totalCount: number}>>(
+        `query (${vars ? `${vars}, ` : ''}$limit: Int!, $offset: Int!) {
+            usernames(where: ${where(picked && '$suffix')}, orderBy: [grantedBlock_DESC, id_ASC], limit: $limit, offset: $offset) {
                 id status expiresAt provider deposit primary grantedBlock grantedAt owner { ${IDENTITY_REF} }
             }
+            conn: usernamesConnection(where: ${where(picked && '$suffix')}, orderBy: id_ASC) { totalCount }
+            all: usernamesConnection(where: ${where('')}, orderBy: id_ASC) { totalCount }
+            ${counts.join('\n            ')}
         }`,
-        {limit, offset}
+        {...(account != null && {account}), ...(name != null && {name}), ...(picked && {suffix: picked}), ...Object.fromEntries(suffixes.map((s, i) => [`s${i}`, s])), limit, offset}
     )
+    return {
+        rows: raw.usernames,
+        total: raw.conn.totalCount,
+        all: raw.all.totalCount,
+        suffix: picked,
+        suffixes,
+        perSuffix: Object.fromEntries(suffixes.map((s, i) => [s, raw[`s${i}`].totalCount])),
+    }
 }
 
 export interface UsernameAuthorityRow {

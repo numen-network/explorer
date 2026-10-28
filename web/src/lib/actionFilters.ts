@@ -70,3 +70,11 @@ export const validatorFilters = {
 }
 
 export const loadValidatorFilters = createLoader(validatorFilters)
+
+// the usernames list's suffix as the url carries it, every suffix while left out
+export const usernameFilters = {
+    ...searchFilter,
+    suffix: parseAsString.withDefault(''),
+}
+
+export const loadUsernameFilters = createLoader(usernameFilters)

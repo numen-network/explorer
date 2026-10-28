@@ -116,6 +116,7 @@ const registrarRows = (list: Registrar[]) => (args: {orderBy: string[]; limit: n
 
 export interface Username {
     status: string
+    suffix: string
 }
 
 // a FeePaid entry as the index keeps it, waiting on a seat since the given block
@@ -139,6 +140,8 @@ export const identities = (
         authorities = [] as object[],
         tab = 'identities',
         page = '1',
+        q = '',
+        suffix = '',
     } = {}
 ) =>
     pageStory(
@@ -150,10 +153,12 @@ export const identities = (
             identityJudgements: paged(pending),
             identityJudgementsConnection: {totalCount: pending.length},
             usernames: paged(usernames),
-            usernamesConnection: ({where}: {where?: {status_eq?: string}}) => ({totalCount: usernames.filter(u => where?.status_eq == null || u.status === where.status_eq).length}),
+            usernamesConnection: ({where}: {where?: {status_eq?: string; suffix_eq?: string}}) => ({
+                totalCount: usernames.filter(u => (where?.status_eq == null || u.status === where.status_eq) && (where?.suffix_eq == null || u.suffix === where.suffix_eq)).length,
+            }),
             usernameAuthorities: paged(authorities),
         },
-        {searchParams: {tab, page}, msw: [avatars]}
+        {searchParams: {tab, page, ...(q && {q}), ...(suffix && {suffix})}, msw: [avatars]}
     )
 
 export const short = (row: {id: string}) => shortAddr(ss58Encode(row.id, chainInfo.ss58))
@@ -171,6 +176,7 @@ export const WITH_SUBS = [
 
 export const username = (name: string, owner: object, traits: object = {}) => ({
     id: name,
+    suffix: name.slice(name.lastIndexOf('.') + 1),
     owner,
     status: 'Active',
     expiresAt: null,

@@ -1,14 +1,18 @@
 import IdentityCards from '@/components/IdentityCards'
 import {JudgementEntriesTable} from '@/components/JudgementEntriesTable'
 import {BlockLink} from '@/components/links'
+import {emptyText} from '@/components/EmptyList'
 import Pager from '@/components/Pager'
+import {FilterSelect} from '@/components/pills'
+import SearchBox from '@/components/SearchBox'
 import StatTile from '@/components/StatTile'
 import {TabNav} from '@/components/Tabs'
 import {Card} from '@/components/ui/card'
+import {loadUsernameFilters} from '@/lib/actionFilters'
 import {chainProps} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
 import {paging} from '@/lib/paging'
-import {identitiesPage, peopleCounts, pendingRequestsPage, registrarsPage, usernameAuthoritiesPage, usernamesPage} from '@/lib/gql'
+import {accountSearch, identitiesPage, peopleCounts, pendingRequestsPage, registrarsPage, usernameAuthoritiesPage, usernamesPage} from '@/lib/gql'
 import {WALLET_URL} from '@/lib/wallet'
 import {RegistrarsTable, UsernameAuthoritiesTable, UsernamesTable} from './tables'
 
@@ -21,17 +25,25 @@ export default async function PeoplePage(props: PageProps<'/people'>) {
     const sp = await props.searchParams
     const tab = TABS.find(t => t === sp.tab) ?? 'identities'
     const pg = paging(sp)
-    const [chain, counts, identities, pending, usernames, authorities, registrars] = await Promise.all([
-        chainProps(),
+    const {q, suffix} = loadUsernameFilters(sp)
+    const query = q.trim()
+    const chain = await chainProps()
+    const search = accountSearch(query, chain.ss58)
+    const [counts, identities, pending, usernames, authorities, registrars] = await Promise.all([
         peopleCounts(),
-        tab === 'identities' ? identitiesPage(pg.size, pg.offset) : null,
+        tab === 'identities' ? identitiesPage(search, pg.size, pg.offset) : null,
         tab === 'pending' ? pendingRequestsPage(pg.size, pg.offset) : null,
-        tab === 'usernames' ? usernamesPage(pg.size, pg.offset) : null,
+        tab === 'usernames' ? usernamesPage(suffix, search, pg.size, pg.offset) : null,
         tab === 'authorities' ? usernameAuthoritiesPage(pg.size, pg.offset) : null,
         tab === 'registrars' ? registrarsPage(pg.size, pg.offset) : null,
     ])
-    const total = {identities: counts.direct, pending: counts.requests, usernames: counts.usernames, authorities: counts.authorities, registrars: counts.registrars}
-    const href = (t: (typeof TABS)[number]) => (t === 'identities' ? '/people' : `/people?tab=${t}`)
+    const total = {identities: identities?.total ?? 0, pending: counts.requests, usernames: usernames?.total ?? 0, authorities: counts.authorities, registrars: counts.registrars}
+    // a tab opens unfiltered, while the pager and a new suffix keep the search
+    const href = (t: (typeof TABS)[number], filters: Record<string, string> = {}) => {
+        const qs = new URLSearchParams({...(t !== 'identities' && {tab: t}), ...filters}).toString()
+        return qs ? `/people?${qs}` : '/people'
+    }
+    const kept = (picked: string) => ({...(picked && {suffix: picked}), ...(query && {q: query})})
 
     return (
         <div>
@@ -81,16 +93,29 @@ export default async function PeoplePage(props: PageProps<'/people'>) {
                         {label: 'Authorities', count: counts.authorities, href: href('authorities'), active: tab === 'authorities'},
                     ]}
                 />
-                {identities && <IdentityCards rows={identities.accounts} chain={chain} wallet={WALLET_URL} className="mt-4" />}
+                {identities && (
+                    <>
+                        <div className="mt-4 mb-3 flex flex-wrap items-center justify-end gap-2">
+                            <SearchBox placeholder="Search by identity name or address" className="w-full sm:w-90" />
+                        </div>
+                        <IdentityCards rows={identities.accounts} chain={chain} wallet={WALLET_URL} filtered={query !== ''} />
+                    </>
+                )}
                 {pending && (
                     <Card size="flush" className="mt-4">
                         <JudgementEntriesTable rows={pending.identityJudgements} chain={chain} pending />
                     </Card>
                 )}
                 {usernames && (
-                    <Card size="flush" className="mt-4">
-                        <UsernamesTable rows={usernames.usernames} chain={chain} />
-                    </Card>
+                    <>
+                        <div className="mt-4 mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <FilterSelect label="Authority" values={usernames.suffixes} labelOf={s => `.${s}`} counts={usernames.perSuffix} allCount={usernames.all} value={usernames.suffix} href={s => href('usernames', kept(s))} />
+                            <SearchBox placeholder="Search username or account" className="w-full sm:w-90" />
+                        </div>
+                        <Card size="flush">
+                            <UsernamesTable rows={usernames.rows} chain={chain} empty={emptyText('usernames', usernames.suffix !== '' || query !== '')} />
+                        </Card>
+                    </>
                 )}
                 {authorities && (
                     <Card size="flush" className="mt-4">
@@ -102,7 +127,7 @@ export default async function PeoplePage(props: PageProps<'/people'>) {
                         <RegistrarsTable rows={registrars.registrars} chain={chain} />
                     </Card>
                 )}
-                <Pager paging={pg} total={total[tab]} href={href(tab)} />
+                <Pager paging={pg} total={total[tab]} href={href(tab, kept(usernames?.suffix ?? ''))} />
             </div>
         </div>
     )

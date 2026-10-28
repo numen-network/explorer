@@ -54,7 +54,7 @@ const STATUS_BADGE: Record<string, 'pos' | 'idle' | 'warn'> = {Active: 'pos', Pe
 
 const ucol = columnsFor<UsernameRow>()
 
-export function UsernamesTable({rows, chain}: {rows: UsernameRow[]; chain: ChainProps}) {
+export function UsernamesTable({rows, chain, empty}: {rows: UsernameRow[]; chain: ChainProps; empty: string}) {
     const columns = useMemo(
         () =>
             ucol.columns([
@@ -78,7 +78,7 @@ export function UsernamesTable({rows, chain}: {rows: UsernameRow[]; chain: Chain
             ]),
         [chain]
     )
-    return <DataTable columns={columns} rows={rows} empty="No usernames yet." getRowId={r => r.id} />
+    return <DataTable columns={columns} rows={rows} empty={empty} getRowId={r => r.id} />
 }
 
 const acol = columnsFor<UsernameAuthorityRow>()

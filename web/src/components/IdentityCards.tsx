@@ -8,6 +8,7 @@ import Approx from '@/components/Approx'
 import AccountFace from '@/components/AccountFace'
 import BioDialog from '@/components/BioDialog'
 import CopyBtn from '@/components/CopyBtn'
+import {emptyText} from '@/components/EmptyList'
 import Socials from '@/components/Socials'
 import {Button} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
@@ -97,8 +98,8 @@ function IdentityCard({row, chain, wallet}: {row: IdentityRow; chain: ChainProps
 // the card rows run on a subgrid, so the bios, socials and figures of the cards
 // sharing a line start at the same height whatever each card filled in. a row
 // gap on the grid would spread into every card, so the cards keep apart by margin
-export default function IdentityCards({rows, chain, wallet, className}: {rows: IdentityRow[]; chain: ChainProps; wallet: string; className?: string}) {
-    if (rows.length === 0) return <Card className={cn('px-5 py-6 text-sm text-muted-foreground', className)}>No identities yet.</Card>
+export default function IdentityCards({rows, chain, wallet, filtered, className}: {rows: IdentityRow[]; chain: ChainProps; wallet: string; filtered: boolean; className?: string}) {
+    if (rows.length === 0) return <Card className={cn('px-5 py-6 text-sm text-muted-foreground', className)}>{emptyText('identities', filtered)}</Card>
     return (
         <div className={cn('grid grid-cols-[minmax(0,1fr)] gap-x-4 md:grid-cols-2 xl:grid-cols-3', className)}>
             {rows.map(r => (

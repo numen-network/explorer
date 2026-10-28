@@ -283,6 +283,16 @@ export const Delegations: StoryObj = {
     },
 }
 
+export const Search: StoryObj = {
+    ...identities([registered(30, 'Aurora Guild')], {q: 'Aurora'}),
+    play: async ({canvas}) => expect(canvas.getByPlaceholderText('Search by identity name or address')).toHaveValue('Aurora'),
+}
+
+export const NoMatch: StoryObj = {
+    ...identities([], {q: 'Aurora', registrars: []}),
+    play: async ({canvas}) => expect(canvas.getByText('No matching identities.')).toBeInTheDocument(),
+}
+
 export const Many = identities(MANY)
 
 export const Page2 = identities(MANY, {page: '2'})
