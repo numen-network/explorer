@@ -4,7 +4,7 @@ import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {ss58Encode} from '@/lib/ss58'
 import {chainInfo, PEOPLE} from '../../../mock/fixtures.js'
-import {expectFits, expectNoHangingDots, expectTimesFit} from '../../.storybook/fit'
+import {expectDotsBetweenFacts, expectFits, expectNoHangingDots, expectTimesFit} from '../../.storybook/fit'
 import AccountLink from './AccountLink'
 import DotRow from './DotRow'
 import {TimeCell} from './TimeCell'
@@ -33,7 +33,7 @@ const track = (
     </Badge>
 )
 const when = (
-    <span className="-ml-0.5 text-muted-foreground">
+    <span className="text-muted-foreground">
         <TimeCell iso={ISO} cycle />
     </span>
 )
@@ -50,7 +50,7 @@ export const ThreeFacts: Story = {
 
 export const OneFact: Story = {
     render: () => <DotRow className="text-xs">{who}</DotRow>,
-    play: async ({canvas}) => expect(canvas.queryByText('·')).toBeNull(),
+    play: async ({canvasElement}) => expectDotsBetweenFacts(canvasElement),
 }
 
 export const MissingFactsLeaveNoDot: Story = {
@@ -62,10 +62,14 @@ export const MissingFactsLeaveNoDot: Story = {
             {when}
         </DotRow>
     ),
-    play: async ({canvas}) => expect(canvas.getAllByText('·')).toHaveLength(1),
+    play: async ({canvasElement}) => {
+        await expect(canvasElement.querySelector('[data-slot=dot-row]')!.children).toHaveLength(2)
+        expectDotsBetweenFacts(canvasElement)
+    },
 }
 
-// a dot that would end a line moves down with the fact after it
+// a dot that would end a line moves down with the fact after it and stays
+// hidden at the start of the new line
 export const WrapsInNarrowColumn: Story = {
     render: () => (
         <div className="max-w-64">
@@ -78,6 +82,7 @@ export const WrapsInNarrowColumn: Story = {
     ),
     play: async ({canvasElement}) => {
         expectNoHangingDots(canvasElement)
+        expectDotsBetweenFacts(canvasElement)
         expectFits(canvasElement.querySelector('.max-w-64')!, canvasElement.querySelector('[data-slot=card]')!)
     },
 }
@@ -98,7 +103,24 @@ export const LongFactWrapsUnderItsDot: Story = {
         const age = canvas.getByText(/ ago$/)
         await expect(age.nextElementSibling!.getBoundingClientRect().top).toBeGreaterThanOrEqual(age.getBoundingClientRect().bottom)
         expectNoHangingDots(canvasElement)
+        expectDotsBetweenFacts(canvasElement)
         expectTimesFit(canvasElement)
         expectFits(canvasElement.querySelector('.max-w-56')!)
+    },
+}
+
+// end-aligned facts carry their dot after them, so a line never starts on one
+export const EndAlignedWraps: Story = {
+    render: () => (
+        <div className="max-w-28 text-right text-xs">
+            <DotRow align="end">
+                <span>#12,500,000</span>
+                <span>in 3y 7mo</span>
+            </DotRow>
+        </div>
+    ),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('in 3y 7mo').getBoundingClientRect().top).toBeGreaterThanOrEqual(canvas.getByText('#12,500,000').getBoundingClientRect().bottom)
+        expectDotsBetweenFacts(canvasElement)
     },
 }

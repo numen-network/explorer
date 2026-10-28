@@ -51,7 +51,7 @@ export function ReferendumByline({r, chain, className}: {r: ReferendumRow; chain
                 <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs text-muted-foreground">
                     {trackLabel(r.track.name)}
                 </Badge>
-                <span className="-ml-0.5 text-muted-foreground">
+                <span className="text-muted-foreground">
                     <TimeCell iso={r.submittedTimestamp} cycle />
                 </span>
             </DotRow>

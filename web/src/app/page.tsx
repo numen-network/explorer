@@ -515,7 +515,7 @@ export default async function Home({searchParams}: PageProps<'/'>) {
                         <InfoCell label="Block reward">{halving ? fmtBalance(halving.reward, props.decimals, props.symbol) : '—'}</InfoCell>
                         <InfoCell label="Next halving">
                             {halving?.next ? (
-                                <DotRow className="justify-end">
+                                <DotRow align="end">
                                     <span>#{fmtInt(halving.next.height)}</span>
                                     <span>in {fmtSpan(halving.next.blocksLeft * props.blockTime)}</span>
                                 </DotRow>

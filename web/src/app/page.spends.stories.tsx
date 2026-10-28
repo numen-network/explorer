@@ -2,6 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {PEOPLE} from '../../../mock/fixtures.js'
 import {SPEND_STATUSES, spend} from '../../../mock/fixtures/governance.js'
+import {expectDotsBetweenFacts} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 import {NEAREST, UPCOMING, UPCOMING_SPENDS, expectLevel, home, listCard, listRows, many, strips} from './page.stories.helpers'
@@ -26,7 +27,8 @@ export const One: StoryObj = {
         expect(within(row).getByText('Spend')).toBeVisible()
         expect(within(row).getByRole('link', {name: '#104'})).toBeVisible()
         expect(within(row).getByText('Asset spend approved')).toBeVisible()
-        expect(within(row).getAllByText('·')).toHaveLength(2)
+        expect(row.querySelector('[data-slot=dot-row]')!.children).toHaveLength(3)
+        expectDotsBetweenFacts(row)
     },
 }
 

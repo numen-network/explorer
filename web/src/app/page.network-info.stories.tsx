@@ -28,17 +28,17 @@ const expectHalving = (root: HTMLElement, reward: RegExp, next: RegExp) => {
 
 export const FirstEra: StoryObj = {
     ...pageStory(home(many)),
-    play: async ({canvasElement}) => expectHalving(canvasElement, /^16 NUMN$/, /^#12,500,000·in 3y 7mo$/),
+    play: async ({canvasElement}) => expectHalving(canvasElement, /^16 NUMN$/, /^·#12,500,000·in 3y 7mo$/),
 }
 
 export const HalvingNextBlock: StoryObj = {
     ...pageStory(home({head: HALVING - 1, days: []})),
-    play: async ({canvasElement}) => expectHalving(canvasElement, /^16 NUMN$/, /^#12,500,000·in 10s$/),
+    play: async ({canvasElement}) => expectHalving(canvasElement, /^16 NUMN$/, /^·#12,500,000·in 10s$/),
 }
 
 export const SecondEra: StoryObj = {
     ...pageStory(home({head: HALVING, days: []})),
-    play: async ({canvasElement}) => expectHalving(canvasElement, /^8 NUMN$/, /^#25,000,000·in 3y 11mo$/),
+    play: async ({canvasElement}) => expectHalving(canvasElement, /^8 NUMN$/, /^·#25,000,000·in 3y 11mo$/),
 }
 
 // the 64th halving shifts all of InitialReward out

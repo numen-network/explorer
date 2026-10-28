@@ -63,7 +63,7 @@ export const EveryCase: StoryObj = {
         expect([...new Set(bylines.map(byline => byline.lastElementChild!.textContent!))].sort()).toEqual(PHASES)
         await expect(canvas.getByText('· 4 payouts')).toBeVisible()
         expect(canvasElement.querySelectorAll('.lucide-file-text')).toHaveLength(1)
-        expect(bylines.filter(byline => byline.firstElementChild!.firstElementChild!.textContent === '—')).toHaveLength(1)
+        expect(bylines.filter(byline => byline.firstElementChild!.firstElementChild!.lastElementChild!.textContent === '—')).toHaveLength(1)
     }, referendumCardsFit),
 }
 

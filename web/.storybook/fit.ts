@@ -217,15 +217,38 @@ function firstLine(el: Element) {
     return [...range.getClientRects()].filter(r => r.width > 0).sort((a, b) => a.top - b.top || a.height - b.height)[0]
 }
 
-// a middle dot shares the first line of the item after it, so no line ends on one
+// a DotRow clips off the dot of a fact that opens a line
+function shown(dot: Element) {
+    const row = dot.closest('[data-slot=dot-row]')
+    if (row === null) return true
+    const r = dot.getBoundingClientRect()
+    const box = row.getBoundingClientRect()
+    return r.left >= box.left && r.right <= box.right
+}
+
+// a shown middle dot shares the first line of the item after it, so no line
+// ends on one
 export function expectNoHangingDots(root: Element) {
     const mid = (r: DOMRect) => r.top + r.height / 2
     const dots = [...root.querySelectorAll('span')].filter(el => el.textContent === '·')
     expect(dots.length).toBeGreaterThan(0)
-    for (const dot of dots) {
+    for (const dot of dots.filter(shown)) {
         const next = dot.nextElementSibling
         expect(next).not.toBeNull()
         expect(Math.abs(mid(dot.getBoundingClientRect()) - mid(firstLine(next!)))).toBeLessThan(2)
+    }
+}
+
+// a DotRow shows the dot of every fact except one that opens a line
+export function expectDotsBetweenFacts(root: Element) {
+    const rows = [...root.querySelectorAll('[data-slot=dot-row]')]
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+        const facts = [...row.children]
+        facts.forEach((fact, i) => {
+            const opensLine = i === 0 || fact.getBoundingClientRect().top >= facts[i - 1].getBoundingClientRect().bottom - 1
+            expect({fact: fact.textContent, shown: shown(fact.firstElementChild!)}).toEqual({fact: fact.textContent, shown: !opensLine})
+        })
     }
 }
 
