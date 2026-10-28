@@ -1,4 +1,4 @@
-import {account, acct, chainInfo, HEAD, identity, numn, paged, person} from '../../../../mock/fixtures.js'
+import {account, acct, at, chainInfo, HEAD, identity, numn, paged, person} from '../../../../mock/fixtures.js'
 import {pageStory} from '../../../.storybook/page'
 
 const SESSION = Math.floor(HEAD / chainInfo.sessionLength)
@@ -78,4 +78,33 @@ export const history = (steps: object[], searchParams: Record<string, string> = 
             validatorStepsConnection: {totalCount: steps.length},
         },
         {searchParams: {tab: 'history', ...searchParams}}
+    )
+
+// a session as the list reads it, ended unless traits clear endBlock
+export const session = (index: number, traits: object = {}) => ({
+    index,
+    startBlock: index * chainInfo.sessionLength,
+    endBlock: (index + 1) * chainInfo.sessionLength - 1,
+    timestamp: at(index * chainInfo.sessionLength) as string | null,
+    validatorCount: 4,
+    offline: 0,
+    equivocations: 0,
+    kicked: 0,
+    ...traits,
+})
+
+// the session the head block sits in, still running
+export const running = (traits: object = {}) => session(SESSION, {endBlock: null, ...traits})
+
+export const sessions = (rows: object[], searchParams: Record<string, string> = {}, data: object = {}) =>
+    pageStory(
+        {
+            validators: [],
+            validatorsConnection: {totalCount: 0},
+            validatorStepsConnection: {totalCount: 0},
+            sessions: paged(rows),
+            sessionsConnection: {totalCount: rows.length},
+            ...data,
+        },
+        {searchParams: {tab: 'sessions', ...searchParams}}
     )

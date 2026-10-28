@@ -214,6 +214,9 @@ module.exports = class Data1792460132611 {
         await db.query(`CREATE INDEX "idx_token_transfer_pair_address_token_amount_in_7c1dbe1e" ON "token_transfer_pair" ("address", "token_id", "amount_in") `)
         await db.query(`CREATE TABLE "account_day" ("id" character varying NOT NULL, "day" text NOT NULL, "free" numeric NOT NULL, "reserved" numeric NOT NULL, "frozen" numeric NOT NULL, "transferable" numeric NOT NULL, "extrinsics" integer NOT NULL, "transfers_in" integer NOT NULL, "transfers_out" integer NOT NULL, "fee_treasury" numeric NOT NULL, "fee_miner" numeric NOT NULL, "tip" numeric NOT NULL, "account_id" character varying, CONSTRAINT "PK_0df99a58dc3b4c8e55559b84b9f" PRIMARY KEY ("id"))`)
         await db.query(`CREATE INDEX "idx_account_day_account_day_ad028897" ON "account_day" ("account_id", "day") `)
+        await db.query(`CREATE TABLE "session" ("id" character varying NOT NULL, "index" integer NOT NULL, "start_block" integer NOT NULL, "timestamp" TIMESTAMP WITH TIME ZONE, "end_block" integer, "validators" text array NOT NULL, "validator_count" integer NOT NULL, "offline" integer NOT NULL, "equivocations" integer NOT NULL, "kicked" integer NOT NULL, "start_event_id" character varying, CONSTRAINT "PK_f55da76ac1c3ac420f444d2ff11" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE UNIQUE INDEX "idx_session_index_be5ad0a6" ON "session" ("index") `)
+        await db.query(`CREATE INDEX "idx_session_start_event_579841d5" ON "session" ("start_event_id") `)
         await db.query(`ALTER TABLE "delegate" ADD CONSTRAINT "FK_9fc4c32ac74b83d15ee9f1305f2" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "delegate_track" ADD CONSTRAINT "FK_0d60023177c5bc10dc271c43c00" FOREIGN KEY ("delegate_id") REFERENCES "delegate"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "delegate_track" ADD CONSTRAINT "FK_c6207ecae290c140b62cc6693b9" FOREIGN KEY ("track_id") REFERENCES "track"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
@@ -303,9 +306,11 @@ module.exports = class Data1792460132611 {
         await db.query(`ALTER TABLE "transfer_pair" ADD CONSTRAINT "FK_fb46266116a2ea3ce9c8a618ff7" FOREIGN KEY ("counterparty_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "token_transfer_pair" ADD CONSTRAINT "FK_614b371fa9e554bf4abb3085bf0" FOREIGN KEY ("token_id") REFERENCES "token"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "account_day" ADD CONSTRAINT "FK_fee9404b539f198fab8e93403eb" FOREIGN KEY ("account_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`ALTER TABLE "session" ADD CONSTRAINT "FK_305989c064ab3d1207f99d7840d" FOREIGN KEY ("start_event_id") REFERENCES "event"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
     }
 
     async down(db) {
+        await db.query(`ALTER TABLE "session" DROP CONSTRAINT "FK_305989c064ab3d1207f99d7840d"`)
         await db.query(`ALTER TABLE "account_day" DROP CONSTRAINT "FK_fee9404b539f198fab8e93403eb"`)
         await db.query(`ALTER TABLE "token_transfer_pair" DROP CONSTRAINT "FK_614b371fa9e554bf4abb3085bf0"`)
         await db.query(`ALTER TABLE "transfer_pair" DROP CONSTRAINT "FK_fb46266116a2ea3ce9c8a618ff7"`)
@@ -607,5 +612,8 @@ module.exports = class Data1792460132611 {
         await db.query(`DROP INDEX "public"."idx_delegate_track_track_0e611b73"`)
         await db.query(`DROP INDEX "public"."idx_delegate_track_delegate_a8f8c199"`)
         await db.query(`DROP TABLE "delegate_track"`)
+        await db.query(`DROP INDEX "public"."idx_session_start_event_579841d5"`)
+        await db.query(`DROP INDEX "public"."idx_session_index_be5ad0a6"`)
+        await db.query(`DROP TABLE "session"`)
     }
 }

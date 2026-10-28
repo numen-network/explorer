@@ -115,7 +115,7 @@ export function home({head, best = head, finalized = Math.max(0, best - 5), days
         treasurySpendsConnection: {totalCount: spends.length},
         bounties: upcoming.bountiesDue ?? [],
         validatorsConnection: {totalCount: validators},
-        validators: validators ? [{lastActiveSession: Math.floor(head / sessionLength)}] : [],
+        sessions: [{index: Math.floor(head / sessionLength)}],
         accountsConnection: (args: {where?: Where}) => windowed(args.where?.lastMinedTimestamp_gt || args.where?.lastMinedTimestamp_isNull === false ? counts.miners : counts.accounts)(args),
         extrinsicsConnection: windowed(counts.extrinsics),
         transfersConnection: windowed(counts.transfers),

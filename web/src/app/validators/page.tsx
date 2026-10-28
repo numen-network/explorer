@@ -10,6 +10,7 @@ import {OFFENCE_DAYS} from '@/lib/offences'
 import {paging} from '@/lib/paging'
 import {validatorRules, type ValidatorRules} from '@/lib/validatorRules'
 import ValidatorHistory from './history'
+import ValidatorSessions from './sessions'
 import {ValidatorsTable} from './table'
 
 export const dynamic = 'force-dynamic'
@@ -40,6 +41,7 @@ export default async function ValidatorsPage(props: PageProps<'/validators'>) {
         [
             {slug: 'validators', label: 'Validators', count: sum.all.totalCount, body: () => <ValidatorList sp={sp} chain={chain} head={head} rules={rules} total={sum.all.totalCount} />},
             {slug: 'history', label: 'History', count: sum.history.totalCount, body: () => <ValidatorHistory sp={sp} chain={chain} head={head} />},
+            {slug: 'sessions', label: 'Sessions', count: sum.sessions.totalCount, body: () => <ValidatorSessions sp={sp} chain={chain} head={head} total={sum.sessions.totalCount} />},
         ],
         String(sp.tab ?? ''),
         slug => `/validators?tab=${slug}`

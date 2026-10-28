@@ -1,7 +1,7 @@
 import {toJSON} from '@subsquid/util-internal-json'
-import {In} from 'typeorm'
+import {In, IsNull} from 'typeorm'
 import {BatchData} from './batch'
-import {Event, Validator, ValidatorOffence, ValidatorStep} from './model'
+import {Event, Session, Validator, ValidatorOffence, ValidatorStep} from './model'
 import {storage} from './types'
 
 export function collectValidatorEvent(batch: BatchData, id: string, name: string, phase: string, args: any, height: number, at: Date, header: any): void {
@@ -10,6 +10,31 @@ export function collectValidatorEvent(batch: BatchData, id: string, name: string
 
 function recordOffence(batch: BatchData, v: Validator, id: string, kind: string, ev: {id: string; height: number; at: Date}): void {
     batch.validatorOffences.push(new ValidatorOffence({id, validator: v, kind, event: new Event({id: ev.id}), block: ev.height, timestamp: ev.at}))
+}
+
+function newSession(index: number, startBlock: number, startEvent: Event | null, timestamp: Date | null, validators: string[]): Session {
+    return new Session({
+        id: String(index),
+        index,
+        startBlock,
+        startEvent,
+        timestamp,
+        endBlock: null,
+        validators,
+        validatorCount: validators.length,
+        offline: 0,
+        equivocations: 0,
+        kicked: 0,
+    })
+}
+
+async function runningSession(ctx: {store: any}, batch: BatchData): Promise<Session> {
+    const known = [...batch.sessions.values()].find(s => s.endBlock == null)
+    if (known != null) return known
+    const stored: Session | undefined = await ctx.store.findOne(Session, {where: {endBlock: IsNull()}})
+    if (stored == null) throw new Error('no session on record is running')
+    batch.sessions.set(stored.id, stored)
+    return stored
 }
 
 async function latestStep(ctx: {store: any}, batch: BatchData, who: string): Promise<ValidatorStep | undefined> {
@@ -109,6 +134,7 @@ export async function seedGenesisValidators(batch: BatchData, genesisHeader: any
         batch.latestSteps.set(who, step)
         batch.validatorSteps.set(step.id, step)
     })
+    batch.sessions.set('0', newSession(0, 0, null, null, set))
 }
 
 // session boundaries apply in chain order among the lifecycle events, each with
@@ -120,9 +146,15 @@ export async function finalizeValidators(ctx: {store: any}, batch: BatchData): P
         const method = ev.name.split('.')[1]
         const args = ev.args
         switch (method) {
-            case 'NewSession':
-                await syncActiveSet(ctx, batch, Number(args.sessionIndex), ev.height, ev.header)
+            case 'NewSession': {
+                const index = Number(args.sessionIndex)
+                const closing = await runningSession(ctx, batch)
+                if (closing.index !== index - 1) throw new Error(`session ${index} at block ${ev.height} follows running session ${closing.index}`)
+                closing.endBlock = ev.height - 1
+                const set = await syncActiveSet(ctx, batch, index, ev.height, ev.header)
+                batch.sessions.set(String(index), newSession(index, ev.height, new Event({id: ev.id}), ev.at, set))
                 break
+            }
             case 'ValidatorLocked': {
                 const v = await lockedValidator(ctx, batch, args.who, ev.height)
                 v.lockedAmount = BigInt(args.amount)
@@ -151,24 +183,31 @@ export async function finalizeValidators(ctx: {store: any}, batch: BatchData): P
                 v.status = 'Kicked'
                 v.kicked = toJSON(args.reason)
                 v.rejoinCooldown = await rejoinCooldownAt(ev.header, args.who, ev.height)
+                const running = await runningSession(ctx, batch)
+                running.kicked += 1
                 break
             }
             case 'EquivocationReported': {
                 const v = await loadValidator(ctx, batch, args.who)
                 recordOffence(batch, v, ev.id, 'Equivocation', ev)
+                const running = await runningSession(ctx, batch)
+                running.equivocations += 1
                 break
             }
-            case 'SomeOffline':
+            case 'SomeOffline': {
                 for (const [who] of args.offline) {
                     const v = await loadValidator(ctx, batch, who)
                     recordOffence(batch, v, `${ev.id}-${who}`, 'Offline', ev)
                 }
+                const running = await runningSession(ctx, batch)
+                running.offline += args.offline.length
                 break
+            }
         }
     }
 }
 
-async function syncActiveSet(ctx: {store: any}, batch: BatchData, index: number, height: number, header: any): Promise<void> {
+async function syncActiveSet(ctx: {store: any}, batch: BatchData, index: number, height: number, header: any): Promise<string[]> {
     const s = storage.session.validators.v100
     if (!s.is(header)) throw new Error(`unhandled spec version for session validators at block ${height}`)
     const current: string[] = (await s.get(header)) ?? []
@@ -193,4 +232,5 @@ async function syncActiveSet(ctx: {store: any}, batch: BatchData, index: number,
         v.active = true
         v.lastActiveSession = index
     }
+    return current
 }

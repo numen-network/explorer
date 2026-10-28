@@ -11,13 +11,14 @@ export default {title: 'Pages/Home/Network status', ...pageMeta(Home)}
 const card = (root: HTMLElement) => within(root).getByRole('heading', {name: 'Network status'}).closest<HTMLElement>('[data-slot=card]')!
 const row = (root: HTMLElement, label: string) => within(card(root)).getByText(label, {selector: 'dt'}).nextElementSibling!
 
-// only genesis is indexed, with no timestamp and no validator row
+// only genesis is indexed, with no timestamp and no validator row, in the
+// genesis session
 export const GenesisOnly: StoryObj = {
     ...pageStory(home(genesisOnly)),
     play: async ({canvasElement}) => {
         await expect(row(canvasElement, 'Latest block')).toHaveTextContent(/^0$/)
         await expect(row(canvasElement, 'Avg block time')).toHaveTextContent(/^—$/)
-        await expect(row(canvasElement, 'Session')).toHaveTextContent(/^—$/)
+        await expect(row(canvasElement, 'Session')).toHaveTextContent(/^#0$/)
     },
 }
 

@@ -169,7 +169,7 @@ export default async function Home({searchParams}: PageProps<'/'>) {
 
     const blockTime = today && today.blocks > 1 ? (Date.parse(today.tsLast) - Date.parse(today.tsFirst)) / ((today.blocks - 1) * 1000) : null
 
-    const sessionIdx = data.sessionHead[0]?.lastActiveSession
+    const sessionIdx = data.sessionHead[0]?.index
     const period = props.sessionLength
     const inSession = period > 0 ? ((head.height - props.sessionOffset) % period) + 1 : 0
 

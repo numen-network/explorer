@@ -741,6 +741,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert([...batch.validators.values()])
     await ctx.store.insert(batch.validatorOffences)
     await ctx.store.upsert([...batch.validatorSteps.values()])
+    await ctx.store.upsert([...batch.sessions.values()])
     await ctx.store.upsert(batch.days)
     await ctx.store.upsert(batch.hours)
     await ctx.store.upsert(batch.minerDays)

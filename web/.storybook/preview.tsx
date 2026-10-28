@@ -53,7 +53,7 @@ const preview: Preview = {
                         'Governance',
                         ['Overview', 'Tabs', 'Referenda', 'Treasury spends', 'Tracks', 'Delegates'],
                         'Validators',
-                        ['Overview', 'Tabs', 'Validators', 'History'],
+                        ['Overview', 'Tabs', 'Validators', 'History', 'Sessions'],
                         'Miners',
                         'Charts',
                         [

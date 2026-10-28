@@ -29,6 +29,7 @@ import {
     ReferendumDeposit,
     ReferendumTallySnapshot,
     Registrar,
+    Session,
     Token,
     TokenHolder,
     TokenTransfer,
@@ -155,6 +156,8 @@ export class BatchData {
     validatorEvents: {id: string; name: string; phase: string; args: any; height: number; at: Date; header: any}[] = []
     validatorOffences: ValidatorOffence[] = []
     validatorSteps = new Map<string, ValidatorStep>()
+    // the sessions this batch opened or changed
+    sessions = new Map<string, Session>()
     // each account's latest step, loaded or written this batch
     latestSteps = new Map<string, ValidatorStep>()
     registrarsDirty = false

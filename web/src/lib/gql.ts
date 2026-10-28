@@ -157,7 +157,7 @@ export interface HomeData {
     dailyStats: DailyRow[]
     accounts: {totalCount: number}
     validators: {totalCount: number}
-    sessionHead: {lastActiveSession: number | null}[]
+    sessionHead: {index: number}[]
     evmTotal: {totalCount: number}
     evmTxs: HomeEvmTxRow[]
     referendums: ReferendumRow[]
@@ -234,7 +234,7 @@ export async function homeData(since24: string | null, since30: string | null, u
             dailyStats(orderBy: date_DESC, limit: 90) { ${DAILY_FIELDS} }
             accounts: accountsConnection(orderBy: id_ASC) { totalCount }
             validators: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
-            sessionHead: validators(orderBy: lastActiveSession_DESC_NULLS_LAST, limit: 1) { lastActiveSession }
+            sessionHead: sessions(orderBy: index_DESC, limit: 1) { index }
             evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
             evmTxs: evmTransactions(orderBy: [timestamp_DESC, txIndex_DESC], limit: 5) { ${EVM_TX_FIELDS} tokenTransfers(where: {thirdParty_eq: false}, orderBy: logIndex_ASC, limit: 20) { from amount token { id symbol decimals } } extrinsic { transfers(orderBy: id_ASC, limit: 20) { amount from { id } to { id } } } }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
@@ -2347,12 +2347,13 @@ export interface ValidatorListRow extends ValidatorRow {
 const HISTORY_STEP = 'renewals_eq: 0'
 
 export function validatorsSummary() {
-    return gql<{all: {totalCount: number}; active: {totalCount: number}; pending: {totalCount: number}; history: {totalCount: number}}>(
+    return gql<{all: {totalCount: number}; active: {totalCount: number}; pending: {totalCount: number}; history: {totalCount: number}; sessions: {totalCount: number}}>(
         `{
             all: validatorsConnection(orderBy: id_ASC) { totalCount }
             active: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
             pending: validatorsConnection(orderBy: id_ASC, where: {active_eq: false, status_eq: "Active"}) { totalCount }
             history: validatorStepsConnection(orderBy: id_ASC, where: {${HISTORY_STEP}}) { totalCount }
+            sessions: sessionsConnection(orderBy: id_ASC) { totalCount }
         }`
     )
 }
@@ -2386,6 +2387,26 @@ export function validatorHistory(event: string, {account, name}: AccountSearch, 
             conn: validatorStepsConnection(orderBy: id_DESC, where: {${where}}) { totalCount }
         }`,
         {...(event && {event}), ...(account != null && {account}), ...(name != null && {name}), limit, offset}
+    )
+}
+
+export interface SessionRow {
+    index: number
+    startBlock: number
+    timestamp: string | null
+    endBlock: number | null
+    validatorCount: number
+    offline: number
+    equivocations: number
+    kicked: number
+}
+
+export function sessionsPage(limit: number, offset: number) {
+    return gql<{sessions: SessionRow[]}>(
+        `query ($limit: Int!, $offset: Int!) {
+            sessions(orderBy: index_DESC, limit: $limit, offset: $offset) { index startBlock timestamp endBlock validatorCount offline equivocations kicked }
+        }`,
+        {limit, offset}
     )
 }
 
