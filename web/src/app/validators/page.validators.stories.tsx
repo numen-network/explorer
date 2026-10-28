@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import {acct, HEAD, identity} from '../../../../mock/fixtures.js'
-import {columnTexts, expectAddressForm, expectFits} from '../../../.storybook/fit'
+import {columnTexts, expectAddressForm, expectFits, filterOptions} from '../../../.storybook/fit'
 import {lastPage, pageMeta} from '../../../.storybook/page'
 import {fmtInt} from '@/lib/format'
 import ValidatorsPage from './page'
@@ -90,6 +90,69 @@ export const ExtremeNumbers: StoryObj = {
 
 export const Many = validators(many)
 
-export const Page2 = validators(many, '2')
+export const Page2 = validators(many, {page: '2'})
 
-export const LastPage = validators(many, lastPage(many.length))
+export const LastPage = validators(many, {page: lastPage(many.length)})
+
+const everyStatus = [
+    validator(1),
+    validator(2, exempt),
+    validator(5, kicked('Offline', 1)),
+    validator(6, kicked('Equivocation', 3)),
+    validator(3, inactive('ExitRequested', 40)),
+    validator(4, released(9_000)),
+    validator(7, {active: false, lastActiveSession: null}),
+]
+
+// every option stays listed with its count, Pending being an Active lock
+// outside the session set
+export const StatusFilter: StoryObj = {
+    ...validators(everyStatus.filter(v => v.status === 'Kicked'), {status: 'Kicked'}, everyStatus),
+    play: async ({canvasElement}) => {
+        await expect(within(canvasElement).getByRole('combobox', {name: 'Status'})).toHaveTextContent('Kicked')
+        await expect(await filterOptions(canvasElement, 'Status')).toEqual(['All 7', 'Active 2', 'Pending 1', 'Exit requested 1', '[Kicked 2]', 'Released 1'])
+        await expect(columnTexts(canvasElement, 'Status')).toEqual(['Kicked · Offline', 'Kicked · Equivocation'])
+    },
+}
+
+export const Search: StoryObj = {
+    ...validators([validator(1)], {q: 'Orbit'}),
+    play: async ({canvas}) => expect(canvas.getByPlaceholderText('Search identity, address')).toHaveValue('Orbit'),
+}
+
+export const NoMatch: StoryObj = {
+    ...validators([], {status: 'Released', q: 'Orbit'}),
+    play: async ({canvas}) => expect(canvas.getByText('No matching validators.')).toBeInTheDocument(),
+}
+
+// where the Locked heading leads, keeping the status and search, and which way
+// its arrow points
+const lockedHead = (root: HTMLElement) => {
+    const a = within(within(root).getAllByRole('row')[0]).getByRole('link', {name: 'Locked'})
+    const q = new URL(a.getAttribute('href')!, 'http://x').searchParams
+    return [q.get('status'), q.get('q'), q.get('sort'), q.get('order'), a.querySelector('.lucide-arrow-down') ? 'down' : a.querySelector('.lucide-arrow-up') ? 'up' : null]
+}
+
+// the list runs by last session until the heading is picked, which starts it
+// biggest first
+export const DefaultOrder: StoryObj = {
+    ...validators(everyStatus, {status: 'Active', q: 'nu'}),
+    play: async ({canvasElement}) => expect(lockedHead(canvasElement)).toEqual(['Active', 'nu', 'locked', 'desc', null]),
+}
+
+// the mock ignores the order, so the rows are laid out the way it runs
+export const SortedByLocked: StoryObj = {
+    ...validators([validator(1), validator(5, kicked('Offline', 1)), validator(2, exempt), validator(4, released(9_000))], {sort: 'locked', order: 'desc'}),
+    play: async ({canvasElement}) => {
+        await expect(lockedHead(canvasElement)).toEqual([null, null, 'locked', 'asc', 'down'])
+        await expect(columnTexts(canvasElement, 'Locked')).toEqual(['100,000,000 NUMN', '100,000,000 NUMN', '0 NUMN', '0 NUMN'])
+    },
+}
+
+export const SortedByLockedAscending: StoryObj = {
+    ...validators([validator(2, exempt), validator(4, released(9_000)), validator(1)], {sort: 'locked', order: 'asc'}),
+    play: async ({canvasElement}) => {
+        await expect(lockedHead(canvasElement)).toEqual([null, null, 'locked', 'desc', 'up'])
+        await expect(columnTexts(canvasElement, 'Locked')).toEqual(['0 NUMN', '0 NUMN', '100,000,000 NUMN'])
+    },
+}

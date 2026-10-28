@@ -1,4 +1,4 @@
-import type {ActionKind, ActionMove, CounterpartySort, DelegationSort, DelegationSortBy} from './actionFilters'
+import {VALIDATOR_STATES, type ActionKind, type ActionMove, type CounterpartySort, type DelegationSort, type DelegationSortBy, type ValidatorSort, type ValidatorSortBy, type ValidatorState} from './actionFilters'
 import type {VoteShape} from './conviction'
 import type {RefPhaseFields} from './referendum'
 import {isH256} from './evm'
@@ -2358,13 +2358,40 @@ export function validatorsSummary() {
     )
 }
 
-export function validatorsPage(since: string | null, limit: number, offset: number) {
-    return gql<{validators: ValidatorListRow[]}>(
-        `query ($since: DateTime, $limit: Int!, $offset: Int!) {
-            validators(orderBy: [lastActiveSession_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} offences(where: {timestamp_gt: $since}) { kind } }
+// ValidatorLocks has no Pending, which is an Active lock outside the session set
+const STATE_WHERE: Record<ValidatorState, string> = {
+    Active: 'status_eq: "Active", active_eq: true',
+    Pending: 'status_eq: "Active", active_eq: false',
+    ExitRequested: 'status_eq: "ExitRequested"',
+    Kicked: 'status_eq: "Kicked"',
+    Released: 'status_eq: "Released"',
+}
+
+const VALIDATOR_SORT_FIELD: Record<ValidatorSortBy, string> = {locked: 'lockedAmount'}
+
+const validatorOrder = (sort: ValidatorSort | null) => `[${sort ? `${VALIDATOR_SORT_FIELD[sort.by]}_${sort.dir.toUpperCase()}, ` : ''}lastActiveSession_DESC_NULLS_LAST, id_ASC]`
+
+// the status counts follow the search so each option says what picking it shows
+export async function validatorsPage(since: string | null, state: ValidatorState | null, {account, name}: AccountSearch, sort: ValidatorSort | null, limit: number, offset: number) {
+    const match = [account != null && 'account: {id_eq: $account}', name != null && `account: ${nameMatch('$name')}`].filter(Boolean).join(', ')
+    const where = `{${[match, state && STATE_WHERE[state]].filter(Boolean).join(', ')}}`
+    const counts = VALIDATOR_STATES.map(s => `${s}: validatorsConnection(where: {${[match, STATE_WHERE[s]].filter(Boolean).join(', ')}}, orderBy: id_ASC) { totalCount }`)
+    const vars = [account != null && '$account: String!', name != null && '$name: String!'].filter(Boolean).join(', ')
+    const raw = await gql<{validators: ValidatorListRow[]; conn: {totalCount: number}; all: {totalCount: number}} & Record<ValidatorState, {totalCount: number}>>(
+        `query ($since: DateTime, ${vars ? `${vars}, ` : ''}$limit: Int!, $offset: Int!) {
+            validators(where: ${where}, orderBy: ${validatorOrder(sort)}, limit: $limit, offset: $offset) { ${VALIDATOR_FIELDS} offences(where: {timestamp_gt: $since}) { kind } }
+            conn: validatorsConnection(where: ${where}, orderBy: id_ASC) { totalCount }
+            all: validatorsConnection(where: {${match}}, orderBy: id_ASC) { totalCount }
+            ${counts.join('\n            ')}
         }`,
-        {since, limit, offset}
+        {since, ...(account != null && {account}), ...(name != null && {name}), limit, offset}
     )
+    return {
+        rows: raw.validators,
+        total: raw.conn.totalCount,
+        all: raw.all.totalCount,
+        perState: Object.fromEntries(VALIDATOR_STATES.map(s => [s, raw[s].totalCount])),
+    }
 }
 
 export type ValidatorHistoryRow = ValidatorStepRow & {account: AccountRef}

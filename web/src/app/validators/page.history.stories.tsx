@@ -95,7 +95,7 @@ export const EventFilter: StoryObj = {
 
 export const Search: StoryObj = {
     ...history(MAINNET.filter(s => s.account.id === a), {q: 'nu2vadtr'}),
-    play: async ({canvas}) => expect(canvas.getByPlaceholderText('Search address or identity')).toHaveValue('nu2vadtr'),
+    play: async ({canvas}) => expect(canvas.getByPlaceholderText('Search identity, address')).toHaveValue('nu2vadtr'),
 }
 
 export const Many = history(many)

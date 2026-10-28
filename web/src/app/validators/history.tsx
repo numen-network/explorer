@@ -22,7 +22,7 @@ export default async function ValidatorHistory({sp, chain, head}: {sp: SearchPar
         <>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <FilterSelect label="Event" values={events} value={event} href={href} />
-                <SearchBox className="w-full sm:w-90" />
+                <SearchBox placeholder="Search identity, address" className="w-full sm:w-90" />
             </div>
             <TimelineList empty={history.steps.length === 0}>
                 {history.steps.map(s => (

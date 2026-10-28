@@ -49,3 +49,24 @@ export const counterpartyFilter = {
 }
 
 export const loadCounterparty = createLoader(counterpartyFilter)
+
+export const VALIDATOR_STATES = ['Active', 'Pending', 'ExitRequested', 'Kicked', 'Released'] as const
+export type ValidatorState = (typeof VALIDATOR_STATES)[number]
+
+export const VALIDATOR_SORTS = ['locked'] as const
+export type ValidatorSortBy = (typeof VALIDATOR_SORTS)[number]
+export interface ValidatorSort {
+    by: ValidatorSortBy
+    dir: 'asc' | 'desc'
+}
+
+// the validator list's status and order as the url carries them, the order
+// left out of it while the list runs by last session
+export const validatorFilters = {
+    ...searchFilter,
+    status: parseAsStringLiteral(VALIDATOR_STATES),
+    sort: parseAsStringLiteral(VALIDATOR_SORTS),
+    order: parseAsStringLiteral(['asc', 'desc'] as const).withDefault('desc'),
+}
+
+export const loadValidatorFilters = createLoader(validatorFilters)

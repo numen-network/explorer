@@ -1,11 +1,14 @@
 import Approx from '@/components/Approx'
 import Pager from '@/components/Pager'
+import {FilterSelect} from '@/components/pills'
+import SearchBox from '@/components/SearchBox'
 import StatTile from '@/components/StatTile'
 import {TabNav, panelTabs} from '@/components/Tabs'
 import {Card} from '@/components/ui/card'
+import {loadValidatorFilters, VALIDATOR_SORTS, VALIDATOR_STATES, type ValidatorSort, type ValidatorSortBy} from '@/lib/actionFilters'
 import {chainDbHead, chainProps, windowStart, type ChainProps, type DbHead} from '@/lib/chain'
-import {fmtInt} from '@/lib/format'
-import {validatorsLocked, validatorsPage, validatorsSummary} from '@/lib/gql'
+import {camelLabel, fmtInt} from '@/lib/format'
+import {accountSearch, validatorsLocked, validatorsPage, validatorsSummary} from '@/lib/gql'
 import {OFFENCE_DAYS} from '@/lib/offences'
 import {paging} from '@/lib/paging'
 import {validatorRules, type ValidatorRules} from '@/lib/validatorRules'
@@ -18,15 +21,28 @@ export const metadata = {title: 'Validators'}
 
 type SearchParams = Record<string, string | string[] | undefined>
 
-async function ValidatorList({sp, chain, head, rules, total}: {sp: SearchParams; chain: ChainProps; head: DbHead; rules: ValidatorRules; total: number}) {
+async function ValidatorList({sp, chain, head, rules}: {sp: SearchParams; chain: ChainProps; head: DbHead; rules: ValidatorRules}) {
     const pg = paging(sp)
-    const data = await validatorsPage(windowStart(head, OFFENCE_DAYS), pg.size, pg.offset)
+    const {q, status, sort: by, order: dir} = loadValidatorFilters(sp)
+    const query = q.trim()
+    const sort = by ? {by, dir} : null
+    const data = await validatorsPage(windowStart(head, OFFENCE_DAYS), status, accountSearch(query, chain.ss58), sort, pg.size, pg.offset)
+    // a new order or status starts over at the first page
+    const href = (state: string, order: ValidatorSort | null = sort) => {
+        const qs = new URLSearchParams({...(state && {status: state}), ...(query && {q: query}), ...(order && {sort: order.by, order: order.dir})}).toString()
+        return qs ? `/validators?${qs}` : '/validators'
+    }
+    const hrefs = Object.fromEntries(VALIDATOR_SORTS.map(s => [s, href(status ?? '', {by: s, dir: s === by && dir === 'desc' ? 'asc' : 'desc'})])) as Record<ValidatorSortBy, string>
     return (
         <>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <FilterSelect label="Status" values={[...VALIDATOR_STATES]} labelOf={camelLabel} counts={data.perState} allCount={data.all} value={status ?? ''} href={href} />
+                <SearchBox placeholder="Search identity, address" className="w-full sm:w-90" />
+            </div>
             <Card size="flush">
-                <ValidatorsTable rows={data.validators} chain={chain} head={head.height} rules={rules} />
+                <ValidatorsTable rows={data.rows} chain={chain} head={head.height} rules={rules} sorting={{sort, hrefs}} filtered={status != null || query !== ''} />
             </Card>
-            <Pager paging={pg} total={total} href="/validators" />
+            <Pager paging={pg} total={data.total} href={href(status ?? '')} />
         </>
     )
 }
@@ -39,7 +55,7 @@ export default async function ValidatorsPage(props: PageProps<'/validators'>) {
 
     const tabs = panelTabs(
         [
-            {slug: 'validators', label: 'Validators', count: sum.all.totalCount, body: () => <ValidatorList sp={sp} chain={chain} head={head} rules={rules} total={sum.all.totalCount} />},
+            {slug: 'validators', label: 'Validators', count: sum.all.totalCount, body: () => <ValidatorList sp={sp} chain={chain} head={head} rules={rules} />},
             {slug: 'history', label: 'History', count: sum.history.totalCount, body: () => <ValidatorHistory sp={sp} chain={chain} head={head} />},
             {slug: 'sessions', label: 'Sessions', count: sum.sessions.totalCount, body: () => <ValidatorSessions sp={sp} chain={chain} head={head} total={sum.sessions.totalCount} />},
         ],

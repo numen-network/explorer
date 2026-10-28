@@ -43,18 +43,18 @@ export const released = (sessionsAgo: number) => ({...inactive('Released', sessi
 
 type Row = ReturnType<typeof validator>
 
-// the tiles count every validator, the active ones and the pending ones, told
-// apart by the filter
-export const validators = (rows: Row[], page = '1') =>
+// the tiles and the status select count the validators in counted, telling the
+// active ones and each status apart by the filter
+export const validators = (rows: Row[], searchParams: Record<string, string> = {}, counted = rows) =>
     pageStory(
         {
             validators: paged(rows),
             validatorStepsConnection: {totalCount: 0},
             validatorsConnection: ({where = {}}: {where?: {active_eq?: boolean; status_eq?: string}}) => ({
-                totalCount: rows.filter(v => (where.active_eq == null || v.active === where.active_eq) && (where.status_eq == null || v.status === where.status_eq)).length,
+                totalCount: counted.filter(v => (where.active_eq == null || v.active === where.active_eq) && (where.status_eq == null || v.status === where.status_eq)).length,
             }),
         },
-        {searchParams: {page}}
+        {searchParams}
     )
 
 export const many = Array.from({length: 46}, (_, i) => {
