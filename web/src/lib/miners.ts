@@ -1,15 +1,17 @@
-import type {AccountRef, MinerDayRow} from './gql'
+import type {MinerDayRow} from './gql'
+
+type MinerRef = MinerDayRow['account']
 
 export interface MinerStat {
     id: string
-    acc: AccountRef
+    acc: MinerRef
     blocks: number
     rewards: string
 }
 
 // most blocks first, so a miner's rank is its index plus one
 export function rankMiners(days: MinerDayRow[]): {miners: MinerStat[]; totalBlocks: number} {
-    const byMiner = new Map<string, {acc: AccountRef; blocks: number; rewards: bigint}>()
+    const byMiner = new Map<string, {acc: MinerRef; blocks: number; rewards: bigint}>()
     for (const d of days) {
         const cur = byMiner.get(d.account.id) ?? {acc: d.account, blocks: 0, rewards: 0n}
         cur.blocks += d.blocks

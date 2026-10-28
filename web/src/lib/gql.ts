@@ -2427,7 +2427,7 @@ export interface MinerDayRow {
     day: string
     blocks: number
     rewards: string
-    account: AccountRef
+    account: AccountRef & {lastMinedTimestamp: string}
 }
 
 const SWEEP = 5000
@@ -2442,16 +2442,30 @@ async function sweep<T>(read: (page: Slice) => Promise<T[]>): Promise<T[]> {
     }
 }
 
+// a null day_gte matches no row, so the whole history leaves it out
+export type MinerDayWhere = {day_gte?: string | null}
+
 // a long window over many miners runs past any single page
-export function minerDays(sinceDay: string | null): Promise<MinerDayRow[]> {
+export function minerDays(where: MinerDayWhere): Promise<MinerDayRow[]> {
     return sweep(page =>
         gql<{minerDayStats: MinerDayRow[]}>(
-            `query ($since: String, $limit: Int!, $offset: Int!) {
-                minerDayStats(where: {day_gte: $since}, orderBy: id_ASC, limit: $limit, offset: $offset) { day blocks rewards account { ${ACCOUNT_REF} } }
+            `query ($where: MinerDayStatWhereInput, $limit: Int!, $offset: Int!) {
+                minerDayStats(where: $where, orderBy: id_ASC, limit: $limit, offset: $offset) { day blocks rewards account { ${ACCOUNT_REF} lastMinedTimestamp } }
             }`,
-            {since: sinceDay, ...page}
+            {where, ...page}
         ).then(r => r.minerDayStats)
     )
+}
+
+// block timestamps rise strictly along the chain, so each one names a single block
+export async function heightsByAuthor(timestamps: string[]): Promise<Map<string, number>> {
+    const {blocks} = await gql<{blocks: {height: number; author: {id: string}}[]}>(
+        `query ($ts: [DateTime!]!, $n: Int!) {
+            blocks(where: {timestamp_in: $ts}, orderBy: height_ASC, limit: $n) { height author { id } }
+        }`,
+        {ts: timestamps, n: timestamps.length}
+    )
+    return new Map(blocks.map(b => [b.author.id, b.height]))
 }
 
 export async function latestMined(authorHex: string): Promise<number> {

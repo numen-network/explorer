@@ -19,7 +19,7 @@ const RANK_DAYS = 30
 export default async function Mining({hex, addr, chain, sp, days, total, rewards}: TabCtx & {days: MinedDay[]; total: number; rewards: bigint}) {
     const pg = paging(sp)
     const head = await chainDbHead()
-    const [{blocks}, latest, window] = await Promise.all([minedBlocks(hex, pg.size, pg.offset), latestMined(hex), minerDays(windowStart(head, RANK_DAYS)?.slice(0, 10) ?? null)])
+    const [{blocks}, latest, window] = await Promise.all([minedBlocks(hex, pg.size, pg.offset), latestMined(hex), minerDays({day_gte: windowStart(head, RANK_DAYS)?.slice(0, 10) ?? null})])
     const {miners, totalBlocks} = rankMiners(window)
     const rank = miners.findIndex(m => m.id === hex)
     return (

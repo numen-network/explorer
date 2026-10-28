@@ -3,6 +3,7 @@
 import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
 import {columnsFor, DataTable} from '@/components/DataTable'
+import {BlockLink} from '@/components/links'
 import {Progress} from '@/components/ui/progress'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtInt, fmtPct, pctToNum} from '@/lib/format'
@@ -11,12 +12,13 @@ import {ss58Encode} from '@/lib/ss58'
 
 const col = columnsFor<MinerStat>()
 
-export function MinersTable({rows, totalBlocks, chain}: {rows: MinerStat[]; totalBlocks: number; chain: ChainProps}) {
+export function MinersTable({rows, heights, totalBlocks, chain}: {rows: MinerStat[]; heights: Map<string, number>; totalBlocks: number; chain: ChainProps}) {
     const columns = useMemo(
         () =>
             col.columns([
                 col.display({id: 'rank', header: '#', meta: {cellClassName: 'font-mono text-muted-foreground'}, cell: ({row}) => row.index + 1}),
                 col.display({id: 'miner', header: 'Miner', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink full addr={ss58Encode(row.original.id, chain.ss58)} acc={row.original.acc} />}),
+                col.display({id: 'latest', header: 'Latest Block', cell: ({row}) => <BlockLink height={heights.get(row.original.id)!} />}),
                 col.display({id: 'blocks', header: 'Blocks', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtInt(row.original.blocks)}),
                 col.display({
                     id: 'share',
@@ -33,7 +35,7 @@ export function MinersTable({rows, totalBlocks, chain}: {rows: MinerStat[]; tota
                 }),
                 col.display({id: 'rewards', header: 'Rewards', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtBalance(row.original.rewards, chain.decimals, chain.symbol)}),
             ]),
-        [chain, totalBlocks]
+        [chain, heights, totalBlocks]
     )
     return <DataTable columns={columns} rows={rows} empty="No blocks in this window." getRowId={m => m.id} />
 }

@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import {account, acct, chainInfo, HEAD_TIME, identity, numn, person} from '../../../../mock/fixtures.js'
+import {account, acct, at, base, chainInfo, HEAD, HEAD_TIME, identity, numn, person} from '../../../../mock/fixtures.js'
 import {expectAddressForm} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import MinersPage from './page'
@@ -11,9 +11,19 @@ const DAY_MS = 86_400_000
 const REWARD = 150
 const U128_MAX = (2n ** 128n - 1n).toString()
 const INT_MAX = 2 ** 31 - 1
-const WIDEST = acct(98, identity('W'.repeat(32), {judgements: ['KnownGood']}))
+// the latest block lookup asks by timestamp alone, so each miner's last block is filed under its time
+const LAST_BLOCKS = new Map<string, {height: number; author: {id: string}}>()
+const sealed = <T extends {id: string}>(who: T, height: number) => {
+    const lastMinedTimestamp = at(height)
+    LAST_BLOCKS.set(lastMinedTimestamp, {height, author: {id: who.id}})
+    return {...who, lastMinedTimestamp}
+}
+const blocksAt = ({where}: {where?: {timestamp_in?: string[]; height_eq?: number}} = {}) =>
+    where?.timestamp_in == null ? base.blocks({where}) : where.timestamp_in.flatMap(t => LAST_BLOCKS.get(t) ?? [])
 
-const miner = (n: number) => ({...person(n), id: account(60 + n)})
+const WIDEST = sealed(acct(98, identity('W'.repeat(32), {judgements: ['KnownGood']})), HEAD - 150)
+
+const miner = (n: number) => sealed({...person(n), id: account(60 + n)}, HEAD - n * 3)
 const dayAgo = (daysAgo: number) => new Date(HEAD_TIME - daysAgo * DAY_MS).toISOString().slice(0, 10)
 const minerDay = (who: object, daysAgo: number, blocks: number, rewards = numn(blocks * REWARD)) => ({day: dayAgo(daysAgo), blocks, rewards, account: who})
 
@@ -21,7 +31,7 @@ const minerDay = (who: object, daysAgo: number, blocks: number, rewards = numn(b
 const dailyRows = (dayCount: number, minerCount: number) =>
     Array.from({length: dayCount}, (_, d) => Array.from({length: minerCount}, (_, m) => minerDay(miner(m), d, 700 - m * 55 + (d % 7) * 9))).flat()
 
-const minersIn = (w: string, rows: object[]) => pageStory({minerDayStats: rows}, {searchParams: {w}})
+const minersIn = (w: string, rows: object[]) => pageStory({minerDayStats: rows, blocks: blocksAt}, {searchParams: {w}})
 
 export const Empty = minersIn('24h', [])
 
@@ -33,9 +43,27 @@ export const Week = minersIn('7d', dailyRows(7, 12))
 
 export const Month = minersIn('30d', dailyRows(30, 12))
 
+// no day bound, so 90 days of rows all count
+export const AllTime: StoryObj = {
+    ...minersIn('all', dailyRows(90, 12)),
+    play: async ({canvasElement}) => {
+        await expect(canvasElement.querySelector('nav[aria-label="Window"] [aria-current="page"]')?.textContent).toBe('All')
+    },
+}
+
+// a miner that stopped long ago still shows the last block it sealed
+const RETIRED = sealed({...person(5), id: account(75)}, HEAD - 400_000)
+export const LatestBlock: StoryObj = {
+    ...minersIn('all', [minerDay(miner(0), 0, 900), minerDay(RETIRED, 50, 300)]),
+    play: async ({canvasElement}) => {
+        const latest = [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].map(row => row.cells[2].querySelector('a')?.textContent)
+        await expect(latest).toEqual(['#1,000,000', '#600,000'])
+    },
+}
+
 // a miner without an identity reads as its address, whole from sm up and 7…4 below it
 export const AddressForm: StoryObj = {
-    ...minersIn('24h', Array.from({length: 4}, (_, i) => minerDay({id: account(80 + i)}, 0, 900 - i * 100))),
+    ...minersIn('24h', Array.from({length: 4}, (_, i) => minerDay(sealed({id: account(80 + i)}, HEAD - 200 - i), 0, 900 - i * 100))),
     play: async ({canvasElement}) => expectAddressForm(canvasElement),
 }
 
@@ -43,7 +71,7 @@ export const AddressForm: StoryObj = {
 export const ExtremeCounts: StoryObj = {
     ...minersIn('24h', [minerDay(WIDEST, 0, INT_MAX, U128_MAX), minerDay(WIDEST, 1, INT_MAX), minerDay(miner(2), 0, 1, '0')]),
     play: async ({canvasElement}) => {
-        const shares = [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].map(row => row.cells[3].textContent)
+        const shares = [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].map(row => row.cells[4].textContent)
         await expect(shares).toEqual(['99.99%', '<0.01%'])
     },
 }
@@ -59,13 +87,13 @@ export const IndexBehind: StoryObj = {
     ...pageStory(
         {
             chainInfos: [{...chainInfo, head: 220_095, finalizedHead: 220_090}],
-            blocks: () => [{height: 5_589, timestamp: '2026-09-14T11:33:41.000Z'}],
+            blocks: ({where}: {where?: {timestamp_in?: string[]}} = {}) => (where?.timestamp_in == null ? [{height: 5_589, timestamp: '2026-09-14T11:33:41.000Z'}] : blocksAt({where})),
             minerDayStats: ({where}: {where: {day_gte: string | null}}) => rebuiltRows.filter(row => where.day_gte != null && row.day >= where.day_gte),
         },
         {searchParams: {w: '24h'}}
     ),
     play: async ({canvasElement}) => {
-        const blocks = [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].map(row => row.cells[2]?.textContent)
+        const blocks = [...canvasElement.querySelectorAll<HTMLTableRowElement>('tbody tr')].map(row => row.cells[3]?.textContent)
         await expect(blocks).toEqual(['1,989', '1,143', '1,096', '912', '293', '82', '37', '11', '7', '6', '3', '3', '2', '2', '1', '1', '1'])
     },
 }
