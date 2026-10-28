@@ -276,7 +276,7 @@ export const referenda = [
             step('Referenda.Submitted', 640_000, 4),
             step('Referenda.DecisionDepositPlaced', 640_100, 2),
             step('Referenda.DecisionStarted', 640_720, 0),
-            step('Referenda.Cancelled', 652_000, 1),
+            {...step('Referenda.Cancelled', 652_000, 1), byReferendum: 12},
             step('Referenda.SubmissionDepositRefunded', 653_000, 5),
             step('Referenda.DecisionDepositRefunded', 653_000, 6),
         ],

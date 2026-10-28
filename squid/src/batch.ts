@@ -152,6 +152,9 @@ export class BatchData {
     // the referendum the latest kill named, per block and extrinsic, since the
     // slashes that follow it name only the depositor
     kills = new Map<string, number>()
+    // cancel and kill steps raised by an enactment, waiting for the dispatch
+    // later in the block that names its referendum
+    revocations: {height: number; step: any}[] = []
     validators = new Map<string, Validator>()
     validatorEvents: {id: string; name: string; phase: string; args: any; height: number; at: Date; header: any}[] = []
     validatorOffences: ValidatorOffence[] = []

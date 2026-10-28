@@ -41,13 +41,25 @@ export const Rejected = curatedCase(1, 'timeline')
 
 export const TimedOut = curatedCase(11, 'timeline')
 
-export const Cancelled = curatedCase(2, 'timeline')
+// referendum #12 enacted the cancel, so the step names it by its title
+const cancelled = curated(2)
+const canceller = {index: 12, title: 'Cancel referendum #2, its registrar already holds a seat'}
+const titles = ({where}: {where?: {index_in?: number[]}}) => (where?.index_in ? [canceller] : [cancelled])
 
-// a kill slashes each deposit the referendum still held, newest first, every
-// slash naming who lost what inside the kill's own extrinsic
+export const Cancelled = withPlay(story(cancelled, 'timeline', {...castFromSnapshots(cancelled), referendums: titles}), async ({canvas}) => {
+    const item = (await canvas.findAllByText('Cancelled')).map(el => el.closest<HTMLElement>('li')).find(li => li != null)!
+    await expect(within(item).getByText('By')).toBeInTheDocument()
+    await expect(item.querySelector('dd a[href="/referendum/12"]')).toHaveTextContent(`#12 · ${canceller.title}`)
+})
+
+// the prime signs the kill. it slashes each deposit the referendum still held,
+// newest first, and each slash names who lost what inside the kill's extrinsic
 const killRail = (amounts: string[]): Play => async ({canvas}) => {
     const extrinsicOf = (step: HTMLElement) => step.querySelector('a[href^="/extrinsic/"]')?.textContent
-    const kill = extrinsicOf((await canvas.findAllByText('Killed')).map(el => el.closest<HTMLElement>('li')).find(li => li != null)!)
+    const killStep = (await canvas.findAllByText('Killed')).map(el => el.closest<HTMLElement>('li')).find(li => li != null)!
+    await expect(within(killStep).getByText('By')).toBeInTheDocument()
+    await expect(within(killStep).getByText(PEOPLE[1].identityDisplay!)).toBeInTheDocument()
+    const kill = extrinsicOf(killStep)
     await expect(kill).toBeTruthy()
     const slashes = (await canvas.findAllByText('Deposit slashed')).map(el => el.closest<HTMLElement>('li')!)
     await expect(slashes.map(step => within(step).getByText(/NUMN$/).textContent)).toEqual(amounts)

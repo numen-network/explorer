@@ -219,6 +219,14 @@ function stepArgs(r, method, s, slash) {
     }
 }
 
+// the prime signs kills and depositors sign the calls that move their deposits
+const PRIME = person(1).id
+const originOf = (r, s) => {
+    const method = s.name.split('.')[1]
+    const id = method === 'Killed' ? PRIME : method === 'Submitted' ? r.submitter?.id : stepArgs(r, method, s, 0).who
+    return id ? {id} : null
+}
+
 // the events a referendum timeline names, with what each carried. a decision
 // that starts inside place_decision_deposit shares that extrinsic, and so do
 // the slashes of the kill a prime signs
@@ -234,6 +242,7 @@ export function stepEvents(r) {
             indexInBlock: indexOf(s.event),
             args: stepArgs(r, method, s, method === 'DepositSlashed' ? slashes++ : 0),
             extrinsic: host ? {id: squidId(host.block, 1 + r.timeline.indexOf(host))} : null,
+            call: host ? {origin: originOf(r, host)} : null,
         }
     })
 }

@@ -127,7 +127,7 @@ export class Referendum {
     support!: bigint
 
     /**
-     * one step per lifecycle event with id, qualified name, block and timestamp, Scheduler.Dispatched steps also carry the dispatch error or null
+     * one step per lifecycle event with id, qualified name, block and timestamp, Scheduler.Dispatched steps also carry the dispatch error or null, Cancelled and Killed steps raised by an enactment carry byReferendum, the index of the enacted referendum
      */
     @JSONColumn_({nullable: false})
     timeline!: unknown

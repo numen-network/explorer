@@ -10,7 +10,7 @@ import {TabNav, panelTabs} from '@/components/Tabs'
 import {CurvesChart, type TallyStep} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import Approx from '@/components/Approx'
-import {BlockLink} from '@/components/links'
+import {BlockLink, ReferendumLink} from '@/components/links'
 import {CallTree} from '@/components/CallTree'
 import {Gauge, ReferendumByline} from '@/components/referenda'
 import {RequestCard, requestAccounts} from '@/components/RequestCard'
@@ -28,7 +28,7 @@ import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
 import {blocksConstant} from '@/lib/runtime'
-import {accountRefs, bountiesByIndex, eventsByIds, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
+import {accountRefs, bountiesByIndex, eventsByIds, indexTitles, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
 import {ss58Encode} from '@/lib/ss58'
@@ -156,8 +156,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const held = (kind: ReferendumDepositRow['kind']) => r.deposits.find(d => d.kind === kind && d.state === 'Held')
     const partyIds = [...new Set(requestAccounts(nodes))]
     const bountyIds = nodes.flatMap(node => (node.bounty != null ? [node.bounty] : []))
+    const enactors = [...new Set(trail.flatMap(s => (s.byReferendum != null ? [s.byReferendum] : [])))]
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
-    const [refs, evs, textEvs, votes, actions, stats, spec, bounties] = await Promise.all([
+    const [refs, evs, textEvs, votes, actions, stats, spec, bounties, titles] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.metadataActions.map(a => a.id)),
@@ -166,6 +167,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
         specVersionAt(r.submittedAt),
         bountyIds.length > 0 ? bountiesByIndex(bountyIds) : {bounties: []},
+        enactors.length > 0 ? indexTitles({referenda: enactors, bounties: [], spends: [], registrars: []}) : {referendums: []},
     ])
     const callRows = withProposalViews(nodes, spec)
     await markArgs(callRows.map(c => c.view))
@@ -180,7 +182,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const rail = runs.flatMap(run => run.sort((a, b) => rank(b) - rank(a)))
     const actionOf = new Map(data.metadataActions.map(a => [a.id, a]))
     const textRail = textEvs.events.map(e => ({a: actionOf.get(e.id)!, e}))
-    const evWhos = evs.events.map(e => (e.args as {who?: unknown} | null)?.who).filter((w): w is string => typeof w === 'string')
+    const evWhos = evs.events.flatMap(e => [(e.args as {who?: unknown} | null)?.who, e.call?.origin?.id]).filter((w): w is string => typeof w === 'string')
+    const titleOf = new Map(titles.referendums.map(t => [t.index, t.title]))
     const party = new Map(refs.accounts.map(a => [a.id, a]))
 
     const whoRefsRes = await accountRefs([...new Set(evWhos)])
@@ -493,6 +496,17 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 if (s.name === 'Referenda.Submitted') {
                     if (r.submitter) rows.unshift(['Who', <AccountLink key="s" addr={ss58Encode(r.submitter.id, chain.ss58)} acc={r.submitter} />])
                     if (submission) rows.push(['Submission deposit', fmtBalance(submission.amount, chain.decimals, chain.symbol)])
+                }
+                if (s.name === 'Referenda.Cancelled' || s.name === 'Referenda.Killed') {
+                    const origin = e.call?.origin?.id
+                    rows.unshift([
+                        'By',
+                        s.byReferendum != null ? (
+                            <ReferendumLink key="by" index={s.byReferendum} title={titleOf.get(s.byReferendum)} />
+                        ) : (
+                            <AccountLink key="by" addr={ss58Encode(origin!, chain.ss58)} acc={whoRefs.get(origin!)} />
+                        ),
+                    ])
                 }
                 if (failed) rows.push(['Error', <ErrorName key="error" name={error} />])
                 return (

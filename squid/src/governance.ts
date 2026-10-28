@@ -41,6 +41,8 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
             applyGovEvent(batch, ev)
             stampVoteLock(batch, locks, ev)
         }
+        const stray = batch.revocations[0]
+        if (stray) throw new Error(`${stray.step.name} at block ${stray.height} matches no enactment`)
         await applyProposals(batch, rpc)
         matchEnactedSpends(batch)
         await applyMetadata(batch, rpc)
@@ -707,8 +709,10 @@ function applyGovEvent(batch: BatchData, ev: GovEvent): void {
     else if (ENACTMENT_ENDS.has(ev.name)) applyUndispatched(batch, ev)
 }
 
-function pushTimeline(r: Referendum, ev: GovEvent, extra: object = {}): void {
-    r.timeline = [...((r.timeline as any[]) ?? []), {event: ev.id, name: ev.name, block: ev.height, timestamp: stampOf(ev).toISOString(), ...extra}]
+function pushTimeline(r: Referendum, ev: GovEvent, extra: object = {}): any {
+    const step = {event: ev.id, name: ev.name, block: ev.height, timestamp: stampOf(ev).toISOString(), ...extra}
+    r.timeline = [...((r.timeline as any[]) ?? []), step]
+    return step
 }
 
 function setTally(r: Referendum, tally: any): void {
@@ -747,7 +751,8 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
     const r = batch.referenda.get(method === 'DepositSlashed' ? batch.kills.get(kill) : args.index)
     if (r == null) return
     // the text log keeps the metadata events, the rail is for the lifecycle
-    if (!method.startsWith('Metadata')) pushTimeline(r, ev)
+    const step = method.startsWith('Metadata') ? null : pushTimeline(r, ev)
+    if ((method === 'Cancelled' || method === 'Killed') && ev.origin == null) batch.revocations.push({height: ev.height, step})
     switch (method) {
         case 'DecisionStarted':
             r.decidingSince = ev.height
@@ -1005,6 +1010,8 @@ function applyDispatch(batch: BatchData, ev: GovEvent): void {
     if (typeof id !== 'string') return
     const index = batch.enactments.get(id)
     if (index == null) return
+    for (const v of batch.revocations) if (v.height === ev.height) v.step.byReferendum = index
+    batch.revocations = batch.revocations.filter(v => v.height !== ev.height)
     const r = batch.referenda.get(index)
     const result = ev.args.result
     if (r != null) pushTimeline(r, ev, {error: result.__kind === 'Err' ? dispatchErrorName(result.value, ev.header._runtime) : null})

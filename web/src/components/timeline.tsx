@@ -109,6 +109,8 @@ export interface RawStep {
     timestamp: string
     /** What an enactment dispatch failed with, null when it went through. */
     error?: string | null
+    /** The referendum whose enactment cancelled or killed this one. */
+    byReferendum?: number
 }
 
 export function rawSteps(timeline: unknown): RawStep[] {
