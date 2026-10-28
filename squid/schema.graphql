@@ -455,11 +455,13 @@ type Referendum @entity {
   status: ReferendumStatus! @index
   decidingSince: Int
   confirmingSince: Int
+  "Ongoing in_queue flag, true while the track is full, null once ended"
+  inQueue: Boolean
   endedAt: Int
   ayes: BigInt!
   nays: BigInt!
   support: BigInt!
-  "one step per lifecycle event, its id, qualified name, block and timestamp, an enactment step adds the error its dispatch failed with or null"
+  "one step per lifecycle event with id, qualified name, block and timestamp, Scheduler.Dispatched steps also carry the dispatch error or null"
   timeline: JSON!
   deposits: [ReferendumDeposit!]! @derivedFrom(field: "referendum")
 }

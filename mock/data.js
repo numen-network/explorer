@@ -37,7 +37,7 @@ const spend = (amount, beneficiary) => ({
 
 // history rows are [block, ayes, nays, support] in whole NUMN, one per tally
 // snapshot the indexer would write, the last one is the tally now
-function referendum({index, track, origin, submitter, steps, decidingSince = null, confirmingSince = null, endedAt = null, history = [], deposits, ...rest}) {
+function referendum({index, track, origin, submitter, steps, decidingSince = null, confirmingSince = null, inQueue = false, endedAt = null, history = [], deposits, ...rest}) {
     const t = trackById[track]
     const [, ayes, nays, support] = history.at(-1) ?? [0, 0, 0, 0]
     return {
@@ -52,6 +52,7 @@ function referendum({index, track, origin, submitter, steps, decidingSince = nul
         status: 'Ongoing',
         decidingSince,
         confirmingSince,
+        inQueue: (rest.status ?? 'Ongoing') === 'Ongoing' ? inQueue : null,
         endedAt,
         ayes: numn(ayes),
         nays: numn(nays),
@@ -168,7 +169,7 @@ export const referenda = [
         submitter: 13,
         title: 'Submitted with no decision deposit and no votes yet, carrying a deliberately long title that the list row truncates and the detail header wraps across several lines',
         ...spend(8000, account(13)),
-        steps: [step('Referenda.Submitted', 999_400, 4)],
+        steps: [step('Referenda.Submitted', 887_500, 4)],
         deposits: 'submission',
     }),
     referendum({

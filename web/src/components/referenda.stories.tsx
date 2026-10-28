@@ -1,8 +1,8 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
-import {expect} from 'storybook/test'
+import {expect, within} from 'storybook/test'
 import type {ReferendumRow} from '@/lib/gql'
-import type {Phase} from '@/lib/referendum'
+import {PHASE_LABEL, PHASE_TIP, type Phase} from '@/lib/referendum'
 import {referenda} from '../../../mock/data.js'
 import {CHAIN} from '../../../mock/fixtures/accounts.js'
 import {at, person} from '../../../mock/fixtures.js'
@@ -12,7 +12,7 @@ const meta = {title: 'Components/Referenda'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-const PHASES: Phase[] = ['Submitted', 'Deciding', 'Confirming', 'Approved', 'Rejected', 'Cancelled', 'TimedOut', 'Killed']
+const PHASES = Object.keys(PHASE_LABEL) as Phase[]
 const NUMN = 10n ** 18n
 
 function Case({label, children}: {label: string; children: ReactNode}) {
@@ -32,6 +32,31 @@ export const EveryPhase: Story = {
             ))}
         </div>
     ),
+    play: async ({canvasElement}) =>
+        expect([...canvasElement.querySelector('.flex-wrap')!.children].map(b => b.textContent)).toEqual([
+            'Awaiting deposit',
+            'Preparing',
+            'Queueing',
+            'Deciding',
+            'Confirming',
+            'Approved',
+            'Executed',
+            'Exec failed',
+            'Call unavailable',
+            'Permanently overweight',
+            'Rejected',
+            'Cancelled',
+            'Timed out',
+            'Killed',
+        ]),
+}
+
+export const PhaseTip: Story = {
+    render: () => <StatusBadge phase="ExecutedWithError" />,
+    play: async ({canvas, userEvent}) => {
+        await userEvent.hover(canvas.getByText('Exec failed'))
+        await expect(await within(document.body).findByRole('tooltip')).toHaveTextContent(PHASE_TIP.ExecutedWithError)
+    },
 }
 
 // the soft form a table row shows
@@ -63,6 +88,7 @@ const REFERENDUM: ReferendumRow = {
     status: 'Approved',
     decidingSince: 669_000,
     confirmingSince: 690_000,
+    inQueue: null,
     endedAt: 698_640,
     ayes: '0',
     nays: '0',

@@ -22,6 +22,7 @@ const badgeVariants = cva(
         neg: "bg-destructive-soft text-destructive",
         warn: "bg-warn-soft text-warn",
         idle: "border border-border bg-background text-muted-foreground",
+        muted: "bg-muted-foreground/15 text-muted-foreground",
         primary: "bg-primary-soft text-primary",
         solid: "border border-primary bg-primary text-primary-foreground",
       },

@@ -41,7 +41,7 @@ export const TitleHovered: StoryObj = {
 export const Ended: StoryObj = {
     ...pageStory(home({...many, referendums: [referenda[0], referenda[1], referenda[7], referenda[9], referenda[10]]})),
     play: async ({canvasElement}) =>
-        expect(listRows(canvasElement, 'Governance').map(row => row.querySelector('[data-slot=badge]')!.textContent)).toEqual(['Timed out', 'Approved', 'Killed', 'Cancelled', 'Rejected']),
+        expect(listRows(canvasElement, 'Governance').map(row => row.querySelector('[data-variant]')!.textContent)).toEqual(['Timed out', 'Executed', 'Killed', 'Cancelled', 'Rejected']),
 }
 
 // a proposal the index could not decode has no title and no amount, so the row
@@ -131,7 +131,7 @@ export const ThresholdsLive: StoryObj = {
     ...pageStory(home(many)),
     play: async ({canvasElement}) => {
         const marked = listRows(canvasElement, 'Governance').filter(row => row.querySelector('[data-slot=threshold-pair]'))
-        expect(marked.map(row => row.querySelector('[data-slot=badge]')!.textContent)).toEqual(['Confirming', 'Deciding'])
+        expect(marked.map(row => row.querySelector('[data-variant]')!.textContent)).toEqual(['Confirming', 'Deciding'])
         expectReferendaFit(canvasElement)
     },
 }

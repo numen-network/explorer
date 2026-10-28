@@ -7,40 +7,62 @@ import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtPct, pctToNum, trackLabel} from '@/lib/format'
+import {fmtPct, pctToNum, trackLabel} from '@/lib/format'
 import type {ReferendumRow} from '@/lib/gql'
-import {phaseOf, type Phase} from '@/lib/referendum'
+import {PHASE_LABEL, PHASE_TIP, phaseOf, type Phase} from '@/lib/referendum'
 import {ss58Encode} from '@/lib/ss58'
 
+const FRAMED = 'bg-destructive shadow-[inset_0_0_0_2px_var(--destructive),inset_0_0_0_3px_var(--card)]'
+
 const PHASE_BG: Record<Phase, string> = {
-    Submitted: 'bg-muted-foreground',
+    WaitingForDeposit: 'bg-warn',
+    Preparing: 'bg-warn',
+    Queueing: 'bg-warn',
     Deciding: 'bg-primary',
-    Confirming: 'bg-good',
+    Confirming: 'bg-primary',
     Approved: 'bg-good',
-    Rejected: 'bg-destructive',
+    Executed: 'bg-good',
+    ExecutedWithError: 'bg-destructive',
+    CallUnavailable: 'bg-destructive',
+    PermanentlyOverweight: 'bg-destructive',
+    Rejected: FRAMED,
     TimedOut: 'bg-muted-foreground',
     Cancelled: 'bg-muted-foreground',
-    Killed: 'bg-destructive',
+    Killed: FRAMED,
 }
 
 export function StatusBadge({phase, className}: {phase: Phase; className?: string}) {
-    return <Badge className={cn('shrink-0 rounded-md px-3 py-1.5 text-xs leading-none font-semibold', PHASE_BG[phase], className)}>{camelLabel(phase)}</Badge>
+    return (
+        <Tip text={PHASE_TIP[phase]}>
+            <Badge className={cn('block min-w-0 shrink rounded-md px-3 py-1.5 text-xs leading-none font-semibold text-ellipsis', PHASE_BG[phase], className)}>{PHASE_LABEL[phase]}</Badge>
+        </Tip>
+    )
 }
 
-const PHASE_TONE: Record<Phase, 'primary' | 'pos' | 'neg' | 'idle'> = {
-    Submitted: 'idle',
+const PHASE_TONE: Record<Phase, 'primary' | 'pos' | 'neg' | 'warn' | 'muted'> = {
+    WaitingForDeposit: 'warn',
+    Preparing: 'warn',
+    Queueing: 'warn',
     Deciding: 'primary',
-    Confirming: 'pos',
+    Confirming: 'primary',
     Approved: 'pos',
+    Executed: 'pos',
+    ExecutedWithError: 'neg',
+    CallUnavailable: 'neg',
+    PermanentlyOverweight: 'neg',
     Rejected: 'neg',
-    TimedOut: 'idle',
-    Cancelled: 'idle',
+    TimedOut: 'muted',
+    Cancelled: 'muted',
     Killed: 'neg',
 }
 
 // the soft form a table row shows, in the tones PHASE_BG gives the cards
 export function StatusTag({phase}: {phase: Phase}) {
-    return <Badge variant={PHASE_TONE[phase]}>{camelLabel(phase)}</Badge>
+    return (
+        <Tip text={PHASE_TIP[phase]}>
+            <Badge variant={PHASE_TONE[phase]}>{PHASE_LABEL[phase]}</Badge>
+        </Tip>
+    )
 }
 
 export function ReferendumByline({r, chain, className}: {r: ReferendumRow; chain: ChainProps; className?: string}) {

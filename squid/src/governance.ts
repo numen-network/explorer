@@ -681,9 +681,12 @@ async function loadTouchedReferenda(ctx: {store: any}, batch: BatchData): Promis
     for (const d of deposits) batch.deposits.set(d.id, d)
 }
 
-// a named dispatch carries its task id, only approved referenda can own one
+// the scheduler ends a task with one of these, the named ones carry the task id
+const ENACTMENT_ENDS = new Set(['Scheduler.Dispatched', 'Scheduler.CallUnavailable', 'Scheduler.PermanentlyOverweight'])
+
+// only approved referenda can own a named task
 async function loadEnactments(ctx: {store: any}, batch: BatchData): Promise<void> {
-    const named = batch.govEvents.filter(e => e.name === 'Scheduler.Dispatched' && e.args.id != null)
+    const named = batch.govEvents.filter(e => ENACTMENT_ENDS.has(e.name) && e.args.id != null)
     if (named.length === 0) return
     const ids = new Set(named.map(e => e.args.id))
     const rows: Referendum[] = await ctx.store.find(Referendum, {where: {status: ReferendumStatus.Approved}, relations: {track: true}})
@@ -700,7 +703,8 @@ function applyGovEvent(batch: BatchData, ev: GovEvent): void {
     if (pallet === 'Referenda') applyReferendaEvent(batch, method, ev)
     else if (pallet === 'ConvictionVoting') applyVoteEvent(batch, method, ev)
     else if (pallet === 'Treasury') applyTreasuryEvent(batch, method, ev)
-    else if (pallet === 'Scheduler' && method === 'Dispatched') applyDispatch(batch, ev)
+    else if (ev.name === 'Scheduler.Dispatched') applyDispatch(batch, ev)
+    else if (ENACTMENT_ENDS.has(ev.name)) applyUndispatched(batch, ev)
 }
 
 function pushTimeline(r: Referendum, ev: GovEvent, extra: object = {}): void {
@@ -727,6 +731,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
             submittedAt: ev.height,
             submittedTimestamp: stampOf(ev),
             status: ReferendumStatus.Ongoing,
+            inQueue: false,
             ayes: 0n,
             nays: 0n,
             support: 0n,
@@ -1008,6 +1013,13 @@ function applyDispatch(batch: BatchData, ev: GovEvent): void {
     batch.enacted.push({index, height: ev.height, spends})
 }
 
+// the call never ran, the event name says why
+function applyUndispatched(batch: BatchData, ev: GovEvent): void {
+    const index = typeof ev.args?.id === 'string' ? batch.enactments.get(ev.args.id) : undefined
+    const r = index != null ? batch.referenda.get(index) : undefined
+    if (r != null) pushTimeline(r, ev)
+}
+
 // spends land in the order their calls ran, and a batch that skips a failed
 // call leaves a gap, so each spend takes the next call it could have come from
 function matchEnactedSpends(batch: BatchData): void {
@@ -1149,8 +1161,10 @@ async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: a
         if (info == null) throw new Error(`referendum ${idx} has no info at block ${lastHeader.height}`)
         if (info.__kind === 'Ongoing') {
             setTally(r, info.value.tally)
+            r.inQueue = info.value.inQueue
         } else {
             r.status = ReferendumStatus[info.__kind]
+            r.inQueue = null
             r.endedAt = info.__kind === 'Killed' ? info.value : info.value[0]
         }
         batch.referenda.set(idx, r)

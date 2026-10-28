@@ -27,6 +27,7 @@ import {discussionOf} from '@/lib/discussions'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
+import {blocksConstant} from '@/lib/runtime'
 import {accountRefs, bountiesByIndex, eventsByIds, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
@@ -58,7 +59,9 @@ const STEP_LABEL: Record<string, string> = {
     'Referenda.DepositSlashed': 'Deposit slashed',
     'Referenda.SubmissionDepositRefunded': 'Submission deposit refunded',
     'Referenda.DecisionDepositRefunded': 'Decision deposit refunded',
-    'Scheduler.Dispatched': 'Enacted',
+    'Scheduler.Dispatched': 'Executed',
+    'Scheduler.CallUnavailable': 'Call unavailable',
+    'Scheduler.PermanentlyOverweight': 'Permanently overweight',
 }
 
 // steps from one extrinsic follow this order, since place_decision_deposit
@@ -73,9 +76,11 @@ const STEP_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle' | 'primary'> = {
     'Referenda.Killed': 'neg',
     'Referenda.DepositSlashed': 'neg',
     'Scheduler.Dispatched': 'pos',
+    'Scheduler.CallUnavailable': 'neg',
+    'Scheduler.PermanentlyOverweight': 'neg',
 }
 
-const STEP_ICON = (name: string) => (name === 'Referenda.Confirmed' || name === 'Scheduler.Dispatched' ? TICK : /Rejected|Killed|Cancelled|TimedOut|Slashed/.test(name) ? CROSS : RING)
+const STEP_ICON = (name: string) => (name === 'Referenda.Confirmed' || name === 'Scheduler.Dispatched' ? TICK : /Rejected|Killed|Cancelled|TimedOut|Slashed|CallUnavailable|Overweight/.test(name) ? CROSS : RING)
 
 // a pallet error wraps after the pallet rather than inside a word
 function ErrorName({name}: {name: string}) {
@@ -236,6 +241,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
     const tallied = BigInt(r.ayes) + BigInt(r.nays)
+    // only a referendum still waiting for its decision deposit runs out of time
+    const timeoutAt = phaseOf(r) === 'WaitingForDeposit' ? r.submittedAt + blocksConstant(head.specVersion, 'Referenda.UndecidingTimeout') : null
 
     // enactment only starts once the referendum is approved, keep the card
     // up through that phase
@@ -263,6 +270,14 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <PhaseBar label="Decision" span={fmtSpan(r.track.decisionPeriod * chain.blockTime)} at={decisionAt} />
                 <PhaseBar label="Confirmation" span={fmtSpan(r.track.confirmPeriod * chain.blockTime)} at={confirmAt} />
                 <PhaseBar label="Enactment" span={fmtSpan(r.track.minEnactmentPeriod * chain.blockTime)} at={enactAt} />
+                {timeoutAt !== null && (
+                    <div className="flex items-baseline justify-between border-t pt-3 text-sm">
+                        <span className="text-muted-foreground">Timeout</span>
+                        <span className="font-mono">
+                            in {fmtSpan((timeoutAt - head.height) * chain.blockTime)} <span className="text-dim">·</span> <BlockLink height={timeoutAt} />
+                        </span>
+                    </div>
+                )}
                 <div className="flex items-baseline justify-between border-t pt-3 text-sm">
                     <span className="text-muted-foreground">Attempts</span>
                     <span className="font-mono">{fmtInt(trail.filter(s => s.name === 'Referenda.ConfirmStarted').length)}</span>

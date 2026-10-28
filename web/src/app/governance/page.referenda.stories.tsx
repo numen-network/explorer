@@ -51,13 +51,19 @@ const tranche = (amount: number) => ({__kind: 'Treasury', value: {__kind: 'spend
 const staged = {...referenda[5], id: '13', index: 13, title: 'Staged grant paid out in four tranches', ...proposal({__kind: 'Utility', value: {__kind: 'batch_all', calls: [200_000, 150_000, 120_000, 80_000].map(tranche)}})}
 const unsigned = {...referenda[6], id: '22', index: 22, submitter: null, description: 'Pays three community teams for six months of translation work.'}
 
-const PHASES = ['Approved', 'Cancelled', 'Confirming', 'Deciding', 'Killed', 'Rejected', 'Submitted', 'Timed out']
+const byIndex = (index: number) => referenda.find(r => r.index === index)!
+const withoutDispatch = (steps: {name: string}[]) => steps.filter(s => !s.name.startsWith('Scheduler.'))
+const queued = {...byIndex(9), id: '23', index: 23, inQueue: true}
+const awaitingEnactment = {...byIndex(0), id: '24', index: 24, timeline: withoutDispatch(byIndex(0).timeline)}
+const failedEnactment = {...byIndex(10), id: '25', index: 25, timeline: byIndex(10).timeline.map((s: {name: string}) => (s.name === 'Scheduler.Dispatched' ? {...s, error: 'Treasury.InsufficientPermission'} : s))}
 
-// every phase the curated referenda run through, a grant staged over four
-// spends counting its payouts after the total, a description behind its icon
-// and a byline with no submitter on record
+const PHASES = ['Approved', 'Awaiting deposit', 'Cancelled', 'Confirming', 'Deciding', 'Exec failed', 'Executed', 'Killed', 'Preparing', 'Queueing', 'Rejected', 'Timed out']
+
+// every curated phase plus queued, awaiting-enactment and failed referenda,
+// a four-tranche grant counting payouts after the total, a description
+// behind its icon and a byline with no submitter
 export const EveryCase: StoryObj = {
-    ...referendaTab([unsigned, staged, ...referenda]),
+    ...referendaTab([unsigned, staged, queued, awaitingEnactment, failedEnactment, ...referenda]),
     play: all(async ({canvas, canvasElement}) => {
         const bylines = [...canvasElement.querySelectorAll('a[href^="/referendum/"]')].map(title => title.closest('[data-slot=card]')!.querySelector('[data-slot=separator] + div')!)
         expect([...new Set(bylines.map(byline => byline.lastElementChild!.textContent!))].sort()).toEqual(PHASES)

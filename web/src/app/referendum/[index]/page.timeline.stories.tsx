@@ -9,18 +9,18 @@ import {Play, curated, story, curatedCase, withPlay, treasurySpend, secondAttemp
 
 export default {title: 'Pages/Referendum/Timeline', ...pageMeta(ReferendumPage)}
 
-// an approved referendum ends where it confirmed and no step of its own reads
-// Approved, its enactment ticks when the dispatch went through and otherwise
-// reads Failed with the error, which wraps between whole words
+// an approved referendum ends at Confirmed with no Approved step. Executed
+// ticks when the dispatch went through, else reads Failed with the error
+// wrapped between whole words
 const approvedRail = (confirmed: string, enacted: string, error: string | null = null): Play => async ({canvas, canvasElement}) => {
     const step = async (title: string, block: string) => {
-        const item = (await canvas.findByText(title)).closest<HTMLElement>('li')!
+        const item = (await within(tabPanel(canvasElement, 'Referendum')).findByText(title)).closest<HTMLElement>('li')!
         await expect(within(item).getByRole('link', {name: block})).toBeInTheDocument()
         return item
     }
     await step('Confirmed', confirmed)
     await expect(within(tabPanel(canvasElement, 'Referendum')).queryByText('Approved')).toBeNull()
-    const enactment = await step('Enacted', enacted)
+    const enactment = await step('Executed', enacted)
     if (error == null) {
         await expect(enactment.querySelector('.lucide-check')).not.toBeNull()
         await expect(within(enactment).queryByText('Failed')).toBeNull()
@@ -98,6 +98,22 @@ const overCap = {
 const refused = {__kind: 'Err', value: {__kind: 'Module', value: {index: 23, error: '0x02000000'}}}
 const enactment = overCap.timeline.find(s => s.name === 'Scheduler.Dispatched')!.event
 const overCapEvents = stepEvents(overCap).map((e: {id: string; args: object}) => (e.id === enactment ? {...e, args: {...e.args, result: refused}} : e))
+
+// the preimage was gone by dispatch time, so the call never ran
+const unavailable = {
+    ...curated(0),
+    id: '27',
+    index: 27,
+    title: 'Approved after its preimage was unnoted, so the call was never found',
+    timeline: (curated(0).timeline as RawStep[]).map(s => (s.name === 'Scheduler.Dispatched' ? {...s, name: 'Scheduler.CallUnavailable'} : s)),
+}
+
+export const CallUnavailable = withPlay(story(unavailable, 'timeline', castFromSnapshots(unavailable)), async ({canvasElement}) => {
+    const rail = within(tabPanel(canvasElement, 'Referendum'))
+    const item = (await rail.findByText('Call unavailable')).closest<HTMLElement>('li')!
+    await expect(item.querySelector('.lucide-x')).not.toBeNull()
+    await expect(rail.queryByText('Executed')).toBeNull()
+})
 
 // every step keeps each value whole and inside the card, whether its rows sit
 // beside the title or drop below it

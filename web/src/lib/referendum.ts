@@ -8,15 +8,83 @@ export interface RefPhaseFields {
     status: string
     decidingSince: number | null
     confirmingSince: number | null
+    inQueue: boolean | null
+    timeline: unknown
 }
 
-export type Phase = 'Submitted' | 'Deciding' | 'Confirming' | 'Approved' | 'Rejected' | 'Cancelled' | 'TimedOut' | 'Killed'
+export type Phase =
+    | 'WaitingForDeposit'
+    | 'Preparing'
+    | 'Queueing'
+    | 'Deciding'
+    | 'Confirming'
+    | 'Approved'
+    | 'Executed'
+    | 'ExecutedWithError'
+    | 'CallUnavailable'
+    | 'PermanentlyOverweight'
+    | 'Rejected'
+    | 'Cancelled'
+    | 'TimedOut'
+    | 'Killed'
+
+export const PHASE_LABEL: Record<Phase, string> = {
+    WaitingForDeposit: 'Awaiting deposit',
+    Preparing: 'Preparing',
+    Queueing: 'Queueing',
+    Deciding: 'Deciding',
+    Confirming: 'Confirming',
+    Approved: 'Approved',
+    Executed: 'Executed',
+    ExecutedWithError: 'Exec failed',
+    CallUnavailable: 'Call unavailable',
+    PermanentlyOverweight: 'Permanently overweight',
+    Rejected: 'Rejected',
+    Cancelled: 'Cancelled',
+    TimedOut: 'Timed out',
+    Killed: 'Killed',
+}
+
+export const PHASE_TIP: Record<Phase, string> = {
+    WaitingForDeposit: 'Needs a decision deposit before deciding can begin',
+    Preparing: 'Decision deposit placed, waiting for the prepare period to end',
+    Queueing: 'Waiting in line for processing or voting to begin',
+    Deciding: 'Currently open for voting',
+    Confirming: 'Waiting for final checks before vote ends',
+    Approved: 'Vote passed but action not yet executed',
+    Executed: 'Vote passed and action taken',
+    ExecutedWithError: 'Vote passed but call executed with error',
+    CallUnavailable: 'The call was not found at execution',
+    PermanentlyOverweight: 'Execution failed due to overweight',
+    Rejected: 'Vote failed and referendum did not pass',
+    Cancelled: 'Proposal withdrawn before voting completed',
+    TimedOut: 'Never started deciding in time',
+    Killed: 'Manually removed before voting completed',
+}
+
+const stepsOf = (timeline: unknown) => (Array.isArray(timeline) ? (timeline as {name: string; error?: string | null}[]) : [])
 
 // the chain keeps one Ongoing status, the phase within it comes from what has
 // started
+function ongoingPhase(r: RefPhaseFields): Phase {
+    if (r.confirmingSince != null) return 'Confirming'
+    if (r.decidingSince != null) return 'Deciding'
+    if (r.inQueue) return 'Queueing'
+    return stepsOf(r.timeline).some(s => s.name === 'Referenda.DecisionDepositPlaced') ? 'Preparing' : 'WaitingForDeposit'
+}
+
+// the scheduler ends the enactment task with one event, which says how
+function approvedPhase(timeline: unknown): Phase {
+    const end = stepsOf(timeline).find(s => s.name.startsWith('Scheduler.'))
+    if (end == null) return 'Approved'
+    if (end.name === 'Scheduler.Dispatched') return end.error == null ? 'Executed' : 'ExecutedWithError'
+    return end.name.slice('Scheduler.'.length) as Phase
+}
+
 export function phaseOf(r: RefPhaseFields): Phase {
-    if (r.status !== 'Ongoing') return r.status as Phase
-    return r.confirmingSince != null ? 'Confirming' : r.decidingSince != null ? 'Deciding' : 'Submitted'
+    if (r.status === 'Ongoing') return ongoingPhase(r)
+    if (r.status === 'Approved') return approvedPhase(r.timeline)
+    return r.status as Phase
 }
 
 // still on the clock, so its bars and thresholds move with the head

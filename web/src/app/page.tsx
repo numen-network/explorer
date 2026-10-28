@@ -78,8 +78,8 @@ function GovRow({href, index, title, mark, amount, facts, status, className}: {h
                 <div className="order-1 font-mono text-sm whitespace-nowrap">{amount}</div>
             </div>
             <div className="contents sm:flex sm:items-center sm:gap-3">
-                <DotRow className="min-w-0 basis-full gap-y-0 text-[11px] text-muted-foreground sm:grow sm:basis-0">{facts}</DotRow>
-                <div className="order-1 ml-auto">{status}</div>
+                <DotRow className="min-w-0 basis-full gap-y-0 text-[11px] text-muted-foreground sm:min-w-min sm:grow sm:basis-0">{facts}</DotRow>
+                <div className="order-1 ml-auto flex min-w-0">{status}</div>
             </div>
         </div>
     )
@@ -210,7 +210,9 @@ export default async function Home({searchParams}: PageProps<'/'>) {
                             <span key="track" className="whitespace-nowrap">
                                 {trackLabel(r.track.name)}
                             </span>,
-                            <TimeCell key="time" iso={r.submittedTimestamp} cycle />,
+                            <span key="time" className="sm:whitespace-nowrap">
+                                <TimeCell iso={r.submittedTimestamp} cycle />
+                            </span>,
                         ]}
                         status={<StatusBadge phase={phaseOf(r)} />}
                         className={rowHidden(i, upcoming.length)}

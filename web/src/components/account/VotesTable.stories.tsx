@@ -56,7 +56,7 @@ export const EveryKind: Story = {
             '#4 · Referendum 4 title',
             '#8 · Referendum 8 titleremoved',
         ])
-        expect(columnTexts(canvasElement, 'Status')).toEqual(['Deciding', 'Confirming', 'Approved', 'Rejected', 'Approved', 'Timed out', 'Cancelled', 'Timed out', 'Killed', 'Submitted'])
+        expect(columnTexts(canvasElement, 'Status')).toEqual(['Deciding', 'Confirming', 'Approved', 'Rejected', 'Approved', 'Timed out', 'Cancelled', 'Timed out', 'Killed', 'Awaiting deposit'])
         expect(columnTexts(canvasElement, 'Vote')).toEqual(['Aye', 'AyeNay', 'Aye', 'Nay', 'Nay', 'AyeNayAbstain', 'Nay', 'Aye', 'Nay', 'Aye'])
         expect(columnTexts(canvasElement, 'Conviction')).toEqual(['1x', '0.1x', '3x', '6x', '0.1x', '0.1x', '2x', '4x', '5x', '1x'])
         expect(columnTexts(canvasElement, 'Capital')).toEqual([

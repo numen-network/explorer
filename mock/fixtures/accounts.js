@@ -178,6 +178,8 @@ export const proposal = (index, status, deposits, extra = {}) => ({
     status,
     decidingSince: null,
     confirmingSince: null,
+    inQueue: status === 'Ongoing' ? false : null,
+    timeline: [],
     submittedAt: HEAD - 50_000 + index * 1_000,
     track: {name: 'small_spender'},
     deposits,
@@ -336,7 +338,7 @@ export const vote = (i, traits = {}) =>
     })
 
 export function poll(index, status, endedAt, traits = {}) {
-    return {index, title: `Referendum ${index} title`, status, decidingSince: status === 'Ongoing' ? HEAD - 20_000 : null, confirmingSince: null, endedAt, ...traits}
+    return {index, title: `Referendum ${index} title`, status, decidingSince: status === 'Ongoing' ? HEAD - 20_000 : null, confirmingSince: null, inQueue: status === 'Ongoing' ? false : null, timeline: [], endedAt, ...traits}
 }
 
 // one row per way a vote list files a vote and frees its balance, the won 3x

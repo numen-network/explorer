@@ -247,8 +247,13 @@ export function expectActivityFit(root: HTMLElement) {
     expectOneLine(...rows.map(row => row.querySelector('[data-slot=activity-amount]')!))
 }
 
-// a crowded referendum row squeezes its title and wraps its facts rather than overflowing
-export const expectReferendaFit = (root: HTMLElement) => expectFits(...listRows(root, 'Governance').flatMap(row => [row, ...row.querySelectorAll(':scope > * > *')]))
+// a crowded referendum row squeezes its title and status and wraps its facts
+// rather than overflowing
+export const expectReferendaFit = (root: HTMLElement) => {
+    const rows = listRows(root, 'Governance')
+    expectFits(...rows.flatMap(row => [row, ...row.querySelectorAll(':scope > * > *')]))
+    for (const row of rows) expect(row.scrollHeight).toBeLessThanOrEqual(row.clientHeight)
+}
 
 export const railOf = (root: HTMLElement) => within(root).getByRole('heading', {name: 'Latest blocks'}).closest('section')!
 

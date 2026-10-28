@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, JSONColumn as JSONColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, JSONColumn as JSONColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_, BooleanColumn as BooleanColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Track} from "./track.model"
 import {Account} from "./account.model"
 import {ReferendumStatus} from "./_referendumStatus"
@@ -108,6 +108,12 @@ export class Referendum {
     @IntColumn_({nullable: true})
     confirmingSince!: number | undefined | null
 
+    /**
+     * Ongoing in_queue flag, true while the track is full, null once ended
+     */
+    @BooleanColumn_({nullable: true})
+    inQueue!: boolean | undefined | null
+
     @IntColumn_({nullable: true})
     endedAt!: number | undefined | null
 
@@ -121,7 +127,7 @@ export class Referendum {
     support!: bigint
 
     /**
-     * one step per lifecycle event, its id, qualified name, block and timestamp, an enactment step adds the error its dispatch failed with or null
+     * one step per lifecycle event with id, qualified name, block and timestamp, Scheduler.Dispatched steps also carry the dispatch error or null
      */
     @JSONColumn_({nullable: false})
     timeline!: unknown

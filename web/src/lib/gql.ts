@@ -691,7 +691,7 @@ export async function evmCounts(address: string) {
 }
 
 export interface AccountVoteRow extends VoteRow {
-    referendum: {index: number; title: string | null; status: string; decidingSince: number | null; confirmingSince: number | null; endedAt: number | null}
+    referendum: RefPhaseFields & {index: number; title: string | null; endedAt: number | null}
 }
 
 // the account's votes on one page, the vote count under each list a vote can
@@ -703,7 +703,7 @@ export async function votesFor(idHex: string, list: VoteList | '', limit: number
     const counts = VOTE_LIST_KEYS.map(l => `${l}: votesConnection(where: {${own}, ${VOTE_LISTS[l].where}}, orderBy: id_ASC) { totalCount }`)
     const raw = await gql<{votes: AccountVoteRow[]; conn: {totalCount: number}; all: {totalCount: number}} & Record<VoteList, {totalCount: number}>>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            votes(where: ${where}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index title status decidingSince confirmingSince endedAt } }
+            votes(where: ${where}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index title status decidingSince confirmingSince inQueue timeline endedAt } }
             conn: votesConnection(where: ${where}, orderBy: id_ASC) { totalCount }
             all: votesConnection(where: {${own}}, orderBy: id_ASC) { totalCount }
             ${counts.join('\n            ')}
@@ -786,7 +786,7 @@ export async function proposedFor(idHex: string, limit: number, offset: number) 
     const {referendums, conn} = await gql<{referendums: ProposedRow[]; conn: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
             referendums(where: ${where}, orderBy: index_DESC, limit: $limit, offset: $offset) {
-                index title status decidingSince confirmingSince submittedAt track { name }
+                index title status decidingSince confirmingSince inQueue timeline submittedAt track { name }
                 deposits(where: {who: {id_eq: $id}}, orderBy: id_DESC) { kind amount state endedAt }
             }
             conn: referendumsConnection(where: ${where}, orderBy: index_ASC) { totalCount }
@@ -1784,6 +1784,7 @@ export interface ReferendumRow {
     status: string
     decidingSince: number | null
     confirmingSince: number | null
+    inQueue: boolean | null
     endedAt: number | null
     ayes: string
     nays: string
@@ -1817,7 +1818,7 @@ export interface ReferendumSpendRow {
 }
 
 const TRACK_FIELDS = `id name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
-const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } track { ${TRACK_FIELDS} }`
+const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince inQueue endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } track { ${TRACK_FIELDS} }`
 
 export interface TreasurySpendRow {
     id: string
