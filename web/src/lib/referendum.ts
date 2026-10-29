@@ -158,7 +158,3 @@ export interface EnactmentMoment {
     __kind: 'At' | 'After'
     value: number
 }
-
-/** The block pallet_referenda schedules the call for, the requested moment but no sooner than the track allows. */
-export const enactmentBlock = (moment: EnactmentMoment, confirmed: number, minEnactmentPeriod: number) =>
-    Math.max(moment.__kind === 'At' ? moment.value : confirmed + moment.value, confirmed + Math.max(minEnactmentPeriod, 1))

@@ -458,6 +458,10 @@ type Referendum @entity {
   "Ongoing in_queue flag, true while the track is full, null once ended"
   inQueue: Boolean
   endedAt: Int
+  "DispatchTime the submit asked to enact at, After counting from the confirmation block"
+  enactment: JSON!
+  "block the pallet schedules the enactment for as it confirms, the requested moment but no sooner than the track's minEnactmentPeriod allows"
+  enactsAt: Int
   ayes: BigInt!
   nays: BigInt!
   support: BigInt!

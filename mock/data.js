@@ -54,6 +54,8 @@ function referendum({index, track, origin, submitter, steps, decidingSince = nul
         confirmingSince,
         inQueue: (rest.status ?? 'Ongoing') === 'Ongoing' ? inQueue : null,
         endedAt,
+        enactment: {__kind: 'After', value: t.minEnactmentPeriod},
+        enactsAt: rest.status === 'Approved' ? endedAt + t.minEnactmentPeriod : null,
         ayes: numn(ayes),
         nays: numn(nays),
         support: numn(support),

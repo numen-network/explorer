@@ -9,7 +9,7 @@ import {BatchData, GovEvent} from './batch'
 import {Account, Delegate, DelegateTrack, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
 import {convictionVotes, lockPeriods, ownVotes} from './conviction'
 import {constants, storage} from './types'
-import type {AccountVote} from './types/v100'
+import type {AccountVote, DispatchTime} from './types/v100'
 
 const GOV_PALLETS = new Set(['Referenda', 'ConvictionVoting', 'Treasury', 'Scheduler'])
 
@@ -41,6 +41,7 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
             applyGovEvent(batch, ev)
             stampVoteLock(batch, locks, ev)
         }
+        await scheduleEnactments(batch)
         const stray = batch.revocations[0]
         if (stray) throw new Error(`${stray.step.name} at block ${stray.height} matches no enactment`)
         await applyProposals(batch, rpc)
@@ -789,6 +790,34 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
             setTally(r, args.tally)
             break
     }
+}
+
+// a submit the scheduler dispatches leaves no call to read, so the requested
+// moment comes from the Ongoing info, and the block follows
+// pallet_referenda::schedule_enactment
+async function scheduleEnactments(batch: BatchData): Promise<void> {
+    const info = storage.referenda.referendumInfoFor.v100
+    for (const ev of batch.govEvents) {
+        if (ev.name === 'Referenda.Submitted') {
+            if (!info.is(ev.header)) throw new Error('unhandled spec version for referendum info')
+            const at = await info.get(ev.header, ev.args.index)
+            if (at?.__kind !== 'Ongoing') throw new Error(`referendum ${ev.args.index} is not ongoing at its submission block ${ev.height}`)
+            batch.referenda.get(ev.args.index)!.enactment = toJSON(at.value.enactment)
+        } else if (ev.name === 'Referenda.Confirmed') {
+            const r = batch.referenda.get(ev.args.index)!
+            const moment = r.enactment as DispatchTime
+            const desired = moment.__kind === 'At' ? moment.value : ev.height + moment.value
+            r.enactsAt = Math.max(desired, ev.height + Math.max(minEnactmentPeriod(ev.header, Number(r.track.id)), 1))
+        }
+    }
+}
+
+function minEnactmentPeriod(header: any, track: number): number {
+    const c = constants.referenda.tracks.v100
+    if (!c.is(header)) throw new Error(`unhandled spec version for tracks at block ${header.height}`)
+    const t = c.get(header).find(([id]) => id === track)
+    if (t == null) throw new Error(`track ${track} missing at block ${header.height}`)
+    return t[1].minEnactmentPeriod
 }
 
 const depositId = (r: Referendum, kind: ReferendumDepositKind) => `${r.index}-${kind.toLowerCase()}`

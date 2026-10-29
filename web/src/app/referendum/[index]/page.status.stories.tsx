@@ -80,6 +80,7 @@ const enacting = {
     decidingSince: 900_000,
     confirmingSince: 988_360,
     endedAt: 997_000,
+    enactsAt: 1_005_640,
     timeline: (curated(0).timeline as RawStep[]).filter(s => !s.name.startsWith('Scheduler.')),
 }
 export const PhaseTimesEnacting: StoryObj = {
@@ -89,7 +90,7 @@ export const PhaseTimesEnacting: StoryObj = {
 
 // the submitter asked for a later enactment than the track's minimum
 export const PhaseTimesEnactingRequestedLater: StoryObj = {
-    ...story({...enacting, enactmentMoment: {__kind: 'After', value: 20_000}}, 'call'),
+    ...story({...enacting, enactment: {__kind: 'After', value: 20_000}, enactsAt: 1_017_000}, 'call'),
     play: async ({canvasElement}) => {
         await expect(phaseTimes(canvasElement)[3]).toBe('1d 23h remaining · #1,017,000')
         await expect(progressIn(canvasElement)[3]).toBeCloseTo(((HEAD - 997_000) / 20_000) * 100)
@@ -98,7 +99,7 @@ export const PhaseTimesEnactingRequestedLater: StoryObj = {
 
 // a requested block sooner than the track's minimum waits out the minimum
 export const PhaseTimesEnactingAtTooSoon: StoryObj = {
-    ...story({...enacting, enactmentMoment: {__kind: 'At', value: 1_000_500}}, 'call'),
+    ...story({...enacting, enactment: {__kind: 'At', value: 1_000_500}, enactsAt: 1_005_640}, 'call'),
     play: async ({canvasElement}) => expect(phaseTimes(canvasElement)[3]).toBe('15h 40m remaining · #1,005,640'),
 }
 

@@ -117,6 +117,18 @@ export class Referendum {
     @IntColumn_({nullable: true})
     endedAt!: number | undefined | null
 
+    /**
+     * DispatchTime the submit asked to enact at, After counting from the confirmation block
+     */
+    @JSONColumn_({nullable: false})
+    enactment!: unknown
+
+    /**
+     * block the pallet schedules the enactment for as it confirms, the requested moment but no sooner than the track's minEnactmentPeriod allows
+     */
+    @IntColumn_({nullable: true})
+    enactsAt!: number | undefined | null
+
     @BigIntColumn_({nullable: false})
     ayes!: bigint
 

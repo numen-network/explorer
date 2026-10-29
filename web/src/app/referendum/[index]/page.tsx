@@ -27,7 +27,7 @@ import {CONFIG} from '@/lib/config'
 import {discussionOf} from '@/lib/discussions'
 import {curveAt, type Curve} from '@/lib/curves'
 import {approxParts, camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
-import {confirmEstimate, enactmentBlock, isLive, originName, phaseFraction, phaseOf, tallyTargets, type EnactmentMoment} from '@/lib/referendum'
+import {confirmEstimate, isLive, originName, phaseFraction, phaseOf, tallyTargets} from '@/lib/referendum'
 import {blocksConstant} from '@/lib/runtime'
 import {accountRefs, bountiesByIndex, eventsByIds, indexTitles, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -327,10 +327,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
               }
             : null
     const enactedAt = trail.find(s => s.name.startsWith('Scheduler.'))?.block ?? null
-    const submitCall = evs.events.find(e => stepOf.get(e.id)!.name === 'Referenda.Submitted')?.call
-    const moment = (submitCall?.args as {enactmentMoment?: EnactmentMoment} | null | undefined)?.enactmentMoment ?? null
-    const enactDue = approvedAt !== null && moment !== null ? enactmentBlock(moment, approvedAt, r.track.minEnactmentPeriod) : null
-    const enactClose = enactedAt ?? enactDue
+    const enactClose = enactedAt ?? r.enactsAt
     const enactAt = approvedAt !== null && enactClose !== null ? phaseFraction(approvedAt, enactClose - approvedAt, head.height) : null
     // a phase not yet started is only expected, a confirmation can still be
     // aborted and a tally can still turn
@@ -341,7 +338,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             ? expected(confirmStart === null ? null : confirmStart + r.track.confirmPeriod)
             : phaseOf(r) === 'Confirming'
               ? expected(confirmDue)
-              : phaseEnd(enactDue, enactedAt)
+              : phaseEnd(r.enactsAt, enactedAt)
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
     const tallied = BigInt(r.ayes) + BigInt(r.nays)
@@ -547,6 +544,15 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             <DetailRow label="Deciding since">{r.decidingSince !== null ? <BlockLink height={r.decidingSince} /> : '—'}</DetailRow>
             <DetailRow label="Confirming since">{r.confirmingSince !== null ? <BlockLink height={r.confirmingSince} /> : '—'}</DetailRow>
             <DetailRow label="Ended at">{r.endedAt !== null ? <BlockLink height={r.endedAt} /> : '—'}</DetailRow>
+            <DetailRow label="Enact">
+                {r.enactment.__kind}: {fmtInt(r.enactment.value)}
+                {r.enactsAt !== null && (
+                    <>
+                        {' '}
+                        <span className="text-dim">·</span> <BlockLink height={r.enactsAt} />
+                    </>
+                )}
+            </DetailRow>
             <DetailRow label="Submission deposit">
                 <HeldDeposit d={held('Submission')} chain={chain} />
             </DetailRow>

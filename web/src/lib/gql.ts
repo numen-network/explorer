@@ -1,6 +1,6 @@
 import {VALIDATOR_STATES, type ActionKind, type ActionMove, type CounterpartySort, type DelegationSort, type DelegationSortBy, type ValidatorSort, type ValidatorSortBy, type ValidatorState} from './actionFilters'
 import type {VoteShape} from './conviction'
-import type {RefPhaseFields} from './referendum'
+import type {EnactmentMoment, RefPhaseFields} from './referendum'
 import {isH256} from './evm'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
 import {ss58TryDecode} from './ss58'
@@ -1802,6 +1802,8 @@ export interface ReferendumDepositRow {
 }
 
 export interface ReferendumDetailRow extends ReferendumRow {
+    enactment: EnactmentMoment
+    enactsAt: number | null
     proposalCalls: ProposalNode[] | null
     deposits: ReferendumDepositRow[]
 }
@@ -2093,7 +2095,7 @@ export function referendumDetail(index: number, page: Slice) {
         splitCount: {totalCount: number}
     }>(
         `query ($index: Int!, $limit: Int!, $offset: Int!) {
-            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} proposalCalls deposits(orderBy: id_ASC) { kind who { ${ACCOUNT_REF} } amount state } }
+            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} enactment enactsAt proposalCalls deposits(orderBy: id_ASC) { kind who { ${ACCOUNT_REF} } amount state } }
             spends: treasurySpends(where: {referendum: {index_eq: $index}}, orderBy: [block_ASC, indexInBlock_ASC], limit: 500) { id kind status validFrom expireAt paidAt proposalCall }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
@@ -2204,12 +2206,12 @@ export interface TimelineEventRow {
     indexInBlock: number
     args: unknown
     extrinsic: {id: string} | null
-    call: {origin: {id: string} | null; args: unknown} | null
+    call: {origin: {id: string} | null} | null
 }
 
 export function eventsByIds(ids: string[]): Promise<{events: TimelineEventRow[]}> {
     if (ids.length === 0) return Promise.resolve({events: []})
-    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, orderBy: ${TIMELINE_ORDER}, limit: 500) { id indexInBlock args extrinsic { id } call { origin { id } args } } }`, {ids})
+    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, orderBy: ${TIMELINE_ORDER}, limit: 500) { id indexInBlock args extrinsic { id } call { origin { id } } } }`, {ids})
 }
 
 export function trackList() {
