@@ -1,6 +1,7 @@
 import VoteLists, {type VoteGroup, type VoteRows} from '@/components/votes'
+import {loadSearch} from '@/lib/actionFilters'
 import type {ChainProps} from '@/lib/chain'
-import {countedDelegations, referendumVotes, VOTE_LISTS, type ReferendumVoteRow, type VoteList} from '@/lib/gql'
+import {accountSearch, countedDelegations, referendumVoteCounts, referendumVotes, voteSearch, VOTE_LISTS, type ReferendumVoteRow, type VoteList} from '@/lib/gql'
 import type {Paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {inlineRefs, voteEntry} from '@/lib/voteEntry'
@@ -34,17 +35,23 @@ async function standardRows(rows: ReferendumVoteRow[], index: number, chain: Cha
 interface Props {
     index: number
     counts: Record<VoteList, number>
-    at: string
+    sp: Record<string, string | string[] | undefined>
     pg: Paging
     chain: ChainProps
 }
 
-export async function votesPanel({index, counts, at, pg, chain}: Props) {
+export async function votesPanel({index, counts, sp, pg, chain}: Props) {
+    const at = String(sp.group ?? '')
+    const q = loadSearch(sp).q.trim()
+    const search = await voteSearch(index, accountSearch(q, chain.ss58))
     // split votes are rare, they only earn a list when the referendum has any
     const lists = LISTS.filter(([l]) => l !== 'split' || counts.split > 0)
-    const [list] = lists.find(([l]) => l === at) ?? lists.find(([l]) => counts[l] > 0) ?? lists[0]
-    const groups: VoteGroup[] = lists.map(([l, label]) => ({label, total: counts[l], href: `/referendum/${index}?tab=votes&group=${l}`, active: l === list}))
-    const rows = await referendumVotes(index, list, {limit: pg.size, offset: pg.offset})
-    const shown = list === 'abstain' || list === 'split' ? splitRows(list, rows, chain) : await standardRows(rows, index, chain)
-    return <VoteLists groups={groups} list={shown} paging={pg} decimals={chain.decimals} symbol={chain.symbol} />
+    // with no list asked for, the first list holding a hit opens
+    const found = await referendumVoteCounts(search)
+    const [list] = lists.find(([l]) => l === at) ?? lists.find(([l]) => found[l] > 0) ?? lists[0]
+    const href = (l: VoteList) => `/referendum/${index}?${new URLSearchParams({tab: 'votes', group: l, ...(q && {q})})}`
+    const groups: VoteGroup[] = lists.map(([l, label]) => ({label, total: found[l], href: href(l), active: l === list}))
+    const votes = await referendumVotes(list, search, {limit: pg.size, offset: pg.offset})
+    const shown = list === 'abstain' || list === 'split' ? splitRows(list, votes, chain) : await standardRows(votes, index, chain)
+    return <VoteLists groups={groups} list={shown} searched={q !== ''} paging={pg} decimals={chain.decimals} symbol={chain.symbol} />
 }

@@ -1,8 +1,8 @@
 'use client'
 
 import {Search} from 'lucide-react'
-import {parseAsInteger, useQueryStates} from 'nuqs'
-import {useEffect, useState} from 'react'
+import {parseAsInteger, parseAsString, useQueryStates} from 'nuqs'
+import {useEffect, useMemo, useState} from 'react'
 import {useDebouncedCallback} from 'use-debounce'
 import {cn} from 'cn'
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
@@ -15,13 +15,16 @@ export const PAUSE_MS = 300
 // page of the default size
 const URL_KEYS = {...searchFilter, page: parseAsInteger, size: parseAsInteger}
 
+const NONE: readonly string[] = []
+
 // the box holds what is typed and the url takes it in one write once typing
 // pauses. nuqs debounces each key on its own timer, which can write q apart
-// from the paging it resets
-export default function SearchBox({placeholder = 'Search address or identity', className}: {placeholder?: string; className?: string}) {
-    const [{q}, setFilters] = useQueryStates(URL_KEYS, {shallow: false, history: 'push', scroll: false})
+// from the paging it resets. resets names more keys a new search clears
+export default function SearchBox({placeholder = 'Search address or identity', resets = NONE, className}: {placeholder?: string; resets?: readonly string[]; className?: string}) {
+    const keys = useMemo(() => ({...URL_KEYS, ...Object.fromEntries(resets.map(k => [k, parseAsString]))}), [resets])
+    const [{q}, setFilters] = useQueryStates(keys, {shallow: false, history: 'push', scroll: false})
     const [text, setText] = useState(q)
-    const search = useDebouncedCallback((text: string) => setFilters({q: text, page: null, size: null}), PAUSE_MS)
+    const search = useDebouncedCallback((text: string) => setFilters({q: text, page: null, size: null, ...Object.fromEntries(resets.map(k => [k, null]))}), PAUSE_MS)
     // back and forward bring the box along and drop a search still waiting
     useEffect(() => {
         search.cancel()

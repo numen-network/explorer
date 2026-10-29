@@ -1,6 +1,6 @@
 import {expect, waitFor, within} from 'storybook/test'
 import {numn, PEOPLE} from '../../../../../mock/fixtures.js'
-import {anon, CHAIN, delegation, delegationData, standard} from '../../../../../mock/fixtures/governance.js'
+import {anon, castVotes, CHAIN, delegation, delegationData, standard, voteData} from '../../../../../mock/fixtures/governance.js'
 import {ss58Encode} from '@/lib/ss58'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
@@ -117,3 +117,72 @@ export const DelegatedAfterEnd = withPlay(
         await expect(stat.getByText('Delegators').nextElementSibling).toHaveTextContent('1')
     }
 )
+
+const nayVote = {...standard(PEOPLE[4], false, 'Locked1x', numn(5_000)), block: 965_000}
+const searchVotes = [...delegatedVotes, nayVote]
+const voterIs = (who: {id: string}) => (v: {voter: {id: string}}) => v.voter.id === who.id
+
+// the server's answer to a search. keep picks the votes it finds, given the
+// targets of the delegators it names
+type Carried = (v: {voter: {id: string}}, carriers: string[]) => boolean
+const searchAt = (query: Record<string, string>, keep: Carried, named: object[] = []) => {
+    const {referendum, ...all} = castVotes(delegatedRef, searchVotes, fewAndMany)
+    type Where = {AND?: {OR: [object, {voter: {id_in: string[]}}]}[]; delegator?: object}
+    const hits = (where: Where) => voteData(referendum.index, searchVotes.filter(v => keep(v, where.AND![0].OR[1].voter.id_in)))
+    return story(
+        referendum,
+        'votes',
+        {
+            ...all,
+            votes: (args: {where: Where}) => (args.where.AND ? hits(args.where) : all).votes(args),
+            votesConnection: (args: {where: Where}) => (args.where.AND ? hits(args.where) : all).votesConnection(args),
+            delegatedVotes: (args: {where: Where; limit: number; offset?: number}) => (args.where.delegator ? named : all.delegatedVotes(args)),
+        },
+        [],
+        query
+    )
+}
+
+type Canvas = Parameters<NonNullable<Play>>[0]['canvas']
+
+// the account cells of the list on screen, one per row
+const accounts = async (canvas: Canvas) => {
+    const rows = (await canvas.findAllByRole('row')).slice(1)
+    return rows.map(row => row.querySelector('td')!.textContent)
+}
+
+const chips = (canvas: Canvas) => canvas.getAllByRole('link').filter(link => link.getAttribute('href')?.includes('group=') && !link.closest('[data-slot=card]')).map(link => `${link.textContent}|${link.getAttribute('href')}`)
+
+// a name finds the vote it belongs to, every list counts what it finds and
+// the list links keep the search
+export const SearchVoter = withPlay(searchAt({q: 'Redshift'}, voterIs(PEOPLE[3])), async ({canvas}) => {
+    await expect(await accounts(canvas)).toEqual(['Redshift'])
+    await expect(canvas.getByPlaceholderText('Search for address/identity')).toHaveValue('Redshift')
+    await expect(chips(canvas).filter(c => c.startsWith('Aye') || c.startsWith('Nay') || c.startsWith('Abstain'))).toEqual(
+        ['Aye1', 'Nay0', 'Abstain0'].map((c, i) => `${c}|/referendum/22?tab=votes&group=${['aye', 'nay', 'abstain'][i]}&q=Redshift`)
+    )
+})
+
+// a delegator's address finds the vote carrying its delegation
+const delegatorOfRedshift = fewAndMany[0] as {who: {id: string}}
+export const SearchDelegator = withPlay(
+    searchAt({q: ss58Encode(delegatorOfRedshift.who.id, CHAIN.ss58)}, (v, carriers) => carriers.includes(v.voter.id), [{voter: {id: PEOPLE[3].id}}]),
+    async ({canvas}) => {
+        await expect(await accounts(canvas)).toEqual(['Redshift'])
+    }
+)
+
+// a search that only finds nay opens the nay list
+export const SearchOpensListWithHits = withPlay(searchAt({q: 'Spamlord'}, voterIs(PEOPLE[4])), async ({canvas}) => {
+    await expect(await accounts(canvas)).toEqual(['Spamlord'])
+    await expect(chips(canvas).find(c => c.startsWith('Nay'))).toMatch(/^Nay1\|/)
+})
+
+// the list a link asks for stays open though the search finds nothing in it
+export const SearchKeepsListAsked = withPlay(searchAt({q: 'Spamlord', group: 'aye'}, voterIs(PEOPLE[4])), async ({canvas}) => {
+    await expect(await accounts(canvas)).toEqual(['No matching aye votes.'])
+})
+
+export const SearchNoMatch = withPlay(searchAt({q: 'nobody by this name'}, () => false), async ({canvas}) => {
+    await expect(await accounts(canvas)).toEqual(['No matching aye votes.'])
+})

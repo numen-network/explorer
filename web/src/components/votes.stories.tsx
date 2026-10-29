@@ -44,7 +44,7 @@ const FIRST: Paging = {page: 1, size: 20, offset: 0}
 const groups = (at: string, ...totals: number[]): VoteGroup[] =>
     ['Aye', 'Nay', 'Abstain', 'Split'].slice(0, totals.length).map((label, i) => ({label, total: totals[i], href: `/referendum/12?tab=votes&group=${label.toLowerCase()}`, active: label === at}))
 
-const lists = (chips: VoteGroup[], list: VoteRows, paging = FIRST): Story => ({render: () => <VoteLists groups={chips} list={list} paging={paging} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />})
+const lists = (chips: VoteGroup[], list: VoteRows, paging = FIRST): Story => ({render: () => <VoteLists groups={chips} list={list} searched={false} paging={paging} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />})
 
 const standard = (rows: VoteEntry[]): VoteRows => ({kind: 'standard', rows})
 const splits = (labels: string[], rows: SplitEntry[]): VoteRows => ({kind: 'split', labels, rows})

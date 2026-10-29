@@ -2070,13 +2070,45 @@ export interface ReferendumVoteRow extends VoteRow {
     voter: AccountRef
 }
 
-export function referendumVotes(index: number, list: VoteList, page: Slice) {
-    const {where, lead} = VOTE_LISTS[list]
+// a search on a referendum's votes, matching the voters it names and the
+// votes carrying the delegators it names
+export interface VoteSearch {
+    where: string
+    vars: string
+    values: Record<string, unknown>
+}
+
+export async function voteSearch(index: number, {account, name}: AccountSearch): Promise<VoteSearch> {
+    const own = 'referendum: {index_eq: $index}, removed_eq: false'
+    const match = account != null ? '{id_eq: $account}' : name != null ? nameMatch('$name') : null
+    if (match === null) return {where: own, vars: '', values: {index}}
+    const vars = account != null ? '$account: String!, ' : '$name: String!, '
+    const values = {index, ...(account != null ? {account} : {name})}
+    const carriers = await sweep(page =>
+        gql<{delegatedVotes: {voter: {id: string}}[]}>(
+            `query ($index: Int!, ${vars}$limit: Int!, $offset: Int!) {
+                delegatedVotes(where: {${own}, delegator: ${match}}, orderBy: id_ASC, limit: $limit, offset: $offset) { voter { id } }
+            }`,
+            {...values, ...page}
+        ).then(r => r.delegatedVotes.map(d => d.voter.id))
+    )
+    return {where: `${own}, AND: {OR: [{voter: ${match}}, {voter: {id_in: $carriers}}]}`, vars: `${vars}$carriers: [String!], `, values: {...values, carriers: [...new Set(carriers)]}}
+}
+
+export function referendumVoteCounts({where, vars, values}: VoteSearch): Promise<Record<VoteList, number>> {
+    const counts = VOTE_LIST_KEYS.map(l => `${l}: votesConnection(where: {${where}, ${VOTE_LISTS[l].where}}, orderBy: id_ASC) { totalCount }`)
+    return gql<Record<VoteList, {totalCount: number}>>(`query ($index: Int!, ${vars}) { ${counts.join(' ')} }`, values).then(
+        r => Object.fromEntries(VOTE_LIST_KEYS.map(l => [l, r[l].totalCount])) as Record<VoteList, number>
+    )
+}
+
+export function referendumVotes(list: VoteList, {where, vars, values}: VoteSearch, page: Slice) {
+    const {where: kind, lead} = VOTE_LISTS[list]
     return gql<{votes: ReferendumVoteRow[]}>(
-        `query ($index: Int!, $limit: Int!, $offset: Int!) {
-            votes(where: {referendum: {index_eq: $index}, removed_eq: false, ${where}}, orderBy: [${lead.map(f => `${f}_DESC`).join(', ')}, id_ASC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} voter { ${ACCOUNT_REF} } referendum { index } }
+        `query ($index: Int!, ${vars}$limit: Int!, $offset: Int!) {
+            votes(where: {${where}, ${kind}}, orderBy: [${lead.map(f => `${f}_DESC`).join(', ')}, id_ASC], limit: $limit, offset: $offset) { ${VOTE_FIELDS} voter { ${ACCOUNT_REF} } referendum { index } }
         }`,
-        {index, ...page}
+        {...values, ...page}
     ).then(r => r.votes)
 }
 

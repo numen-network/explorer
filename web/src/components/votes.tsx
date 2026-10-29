@@ -9,6 +9,7 @@ import {NONE} from '@/components/Detail'
 import {Jump} from '@/components/links'
 import Pager from '@/components/Pager'
 import {FilterChip} from '@/components/pills'
+import SearchBox from '@/components/SearchBox'
 import {Card} from '@/components/ui/card'
 import {fmtCount, fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
@@ -53,6 +54,9 @@ export interface VoteGroup {
 // conviction and delegations only reach the tally through a standard vote, a
 // split shows the parts it was split into
 export type VoteRows = {kind: 'standard'; rows: VoteEntry[]} | {kind: 'split'; labels: string[]; rows: SplitEntry[]}
+
+// a new search opens the first list it finds votes in
+const SEARCH_RESETS = ['group']
 
 const LEAD = 'font-mono'
 const AUX = 'font-mono text-muted-foreground'
@@ -180,15 +184,18 @@ function SplitTable({labels, rows, decimals, symbol, empty}: {labels: string[]; 
     return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} />
 }
 
-export default function VoteLists({groups, list, paging, decimals, symbol}: {groups: VoteGroup[]; list: VoteRows; paging: Paging; decimals: number; symbol: string}) {
+export default function VoteLists({groups, list, searched, paging, decimals, symbol}: {groups: VoteGroup[]; list: VoteRows; searched: boolean; paging: Paging; decimals: number; symbol: string}) {
     const group = groups.find(g => g.active)!
-    const empty = `No ${group.label.toLowerCase()} votes.`
+    const empty = `No ${searched ? 'matching ' : ''}${group.label.toLowerCase()} votes.`
     return (
         <div>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-                {groups.map(g => (
-                    <FilterChip key={g.label} label={g.label} count={g.total} href={g.href} active={g.active} />
-                ))}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    {groups.map(g => (
+                        <FilterChip key={g.label} label={g.label} count={g.total} href={g.href} active={g.active} />
+                    ))}
+                </div>
+                <SearchBox placeholder="Search for address/identity" resets={SEARCH_RESETS} className="w-full sm:w-90" />
             </div>
             <Card size="flush">
                 {list.kind === 'standard' ? (
