@@ -4,6 +4,7 @@ import {SiDiscord} from '@icons-pack/react-simple-icons'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import EditedHistory from '@/components/EditedHistory'
+import Foldable from '@/components/Foldable'
 import Markdown from '@/components/Markdown'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
@@ -689,7 +690,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     <ReferendumByline r={r} chain={chain} className="mt-3" />
                     <Separator className="my-4" />
                     {r.description ? (
-                        <Markdown text={r.description} />
+                        <Foldable>
+                            <Markdown text={r.description} />
+                        </Foldable>
                     ) : (
                         <p className="py-4 text-center text-sm text-dim">No description provided.</p>
                     )}

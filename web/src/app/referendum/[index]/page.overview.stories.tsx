@@ -35,6 +35,29 @@ export const LongByline = withPlay(story({...curated(10), submitter: PEOPLE[7]},
     expectNoHangingDots(overview)
 })
 
+const milestones = (n: number) => Array.from({length: n}, (_, i) => `Milestone ${i + 1} pays the team once the forum report is posted.`).join('\n\n')
+const foldOf = (root: HTMLElement) => overviewOf(root, curated(6).title as string).getByText('Milestone 1 pays', {exact: false}).closest<HTMLElement>('.prose')!.parentElement!.parentElement!
+
+// a description over 2000px folds to 640px and opens with Show More
+export const DescriptionFolded = withPlay(story({...curated(6), description: milestones(60)}, 'call'), async ({canvasElement}) => {
+    const fold = foldOf(canvasElement)
+    const more = await within(fold).findByRole('button', {name: 'Show More'})
+    expect(fold.getBoundingClientRect().height).toBe(640)
+    await userEvent.click(more)
+    expect(await within(fold).findByRole('button', {name: 'Show Less'})).toHaveAttribute('aria-expanded', 'true')
+    expect(fold.getBoundingClientRect().height).toBeGreaterThan(2000)
+    await userEvent.click(within(fold).getByRole('button', {name: 'Show Less'}))
+    expect(await within(fold).findByRole('button', {name: 'Show More'})).toBeVisible()
+})
+
+// a description taller than 640px but under 2000px shows in full with no button
+export const DescriptionUnderFold = withPlay(story({...curated(6), description: milestones(20)}, 'call'), async ({canvasElement}) => {
+    const fold = foldOf(canvasElement)
+    await waitFor(() => expect(fold.getBoundingClientRect().height).toBeGreaterThan(640))
+    expect(fold.getBoundingClientRect().height).toBeLessThan(2000)
+    expect(within(fold).queryByRole('button')).toBeNull()
+})
+
 const budget = (amount: string) => `This referendum proposes allocating ${amount} NUMN from the treasury to marketing campaigns and community airdrops.
 
 Every payout is reported in the forum thread.`
