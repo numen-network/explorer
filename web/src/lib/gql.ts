@@ -2087,6 +2087,7 @@ export function referendumDetail(index: number, page: Slice) {
         spends: ReferendumSpendRow[]
         metadataActions: MetadataActionRow[]
         metadataCount: {totalCount: number}
+        revisions: MetadataActionRow[]
         dailyStats: {issuanceTotal: string; issuanceInactive: string}[]
         voteCount: {totalCount: number}
         ayeCount: {totalCount: number}
@@ -2099,6 +2100,7 @@ export function referendumDetail(index: number, page: Slice) {
             spends: treasurySpends(where: {referendum: {index_eq: $index}}, orderBy: [block_ASC, indexInBlock_ASC], limit: 500) { id kind status validFrom expireAt paidAt proposalCall }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
+            revisions: metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC]) { id method hash title description block timestamp }
             dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }
             voteCount: votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC) { totalCount }
             ayeCount: ${tally('aye')}

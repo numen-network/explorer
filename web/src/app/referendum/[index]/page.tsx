@@ -3,6 +3,7 @@ import {Vote, type LucideIcon} from 'lucide-react'
 import {SiDiscord} from '@icons-pack/react-simple-icons'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
+import EditedHistory from '@/components/EditedHistory'
 import Markdown from '@/components/Markdown'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
@@ -246,6 +247,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const rail = runs.flatMap(run => run.sort((a, b) => rank(b) - rank(a)))
     const actionOf = new Map(data.metadataActions.map(a => [a.id, a]))
     const textRail = textEvs.events.map(e => ({a: actionOf.get(e.id)!, e}))
+    // only a readable set on top is the text the card shows
+    const versions = data.revisions.filter(a => a.method === 'MetadataSet' && (a.title !== null || a.description !== null))
+    const edited = versions.length > 1 && versions[0] === data.revisions[0]
     const evWhos = evs.events.flatMap(e => [(e.args as {who?: unknown} | null)?.who, e.call?.origin?.id]).filter((w): w is string => typeof w === 'string')
     const titleOf = new Map(titles.referendums.map(t => [t.index, t.title]))
     const party = new Map(refs.accounts.map(a => [a.id, a]))
@@ -689,6 +693,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     ) : (
                         <p className="py-4 text-center text-sm text-dim">No description provided.</p>
                     )}
+                    {edited && <EditedHistory versions={versions} className="mt-4" />}
                 </Card>
 
                 <div className="space-y-4 lg:row-span-2">
