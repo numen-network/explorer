@@ -2204,12 +2204,12 @@ export interface TimelineEventRow {
     indexInBlock: number
     args: unknown
     extrinsic: {id: string} | null
-    call: {origin: {id: string} | null} | null
+    call: {origin: {id: string} | null; args: unknown} | null
 }
 
 export function eventsByIds(ids: string[]): Promise<{events: TimelineEventRow[]}> {
     if (ids.length === 0) return Promise.resolve({events: []})
-    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, orderBy: ${TIMELINE_ORDER}, limit: 500) { id indexInBlock args extrinsic { id } call { origin { id } } } }`, {ids})
+    return gql<{events: TimelineEventRow[]}>(`query ($ids: [String!]) { events(where: {id_in: $ids}, orderBy: ${TIMELINE_ORDER}, limit: 500) { id indexInBlock args extrinsic { id } call { origin { id } args } } }`, {ids})
 }
 
 export function trackList() {

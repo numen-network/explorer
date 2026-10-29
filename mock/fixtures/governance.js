@@ -242,7 +242,7 @@ export function stepEvents(r) {
             indexInBlock: indexOf(s.event),
             args: stepArgs(r, method, s, method === 'DepositSlashed' ? slashes++ : 0),
             extrinsic: host ? {id: squidId(host.block, 1 + r.timeline.indexOf(host))} : null,
-            call: host ? {origin: originOf(r, host)} : null,
+            call: host ? {origin: originOf(r, host), args: method === 'Submitted' ? {enactmentMoment: r.enactmentMoment ?? {__kind: 'After', value: r.track.minEnactmentPeriod}} : null} : null,
         }
     })
 }

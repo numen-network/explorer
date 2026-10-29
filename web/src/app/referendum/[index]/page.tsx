@@ -7,6 +7,7 @@ import Markdown from '@/components/Markdown'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
 import {TabNav, panelTabs} from '@/components/Tabs'
+import {Tip} from '@/components/Tip'
 import {CurvesChart, type TallyStep} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import Approx from '@/components/Approx'
@@ -26,7 +27,7 @@ import {CONFIG} from '@/lib/config'
 import {discussionOf} from '@/lib/discussions'
 import {curveAt, type Curve} from '@/lib/curves'
 import {camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
-import {isLive, originName, phaseFraction, phaseOf} from '@/lib/referendum'
+import {confirmEstimate, enactmentBlock, isLive, originName, phaseFraction, phaseOf, type EnactmentMoment} from '@/lib/referendum'
 import {blocksConstant} from '@/lib/runtime'
 import {accountRefs, bountiesByIndex, eventsByIds, indexTitles, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -91,14 +92,62 @@ function Mark({icon: Icon, className}: {icon: LucideIcon; className: string}) {
     return <Icon className={`size-3.5 shrink-0 ${className}`} strokeWidth={2.2} />
 }
 
-function PhaseBar({label, span, at}: {label: string; span: string; at: number | null}) {
+// what a phase's line says, where it ended, how long it has left, or
+// before it starts, when it is expected to start
+type PhaseTime = {kind: 'ended'; block: number} | {kind: 'left' | 'expected'; block: number; secs: number} | {kind: 'fail'}
+
+function PhaseTimeText({time}: {time: PhaseTime}) {
+    switch (time.kind) {
+        case 'fail':
+            return <span className="text-dim">Expected to fail</span>
+        case 'ended':
+            return (
+                <>
+                    Ended <span className="text-dim">·</span> <BlockLink height={time.block} />
+                </>
+            )
+        case 'left':
+        case 'expected':
+            return (
+                <>
+                    {time.kind === 'left' ? `${fmtSpan(time.secs)} remaining` : `Est. start in ${fmtSpan(time.secs)}`} <span className="text-dim">·</span>{' '}
+                    <BlockLink height={time.block} />
+                </>
+            )
+    }
+}
+
+// a decision run past its period by a confirmation draws the period as a mark
+interface PhaseMark {
+    at: number
+    tip: string
+}
+
+function PhaseBar({label, span, at, time, mark}: {label: string; span: string; at: number | null; time: PhaseTime | null; mark?: PhaseMark | null}) {
+    const bar = (
+        <div className="relative">
+            <Progress value={at !== null ? Math.min(100, Math.max(0, at * 100)) : 0} className="h-2 bg-background" />
+            {mark && <span className="absolute -top-[3px] h-3.5 w-px bg-foreground" style={{left: `${mark.at * 100}%`}} />}
+        </div>
+    )
     return (
         <div>
-            <Progress value={at !== null ? Math.min(100, Math.max(0, at * 100)) : 0} className="h-2 bg-background" />
-            <div className="mt-1.5 flex items-baseline justify-between text-sm">
+            {mark ? <Tip text={mark.tip}>{bar}</Tip> : bar}
+            <div className="relative mt-1.5 flex items-baseline justify-between text-sm">
                 <span className="text-muted-foreground">{label}</span>
-                <span className="font-mono">{span}</span>
+                {mark ? (
+                    <span className="absolute -translate-x-1/2 font-mono" style={{left: `${mark.at * 100}%`}}>
+                        {span}
+                    </span>
+                ) : (
+                    <span className="font-mono">{span}</span>
+                )}
             </div>
+            {time && (
+                <div data-slot="phase-time" className="mt-0.5 text-right font-mono text-xs text-muted-foreground">
+                    <PhaseTimeText time={time} />
+                </div>
+            )}
         </div>
     )
 }
@@ -240,7 +289,44 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const ended = r.endedAt !== null
     const prepareAt = phaseFraction(r.submittedAt, r.track.preparePeriod, clockAt)
     const confirmAt = phaseFraction(r.confirmingSince, r.track.confirmPeriod, clockAt)
-    const enactAt = r.status === 'Approved' ? phaseFraction(r.endedAt, r.track.minEnactmentPeriod, head.height) : null
+
+    // a phase ends at the step that closed it, or once its due block is indexed
+    const phaseEnd = (due: number | null, closed: number | null): PhaseTime | null => {
+        if (closed !== null) return {kind: 'ended', block: closed}
+        if (due === null) return null
+        return head.height < due ? {kind: 'left', block: due, secs: (due - head.height) * chain.blockTime} : {kind: 'ended', block: due}
+    }
+    const expected = (block: number | null): PhaseTime => (block === null ? {kind: 'fail'} : {kind: 'expected', block, secs: (block - head.height) * chain.blockTime})
+    const approvedAt = r.status === 'Approved' ? r.endedAt : null
+    const confirmDue = r.confirmingSince !== null ? r.confirmingSince + r.track.confirmPeriod : null
+    const decisionDue = r.decidingSince !== null ? r.decidingSince + r.track.decisionPeriod : null
+    // a confirmation keeps the decision open past its period until it ends
+    const decisionClose = approvedAt ?? (phaseOf(r) === 'Confirming' ? confirmDue : null)
+    const decisionEnd = decisionDue !== null ? Math.max(decisionDue, decisionClose ?? decisionDue) : null
+    const decisionRun = decisionEnd !== null ? decisionEnd - r.decidingSince! : null
+    const decisionMark =
+        decisionRun !== null && decisionRun > r.track.decisionPeriod
+            ? {
+                  at: r.track.decisionPeriod / decisionRun,
+                  tip: `${fmtSpan(r.track.decisionPeriod * chain.blockTime)} decision period ${head.height < decisionDue! ? 'ends' : 'ended'} at #${fmtInt(decisionDue!)}, max decision time is ${fmtSpan(decisionRun * chain.blockTime)}`,
+              }
+            : null
+    const enactedAt = trail.find(s => s.name.startsWith('Scheduler.'))?.block ?? null
+    const submitCall = evs.events.find(e => stepOf.get(e.id)!.name === 'Referenda.Submitted')?.call
+    const moment = (submitCall?.args as {enactmentMoment?: EnactmentMoment} | null | undefined)?.enactmentMoment ?? null
+    const enactDue = approvedAt !== null && moment !== null ? enactmentBlock(moment, approvedAt, r.track.minEnactmentPeriod) : null
+    const enactClose = enactedAt ?? enactDue
+    const enactAt = approvedAt !== null && enactClose !== null ? phaseFraction(approvedAt, enactClose - approvedAt, head.height) : null
+    // a phase not yet started is only expected, a confirmation can still be
+    // aborted and a tally can still turn
+    const confirmStart = phaseOf(r) === 'Deciding' ? confirmEstimate({...r, decidingSince: r.decidingSince!}, activePlanck, head.height) : undefined
+    const confirmTime = confirmStart === undefined ? phaseEnd(confirmDue, approvedAt) : expected(confirmStart)
+    const enactTime =
+        confirmStart !== undefined
+            ? expected(confirmStart === null ? null : confirmStart + r.track.confirmPeriod)
+            : phaseOf(r) === 'Confirming'
+              ? expected(confirmDue)
+              : phaseEnd(enactDue, enactedAt)
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
     const tallied = BigInt(r.ayes) + BigInt(r.nays)
@@ -269,10 +355,31 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 <CardTitle className="text-[15px] leading-normal font-semibold">Status</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                <PhaseBar label="Prepare" span={fmtSpan(r.track.preparePeriod * chain.blockTime)} at={prepareAt} />
-                <PhaseBar label="Decision" span={fmtSpan(r.track.decisionPeriod * chain.blockTime)} at={decisionAt} />
-                <PhaseBar label="Confirmation" span={fmtSpan(r.track.confirmPeriod * chain.blockTime)} at={confirmAt} />
-                <PhaseBar label="Enactment" span={fmtSpan(r.track.minEnactmentPeriod * chain.blockTime)} at={enactAt} />
+                <PhaseBar
+                    label="Prepare"
+                    span={fmtSpan(r.track.preparePeriod * chain.blockTime)}
+                    at={prepareAt}
+                    time={phaseEnd(r.submittedAt + r.track.preparePeriod, null)}
+                />
+                <PhaseBar
+                    label="Decision"
+                    span={fmtSpan(r.track.decisionPeriod * chain.blockTime)}
+                    at={phaseFraction(r.decidingSince, decisionRun ?? r.track.decisionPeriod, clockAt)}
+                    time={phaseEnd(decisionEnd, approvedAt)}
+                    mark={decisionMark}
+                />
+                <PhaseBar
+                    label="Confirmation"
+                    span={fmtSpan(r.track.confirmPeriod * chain.blockTime)}
+                    at={confirmAt}
+                    time={confirmTime}
+                />
+                <PhaseBar
+                    label="Enactment"
+                    span={fmtSpan(r.track.minEnactmentPeriod * chain.blockTime)}
+                    at={enactAt}
+                    time={enactTime}
+                />
                 {timeoutAt !== null && (
                     <div className="flex items-baseline justify-between border-t pt-3 text-sm">
                         <span className="text-muted-foreground">Timeout</span>

@@ -1,4 +1,4 @@
-import {curveAt, type Curve} from './curves'
+import {curveAt, delay, ONE, perbill, threshold, type Curve} from './curves'
 import {variantName, variantValue} from './variant'
 
 // a system origin is one variant deep, a custom origin nests its name one level down
@@ -100,3 +100,41 @@ export function needsNow(r: RefPhaseFields & {track: {decisionPeriod: number; mi
     const at = Math.min(1, Math.max(0, ran))
     return {approval: curveAt(r.track.minApproval as Curve, at) * 100, support: curveAt(r.track.minSupport as Curve, at) * 100}
 }
+
+interface Deciding {
+    decidingSince: number
+    ayes: string
+    nays: string
+    support: string
+    track: {decisionPeriod: number; minApproval: unknown; minSupport: unknown}
+}
+
+/**
+ * The block a deciding referendum starts confirming at if its tally holds,
+ * the alarm pallet_referenda sets in decision_time, null when the tally
+ * cannot pass within the decision period.
+ */
+export function confirmEstimate(r: Deciding, activeIssuance: bigint, head: number): number | null {
+    const since = BigInt(r.decidingSince)
+    const period = BigInt(r.track.decisionPeriod)
+    const elapsed = BigInt(head) - since
+    const x = perbill(elapsed < period ? elapsed : period, period)
+    const ayes = BigInt(r.ayes)
+    const cast = ayes + BigInt(r.nays)
+    const sides: [Curve, bigint][] = [
+        [r.track.minApproval as Curve, cast === 0n ? 0n : perbill(ayes, cast)],
+        [r.track.minSupport as Curve, perbill(BigInt(r.support), activeIssuance)],
+    ]
+    if (sides.some(([c, y]) => y < threshold(c, ONE))) return null
+    const offset = sides.map(([c, y]) => (y >= threshold(c, x) ? 0n : delay(c, y))).reduce((a, b) => (a > b ? a : b))
+    return Math.max(Number(since + (offset * period + ONE - 1n) / ONE), head + 1)
+}
+
+export interface EnactmentMoment {
+    __kind: 'At' | 'After'
+    value: number
+}
+
+/** The block pallet_referenda schedules the call for, the requested moment but no sooner than the track allows. */
+export const enactmentBlock = (moment: EnactmentMoment, confirmed: number, minEnactmentPeriod: number) =>
+    Math.max(moment.__kind === 'At' ? moment.value : confirmed + moment.value, confirmed + Math.max(minEnactmentPeriod, 1))
