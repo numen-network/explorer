@@ -118,6 +118,26 @@ export const DelegatedAfterEnd = withPlay(
     }
 )
 
+// two votes of 1,000 at 1x, the second carrying a 2,000 delegation at 1x,
+// take a quarter and three quarters of the aye tally
+export const ShareCountsDelegations = withPlay(
+    cast(
+        {...delegatedRef, title: 'Each vote takes its share of the aye tally'},
+        [
+            {...standard(PEOPLE[5], true, 'Locked1x', numn(1_000)), block: 962_000},
+            {...standard(PEOPLE[3], true, 'Locked1x', numn(1_000)), block: 963_000},
+        ],
+        'votes',
+        {},
+        [delegation(anon(80), PEOPLE[3], 'Locked1x', numn(2_000), '31')]
+    ),
+    async ({canvas}) => {
+        const share = async (name: string) => within((await canvas.findAllByText(name)).map(el => el.closest('tr')).find(tr => tr != null)!).getByText(/%$/).textContent
+        await expect(await share('Nova Fund')).toBe('25.00%')
+        await expect(await share('Redshift')).toBe('75.00%')
+    }
+)
+
 const nayVote = {...standard(PEOPLE[4], false, 'Locked1x', numn(5_000)), block: 965_000}
 const searchVotes = [...delegatedVotes, nayVote]
 const voterIs = (who: {id: string}) => (v: {voter: {id: string}}) => v.voter.id === who.id

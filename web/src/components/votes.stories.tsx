@@ -46,7 +46,8 @@ const groups = (at: string, ...totals: number[]): VoteGroup[] =>
 
 const lists = (chips: VoteGroup[], list: VoteRows, paging = FIRST): Story => ({render: () => <VoteLists groups={chips} list={list} searched={false} paging={paging} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />})
 
-const standard = (rows: VoteEntry[]): VoteRows => ({kind: 'standard', rows})
+// the side's tally is every row on the list, so the shares add up to 100%
+const standard = (rows: VoteEntry[]): VoteRows => ({kind: 'standard', whole: String(rows.reduce((n, v) => n + BigInt(v.selfVotes) + BigInt(v.delegatedVotes), 0n)), rows})
 const splits = (labels: string[], rows: SplitEntry[]): VoteRows => ({kind: 'split', labels, rows})
 
 export const ExtremeNumbers = lists(

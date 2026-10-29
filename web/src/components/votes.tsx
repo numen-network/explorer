@@ -10,6 +10,7 @@ import {Jump} from '@/components/links'
 import Pager from '@/components/Pager'
 import {FilterChip} from '@/components/pills'
 import SearchBox from '@/components/SearchBox'
+import ShareBar from '@/components/ShareBar'
 import {Card} from '@/components/ui/card'
 import {fmtCount, fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
@@ -52,8 +53,9 @@ export interface VoteGroup {
 }
 
 // conviction and delegations only reach the tally through a standard vote, a
-// split shows the parts it was split into
-export type VoteRows = {kind: 'standard'; rows: VoteEntry[]} | {kind: 'split'; labels: string[]; rows: SplitEntry[]}
+// split shows the parts it was split into. whole is the tally of the side
+// a standard vote counts toward
+export type VoteRows = {kind: 'standard'; whole: string; rows: VoteEntry[]} | {kind: 'split'; labels: string[]; rows: SplitEntry[]}
 
 // a new search opens the first list it finds votes in
 const SEARCH_RESETS = ['group']
@@ -129,7 +131,7 @@ export function VoteDetail({v, moreHref, decimals, symbol}: {v: VoteEntry; moreH
 
 const col = columnsFor<VoteEntry>()
 
-function StandardTable({rows, decimals, symbol, empty}: {rows: VoteEntry[]; decimals: number; symbol: string; empty: string}) {
+function StandardTable({rows, whole, decimals, symbol, empty}: {rows: VoteEntry[]; whole: string; decimals: number; symbol: string; empty: string}) {
     const columns = useMemo(
         () => [
             col.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
@@ -157,9 +159,15 @@ function StandardTable({rows, decimals, symbol, empty}: {rows: VoteEntry[]; deci
                         NONE
                     ),
             }),
+            col.display({
+                id: 'share',
+                header: 'Share',
+                meta: {align: 'right'},
+                cell: ({row}) => <ShareBar part={String(BigInt(row.original.selfVotes) + BigInt(row.original.delegatedVotes))} whole={whole} />,
+            }),
             expander(col),
         ],
-        [decimals, symbol]
+        [whole, decimals, symbol]
     )
     return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} canExpand={() => true} expand={v => <VoteDetail v={v} moreHref={`/account/${v.addr}`} decimals={decimals} symbol={symbol} />} />
 }
@@ -199,7 +207,7 @@ export default function VoteLists({groups, list, searched, paging, decimals, sym
             </div>
             <Card size="flush">
                 {list.kind === 'standard' ? (
-                    <StandardTable rows={list.rows} decimals={decimals} symbol={symbol} empty={empty} />
+                    <StandardTable rows={list.rows} whole={list.whole} decimals={decimals} symbol={symbol} empty={empty} />
                 ) : (
                     <SplitTable labels={list.labels} rows={list.rows} decimals={decimals} symbol={symbol} empty={empty} />
                 )}

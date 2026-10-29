@@ -229,7 +229,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.metadataActions.map(a => a.id)),
-        tab === 'votes' ? votesPanel({index: r.index, counts, sp, pg, chain}) : null,
+        tab === 'votes' ? votesPanel({index: r.index, counts, tally: r, sp, pg, chain}) : null,
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
         specVersionAt(r.submittedAt),
