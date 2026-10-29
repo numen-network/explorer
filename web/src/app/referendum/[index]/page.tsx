@@ -1,6 +1,7 @@
 import {Fragment, type ReactNode} from 'react'
 import {Vote, type LucideIcon} from 'lucide-react'
 import {SiDiscord} from '@icons-pack/react-simple-icons'
+import Link from 'next/link'
 import {notFound} from 'next/navigation'
 import CopyBtn from '@/components/CopyBtn'
 import EditedHistory from '@/components/EditedHistory'
@@ -431,19 +432,19 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
             <div className="mt-4 divide-y border-t text-sm">
                 <div className="flex items-center justify-between gap-3 py-2.5">
-                    <span className="flex items-center gap-1.5">
+                    <Link href={`/referendum/${r.index}?tab=votes&group=aye`} className="flex items-center gap-1.5 hover:underline">
                         <Mark icon={TICK} className="text-good" />
                         Aye <span className="text-dim">({fmtInt(data.ayeCount.totalCount)})</span>
-                    </span>
+                    </Link>
                     <Toward target={targets?.ayes ?? null} chain={chain}>
                         <Approx planck={r.ayes} decimals={chain.decimals} symbol={chain.symbol} />
                     </Toward>
                 </div>
                 <div className="flex items-center justify-between gap-3 py-2.5">
-                    <span className="flex items-center gap-1.5">
+                    <Link href={`/referendum/${r.index}?tab=votes&group=nay`} className="flex items-center gap-1.5 hover:underline">
                         <Mark icon={CROSS} className="text-destructive" />
                         Nay <span className="text-dim">({fmtInt(data.nayCount.totalCount)})</span>
-                    </span>
+                    </Link>
                     <Toward target={targets?.nays ?? null} chain={chain}>
                         <Approx planck={r.nays} decimals={chain.decimals} symbol={chain.symbol} />
                     </Toward>

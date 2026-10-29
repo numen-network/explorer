@@ -89,3 +89,10 @@ export const TargetsAyesOutOfReach = withPlay(story({...curated(5), decidingSinc
 export const TargetsEnded = withPlay(story(curated(0), 'call'), async ({canvasElement}) => {
     await expect(card(canvasElement, 'Tally').queryByText(/^Need /)).toBeNull()
 })
+
+// the aye and nay rows open their list of votes
+export const AyeNayLinkToVotes = withPlay(curatedCase(5), async ({canvasElement}) => {
+    const tally = card(canvasElement, 'Tally')
+    await expect(tally.getByRole('link', {name: /^Aye \(/})).toHaveAttribute('href', '/referendum/5?tab=votes&group=aye')
+    await expect(tally.getByRole('link', {name: /^Nay \(/})).toHaveAttribute('href', '/referendum/5?tab=votes&group=nay')
+})
