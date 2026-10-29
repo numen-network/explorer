@@ -26,8 +26,8 @@ import {chainDbHead, chainProps, type ChainProps} from '@/lib/chain'
 import {CONFIG} from '@/lib/config'
 import {discussionOf} from '@/lib/discussions'
 import {curveAt, type Curve} from '@/lib/curves'
-import {camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
-import {confirmEstimate, enactmentBlock, isLive, originName, phaseFraction, phaseOf, type EnactmentMoment} from '@/lib/referendum'
+import {approxParts, camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
+import {confirmEstimate, enactmentBlock, isLive, originName, phaseFraction, phaseOf, tallyTargets, type EnactmentMoment} from '@/lib/referendum'
 import {blocksConstant} from '@/lib/runtime'
 import {accountRefs, bountiesByIndex, eventsByIds, indexTitles, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -157,6 +157,21 @@ function approvalOf(s: {ayes: string; nays: string}): [part: bigint, whole: bigi
     const ayes = BigInt(s.ayes)
     const cast = ayes + BigInt(s.nays)
     return cast > 0n ? [ayes, cast] : [0n, 1n]
+}
+
+// a tally figure and, while the referendum is live, the amount it has to
+// reach. each part ends in a separator and the row runs one separator past
+// the box, so the last one on a line is always cut off
+function Toward({target, chain, children}: {target: bigint | null; chain: ChainProps; children: ReactNode}) {
+    if (target === null) return <span className="font-mono">{children}</span>
+    return (
+        <span className="min-w-0 overflow-hidden font-mono">
+            <span className="-mr-[1.1em] flex flex-row-reverse flex-wrap-reverse *:whitespace-nowrap *:after:inline-block *:after:w-[1.1em] *:after:text-center *:after:text-muted-foreground *:after:content-['/']">
+                <span className="order-2">{children}</span>
+                <span className="order-1 text-muted-foreground">Need &gt;{approxParts(target, chain.decimals).figure}</span>
+            </span>
+        </span>
+    )
 }
 
 function Slot({value, label, className = ''}: {value: string; label: string; className?: string}) {
@@ -330,6 +345,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
     const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
     const tallied = BigInt(r.ayes) + BigInt(r.nays)
+    const targets = isLive(r) ? tallyTargets({...r, decidingSince: r.decidingSince!}, activePlanck, head.height) : null
     // only a referendum still waiting for its decision deposit runs out of time
     const timeoutAt = phaseOf(r) === 'WaitingForDeposit' ? r.submittedAt + blocksConstant(head.specVersion, 'Referenda.UndecidingTimeout') : null
 
@@ -417,18 +433,18 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                         <Mark icon={TICK} className="text-good" />
                         Aye <span className="text-dim">({fmtInt(data.ayeCount.totalCount)})</span>
                     </span>
-                    <span className="font-mono">
+                    <Toward target={targets?.ayes ?? null} chain={chain}>
                         <Approx planck={r.ayes} decimals={chain.decimals} symbol={chain.symbol} />
-                    </span>
+                    </Toward>
                 </div>
                 <div className="flex items-center justify-between gap-3 py-2.5">
                     <span className="flex items-center gap-1.5">
                         <Mark icon={CROSS} className="text-destructive" />
                         Nay <span className="text-dim">({fmtInt(data.nayCount.totalCount)})</span>
                     </span>
-                    <span className="font-mono">
+                    <Toward target={targets?.nays ?? null} chain={chain}>
                         <Approx planck={r.nays} decimals={chain.decimals} symbol={chain.symbol} />
-                    </span>
+                    </Toward>
                 </div>
             </div>
 
@@ -443,9 +459,9 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             <div className="mt-4 divide-y border-t text-sm">
                 <div className="flex items-center justify-between gap-3 py-2.5">
                     <span className="text-muted-foreground">Support</span>
-                    <span className="font-mono">
+                    <Toward target={targets?.support ?? null} chain={chain}>
                         <Approx planck={r.support} decimals={chain.decimals} symbol={chain.symbol} />
-                    </span>
+                    </Toward>
                 </div>
                 <div className="flex items-center justify-between gap-3 py-2.5">
                     <span className="text-muted-foreground">Active issuance</span>

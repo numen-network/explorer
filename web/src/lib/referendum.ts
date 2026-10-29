@@ -109,6 +109,13 @@ interface Deciding {
     track: {decisionPeriod: number; minApproval: unknown; minSupport: unknown}
 }
 
+// how far into its decision period a referendum is, as the pallet's Perbill
+const decisionRan = (r: Deciding, head: number) => {
+    const period = BigInt(r.track.decisionPeriod)
+    const elapsed = BigInt(head) - BigInt(r.decidingSince)
+    return perbill(elapsed < period ? elapsed : period, period)
+}
+
 /**
  * The block a deciding referendum starts confirming at if its tally holds,
  * the alarm pallet_referenda sets in decision_time, null when the tally
@@ -117,8 +124,7 @@ interface Deciding {
 export function confirmEstimate(r: Deciding, activeIssuance: bigint, head: number): number | null {
     const since = BigInt(r.decidingSince)
     const period = BigInt(r.track.decisionPeriod)
-    const elapsed = BigInt(head) - since
-    const x = perbill(elapsed < period ? elapsed : period, period)
+    const x = decisionRan(r, head)
     const ayes = BigInt(r.ayes)
     const cast = ayes + BigInt(r.nays)
     const sides: [Curve, bigint][] = [
@@ -128,6 +134,24 @@ export function confirmEstimate(r: Deciding, activeIssuance: bigint, head: numbe
     if (sides.some(([c, y]) => y < threshold(c, ONE))) return null
     const offset = sides.map(([c, y]) => (y >= threshold(c, x) ? 0n : delay(c, y))).reduce((a, b) => (a > b ? a : b))
     return Math.max(Number(since + (offset * period + ONE - 1n) / ONE), head + 1)
+}
+
+/**
+ * What each side of a live tally has to reach now, the fewest ayes and the
+ * least support that pass and the fewest nays that fail, rounding as the
+ * pallet's Perbill does. Ayes is null when the threshold is one and a nay is
+ * cast, nays is null when the threshold is zero.
+ */
+export function tallyTargets(r: Deciding, activeIssuance: bigint, head: number): {ayes: bigint | null; nays: bigint | null; support: bigint} {
+    const x = decisionRan(r, head)
+    const approval = threshold(r.track.minApproval as Curve, x)
+    const ayes = BigInt(r.ayes)
+    const nays = BigInt(r.nays)
+    return {
+        ayes: approval === ONE ? (nays === 0n ? 1n : null) : nays === 0n && approval > 0n ? 1n : (approval * nays + ONE - approval - 1n) / (ONE - approval),
+        nays: approval === 0n ? null : (ayes * (ONE - approval)) / approval + 1n,
+        support: (threshold(r.track.minSupport as Curve, x) * activeIssuance + ONE - 1n) / ONE,
+    }
 }
 
 export interface EnactmentMoment {

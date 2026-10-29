@@ -1,13 +1,13 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {GENESIS_HASH, numn, PEOPLE} from '../../../../../mock/fixtures.js'
+import {GENESIS_HASH, HEAD, numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {standard} from '../../../../../mock/fixtures/governance.js'
 import {CONFIG} from '@/lib/config'
 import {WALLET_URL} from '@/lib/wallet'
 import {discussions} from '../../../../.storybook/discussions'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
-import {card, curatedCase, cast, withPlay, deciding, extremeAmounts} from './page.stories.helpers'
+import {card, curated, curatedCase, cast, story, withPlay, deciding, extremeAmounts} from './page.stories.helpers'
 
 export default {title: 'Pages/Referendum/Tally', ...pageMeta(ReferendumPage)}
 
@@ -64,4 +64,28 @@ export const DiscussThread = withPlay(withThreads(curatedCase(5), {5: 'https://d
 // a link that is no Discord thread never makes it onto the page
 export const ForeignThreadLink = withPlay(withThreads(curatedCase(5), {5: 'https://evil.test/thread'}), async ({canvasElement}) => {
     await expect(within(canvasElement).getByRole('link', {name: 'Discuss'})).toHaveAttribute('href', CONFIG.socials.discord)
+})
+
+// the target each tally row shows after its figure, in the order aye, nay, support
+const targets = (root: HTMLElement) => ['Aye', 'Nay', 'Support'].map(label => card(root, 'Tally').getAllByText(label, {exact: false}).at(-1)!.closest('div')!.querySelector('.order-1')?.textContent ?? null)
+
+// a deciding referendum short of both thresholds
+export const TargetsDeciding = withPlay(story(curated(5), 'call'), async ({canvasElement}) => {
+    await expect(targets(canvasElement)).toEqual(['Need >17.03M', 'Need >312.36K', 'Need >2.03M'])
+})
+
+// a confirming referendum, past both thresholds
+export const TargetsConfirming = withPlay(story(curated(6), 'call'), async ({canvasElement}) => {
+    await expect(targets(canvasElement)).toEqual(['Need >3.16M', 'Need >967.03K', 'Need >1.88M'])
+})
+
+// a decision that has just begun demands every vote aye, no amount of aye
+// outweighs a nay already cast
+export const TargetsAyesOutOfReach = withPlay(story({...curated(5), decidingSince: HEAD}, 'call'), async ({canvasElement}) => {
+    await expect(targets(canvasElement)[0]).toBeNull()
+})
+
+// an approved referendum has no thresholds left to reach
+export const TargetsEnded = withPlay(story(curated(0), 'call'), async ({canvasElement}) => {
+    await expect(card(canvasElement, 'Tally').queryByText(/^Need /)).toBeNull()
 })
