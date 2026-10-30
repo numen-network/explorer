@@ -5,6 +5,7 @@ import {NuqsTestingAdapter} from 'nuqs/adapters/testing'
 import {MINIMAL_VIEWPORTS} from 'storybook/viewport'
 import {useFaceOrder} from '../src/components/AccountFace'
 import {HeadsProvider} from '../src/components/blockStatus'
+import {useCurveToggles} from '../src/components/charts'
 import {TooltipProvider} from '../src/components/ui/tooltip'
 import {WellKnownProvider} from '../src/components/wellKnown'
 import {ss58Encode} from '../src/lib/ss58'
@@ -144,6 +145,7 @@ const preview: Preview = {
         urlUpdates.mockClear()
         localStorage.clear()
         useFaceOrder.setState(useFaceOrder.getInitialState())
+        useCurveToggles.setState(useCurveToggles.getInitialState())
     },
     decorators: [
         // the mocked next router never moves the url, so the url state runs on

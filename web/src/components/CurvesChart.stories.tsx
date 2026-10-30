@@ -461,6 +461,27 @@ export const ChartShowVotersOff: Story = {
     },
 }
 
+export const ChartTogglesRemembered: Story = {
+    ...ChartShowVoters,
+    play: async ({canvasElement}) => {
+        await showVoters(canvasElement)
+        await showVotes(canvasElement)
+        expect(JSON.parse(localStorage.getItem('curveToggles')!).state).toEqual({showVoters: true, showVotes: true})
+    },
+}
+
+// a page opened after the switches were flipped starts with them on
+export const ChartOpensOnStoredToggles: Story = {
+    ...ChartShowVoters,
+    beforeEach: () => localStorage.setItem('curveToggles', JSON.stringify({state: {showVoters: true, showVotes: true}, version: 0})),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(() => expect(canvas.getByRole('switch', {name: 'Show Voters'})).toBeChecked())
+        expect(canvas.getByRole('switch', {name: 'Aye/Nay Value'})).toBeChecked()
+        await waitFor(() => expect(dataOf(canvasElement)).toHaveLength(3))
+    },
+}
+
 // a voter's name renders as text, a crossing dot keeps its min size
 export const ChartVoterCrossedUp: Story = {
     ...chart({...VOTER_TALLY, voters: [voter('a', 950_500, 100, 100, null, true), voter('<b>', 980_000, 59.6, 1, 'up', true)]}),

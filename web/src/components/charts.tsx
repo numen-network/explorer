@@ -19,6 +19,8 @@ import * as echarts from 'echarts'
 import {toSvg} from 'jdenticon'
 import {useRouter} from 'next/navigation'
 import {useEffect, useId, useRef, useState, type CSSProperties} from 'react'
+import {create} from 'zustand'
+import {persist} from 'zustand/middleware'
 
 const SUB = '#7c828e'
 const EDGE = '#e8eaef'
@@ -346,6 +348,15 @@ function VoterTip({voter: {hex, row, crossed}, unit}: {voter: CurveVoter; unit: 
 // through the recorded tally history from submission on. x counts hours from
 // the clock's zero block, so the lead-in sits left of hour zero at its true
 // length
+interface CurveToggles {
+    showVotes: boolean
+    showVoters: boolean
+}
+
+// kept across visits and shared by every referendum. the server renders them
+// off, so the stored choice only loads once the page is mounted
+export const useCurveToggles = create<CurveToggles>()(persist((): CurveToggles => ({showVotes: false, showVoters: false}), {name: 'curveToggles', skipHydration: true}))
+
 export function CurvesChart({
     approval,
     support,
@@ -389,9 +400,9 @@ export function CurvesChart({
         itemStyle: {color},
         data: steps.map(([h, value]) => [h, value]),
     })
-    const [showVotes, setShowVotes] = useState(false)
+    const {showVotes, showVoters} = useCurveToggles()
+    useEffect(() => void useCurveToggles.persist.rehydrate(), [])
     const toggle = useId()
-    const [showVoters, setShowVoters] = useState(false)
     const votersToggle = useId()
     const chartTip = useChartTip()
     // the aye area at the bottom, the nay area on top of it
@@ -641,13 +652,13 @@ export function CurvesChart({
                     <Label htmlFor={votersToggle} className="text-xs font-normal text-muted-foreground">
                         Show Voters
                     </Label>
-                    <Switch id={votersToggle} checked={showVoters} onCheckedChange={setShowVoters} className="data-unchecked:bg-dim" />
+                    <Switch id={votersToggle} checked={showVoters} onCheckedChange={showVoters => useCurveToggles.setState({showVoters})} className="data-unchecked:bg-dim" />
                 </div>
                 <div className="flex items-center gap-2">
                     <Label htmlFor={toggle} className="text-xs font-normal text-muted-foreground">
                         Aye/Nay Value
                     </Label>
-                    <Switch id={toggle} checked={showVotes} onCheckedChange={setShowVotes} className="data-unchecked:bg-dim" />
+                    <Switch id={toggle} checked={showVotes} onCheckedChange={showVotes => useCurveToggles.setState({showVotes})} className="data-unchecked:bg-dim" />
                 </div>
             </div>
             <div ref={ref} style={{'--h': `${height}px`} as CSSProperties} className={cn('h-(--h)', showVotes && '@max-[470px]:h-[calc(var(--h)+32px)]')} />
