@@ -1,12 +1,32 @@
 import Approx from '@/components/Approx'
+import type {VoteChange} from '@/lib/conviction'
 import {fmtPctMove, sentenceCase} from '@/lib/format'
 
 const TONE: Record<string, string> = {aye: 'text-good', nay: 'text-destructive'}
 
+const DecisionName = ({decision}: {decision: string}) => <span className={TONE[decision] ?? 'text-muted-foreground'}>{sentenceCase(decision)}</span>
+
+function ReplacedVote({change: {from, to}, decimals}: {change: VoteChange; decimals: number}) {
+    const delta = to.weight - from.weight
+    if (from.decision !== to.decision) {
+        return (
+            <div className="text-xs text-dim">
+                from <DecisionName decision={from.decision} /> <Approx planck={from.weight} decimals={decimals} />
+            </div>
+        )
+    }
+    if (delta === 0n) return <div className="text-xs text-dim">±0</div>
+    return (
+        <div className={`text-xs ${delta > 0n ? 'text-good' : 'text-destructive'}`}>
+            <Approx planck={delta} decimals={decimals} move />
+        </div>
+    )
+}
+
 export function VoteMove({removed, decision}: {removed: boolean; decision: string}) {
     return (
         <span>
-            {removed ? 'Removed' : 'Voted'} <span className={TONE[decision] ?? 'text-muted-foreground'}>{sentenceCase(decision)}</span>
+            {removed ? 'Removed' : 'Voted'} <DecisionName decision={decision} />
         </span>
     )
 }
@@ -22,7 +42,7 @@ export function Delta({label, value: [part, whole]}: {label: string; value: [par
 }
 
 /** What a vote put on the tally, split into the voter's own and the delegated part when anybody delegates. */
-export function VoteWeight({own, delegated, decimals, symbol}: {own: bigint; delegated: bigint; decimals: number; symbol: string}) {
+export function VoteWeight({own, delegated, change, decimals, symbol}: {own: bigint; delegated: bigint; change?: VoteChange; decimals: number; symbol: string}) {
     return (
         <>
             <Approx planck={own + delegated} decimals={decimals} symbol={symbol} />
@@ -31,6 +51,7 @@ export function VoteWeight({own, delegated, decimals, symbol}: {own: bigint; del
                     <Approx planck={own} decimals={decimals} /> + <Approx planck={delegated} decimals={decimals} /> delegated
                 </div>
             )}
+            {change && <ReplacedVote change={change} decimals={decimals} />}
         </>
     )
 }

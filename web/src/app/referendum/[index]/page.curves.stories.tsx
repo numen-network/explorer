@@ -5,7 +5,7 @@ import {ss58Encode} from '@/lib/ss58'
 import {expectLegibleAxes, lastTooltipLines} from '../../../../.storybook/fit'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
-import {curated, story, curatedCase, cast, withPlay, secondAttempt, deciding, single, singleVote, alice, grace, everyRows, everyAction, manyVotes, many, extremeAmounts} from './page.stories.helpers'
+import {curated, story, curatedCase, cast, withPlay, secondAttempt, deciding, single, singleVote, alice, bob, grace, everyRows, everyAction, manyVotes, many, extremeAmounts} from './page.stories.helpers'
 
 export default {title: 'Pages/Referendum/Curves', ...pageMeta(ReferendumPage)}
 
@@ -77,12 +77,33 @@ export const ActionsEveryKind = withPlay(story(everyAction.referendum, 'curves',
     await expect(impact.every(i => i !== '—')).toBe(true)
 })
 
+// a vote cast again shows how far it moved from the one it replaced, delegated
+// votes included. a delegation between the two doesn't count as the old vote
+export const ActionsReplacedVotes = withPlay(story(everyAction.referendum, 'curves', everyAction.data), async ({canvasElement}) => {
+    const {rows} = await actionList(canvasElement)
+    const [action, amount] = [3, 4].map(i => rows.map(row => cellsOf(row)[i]))
+    await expect(action[0]).toBe('Voted Nay')
+    await expect(amount[0]).toMatch(/\+900K$/)
+    await expect(amount[1]).toMatch(/\+300K$/)
+    await expect(amount.filter(a => /[+−][\d.]+[KM]?$/.test(a!))).toHaveLength(2)
+})
+
 // every action on the referendum lands on the chart, whichever page the list is on
 export const VotersEveryAction = withPlay(story(everyAction.referendum, 'curves', everyAction.data), async ({canvasElement}) => {
     const toggle = within(canvasElement).getByRole('switch', {name: 'Show Voters'})
     await expect(toggle).not.toBeChecked()
     await userEvent.click(toggle)
     await waitFor(() => expect(lastTooltipLines(canvasElement, 'Voters')[0].length).toBeGreaterThan(0))
+})
+
+// the tooltip shows how far a vote moved from the one it replaced. the first
+// vote moved nothing, so the chart draws the replacement last
+const bobRows = everyRows.filter((row: EveryRow) => row.voter.id === bob.id).map((row: EveryRow) => (row.block === 954_000 ? {...row, approvalPart: null} : row))
+
+export const VotersReplacedVote = withPlay(story(everyAction.referendum, 'curves', {...everyAction.data, ...actionLog(bobRows)}), async ({canvasElement}) => {
+    await userEvent.click(within(canvasElement).getByRole('switch', {name: 'Show Voters'}))
+    await waitFor(() => expect(lastTooltipLines(canvasElement, 'Voters')[0].length).toBeGreaterThan(0))
+    await expect(lastTooltipLines(canvasElement, 'Voters')[0].join(' ')).toContain('+900K')
 })
 
 export const ActionsOne = withPlay(cast(single, singleVote, 'curves'), async ({canvasElement}) => {

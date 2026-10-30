@@ -1,4 +1,4 @@
-import {at, chainInfo, GENESIS_HASH, hashOf, HEAD, issuance, numn, ownVotes, paged, PEOPLE, person, squidId, SUBMISSION_DEPOSIT, weigh} from '../fixtures.js'
+import {at, chainInfo, GENESIS_HASH, hashOf, HEAD, issuance, numn, ownVotes, paged, pagedActions, PEOPLE, person, squidId, SUBMISSION_DEPOSIT, weigh} from '../fixtures.js'
 
 const heightOf = id => Number(id.split('-')[0])
 const indexOf = id => Number(id.split('-').at(-1))
@@ -374,7 +374,7 @@ export function withImpact(steps) {
 }
 
 // the action list a page at a time, with the count it pages through
-export const actionLog = rows => ({votingActions: paged(rows), votingActionsConnection: {totalCount: rows.length}})
+export const actionLog = rows => ({votingActions: pagedActions(rows), votingActionsConnection: {totalCount: rows.length}})
 
 function voteLog(index, cast, delegated = []) {
     let t = {ayes: 0n, nays: 0n, support: 0n}

@@ -1,5 +1,5 @@
 import data from '../data.js'
-import {account, acct, at, base, block, chainInfo, GENESIS_HASH, HEAD, HEAD_TIME, hashOf, hex, identity, numn, ownVotes, paged, PEOPLE, person, rows, squidId, subData, subOf, transfer, weigh} from '../fixtures.js'
+import {account, acct, at, base, block, chainInfo, GENESIS_HASH, HEAD, HEAD_TIME, hashOf, hex, identity, numn, ownVotes, paged, pagedActions, PEOPLE, person, rows, squidId, subData, subOf, transfer, weigh} from '../fixtures.js'
 import {mined, pick, timestampSet} from './blocks.js'
 import {holding} from './evm.js'
 
@@ -368,6 +368,7 @@ export const voteAction = (i, traits = {}) => {
     return withVotes({
         id: `6-${squidId(h, 3)}`,
         method: 'Voted',
+        voter: ME,
         kind: 'Standard',
         aye: true,
         conviction: 'Locked1x',
@@ -960,7 +961,7 @@ export function accountPage({
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,
         votes: args => (args.where?.removed_eq === false ? standing : paged(votes)(args)),
         votingActionsConnection: count(counts.voteActions ?? voteActions.length),
-        votingActions: paged(voteActions),
+        votingActions: pagedActions(voteActions),
         delegationActionsConnection: ({where}) => count(delegationsSide(where).length),
         delegationActions: args => paged(delegationsSide(args.where))(args),
         evmTransactionsConnection: count(deploys),

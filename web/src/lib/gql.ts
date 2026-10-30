@@ -1,5 +1,5 @@
 import {VALIDATOR_STATES, type ActionKind, type ActionMove, type CounterpartySort, type DelegationSort, type DelegationSortBy, type ValidatorSort, type ValidatorSortBy, type ValidatorState} from './actionFilters'
-import type {VoteShape} from './conviction'
+import type {OwnVoteAction, VoteChange, VoteShape} from './conviction'
 import type {EnactmentMoment, RefPhaseFields} from './referendum'
 import {isH256} from './evm'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
@@ -844,6 +844,7 @@ export interface VoteHistoryRow extends VoteShape {
     block: number
     timestamp: string
     referendum: {index: number}
+    change?: VoteChange
 }
 
 export interface DelegationActionRow {
@@ -2041,6 +2042,7 @@ export interface VotingActionRow extends VoteShape {
     timestamp: string
     voter: AccountRef
     delegator: AccountRef | null
+    referendum: {index: number}
 }
 
 export interface MetadataActionRow {
@@ -2215,7 +2217,7 @@ export interface ActionFilter extends AccountSearch {
 // an account matches by the names the search page matches it by
 const nameMatch = (v: string) => `{OR: [{identityDisplay_containsInsensitive: ${v}}, {identitySubName_containsInsensitive: ${v}}, {username_containsInsensitive: ${v}}]}`
 
-const VOTING_ACTION_FIELDS = `id method kind aye conviction balance ayeAmount nayAmount abstainAmount votes delegatedVotes approvalPart approvalWhole supportPart supportWhole block timestamp voter { ${ACCOUNT_REF} } delegator { ${ACCOUNT_REF} }`
+const VOTING_ACTION_FIELDS = `id method kind aye conviction balance ayeAmount nayAmount abstainAmount votes delegatedVotes approvalPart approvalWhole supportPart supportWhole block timestamp voter { ${ACCOUNT_REF} } delegator { ${ACCOUNT_REF} } referendum { index }`
 
 export function referendumActions(index: number, {kind, move, account, name}: ActionFilter, page: Slice) {
     // an OR next to other fields joins them as one more alternative, so the
@@ -2237,6 +2239,17 @@ export function referendumActions(index: number, {kind, move, account, name}: Ac
             conn: votingActionsConnection(where: {${where}}, orderBy: id_ASC) { totalCount }
         }`,
         {index, ...(account != null && {account}), ...(name != null && {name}), ...page}
+    )
+}
+
+export function ownVoteHistory(referenda: number[], voters: string[]) {
+    return sweep(page =>
+        gql<{actions: OwnVoteAction[]}>(
+            `query ($referenda: [Int!], $voters: [String!], $limit: Int!, $offset: Int!) {
+                actions: votingActions(where: {referendum: {index_in: $referenda}, voter: {id_in: $voters}, delegator_isNull: true}, orderBy: [block_ASC, indexInBlock_ASC], limit: $limit, offset: $offset) { id method kind aye votes delegatedVotes voter { id } referendum { index } }
+            }`,
+            {referenda, voters, ...page}
+        ).then(r => r.actions)
     )
 }
 

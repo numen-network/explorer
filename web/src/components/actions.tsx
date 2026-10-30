@@ -14,6 +14,7 @@ import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
 import {actionFilters, type ActionKind, type ActionMove} from '@/lib/actionFilters'
+import type {VoteChange} from '@/lib/conviction'
 import {fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
@@ -30,8 +31,8 @@ export interface ActionImpact {
 }
 
 export type ActionRow =
-    | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; kind: 'vote' | 'remove'; decision: string}
-    | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; kind: 'delegate' | 'undelegate'; by: ActionActor}
+    | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; change?: VoteChange; kind: 'vote' | 'remove'; decision: string}
+    | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; change?: VoteChange; kind: 'delegate' | 'undelegate'; by: ActionActor}
 
 // radix reserves the empty item value for its placeholder, the catch-all
 // entries carry their own sentinels instead
@@ -118,7 +119,7 @@ export default function ActionList({rows, total, filtered, paging, href, decimal
                 id: 'amount',
                 header: 'Amount',
                 meta: {align: 'right', cellClassName: 'font-mono'},
-                cell: ({row}) => <VoteWeight own={BigInt(row.original.own)} delegated={BigInt(row.original.delegated)} decimals={decimals} symbol={symbol} />,
+                cell: ({row}) => <VoteWeight own={BigInt(row.original.own)} delegated={BigInt(row.original.delegated)} change={row.original.change} decimals={decimals} symbol={symbol} />,
             }),
             col.display({
                 id: 'impact',

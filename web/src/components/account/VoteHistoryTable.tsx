@@ -33,7 +33,7 @@ export function VoteHistoryTable({rows, chain}: {rows: VoteHistoryRow[]; chain: 
                     id: 'votes',
                     header: 'Votes',
                     meta: {align: 'right', cellClassName: 'font-mono'},
-                    cell: ({row}) => <VoteWeight own={BigInt(row.original.votes)} delegated={BigInt(row.original.delegatedVotes)} decimals={chain.decimals} symbol={chain.symbol} />,
+                    cell: ({row}) => <VoteWeight own={BigInt(row.original.votes)} delegated={BigInt(row.original.delegatedVotes)} change={row.original.change} decimals={chain.decimals} symbol={chain.symbol} />,
                 }),
                 col.display({id: 'block', header: 'Block', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.block} />}),
                 col.display({id: 'time', header: () => <TimeModeButton />, meta: {cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.timestamp} />}),

@@ -46,3 +46,43 @@ export function voteParts(v: VoteShape): {side: VoteSide; capital: bigint; votes
 export type Decision = 'aye' | 'nay' | 'split' | 'abstain'
 
 export const decisionOf = (v: {kind: string; aye: boolean | null}): Decision => (v.kind === 'Standard' ? (v.aye ? 'aye' : 'nay') : v.kind === 'Split' ? 'split' : 'abstain')
+
+export interface VoteStance {
+    decision: Decision
+    weight: bigint
+}
+
+export interface VoteChange {
+    from: VoteStance
+    to: VoteStance
+}
+
+export interface OwnVoteAction {
+    id: string
+    method: string
+    kind: string
+    aye: boolean | null
+    votes: string
+    delegatedVotes: string
+    voter: {id: string}
+    referendum: {index: number}
+}
+
+const stanceOf = (a: OwnVoteAction): VoteStance => ({decision: decisionOf(a), weight: BigInt(a.votes) + BigInt(a.delegatedVotes)})
+
+/**
+ * The vote each action replaced, keyed by action id. The chain's Voted event
+ * carries only the new vote, the old one is the voter's previous action on the
+ * referendum. Takes the voters' own actions in chain order.
+ */
+export function voteChanges(actions: OwnVoteAction[]): Map<string, VoteChange> {
+    const previous = new Map<string, OwnVoteAction>()
+    const changes = new Map<string, VoteChange>()
+    for (const a of actions) {
+        const key = `${a.referendum.index}-${a.voter.id}`
+        const prior = previous.get(key)
+        if (a.method === 'Voted' && prior?.method === 'Voted') changes.set(a.id, {from: stanceOf(prior), to: stanceOf(a)})
+        previous.set(key, a)
+    }
+    return changes
+}

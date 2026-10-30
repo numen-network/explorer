@@ -326,7 +326,7 @@ function VoterTip({voter: {hex, row, crossed}, unit}: {voter: CurveVoter; unit: 
             <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Amount</span>
                 <span className="text-right">
-                    <VoteWeight own={BigInt(row.own)} delegated={BigInt(row.delegated)} {...unit} />
+                    <VoteWeight own={BigInt(row.own)} delegated={BigInt(row.delegated)} change={row.change} {...unit} />
                 </span>
             </div>
             {row.impact ? (

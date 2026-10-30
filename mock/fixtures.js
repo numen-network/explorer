@@ -165,3 +165,10 @@ export const rows = (count, make) => Array.from({length: count}, (_, i) => make(
 
 // a list field answering each query with the slice its limit and offset ask for
 export const paged = list => ({limit, offset = 0}) => (limit == null ? list : list.slice(offset, offset + limit))
+
+// voting actions are listed latest first. a voter's own history reads them
+// oldest first, without the delegation rows
+export const pagedActions = list => ({orderBy, where, ...page}) => {
+    const rows = where?.delegator_isNull ? list.filter(a => !a.delegator) : list
+    return paged(orderBy?.includes('block_ASC') ? rows.toReversed() : rows)(page)
+}
