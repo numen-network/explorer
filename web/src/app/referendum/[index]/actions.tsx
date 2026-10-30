@@ -2,7 +2,8 @@ import ActionList, {type ActionImpact, type ActionRow} from '@/components/action
 import {actionFiltersUrl, loadActionFilters} from '@/lib/actionFilters'
 import type {ChainProps} from '@/lib/chain'
 import {decisionOf} from '@/lib/conviction'
-import {accountSearch, referendumActions, type VotingActionRow} from '@/lib/gql'
+import type {CurveAction} from '@/lib/curveVoters'
+import {accountSearch, referendumActions, referendumVoters, type VotingActionRow} from '@/lib/gql'
 import type {Paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -21,6 +22,11 @@ function rowOf(a: VotingActionRow, ss58: number): ActionRow {
     return a.delegator == null
         ? {...row, kind: a.method === 'Voted' ? 'vote' : 'remove', decision: decisionOf(a)}
         : {...row, kind: a.method === 'Delegated' ? 'delegate' : 'undelegate', by: {addr: ss58Encode(a.delegator.id, ss58), acc: a.delegator}}
+}
+
+export async function votersOnCurves(index: number, ss58: number): Promise<CurveAction[]> {
+    const actions = await referendumVoters(index)
+    return actions.map(a => ({hex: a.voter.id, row: rowOf(a, ss58)}))
 }
 
 interface Props {

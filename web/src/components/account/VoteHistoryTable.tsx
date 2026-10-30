@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import {useMemo} from 'react'
-import {VoteMove, VoteWeight} from '@/components/actions'
+import {VoteMove, VoteWeight} from '@/components/actionParts'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'

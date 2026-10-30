@@ -158,3 +158,10 @@ export interface EnactmentMoment {
     __kind: 'At' | 'After'
     value: number
 }
+
+// approval as a fraction of the votes cast, none cast reading as none approving
+export function approvalOf(s: {ayes: string; nays: string}): [part: bigint, whole: bigint] {
+    const ayes = BigInt(s.ayes)
+    const cast = ayes + BigInt(s.nays)
+    return cast > 0n ? [ayes, cast] : [0n, 1n]
+}

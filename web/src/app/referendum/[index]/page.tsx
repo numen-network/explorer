@@ -28,16 +28,17 @@ import {withProposalViews} from '@/lib/args'
 import {chainDbHead, chainProps, type ChainProps} from '@/lib/chain'
 import {CONFIG} from '@/lib/config'
 import {discussionOf} from '@/lib/discussions'
+import {curveVoters} from '@/lib/curveVoters'
 import {curveAt, type Curve} from '@/lib/curves'
 import {approxParts, camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
-import {confirmEstimate, isLive, originName, phaseFraction, phaseOf, tallyTargets} from '@/lib/referendum'
+import {approvalOf, confirmEstimate, isLive, originName, phaseFraction, phaseOf, tallyTargets} from '@/lib/referendum'
 import {blocksConstant} from '@/lib/runtime'
 import {accountRefs, bountiesByIndex, eventsByIds, indexTitles, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
 import {ss58Encode} from '@/lib/ss58'
 import {voteHref, WALLET_URL} from '@/lib/wallet'
-import {actionsPanel} from './actions'
+import {actionsPanel, votersOnCurves} from './actions'
 import {statsPanel} from './stats'
 import {votesPanel} from './votes'
 
@@ -155,13 +156,6 @@ function PhaseBar({label, span, at, time, mark}: {label: string; span: string; a
     )
 }
 
-// approval as a fraction of the votes cast, none cast reading as none approving
-function approvalOf(s: {ayes: string; nays: string}): [part: bigint, whole: bigint] {
-    const ayes = BigInt(s.ayes)
-    const cast = ayes + BigInt(s.nays)
-    return cast > 0n ? [ayes, cast] : [0n, 1n]
-}
-
 // a tally figure and, while the referendum is live, the amount it has to
 // reach. each part ends in a separator and the row runs one separator past
 // the box, so the last one on a line is always cut off
@@ -227,12 +221,13 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const latest = data.dailyStats[0]
     const activePlanck = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
-    const [refs, evs, textEvs, votes, actions, stats, spec, bounties, titles] = await Promise.all([
+    const [refs, evs, textEvs, votes, actions, actionRows, stats, spec, bounties, titles] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.metadataActions.map(a => a.id)),
         tab === 'votes' ? votesPanel({r, counts, snapshots, live: activePlanck, sp, pg, chain}) : null,
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
+        tab === 'curves' ? votersOnCurves(r.index, chain.ss58) : [],
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
         specVersionAt(r.submittedAt),
         bountyIds.length > 0 ? bountiesByIndex(bountyIds) : {bounties: []},
@@ -499,6 +494,12 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         </div>
     )
 
+    const voters = curveVoters(
+        actionRows.filter(a => r.endedAt === null || a.row.block <= r.endedAt),
+        snapshots,
+        {approval: r.track.minApproval as Curve, support: r.track.minSupport as Curve, hours: decisionHours, started: r.decidingSince !== null, hourOf: toX}
+    )
+
     const curves = (
         <div className="space-y-4">
             <Card size="flush" className="px-5 py-4">
@@ -508,6 +509,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     currentApproval={currentApproval}
                     currentSupport={currentSupport}
                     currentVotes={currentVotes}
+                    voters={voters}
                     unit={{decimals: chain.decimals, symbol: chain.symbol}}
                     now={now}
                     confirmations={confirmations}

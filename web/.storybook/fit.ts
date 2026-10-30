@@ -235,7 +235,8 @@ export function lastTooltipLines(root: Element, name?: string) {
         const series = chart.getOption().series as (Series & {name?: string})[]
         const seriesIndex = name === undefined ? 0 : series.findIndex(s => s.name === name)
         chart.dispatchAction({type: 'showTip', seriesIndex, dataIndex: series[seriesIndex].data.length - 1})
-        return [...tooltipOf(chart).children].map(line => line.textContent)
+        const tip = tooltipOf(chart)
+        return [...(tip.querySelector('[data-chart-tip]') ?? tip).children].map(line => line.textContent)
     })
 }
 

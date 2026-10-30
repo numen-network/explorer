@@ -1,4 +1,4 @@
-import {expect, waitFor, within} from 'storybook/test'
+import {expect, userEvent, waitFor, within} from 'storybook/test'
 import {numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {actionLog, castFromSnapshots, CHAIN, snapshots, standard} from '../../../../../mock/fixtures/governance.js'
 import {ss58Encode} from '@/lib/ss58'
@@ -75,6 +75,14 @@ export const ActionsEveryKind = withPlay(story(everyAction.referendum, 'curves',
     await expect(amount[2]).toMatch(/\+ .* delegated$/)
     await expect(amount[3]).not.toContain('delegated')
     await expect(impact.every(i => i !== '—')).toBe(true)
+})
+
+// every action on the referendum lands on the chart, whichever page the list is on
+export const VotersEveryAction = withPlay(story(everyAction.referendum, 'curves', everyAction.data), async ({canvasElement}) => {
+    const toggle = within(canvasElement).getByRole('switch', {name: 'Show Voters'})
+    await expect(toggle).not.toBeChecked()
+    await userEvent.click(toggle)
+    await waitFor(() => expect(lastTooltipLines(canvasElement, 'Voters')[0].length).toBeGreaterThan(0))
 })
 
 export const ActionsOne = withPlay(cast(single, singleVote, 'curves'), async ({canvasElement}) => {

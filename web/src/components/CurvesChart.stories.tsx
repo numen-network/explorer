@@ -1,5 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
+import * as echarts from 'echarts'
 import {expect, userEvent, waitFor, within} from 'storybook/test'
+import type {CurveVoter} from '@/lib/curveVoters'
 import type {Curve} from '@/lib/curves'
 import type {Share} from '@/lib/format'
 import {HEAD} from '../../../mock/fixtures.js'
@@ -27,6 +29,7 @@ interface Spec {
     open: boolean
     confirmations?: [number, number][]
     ended?: number
+    voters?: CurveVoter[]
 }
 
 // a percentage as a share of ten thousand, so 44.1 reads 44.10%
@@ -42,7 +45,7 @@ const ayeNay = ([part, whole]: Share, [backing, active]: Share): [bigint, bigint
     return [(turnout * part) / whole, turnout - (turnout * part) / whole]
 }
 
-function chart({approval, support, zero, submitted, started, tally, open, confirmations = [], ended}: Spec): Story {
+function chart({approval, support, zero, submitted, started, tally, open, confirmations = [], ended, voters = []}: Spec): Story {
     const toX = (block: number) => Math.min(HOURS, (block - zero) / PER_HOUR)
     const last: Spec['tally'][number] = tally.at(-1) ?? [0, EMPTY, EMPTY]
     const now = open ? {at: toX(HEAD)} : null
@@ -59,6 +62,7 @@ function chart({approval, support, zero, submitted, started, tally, open, confir
                     currentApproval={steps(1)}
                     currentSupport={steps(2)}
                     currentVotes={currentVotes}
+                    voters={voters}
                     unit={{decimals: 18, symbol: 'NUMN'}}
                     now={now}
                     confirmations={windows}
@@ -313,5 +317,158 @@ export const ChartAyeNayValueNoVotes: Story = {
             const [bottom, top] = reach(context.canvasElement, fill)
             expect(top).toBeCloseTo(bottom, 0)
         }
+    },
+}
+
+const voter = (seed: string, block: number, approval: number, moved: number, crossed: CurveVoter['crossed'], impact: boolean, decision = 'aye'): CurveVoter => ({
+    hex: `0x${seed.repeat(64).slice(0, 64)}`,
+    hour: (block - 951_440) / PER_HOUR,
+    approval,
+    moved,
+    crossed,
+    row: {
+        id: `${seed}-${block}`,
+        block,
+        iso: '2026-10-01T00:00:00.000Z',
+        actor: {addr: `5${seed.repeat(47).slice(0, 47)}`, acc: {id: `0x${seed}`, identityDisplay: `Voter ${seed}`} as never},
+        own: '0',
+        delegated: '0',
+        impact: impact ? {approval: pct(moved), support: pct(moved / 2)} : undefined,
+        kind: 'vote',
+        decision,
+    },
+})
+
+const voterSizes = (root: HTMLElement) => dataOf(root).map(d => d.symbolSize)
+const dataOf = (root: HTMLElement) => {
+    const chart = echarts.getInstanceByDom(root.querySelector<HTMLElement>('[_echarts_instance_]')!)!
+    const series = chart.getOption().series as {name: string; data: {symbolSize: number}[]}[]
+    return series.find(s => s.name === 'Voters')!.data
+}
+
+const showVoters = (root: HTMLElement) => userEvent.click(within(root).getByRole('switch', {name: 'Show Voters'}))
+
+const VOTER_TALLY = {
+    ...BIG,
+    zero: 951_440,
+    submitted: 950_000,
+    started: true,
+    tally: [
+        [950_500, pct(100), pct(1.14)],
+        [951_440, pct(100), pct(1.14)],
+        [962_000, pct(44.1), pct(1.9)],
+        [980_000, pct(59.6), pct(2.67)],
+    ] as Spec['tally'],
+    open: true,
+}
+
+// the biggest move takes the largest dot
+export const ChartShowVoters: Story = {
+    ...chart({...VOTER_TALLY, voters: [voter('a', 950_500, 100, 100, null, true), voter('b', 962_000, 44.1, 25, null, true, 'nay'), voter('c', 980_000, 59.6, 0, null, true)]}),
+    play: async context => {
+        await showVoters(context.canvasElement)
+        await axesLegible(context)
+        await waitFor(() => expect(voterSizes(context.canvasElement)).toEqual([28, 23, 18]))
+        const series = echarts.getInstanceByDom(context.canvasElement.querySelector<HTMLElement>('[_echarts_instance_]')!)!.getOption().series as {name: string; itemStyle?: {opacity: number}}[]
+        expect(series.find(s => s.name === 'Voters')!.itemStyle!.opacity).toBe(1)
+    },
+}
+
+export const ChartShowVotersOff: Story = {
+    ...ChartShowVoters,
+    play: async ({canvasElement}) => {
+        await expect(within(canvasElement).getByRole('switch', {name: 'Show Voters'})).not.toBeChecked()
+        await waitFor(() => expect(dataOf(canvasElement)).toEqual([]))
+    },
+}
+
+// a voter's name renders as text, a crossing dot keeps its min size
+export const ChartVoterCrossedUp: Story = {
+    ...chart({...VOTER_TALLY, voters: [voter('a', 950_500, 100, 100, null, true), voter('<b>', 980_000, 59.6, 1, 'up', true)]}),
+    play: async ({canvasElement}) => {
+        await showVoters(canvasElement)
+        await waitFor(() => expect(voterSizes(canvasElement)).toEqual([28, 22]))
+        const lines = lastTooltipLines(canvasElement, 'Voters')[0].join(' ')
+        expect(lines).toContain('Voter <b>')
+        expect(lines).toContain('Crossed threshold')
+    },
+}
+
+export const ChartVoterCrossedDown: Story = {
+    ...chart({...VOTER_TALLY, voters: [voter('a', 962_000, 44.1, 55.9, 'down', true, 'nay')]}),
+    play: async ({canvasElement}) => {
+        await showVoters(canvasElement)
+        await waitFor(() => expect(dataOf(canvasElement).length).toBeGreaterThan(0))
+        const lines = lastTooltipLines(canvasElement, 'Voters')[0].join(' ')
+        expect(lines).toContain('Voted Nay')
+        expect(lines).toContain('Crossed threshold')
+    },
+}
+
+export const ChartVotersInOneBlock: Story = {
+    ...chart({...VOTER_TALLY, voters: [voter('a', 962_000, 50, 10, null, true), voter('b', 962_000, 44.1, 5.9, null, true, 'nay')]}),
+    play: async ({canvasElement}) => {
+        await showVoters(canvasElement)
+        await waitFor(() => expect(dataOf(canvasElement).length).toBeGreaterThan(0))
+        const lines = lastTooltipLines(canvasElement, 'Voters')[0].join(' ')
+        expect(lines).toContain('Voter a')
+        expect(lines).toContain('Voter b')
+    },
+}
+
+export const ChartVoterNoImpact: Story = {
+    ...chart({...VOTER_TALLY, voters: [voter('a', 962_000, 44.1, 0, null, false)]}),
+    play: async ({canvasElement}) => {
+        await showVoters(canvasElement)
+        await waitFor(() => expect(dataOf(canvasElement).length).toBeGreaterThan(0))
+        expect(lastTooltipLines(canvasElement, 'Voters')[0].join(' ')).toContain('Impact —')
+    },
+}
+
+// a pointer next to a dot snaps onto it, one far off reads the lines where it is
+export const ChartVoterSnap: Story = {
+    ...ChartShowVoters,
+    play: async ({canvasElement}) => {
+        const host = canvasElement.querySelector<HTMLElement>('[_echarts_instance_]')!
+        const chart = echarts.getInstanceByDom(host)!
+        const hover = (offsetX: number, offsetY: number) => {
+            chart.getZr().trigger('mousemove', {offsetX, offsetY})
+            return [...host.querySelector('[data-chart-tip]')!.children].map(line => line.textContent).join(' ')
+        }
+        await showVoters(canvasElement)
+        await waitFor(() => expect(dataOf(canvasElement)).toHaveLength(3))
+        const [x, y] = chart.convertToPixel({gridIndex: 0}, [(962_000 - 951_440) / PER_HOUR, 44.1])
+        await waitFor(() => expect(hover(x + 15, y)).toContain('Voter b'))
+        const [farX, farY] = chart.convertToPixel({gridIndex: 0}, [HOURS * 0.8, 20])
+        await waitFor(() => expect(hover(farX, farY)).not.toContain('Voter'))
+    },
+}
+
+const NUMN = 10n ** 18n
+const judged = voter('a', 962_000, 44.1, 10, null, true)
+
+// the amount splits into own and delegated, the name carries its judgement badge
+export const ChartVoterAmountAndBadge: Story = {
+    ...chart({
+        ...VOTER_TALLY,
+        voters: [
+            {
+                ...judged,
+                row: {
+                    ...judged.row,
+                    own: String(1_500n * NUMN),
+                    delegated: String(500n * NUMN),
+                    actor: {addr: judged.row.actor.addr, acc: {id: '0xa', identityDisplay: 'Voter a', identityJson: {judgements: [[0, {__kind: 'Reasonable'}]]}} as never},
+                },
+            },
+        ],
+    }),
+    play: async ({canvasElement}) => {
+        await showVoters(canvasElement)
+        await waitFor(() => expect(dataOf(canvasElement)).toHaveLength(1))
+        const lines = lastTooltipLines(canvasElement, 'Voters')[0].join(' ')
+        expect(lines).toContain('Amount2,000 NUMN')
+        expect(lines).toContain('1,500 + 500 delegated')
+        expect(canvasElement.querySelector('[data-chart-tip] svg.lucide')).not.toBeNull()
     },
 }

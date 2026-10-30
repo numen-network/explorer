@@ -2215,6 +2215,8 @@ export interface ActionFilter extends AccountSearch {
 // an account matches by the names the search page matches it by
 const nameMatch = (v: string) => `{OR: [{identityDisplay_containsInsensitive: ${v}}, {identitySubName_containsInsensitive: ${v}}, {username_containsInsensitive: ${v}}]}`
 
+const VOTING_ACTION_FIELDS = `id method kind aye conviction balance ayeAmount nayAmount abstainAmount votes delegatedVotes approvalPart approvalWhole supportPart supportWhole block timestamp voter { ${ACCOUNT_REF} } delegator { ${ACCOUNT_REF} }`
+
 export function referendumActions(index: number, {kind, move, account, name}: ActionFilter, page: Slice) {
     // an OR next to other fields joins them as one more alternative, so the
     // match on either party sits under an AND
@@ -2231,10 +2233,21 @@ export function referendumActions(index: number, {kind, move, account, name}: Ac
     const vars = [account != null && '$account: String!', name != null && '$name: String!'].filter(Boolean).join(', ')
     return gql<{actions: VotingActionRow[]; conn: {totalCount: number}}>(
         `query ($index: Int!, ${vars ? `${vars}, ` : ''}$limit: Int!, $offset: Int!) {
-            actions: votingActions(where: {${where}}, orderBy: [block_DESC, indexInBlock_DESC], limit: $limit, offset: $offset) { id method kind aye conviction balance ayeAmount nayAmount abstainAmount votes delegatedVotes approvalPart approvalWhole supportPart supportWhole block timestamp voter { ${ACCOUNT_REF} } delegator { ${ACCOUNT_REF} } }
+            actions: votingActions(where: {${where}}, orderBy: [block_DESC, indexInBlock_DESC], limit: $limit, offset: $offset) { ${VOTING_ACTION_FIELDS} }
             conn: votingActionsConnection(where: {${where}}, orderBy: id_ASC) { totalCount }
         }`,
         {index, ...(account != null && {account}), ...(name != null && {name}), ...page}
+    )
+}
+
+export function referendumVoters(index: number) {
+    return sweep(page =>
+        gql<{actions: VotingActionRow[]}>(
+            `query ($index: Int!, $limit: Int!, $offset: Int!) {
+                actions: votingActions(where: {referendum: {index_eq: $index}}, orderBy: [block_ASC, indexInBlock_ASC], limit: $limit, offset: $offset) { ${VOTING_ACTION_FIELDS} }
+            }`,
+            {index, ...page}
+        ).then(r => r.actions)
     )
 }
 

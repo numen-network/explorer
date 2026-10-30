@@ -1,12 +1,22 @@
 'use client'
+import {Delta, VoteMove, VoteWeight} from '@/components/actionParts'
+import {useChartTip} from '@/components/ChartTip'
+import {shortAddr} from '@/components/AddressText'
+import {NONE} from '@/components/Detail'
+import Identicon from '@/components/Identicon'
+import IdentityName from '@/components/IdentityName'
+import {Badge} from '@/components/ui/badge'
 import {Label} from '@/components/ui/label'
 import {Switch} from '@/components/ui/switch'
 import {cn} from 'cn'
 import {ACCENT, ACCENT_SOFT, GRAY, GREEN, RED, SUPPORT, tint} from '@/lib/chartColors'
+import type {CurveVoter} from '@/lib/curveVoters'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
+import type {IdentityRef} from '@/lib/identity'
 import {fmtApprox, fmtInt, fmtPct, fmtSpan, fmtTick, pctToNum, type Share} from '@/lib/format'
 import {GRID_LEGEND, type GridCell, type GridVote} from '@/lib/voteGrid'
 import * as echarts from 'echarts'
+import {toSvg} from 'jdenticon'
 import {useRouter} from 'next/navigation'
 import {useEffect, useId, useRef, useState, type CSSProperties} from 'react'
 
@@ -165,7 +175,7 @@ export function ThresholdChart({approval, support, seconds, height = 180}: {appr
 
 // the curves chart paints bottom up in this order. the axis line at hour
 // zero splits the lead-in from the decision period
-const LAYER = {window: 1, votes: 2, axis: 3, curve: 4, tally: 5, now: 6}
+const LAYER = {window: 1, votes: 2, axis: 3, curve: 4, tally: 5, now: 6, voters: 7}
 
 // a window shades the plot behind the curves and runs a pill along the top,
 // the first label the pill is wide enough to hold sitting in a gap of it
@@ -244,6 +254,77 @@ function heldAt(steps: Held[], grid: number[]): HeldPoint[] {
 
 const sharesOf = (steps: TallyStep[]): Held[] => steps.map(([h, share]) => [h, pctToNum(...share), fmtPct(...share)])
 
+const VOTERS = 'Voters'
+const VOTER_SIZE = {min: 18, crossed: 22, max: 28}
+const VOTER_RING = {up: GREEN, down: RED}
+const VOTER_REACH = 14
+
+function voterFace({hex, crossed}: CurveVoter): string {
+    const ring = crossed ? `<circle cx="32" cy="32" r="28" fill="none" stroke="${VOTER_RING[crossed]}" stroke-width="8"/>` : '<circle cx="32" cy="32" r="30.5" fill="none" stroke="#c9ced6" stroke-width="3"/>'
+    const icon = toSvg(hex.slice(2), 54).replace('<svg ', '<svg x="5" y="5" ')
+    return `image://data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#fff"/>${icon}${ring}</svg>`)}`
+}
+
+// dot area tracks the move, the referendum's biggest move gets the largest dot
+function voterPoints(voters: CurveVoter[]) {
+    const most = Math.max(0, ...voters.map(v => v.moved))
+    return voters
+        .toSorted((a, b) => Number(a.crossed !== null) - Number(b.crossed !== null))
+        .map(voter => {
+            const size = VOTER_SIZE.min + (VOTER_SIZE.max - VOTER_SIZE.min) * (most > 0 ? Math.sqrt(voter.moved / most) : 0)
+            return {value: [voter.hour, voter.approval], voter, symbol: voterFace(voter), symbolSize: voter.crossed ? Math.max(size, VOTER_SIZE.crossed) : size}
+        })
+}
+
+function VoterName({addr, acc}: {addr: string; acc?: IdentityRef}) {
+    return (
+        <span className="inline-flex min-w-0 items-center gap-1">
+            <IdentityName acc={acc} fallback={<span className="font-medium">{shortAddr(addr)}</span>} />
+        </span>
+    )
+}
+
+function VoterMove({row}: {row: CurveVoter['row']}) {
+    switch (row.kind) {
+        case 'vote':
+        case 'remove':
+            return <VoteMove removed={row.kind === 'remove'} decision={row.decision} />
+        default:
+            return (
+                <span>
+                    {row.kind === 'delegate' ? 'Delegated by' : 'Undelegated by'} <VoterName {...row.by} />
+                </span>
+            )
+    }
+}
+
+function VoterTip({voter: {hex, row, crossed}, unit}: {voter: CurveVoter; unit: {decimals: number; symbol: string}}) {
+    return (
+        <div className="mt-1.5 max-w-60 border-t border-input pt-1.5 whitespace-normal">
+            <div className="flex items-center gap-1.5">
+                <Identicon hex={hex} className="size-4" />
+                <VoterName {...row.actor} />
+            </div>
+            <VoterMove row={row} />
+            <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="text-right">
+                    <VoteWeight own={BigInt(row.own)} delegated={BigInt(row.delegated)} {...unit} />
+                </span>
+            </div>
+            {row.impact ? (
+                <div className="flex justify-between gap-4">
+                    <Delta label="Approval" value={row.impact.approval} />
+                    <Delta label="Support" value={row.impact.support} />
+                </div>
+            ) : (
+                <div className="text-muted-foreground">Impact {NONE}</div>
+            )}
+            {crossed && <Badge className={crossed === 'up' ? 'mt-1 bg-good-soft text-good' : 'mt-1 bg-destructive-soft text-destructive'}>Crossed threshold</Badge>}
+        </div>
+    )
+}
+
 // the threshold curves run the whole decision period, the dashed pair steps
 // through the recorded tally history from submission on. x counts hours from
 // the clock's zero block, so the lead-in sits left of hour zero at its true
@@ -254,6 +335,7 @@ export function CurvesChart({
     currentApproval,
     currentSupport,
     currentVotes,
+    voters,
     unit,
     now,
     confirmations,
@@ -268,6 +350,7 @@ export function CurvesChart({
     currentApproval: TallyStep[]
     currentSupport: TallyStep[]
     currentVotes: VoteStep[]
+    voters: CurveVoter[]
     unit: {decimals: number; symbol: string}
     now: {at: number} | null
     confirmations: [number, number][]
@@ -289,6 +372,9 @@ export function CurvesChart({
     })
     const [showVotes, setShowVotes] = useState(false)
     const toggle = useId()
+    const [showVoters, setShowVoters] = useState(false)
+    const votersToggle = useId()
+    const chartTip = useChartTip()
     // the aye area at the bottom, the nay area on top of it. the nay series
     // comes first so the aye area paints over the edges of an empty nay area
     const piled = (name: string, data: HeldPoint[], color: string) => ({
@@ -310,7 +396,7 @@ export function CurvesChart({
     const blockAt = (h: number) => clock.zero + Math.round(h * clock.perHour)
     // thresholds exist from hour zero on, the tally up to its last step
     const lines = (from: number, to: number) => {
-        const grid = [...new Set([...evenly(lead.from, hours), ...evenly(from, to), ...currentApproval.map(([h]) => h)])].sort((a, b) => a - b)
+        const grid = [...new Set([...evenly(lead.from, hours), ...evenly(from, to), ...currentApproval.map(([h]) => h), ...voters.map(v => v.hour)])].sort((a, b) => a - b)
         const deciding = grid.filter(h => h >= 0)
         const tallied = grid.filter(h => h <= currentApproval.at(-1)![0])
         return {
@@ -328,11 +414,14 @@ export function CurvesChart({
         [{name: 'Support'}, {name: 'Current support', lineStyle: {type: 'dashed' as const}}],
         ...(showVotes ? [[{name: 'Aye', icon: 'rect'}, {name: 'Nay', icon: 'rect'}]] : []),
     ]
+    const points = showVoters ? voterPoints(voters) : []
     const opt: echarts.EChartsOption = {
+        axisPointer: {triggerOn: 'none'},
         tooltip: {
             ...TOOLTIP,
+            triggerOn: 'none',
             formatter: (params: unknown) => {
-                const list = params as {axisValue: number; seriesName?: string; marker?: string; value: [number, number]; data: [number, number] | HeldPoint}[]
+                const list = params as {axisValue: number; seriesName?: string; color?: string; value: [number, number]; data: [number, number] | HeldPoint | {voter: CurveVoter}}[]
                 const at = list[0].axisValue
                 const block = blockAt(at)
                 const head =
@@ -342,11 +431,23 @@ export function CurvesChart({
                 // a held point prints its own reading, a threshold point the curve value it plots
                 const reading = ({data, value}: (typeof list)[number]) => ('reading' in data ? data.reading : fmtPct(value[1], 100))
                 const order = legendPairs.flat().map(entry => entry.name)
-                const rows = [...list]
-                    .sort((a, b) => order.indexOf(a.seriesName!) - order.indexOf(b.seriesName!))
-                    .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${reading(p)}</span></div>`)
-                    .join('')
-                return `<div style="margin-bottom:4px">${head}</div>${rows}`
+                const rows = list.filter(p => p.seriesName !== VOTERS).toSorted((a, b) => order.indexOf(a.seriesName!) - order.indexOf(b.seriesName!))
+                const here = list.flatMap(({data}) => ('voter' in data ? [data.voter] : []))
+                return chartTip(
+                    <>
+                        <div className="mb-1">{head}</div>
+                        {rows.map(p => (
+                            <div key={p.seriesName}>
+                                <span className="mr-1.5 inline-block size-2.5 rounded-full" style={{backgroundColor: p.color}} />
+                                {p.seriesName}
+                                <span className="float-right ml-5 font-semibold">{reading(p)}</span>
+                            </div>
+                        ))}
+                        {here.map(voter => (
+                            <VoterTip key={voter.row.id} voter={voter} unit={unit} />
+                        ))}
+                    </>
+                )
             },
         },
         // the legend hangs from its top edge so a wrapped second row grows
@@ -426,6 +527,7 @@ export function CurvesChart({
             walked('Current approval', shown.currentApproval, GREEN),
             piled('Nay', shown.nays, RED),
             piled('Aye', shown.ayes, GREEN),
+            {name: VOTERS, type: 'scatter' as const, z: LAYER.voters, itemStyle: {opacity: 1}, data: points},
             windows([`Lead-in ${fmtSpan((clock.zero - lead.submitted) * clock.blockTime)}`, 'Lead-in'], SUB, SUB_FILL, [[lead.from, 0]]),
             windows('Confirmation', GREEN, GREEN_FILL, confirmations),
             windows(now ? 'Ends early' : 'Ended early', SUB, SUB_FILL, earlyEnd !== null ? [[earlyEnd, hours]] : []),
@@ -475,13 +577,50 @@ export function CurvesChart({
             if (!chart.isDisposed()) chart.off('datazoom', refocus)
         }
     }, [ref, lines])
+    // the pointer snaps onto a voter within reach, the tooltip and its line follow
+    useEffect(() => {
+        const chart = echarts.getInstanceByDom(ref.current!)!
+        const zr = chart.getZr()
+        const point = ({offsetX: x, offsetY: y}: {offsetX: number; offsetY: number}) => {
+            const [zoom] = chart.getOption().dataZoom as {startValue: number; endValue: number}[]
+            const near = points
+                .filter(p => p.value[0] >= zoom.startValue && p.value[0] <= zoom.endValue)
+                .map(p => {
+                    const [px, py] = chart.convertToPixel({gridIndex: 0}, p.value)
+                    return {px, py, gap: Math.hypot(px - x, py - y) - p.symbolSize / 2}
+                })
+                .filter(p => p.gap <= VOTER_REACH)
+                .sort((a, b) => a.gap - b.gap)[0]
+            if (near) chart.dispatchAction({type: 'showTip', x: near.px, y: near.py})
+            else if (chart.containPixel('grid', [x, y])) chart.dispatchAction({type: 'showTip', x, y})
+            else chart.dispatchAction({type: 'hideTip'})
+        }
+        const leave = () => chart.dispatchAction({type: 'hideTip'})
+        zr.on('mousemove', point)
+        zr.on('click', point)
+        zr.on('globalout', leave)
+        return () => {
+            if (chart.isDisposed()) return
+            zr.off('mousemove', point)
+            zr.off('click', point)
+            zr.off('globalout', leave)
+        }
+    }, [ref, points])
     return (
         <div className="@container">
-            <div className="flex items-center justify-end gap-2">
-                <Label htmlFor={toggle} className="text-xs font-normal text-muted-foreground">
-                    Aye/Nay Value
-                </Label>
-                <Switch id={toggle} checked={showVotes} onCheckedChange={setShowVotes} className="data-unchecked:bg-dim" />
+            <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+                <div className="flex items-center gap-2">
+                    <Label htmlFor={votersToggle} className="text-xs font-normal text-muted-foreground">
+                        Show Voters
+                    </Label>
+                    <Switch id={votersToggle} checked={showVoters} onCheckedChange={setShowVoters} className="data-unchecked:bg-dim" />
+                </div>
+                <div className="flex items-center gap-2">
+                    <Label htmlFor={toggle} className="text-xs font-normal text-muted-foreground">
+                        Aye/Nay Value
+                    </Label>
+                    <Switch id={toggle} checked={showVotes} onCheckedChange={setShowVotes} className="data-unchecked:bg-dim" />
+                </div>
             </div>
             <div ref={ref} style={{'--h': `${height}px`} as CSSProperties} className={cn('h-(--h)', showVotes && '@max-[470px]:h-[calc(var(--h)+32px)]')} />
         </div>

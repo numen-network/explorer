@@ -4,7 +4,7 @@ import {parseAsInteger, useQueryStates} from 'nuqs'
 import {Search} from 'lucide-react'
 import {useDebouncedCallback} from 'use-debounce'
 import AccountLink from '@/components/AccountLink'
-import Approx from '@/components/Approx'
+import {Delta, VoteMove, VoteWeight} from '@/components/actionParts'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import Dropdown from '@/components/Dropdown'
 import Pager from '@/components/Pager'
@@ -14,7 +14,7 @@ import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
 import {InputGroup, InputGroupAddon, InputGroupInput} from '@/components/ui/input-group'
 import {actionFilters, type ActionKind, type ActionMove} from '@/lib/actionFilters'
-import {fmtInt, fmtPctMove, sentenceCase} from '@/lib/format'
+import {fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
 import {NONE} from '@/components/Detail'
@@ -32,8 +32,6 @@ export interface ActionImpact {
 export type ActionRow =
     | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; kind: 'vote' | 'remove'; decision: string}
     | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; kind: 'delegate' | 'undelegate'; by: ActionActor}
-
-const TONE: Record<string, string> = {aye: 'text-good', nay: 'text-destructive'}
 
 // radix reserves the empty item value for its placeholder, the catch-all
 // entries carry their own sentinels instead
@@ -53,28 +51,6 @@ const MOVES: {value: ActionMove | 'any'; label: string}[] = [
     {value: 'support-down', label: 'Support down'},
 ]
 
-export function VoteMove({removed, decision}: {removed: boolean; decision: string}) {
-    return (
-        <span>
-            {removed ? 'Removed' : 'Voted'} <span className={TONE[decision] ?? 'text-muted-foreground'}>{sentenceCase(decision)}</span>
-        </span>
-    )
-}
-
-/** What a vote put on the tally, split into the voter's own and the delegated part when anybody delegates. */
-export function VoteWeight({own, delegated, decimals, symbol}: {own: bigint; delegated: bigint; decimals: number; symbol: string}) {
-    return (
-        <>
-            <Approx planck={own + delegated} decimals={decimals} symbol={symbol} />
-            {delegated !== 0n && (
-                <div className="text-xs text-dim">
-                    <Approx planck={own} decimals={decimals} /> + <Approx planck={delegated} decimals={decimals} /> delegated
-                </div>
-            )}
-        </>
-    )
-}
-
 // branches by switch because typescript 7.0 fails to narrow the negation of
 // an or-combined discriminant guard
 function Action({a}: {a: ActionRow}) {
@@ -90,16 +66,6 @@ function Action({a}: {a: ActionRow}) {
                 </span>
             )
     }
-}
-
-function Delta({label, value: [part, whole]}: {label: string; value: [part: bigint, whole: bigint]}) {
-    const tone = part > 0n ? 'text-good' : part < 0n ? 'text-destructive' : 'text-muted-foreground'
-    return (
-        <div>
-            <span className="text-muted-foreground">{label} </span>
-            <span className={tone}>{fmtPctMove(part, whole)}</span>
-        </div>
-    )
 }
 
 // the pager's keys ride along so that a new filter starts over at the first
