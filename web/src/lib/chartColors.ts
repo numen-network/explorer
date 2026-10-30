@@ -3,6 +3,7 @@ export const ACCENT = '#0891b2'
 export const ACCENT_SOFT = '#c4e5ed'
 export const GRAY = '#9aa1ad'
 export const GREEN = '#4caf50'
+export const RED = '#f44336'
 export const SUPPORT = '#7c3aed'
 
 // a token colour mixed into white, solid so grid lines stay behind the bars

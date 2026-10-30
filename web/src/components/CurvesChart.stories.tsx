@@ -1,11 +1,12 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
+import {expect, userEvent, waitFor, within} from 'storybook/test'
 import type {Curve} from '@/lib/curves'
 import type {Share} from '@/lib/format'
 import {HEAD} from '../../../mock/fixtures.js'
 import {linear, reciprocal} from '../../../mock/fixtures/governance.js'
-import {axesLegible, lastTooltipLines, tooltipsInView} from '../../.storybook/fit'
-import {CurvesChart, type TallyStep} from './charts'
+import {GREEN, RED, tint} from '@/lib/chartColors'
+import {axesLegible, filledSpans, lastTooltipLines, legendsIn, paintOrder, tooltipsInView, unselectLegend, yPixel} from '../../.storybook/fit'
+import {CurvesChart, type TallyStep, type VoteStep} from './charts'
 import {Card} from './ui/card'
 
 const meta = {title: 'Pages/Referendum/Curves'} satisfies Meta
@@ -33,11 +34,20 @@ const pct = (n: number): Share => [BigInt(Math.round(n * 100)), 10_000n]
 
 const EMPTY: Share = [0n, 1n]
 
+const ISSUANCE = 1_000_000_000n * 10n ** 18n
+
+// the turnout a support share stands for, split by the approval share
+const ayeNay = ([part, whole]: Share, [backing, active]: Share): [bigint, bigint] => {
+    const turnout = (ISSUANCE * backing) / active
+    return [(turnout * part) / whole, turnout - (turnout * part) / whole]
+}
+
 function chart({approval, support, zero, submitted, started, tally, open, confirmations = [], ended}: Spec): Story {
     const toX = (block: number) => Math.min(HOURS, (block - zero) / PER_HOUR)
     const last: Spec['tally'][number] = tally.at(-1) ?? [0, EMPTY, EMPTY]
     const now = open ? {at: toX(HEAD)} : null
     const steps = (pick: 1 | 2): TallyStep[] => [[toX(submitted), EMPTY], ...tally.map((row): TallyStep => [toX(row[0]), row[pick]]), ...(now ? [[now.at, last[pick]] as TallyStep] : [])]
+    const currentVotes: VoteStep[] = [[toX(submitted), 0n, 0n], ...tally.map((row): VoteStep => [toX(row[0]), ...ayeNay(row[1], row[2])]), ...(now ? [[now.at, ...ayeNay(last[1], last[2])] as VoteStep] : [])]
     const windows = confirmations.map(([from, to]) => [toX(from), toX(to)] as [number, number])
     const end = ended !== undefined ? toX(ended) : open ? windows.at(-1)?.[1] : undefined
     return {
@@ -48,6 +58,8 @@ function chart({approval, support, zero, submitted, started, tally, open, confir
                     support={support as Curve}
                     currentApproval={steps(1)}
                     currentSupport={steps(2)}
+                    currentVotes={currentVotes}
+                    unit={{decimals: 18, symbol: 'NUMN'}}
                     now={now}
                     confirmations={windows}
                     earlyEnd={end !== undefined && end < HOURS ? end : null}
@@ -171,5 +183,135 @@ export const ChartExtremeAmounts: Story = {
     play: async context => {
         await axesLegible(context)
         expect(lastTooltipLines(context.canvasElement, 'Current approval')[0]).toContain('Current approval99.99%')
+    },
+}
+
+// the switch draws the aye and nay totals under the curves, on an axis of their own
+export const ChartAyeNayValue: Story = {
+    ...ChartDecidingBelowCurves,
+    play: async context => {
+        await userEvent.click(within(context.canvasElement).getByRole('switch', {name: 'Aye/Nay Value'}))
+        await axesLegible(context)
+        await waitFor(() => expect(legendsIn(context.canvasElement)[0]).toEqual(['Approval', 'Current approval', 'Support', 'Current support', 'Aye', 'Nay']))
+        const [, ...readings] = lastTooltipLines(context.canvasElement, 'Aye')[0]
+        expect(readings.slice(4)).toEqual(['Aye≈15.91M NUMN', 'Nay≈10.78M NUMN'])
+    },
+}
+
+const AYE_FILL = tint(GREEN, 0.3)
+const NAY_FILL = tint(RED, 0.3)
+
+const showVotes = (root: HTMLElement) => userEvent.click(within(root).getByRole('switch', {name: 'Aye/Nay Value'}))
+
+// the topmost and bottommost pixel an area reaches, the bottom first
+const reach = (root: HTMLElement, fill: string) => {
+    const spans = filledSpans(root, fill)[0]
+    expect(spans.length).toBeGreaterThan(0)
+    return [Math.max(...spans.map(([, bottom]) => bottom)), Math.min(...spans.map(([top]) => top))]
+}
+
+// the pixel where the votes axis puts a total in whole NUMN
+const votesAt = (root: HTMLElement, numn: number) => yPixel(root, 1, numn)
+
+// the nay area falls back to its own highest total, 10.79M at the last step, not the 26.7M turnout
+export const ChartAyeNayValueAyeHidden: Story = {
+    ...ChartDecidingBelowCurves,
+    play: async ({canvasElement}) => {
+        await showVotes(canvasElement)
+        unselectLegend(canvasElement, 'Aye')
+        await waitFor(() => {
+            const [bottom, top] = reach(canvasElement, NAY_FILL)
+            expect(bottom).toBeCloseTo(votesAt(canvasElement, 0), 0)
+            expect(top).toBeCloseTo(votesAt(canvasElement, 10_786_800), 0)
+        })
+    },
+}
+
+// the aye area keeps its highest total, 15.91M at the last step
+export const ChartAyeNayValueNayHidden: Story = {
+    ...ChartDecidingBelowCurves,
+    play: async ({canvasElement}) => {
+        await showVotes(canvasElement)
+        unselectLegend(canvasElement, 'Nay')
+        await waitFor(() => {
+            const [bottom, top] = reach(canvasElement, AYE_FILL)
+            expect(bottom).toBeCloseTo(votesAt(canvasElement, 0), 0)
+            expect(top).toBeCloseTo(votesAt(canvasElement, 15_913_200), 0)
+        })
+    },
+}
+
+const UNOPPOSED = chart({
+    ...MEDIUM,
+    zero: 951_440,
+    submitted: 950_000,
+    started: true,
+    tally: [
+        [950_500, pct(100), pct(0.45)],
+        [951_000, pct(100), pct(0.68)],
+        [955_000, pct(100), pct(1.78)],
+    ],
+    open: true,
+})
+
+// nobody voted nay, so with the aye area hidden nothing stands above the axis
+export const ChartAyeNayValueAyeHiddenNoNays: Story = {
+    ...UNOPPOSED,
+    play: async ({canvasElement}) => {
+        await showVotes(canvasElement)
+        unselectLegend(canvasElement, 'Aye')
+        await waitFor(() => {
+            const [bottom, top] = reach(canvasElement, NAY_FILL)
+            expect(top).toBeCloseTo(bottom, 0)
+        })
+    },
+}
+
+// nobody voted nay. the empty nay area sits on the aye area, which paints over its edges
+export const ChartAyeNayValueAyePaintedOverNay: Story = {
+    ...UNOPPOSED,
+    play: async ({canvasElement}) => {
+        await showVotes(canvasElement)
+        await waitFor(() => expect(paintOrder(canvasElement, [AYE_FILL, NAY_FILL])[0]).toEqual([NAY_FILL, AYE_FILL]))
+    },
+}
+
+// every vote is a nay. the aye area stays flat, the nay area runs from the axis to the 11.4M turnout
+export const ChartAyeNayValueNoAyes: Story = {
+    ...chart({
+        ...MEDIUM,
+        zero: 301_440,
+        submitted: 300_000,
+        started: true,
+        tally: [
+            [300_600, pct(0), pct(0.38)],
+            [350_000, pct(0), pct(1.14)],
+        ],
+        open: false,
+    }),
+    play: async ({canvasElement}) => {
+        await showVotes(canvasElement)
+        await waitFor(() => {
+            const [ayeBottom, ayeTop] = reach(canvasElement, AYE_FILL)
+            expect(ayeTop).toBeCloseTo(ayeBottom, 0)
+            const [nayBottom, nayTop] = reach(canvasElement, NAY_FILL)
+            expect(nayBottom).toBeCloseTo(votesAt(canvasElement, 0), 0)
+            expect(nayTop).toBeCloseTo(votesAt(canvasElement, 11_400_000), 0)
+        })
+        const [, ...readings] = lastTooltipLines(canvasElement, 'Aye')[0]
+        expect(readings.slice(4)).toEqual(['Aye0 NUMN', 'Nay11.4M NUMN'])
+    },
+}
+
+// no votes yet, both areas lie flat on the axis and the axes stay legible
+export const ChartAyeNayValueNoVotes: Story = {
+    ...ChartSubmittedWithoutVotes,
+    play: async context => {
+        await showVotes(context.canvasElement)
+        await axesLegible(context)
+        for (const fill of [AYE_FILL, NAY_FILL]) {
+            const [bottom, top] = reach(context.canvasElement, fill)
+            expect(top).toBeCloseTo(bottom, 0)
+        }
     },
 }

@@ -68,6 +68,42 @@ export const progressIn = (root: Element) => [...root.querySelectorAll<HTMLEleme
 // the categories along the x axis of each chart under root
 export const categoriesIn = (root: Element) => chartsIn(root).map(chart => (chart.getOption().xAxis as {data: string[]}[])[0].data)
 
+// the legend entries of each chart under root, in legend order, skipping
+// line breaks
+export const legendsIn = (root: Element) => chartsIn(root).map(chart => (chart.getOption().legend as {data: ({name: string} | string)[]}[])[0].data.flatMap(d => (typeof d === 'string' ? [] : [d.name])))
+
+// the top and bottom pixel of each shape a chart under root paints in fill
+export const filledSpans = (root: Element, fill: string) =>
+    chartsIn(root).map(chart =>
+        chart
+            .getZr()
+            .storage.getDisplayList(true)
+            .filter(el => el.style?.fill === fill)
+            .map(el => {
+                const box = el.getBoundingRect().clone()
+                box.applyTransform(el.getComputedTransform())
+                return [box.y, box.y + box.height]
+            })
+    )
+
+// the fills of the shapes a chart under root paints, in paint order, each fill once
+export const paintOrder = (root: Element, fills: string[]) =>
+    chartsIn(root).map(chart => [
+        ...new Set(
+            chart
+                .getZr()
+                .storage.getDisplayList(true)
+                .map(el => el.style?.fill)
+                .filter((fill): fill is string => fills.includes(fill))
+        ),
+    ])
+
+// where a value sits on a y axis of the first chart under root, in pixels
+export const yPixel = (root: Element, yAxisIndex: number, value: number) => chartsIn(root)[0].convertToPixel({yAxisIndex}, value)
+
+// hides a series by its legend entry in every chart under root
+export const unselectLegend = (root: Element, name: string) => chartsIn(root).forEach(chart => chart.dispatchAction({type: 'legendUnSelect', name}))
+
 // the tick labels each chart under root shows, one list per axis
 export const axisTexts = (root: Element) => chartsIn(root).map(chart => axisLabels(chart).map(labels => labels.map(l => l.text)))
 

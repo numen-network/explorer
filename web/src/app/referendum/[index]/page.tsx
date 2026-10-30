@@ -11,7 +11,7 @@ import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
 import {TabNav, panelTabs} from '@/components/Tabs'
 import {Tip} from '@/components/Tip'
-import {CurvesChart, type TallyStep} from '@/components/charts'
+import {CurvesChart, type TallyStep, type VoteStep} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
 import Approx from '@/components/Approx'
 import {BlockLink, ReferendumLink} from '@/components/links'
@@ -285,13 +285,16 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     // a tally starts empty at submission
     const currentApproval: TallyStep[] = [[lead.from, [0n, 1n]]]
     const currentSupport: TallyStep[] = [[lead.from, [0n, 1n]]]
+    const currentVotes: VoteStep[] = [[lead.from, 0n, 0n]]
     for (const s of snapshots) {
         currentApproval.push([toX(s.block), approvalOf(s)])
         currentSupport.push([toX(s.block), [BigInt(s.support), BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance)]])
+        currentVotes.push([toX(s.block), BigInt(s.ayes), BigInt(s.nays)])
     }
     if (now) {
         currentApproval.push([now.at, approvalNow])
         currentSupport.push([now.at, supportNow])
+        currentVotes.push([now.at, BigInt(r.ayes), BigInt(r.nays)])
     }
     // a kill, a cancellation or a rejection past the decision period cuts a
     // confirmation off with no abort event, an open one runs to the block the
@@ -504,6 +507,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     support={r.track.minSupport as Curve}
                     currentApproval={currentApproval}
                     currentSupport={currentSupport}
+                    currentVotes={currentVotes}
+                    unit={{decimals: chain.decimals, symbol: chain.symbol}}
                     now={now}
                     confirmations={confirmations}
                     earlyEnd={earlyEnd}

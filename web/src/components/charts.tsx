@@ -1,11 +1,14 @@
 'use client'
-import {ACCENT, ACCENT_SOFT, GRAY, GREEN, SUPPORT} from '@/lib/chartColors'
+import {Label} from '@/components/ui/label'
+import {Switch} from '@/components/ui/switch'
+import {cn} from 'cn'
+import {ACCENT, ACCENT_SOFT, GRAY, GREEN, RED, SUPPORT, tint} from '@/lib/chartColors'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
-import {fmtInt, fmtPct, fmtSpan, fmtTick, pctToNum, type Share} from '@/lib/format'
+import {fmtApprox, fmtInt, fmtPct, fmtSpan, fmtTick, pctToNum, type Share} from '@/lib/format'
 import {GRID_LEGEND, type GridCell, type GridVote} from '@/lib/voteGrid'
 import * as echarts from 'echarts'
 import {useRouter} from 'next/navigation'
-import {useEffect, useRef, useState} from 'react'
+import {useEffect, useId, useRef, useState, type CSSProperties} from 'react'
 
 const SUB = '#7c828e'
 const EDGE = '#e8eaef'
@@ -204,24 +207,38 @@ function ticksIn(from: number, to: number): number[] {
 const GRID = 600
 const evenly = (from: number, to: number) => Array.from({length: GRID + 1}, (_, k) => from + ((to - from) * k) / GRID)
 
+// below this container width the curves legend stacks one pair per row.
+// a row is an item plus its gap. the container query classes repeat both numbers
+const FOLD = 470
+const LEGEND_ROW = 32
+// echarts reads '' and '\n' as legend line breaks but drops repeated
+// names, so each break needs its own
+const LEGEND_BREAKS = ['', '\n']
+
 // a tally step holds its share of the vote from its hour on
 export type TallyStep = [hour: number, share: Share]
 
+// the aye and nay totals in planck from the step's hour on
+export type VoteStep = [hour: number, ayes: bigint, nays: bigint]
+
+type Held = [hour: number, value: number, reading: string]
+
 interface HeldPoint {
-    value: [hour: number, pct: number]
-    share: Share
+    value: [hour: number, value: number]
+    reading: string
 }
 
-// a step line holds the last recorded share at each hour, and each point
-// carries that share for the tooltip to print
-function heldAt(steps: TallyStep[], grid: number[]): HeldPoint[] {
+// a step line holds the last recorded value at each hour, and each point
+// carries its reading for the tooltip to print
+function heldAt(steps: Held[], grid: number[]): HeldPoint[] {
     let i = 0
     return grid.map(h => {
         while (i + 1 < steps.length && steps[i + 1][0] <= h) i++
-        const share = steps[i][1]
-        return {value: [h, pctToNum(...share)], share}
+        return {value: [h, steps[i][1]], reading: steps[i][2]}
     })
 }
+
+const sharesOf = (steps: TallyStep[]): Held[] => steps.map(([h, share]) => [h, pctToNum(...share), fmtPct(...share)])
 
 // the threshold curves run the whole decision period, the dashed pair steps
 // through the recorded tally history from submission on. x counts hours from
@@ -232,6 +249,8 @@ export function CurvesChart({
     support,
     currentApproval,
     currentSupport,
+    currentVotes,
+    unit,
     now,
     confirmations,
     earlyEnd,
@@ -244,6 +263,8 @@ export function CurvesChart({
     support: Curve
     currentApproval: TallyStep[]
     currentSupport: TallyStep[]
+    currentVotes: VoteStep[]
+    unit: {decimals: number; symbol: string}
     now: {at: number} | null
     confirmations: [number, number][]
     earlyEnd: number | null
@@ -261,6 +282,26 @@ export function CurvesChart({
         itemStyle: {color},
         data,
     })
+    const [showVotes, setShowVotes] = useState(false)
+    const toggle = useId()
+    // the aye area at the bottom, the nay area on top of it. the nay series
+    // comes first so the aye area paints over the edges of an empty nay area
+    const piled = (name: string, data: HeldPoint[], color: string) => ({
+        name,
+        type: 'line' as const,
+        yAxisIndex: 1,
+        stack: 'votes',
+        stackOrder: 'seriesDesc' as const,
+        z: 1,
+        symbol: 'none',
+        step: 'middle' as const,
+        lineStyle: {width: 0},
+        itemStyle: {color: tint(color, 0.45)},
+        areaStyle: {color: tint(color, 0.3), opacity: 1},
+        emphasis: {disabled: true},
+        data,
+    })
+    const amountsOf = (pick: 1 | 2): Held[] => currentVotes.map(step => [step[0], Number(step[pick]) / 10 ** unit.decimals, fmtApprox(step[pick], unit.decimals, unit.symbol)])
     const blockAt = (h: number) => clock.zero + Math.round(h * clock.perHour)
     // thresholds exist from hour zero on, the tally up to its last step
     const lines = (from: number, to: number) => {
@@ -270,11 +311,18 @@ export function CurvesChart({
         return {
             approval: deciding.map((h): [number, number] => [h, curveAt(approval, h / hours) * 100]),
             support: deciding.map((h): [number, number] => [h, curveAt(support, h / hours) * 100]),
-            currentApproval: heldAt(currentApproval, tallied),
-            currentSupport: heldAt(currentSupport, tallied),
+            currentApproval: heldAt(sharesOf(currentApproval), tallied),
+            currentSupport: heldAt(sharesOf(currentSupport), tallied),
+            ayes: showVotes ? heldAt(amountsOf(1), tallied) : [],
+            nays: showVotes ? heldAt(amountsOf(2), tallied) : [],
         }
     }
     const shown = lines(lead.from, hours)
+    const legendPairs = [
+        [{name: 'Approval'}, {name: 'Current approval', lineStyle: {type: 'dashed' as const}}],
+        [{name: 'Support'}, {name: 'Current support', lineStyle: {type: 'dashed' as const}}],
+        ...(showVotes ? [[{name: 'Aye', icon: 'rect'}, {name: 'Nay', icon: 'rect'}]] : []),
+    ]
     const opt: echarts.EChartsOption = {
         tooltip: {
             ...TOOLTIP,
@@ -286,10 +334,11 @@ export function CurvesChart({
                     at < 0
                         ? `Lead-in ${fmtSpan((block - lead.submitted) * clock.blockTime)} · #${fmtInt(block)}`
                         : `${fmtSpan((block - clock.zero) * clock.blockTime)}${clock.started ? ` · #${fmtInt(block)}` : ''}`
-                // a tally point reads the share it holds, a threshold point the curve value it plots
-                const reading = ({data, value}: (typeof list)[number]) => ('share' in data ? fmtPct(...data.share) : fmtPct(value[1], 100))
+                // a held point prints its own reading, a threshold point the curve value it plots
+                const reading = ({data, value}: (typeof list)[number]) => ('reading' in data ? data.reading : fmtPct(value[1], 100))
+                const order = legendPairs.flat().map(entry => entry.name)
                 const rows = [...list]
-                    .sort((a, b) => Number(b.seriesName?.toLowerCase().includes('approval')) - Number(a.seriesName?.toLowerCase().includes('approval')))
+                    .sort((a, b) => order.indexOf(a.seriesName!) - order.indexOf(b.seriesName!))
                     .map(p => `<div>${p.marker ?? ''}${p.seriesName ?? ''}<span style="float:right;margin-left:20px;font-weight:600">${reading(p)}</span></div>`)
                     .join('')
                 return `<div style="margin-bottom:4px">${head}</div>${rows}`
@@ -302,14 +351,9 @@ export function CurvesChart({
             itemWidth: 22,
             itemGap: 18,
             textStyle: {color: SUB, fontSize: 11},
-            data: [
-                {name: 'Approval'},
-                {name: 'Current approval', lineStyle: {type: 'dashed'}},
-                {name: 'Support'},
-                {name: 'Current support', lineStyle: {type: 'dashed'}},
-            ],
+            data: legendPairs.flat(),
         },
-        grid: plotGrid({right: 20, top: 32, bottom: 70}),
+        grid: plotGrid({right: showVotes ? 0 : 20, top: 32, bottom: 70}),
         // filter mode would drop the points behind the window edge and cut
         // the step lines off with them
         dataZoom: [
@@ -338,14 +382,26 @@ export function CurvesChart({
             axisLabel: {color: SUB, fontSize: 11, customValues: ticksIn(lead.from, hours), formatter: (v: number) => `${v}h`},
             splitLine: {show: false},
         },
-        yAxis: {
-            type: 'value',
-            min: 0,
-            max: 100,
-            interval: 25,
-            splitLine: {lineStyle: {color: EDGE}},
-            axisLabel: {color: SUB, fontSize: 11, textMargin: [0, 8], formatter: (v: number) => `${v}%`},
-        },
+        yAxis: [
+            {
+                type: 'value',
+                min: 0,
+                max: 100,
+                interval: 25,
+                splitLine: {lineStyle: {color: EDGE}},
+                axisLabel: {color: SUB, fontSize: 11, textMargin: [0, 8], formatter: (v: number) => `${v}%`},
+            },
+            {
+                type: 'value',
+                show: showVotes,
+                min: 0,
+                splitNumber: 4,
+                axisLine: {show: false},
+                axisTick: {show: false},
+                splitLine: {show: false},
+                axisLabel: {color: SUB, fontSize: 11, textMargin: [0, 8], formatter: fmtTick},
+            },
+        ],
         series: [
             {
                 name: 'Support',
@@ -361,19 +417,23 @@ export function CurvesChart({
             walked('Current support', shown.currentSupport, SUPPORT),
             {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: shown.approval},
             walked('Current approval', shown.currentApproval, GREEN),
+            piled('Nay', shown.nays, RED),
+            piled('Aye', shown.ayes, GREEN),
             windows([`Lead-in ${fmtSpan((clock.zero - lead.submitted) * clock.blockTime)}`, 'Lead-in'], SUB, SUB_FILL, [[lead.from, 0]]),
             windows('Confirmation', GREEN, GREEN_FILL, confirmations),
             windows(now ? 'Ends early' : 'Ended early', SUB, SUB_FILL, earlyEnd !== null ? [[earlyEnd, hours]] : []),
         ],
     }
-    // a width cap folds the four legend entries into balanced pairs when
-    // the container cannot hold one row. the no-query unit lifts the cap
-    // once one row fits again
+    // a narrow container stacks the legend one pair per row. the aye/nay
+    // pair adds a third row, so the container grows a row and the plot and
+    // slider move up into it. the no-query unit puts the legend back on one
+    // row
+    const lifted = (rows: number) => ({grid: {bottom: 70 + rows * LEGEND_ROW, outerBounds: {bottom: 70 + rows * LEGEND_ROW}}, dataZoom: [{}, {bottom: 52 + rows * LEGEND_ROW}]})
     const ref = useChart({
         baseOption: opt,
         media: [
-            {query: {maxWidth: 470}, option: {legend: {width: 260}}},
-            {option: {legend: {width: 'auto'}}},
+            {query: {maxWidth: FOLD}, option: {legend: {data: legendPairs.flatMap((pair, i) => (i > 0 ? [LEGEND_BREAKS[i - 1], ...pair] : pair))}, ...lifted(showVotes ? 1 : 0)}},
+            {option: {legend: {data: legendPairs.flat()}, ...lifted(0)}},
         ],
     })
     // the hour labels and the line readings follow a zoom a frame later,
@@ -383,9 +443,8 @@ export function CurvesChart({
         const chart = echarts.getInstanceByDom(ref.current!)!
         const refocus = () => {
             requestAnimationFrame(() => {
-                const [zoom] = chart.getOption().dataZoom as {start: number; end: number}[]
-                const at = (pct: number) => lead.from + ((hours - lead.from) * pct) / 100
-                const [from, to] = [at(zoom.start), at(zoom.end)]
+                const [zoom] = chart.getOption().dataZoom as {startValue: number; endValue: number}[]
+                const [from, to] = [zoom.startValue, zoom.endValue]
                 const next = lines(from, to)
                 chart.setOption({
                     xAxis: {axisLabel: {customValues: ticksIn(from, to)}},
@@ -394,17 +453,32 @@ export function CurvesChart({
                         {name: 'Current support', data: next.currentSupport},
                         {name: 'Approval', data: next.approval},
                         {name: 'Current approval', data: next.currentApproval},
+                        {name: 'Aye', data: next.ayes},
+                        {name: 'Nay', data: next.nays},
                     ],
                 })
             })
         }
         chart.on('datazoom', refocus)
+        // a render resets the axis and lines to the whole period. flipping
+        // the aye/nay switch renders while zoomed in
+        refocus()
         // useChart has already disposed the chart when this runs on unmount
         return () => {
             if (!chart.isDisposed()) chart.off('datazoom', refocus)
         }
-    }, [ref, lines, lead.from, hours])
-    return <div ref={ref} style={{height}} />
+    }, [ref, lines])
+    return (
+        <div className="@container">
+            <div className="flex items-center justify-end gap-2">
+                <Label htmlFor={toggle} className="text-xs font-normal text-muted-foreground">
+                    Aye/Nay Value
+                </Label>
+                <Switch id={toggle} checked={showVotes} onCheckedChange={setShowVotes} className="data-unchecked:bg-dim" />
+            </div>
+            <div ref={ref} style={{'--h': `${height}px`} as CSSProperties} className={cn('h-(--h)', showVotes && '@max-[470px]:h-[calc(var(--h)+32px)]')} />
+        </div>
+    )
 }
 
 // the slider under a full chart, its shadow traced from the data
