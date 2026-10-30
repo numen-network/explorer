@@ -64,18 +64,22 @@ interface Deposit {
     who: {id: string}
     amount: string
     state: string
+    endedAt: number | null
 }
 
 // the submission deposit and the decision deposit its submitter placed, both in one state
 const bothDeposits = (r: Referendum, state: string) => {
     const [submission] = r.deposits as Deposit[]
+    const endedAt = state === 'Held' ? null : (r.endedAt as number)
     return [
-        {...submission, state},
-        {...submission, kind: 'Decision', amount: (r.track as {decisionDeposit: string}).decisionDeposit, state},
+        {...submission, state, endedAt},
+        {...submission, kind: 'Decision', amount: (r.track as {decisionDeposit: string}).decisionDeposit, state, endedAt},
     ]
 }
 
 export const approvedRefunded = {...curated(0), deposits: bothDeposits(curated(0), 'Refunded')}
+
+export const killedSlashed = {...curated(4), deposits: bothDeposits(curated(4), 'Slashed')}
 
 // both deposits stay held after the end until somebody asks for the refund
 export const approvedHeld = {

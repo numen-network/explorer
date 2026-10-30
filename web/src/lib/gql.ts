@@ -1800,6 +1800,7 @@ export interface ReferendumDepositRow {
     who: AccountRef | null
     amount: string
     state: 'Held' | 'Refunded' | 'Slashed'
+    endedAt: number | null
 }
 
 export interface ReferendumDetailRow extends ReferendumRow {
@@ -2132,7 +2133,7 @@ export function referendumDetail(index: number, page: Slice) {
         splitCount: {totalCount: number}
     }>(
         `query ($index: Int!, $limit: Int!, $offset: Int!) {
-            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} enactment enactsAt proposalCalls deposits(orderBy: id_ASC) { kind who { ${ACCOUNT_REF} } amount state } }
+            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} enactment enactsAt proposalCalls deposits(orderBy: id_ASC) { kind who { ${ACCOUNT_REF} } amount state endedAt } }
             spends: treasurySpends(where: {referendum: {index_eq: $index}}, orderBy: [block_ASC, indexInBlock_ASC], limit: 500) { id kind status validFrom expireAt paidAt proposalCall }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }

@@ -16,7 +16,7 @@ import AccountLink from '@/components/AccountLink'
 import Approx from '@/components/Approx'
 import {BlockLink, ReferendumLink} from '@/components/links'
 import {CallTree} from '@/components/CallTree'
-import {Gauge, ReferendumByline} from '@/components/referenda'
+import {DepositState, Gauge, ReferendumByline} from '@/components/referenda'
 import {RequestCard, requestAccounts} from '@/components/RequestCard'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
 import {Badge} from '@/components/ui/badge'
@@ -180,7 +180,7 @@ function Slot({value, label, className = ''}: {value: string; label: string; cla
     )
 }
 
-function HeldDeposit({d, chain}: {d: ReferendumDepositRow | undefined; chain: ChainProps}) {
+function Deposit({d, chain}: {d: ReferendumDepositRow | undefined; chain: ChainProps}) {
     if (d == null) return '—'
     return (
         <>
@@ -189,6 +189,17 @@ function HeldDeposit({d, chain}: {d: ReferendumDepositRow | undefined; chain: Ch
                 <>
                     {' '}
                     <span className="text-dim">·</span> <AccountLink addr={ss58Encode(d.who.id, chain.ss58)} acc={d.who} />
+                </>
+            )}
+            {d.endedAt !== null && (
+                <>
+                    {' '}
+                    <span className="whitespace-nowrap">
+                        <span className="text-dim">·</span> <DepositState state={d.state} />
+                    </span>{' '}
+                    <span className="whitespace-nowrap">
+                        <span className="text-dim">·</span> <BlockLink height={d.endedAt} />
+                    </span>
                 </>
             )}
         </>
@@ -214,7 +225,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const trail = rawSteps(r.timeline)
     const nodes = r.proposalCalls ?? []
     const submission = r.deposits.find(d => d.kind === 'Submission')
-    const held = (kind: ReferendumDepositRow['kind']) => r.deposits.find(d => d.kind === kind && d.state === 'Held')
     const partyIds = [...new Set(requestAccounts(nodes))]
     const bountyIds = nodes.flatMap(node => (node.bounty != null ? [node.bounty] : []))
     const enactors = [...new Set(trail.flatMap(s => (s.byReferendum != null ? [s.byReferendum] : [])))]
@@ -569,10 +579,10 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                 )}
             </DetailRow>
             <DetailRow label="Submission deposit">
-                <HeldDeposit d={held('Submission')} chain={chain} />
+                <Deposit d={submission} chain={chain} />
             </DetailRow>
             <DetailRow label="Decision deposit">
-                <HeldDeposit d={held('Decision')} chain={chain} />
+                <Deposit d={r.deposits.find(d => d.kind === 'Decision')} chain={chain} />
             </DetailRow>
         </DetailCard>
     )

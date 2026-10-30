@@ -8,7 +8,7 @@ import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtPct, pctToNum, trackLabel} from '@/lib/format'
-import type {ReferendumRow} from '@/lib/gql'
+import type {ReferendumDepositRow, ReferendumRow} from '@/lib/gql'
 import {PHASE_LABEL, PHASE_TIP, phaseOf, type Phase} from '@/lib/referendum'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -57,6 +57,10 @@ const PHASE_TONE: Record<Phase, 'primary' | 'pos' | 'neg' | 'warn' | 'muted'> = 
 }
 
 // the soft form a table row shows, in the tones PHASE_BG gives the cards
+export function DepositState({state}: {state: ReferendumDepositRow['state']}) {
+    return <span className={state === 'Slashed' ? 'text-destructive' : undefined}>{state}</span>
+}
+
 export function StatusTag({phase}: {phase: Phase}) {
     return (
         <Tip text={PHASE_TIP[phase]}>

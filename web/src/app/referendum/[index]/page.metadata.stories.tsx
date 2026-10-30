@@ -3,7 +3,7 @@ import {castFromSnapshots} from '../../../../../mock/fixtures/governance.js'
 import {expectNoHangingDots, tabPanel} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
-import {Play, approvedHeld, approvedRefunded, curated, story, withPlay} from './page.stories.helpers'
+import {Play, approvedHeld, approvedRefunded, curated, killedSlashed, story, withPlay} from './page.stories.helpers'
 
 export default {title: 'Pages/Referendum/Metadata', ...pageMeta(ReferendumPage)}
 
@@ -11,7 +11,7 @@ export default {title: 'Pages/Referendum/Metadata', ...pageMeta(ReferendumPage)}
 const depositorsInline: Play = async ({canvas}) => {
     for (const label of ['Submission deposit', 'Decision deposit']) {
         const value = (await canvas.findByText(label)).nextElementSibling as HTMLElement
-        expect(within(value).getByRole('link').getBoundingClientRect().top).toBeCloseTo(value.getBoundingClientRect().top, 0)
+        expect(within(value).getAllByRole('link')[0].getBoundingClientRect().top).toBeCloseTo(value.getBoundingClientRect().top, 0)
     }
 }
 
@@ -28,12 +28,32 @@ export const EmptyFields = story(
     'metadata'
 )
 
-// ended with both deposits back with their depositors, so neither reads as held
-export const EndedDepositsRefunded = withPlay(story(approvedRefunded, 'metadata', castFromSnapshots(approvedRefunded)), async ({canvas}) => {
-    const value = async (label: string) => (await canvas.findByText(label)).nextElementSibling as HTMLElement
-    await expect(within(await value('Ended at')).getByRole('link', {name: '#588,640'})).toBeInTheDocument()
-    for (const label of ['Submission deposit', 'Decision deposit']) await expect(await value(label)).toHaveTextContent(/^—$/)
+const depositValue = async (canvas: Parameters<NonNullable<Play>>[0]['canvas'], label: string) => (await canvas.findByText(label)).nextElementSibling as HTMLElement
+
+// ended with both deposits back with their depositors, each row names the refund and its block
+export const EndedDepositsRefunded = withPlay(story(approvedRefunded, 'metadata', castFromSnapshots(approvedRefunded)), async context => {
+    await depositorsInline!(context)
+    for (const label of ['Submission deposit', 'Decision deposit']) {
+        const value = await depositValue(context.canvas, label)
+        await expect(value).toHaveTextContent(/NUMN .* · Refunded · #588,640$/)
+        await expect(within(value).getByRole('link', {name: '#588,640'})).toBeInTheDocument()
+    }
+    expectNoHangingDots(tabPanel(context.canvasElement, 'Referendum').querySelector('[data-slot=card]')!)
 })
+
+// a kill slashes both deposits, each row names the slash and its block
+export const EndedDepositsSlashed = withPlay(story(killedSlashed, 'metadata'), async ({canvas}) => {
+    for (const label of ['Submission deposit', 'Decision deposit']) {
+        const value = await depositValue(canvas, label)
+        await expect(value).toHaveTextContent(/NUMN .* · Slashed · #790,000$/)
+        expect(within(value).getByText('Slashed')).toHaveClass('text-destructive')
+    }
+})
+
+// no decision deposit was ever placed
+export const DepositNeverPlaced = withPlay(story({...curated(5), deposits: (curated(5).deposits as object[]).slice(0, 1)}, 'metadata'), async ({canvas}) =>
+    expect(await depositValue(canvas, 'Decision deposit')).toHaveTextContent(/^—$/)
+)
 
 const enactValue = async (canvas: Parameters<NonNullable<Play>>[0]['canvas']) => ((await canvas.findByText('Enact')).nextElementSibling as HTMLElement).textContent
 

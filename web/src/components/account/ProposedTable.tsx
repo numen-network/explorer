@@ -7,7 +7,7 @@ import {NONE} from '@/components/Detail'
 import {emptyText} from '@/components/EmptyList'
 import {Lines} from '@/components/Lines'
 import {BlockLink} from '@/components/links'
-import {StatusTag} from '@/components/referenda'
+import {DepositState, StatusTag} from '@/components/referenda'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, trackLabel} from '@/lib/format'
@@ -24,7 +24,7 @@ function Refund({d, status}: {d: ProposedRow['deposits'][number]; status: string
     }
     return (
         <span>
-            <BlockLink height={d.endedAt!} /> · {d.state === 'Slashed' ? <span className="text-destructive">Slashed</span> : 'Refunded'}
+            <BlockLink height={d.endedAt!} /> · <DepositState state={d.state} />
         </span>
     )
 }

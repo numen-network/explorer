@@ -61,8 +61,8 @@ function referendum({index, track, origin, submitter, steps, decidingSince = nul
         support: numn(support),
         timeline: steps,
         deposits: [
-            {kind: 'Submission', who: {id: account(submitter)}, amount: SUBMISSION_DEPOSIT, state: deposits ? 'Held' : rest.status === 'Killed' ? 'Slashed' : 'Refunded'},
-            ...(deposits === 'both' ? [{kind: 'Decision', who: {id: account(submitter)}, amount: t.decisionDeposit, state: 'Held'}] : []),
+            {kind: 'Submission', who: {id: account(submitter)}, amount: SUBMISSION_DEPOSIT, state: deposits ? 'Held' : rest.status === 'Killed' ? 'Slashed' : 'Refunded', endedAt: deposits ? null : endedAt},
+            ...(deposits === 'both' ? [{kind: 'Decision', who: {id: account(submitter)}, amount: t.decisionDeposit, state: 'Held', endedAt: null}] : []),
         ],
         snapshots: history.map(([block, a, n, s]) => ({
             block,
