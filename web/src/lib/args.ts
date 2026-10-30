@@ -99,7 +99,12 @@ class Walker {
     call(value: any): ArgNode {
         const pallet = value.__kind
         const method = value.value.__kind
-        return {kind: 'call', name: `${pallet}.${method}`, args: this.fields(this.callFields(pallet, method), value.value)}
+        return {kind: 'call', name: `${pallet}.${method}`, args: {kind: 'fields', fields: this.callFields(pallet, method).map(f => [f.name!, this.arg(pallet, method, f, value.value?.[f.name!])])}}
+    }
+
+    arg(pallet: string, method: string, f: Field, value: any): ArgNode {
+        const node = this.field(f, value)
+        return isNotePreimage(pallet, method) && node.kind !== 'none' ? {kind: 'hex', hex: summarizeHex(value)} : node
     }
 
     node(ti: number, value: any, typeName = ''): ArgNode {
@@ -249,7 +254,7 @@ export function describeArgs(call: {pallet: string; method: string; args: unknow
         kind: 'fields',
         fields: fields.map(f => {
             const value = args[f.name!]
-            if (!call.nested || !isCalls(w, f.type)) return [f.name!, w.field(f, value)]
+            if (!call.nested || !isCalls(w, f.type)) return [f.name!, w.arg(call.pallet, call.method, f, value)]
             return [f.name!, {kind: 'listed', label: Array.isArray(value) ? fmtCount(value.length, 'call') : `${value.__kind}.${value.value.__kind}`}]
         }),
     }
@@ -291,13 +296,26 @@ export function nodesOf<K extends ArgNode['kind']>(nodes: (ArgNode | null)[], ki
     return found
 }
 
-/** Call rows with their args worked out, the way the call tree draws them. */
-export const withCallViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}; subcalls: unknown[]}>(rows: T[]) =>
-    rows.map(c => ({...c, view: describeArgs({...c, specVersion: c.block.specVersion, nested: c.subcalls.length > 0})}))
-
 const LONG_HEX_CHARS = 2 + 2 * 16384
 
-const briefHex = (hex: string) => (hex.length > LONG_HEX_CHARS ? `${hex.slice(0, 10)}…${hex.slice(-8)} (${fmtCount((hex.length - 2) / 2, 'byte')})` : hex)
+const isNotePreimage = (pallet: string, method: string) => pallet === 'Preimage' && method === 'note_preimage'
+
+const summarizeHex = (hex: string) => `${hex.slice(0, 10)}…${hex.slice(-8)} (${fmtCount((hex.length - 2) / 2, 'byte')})`
+
+const briefHex = (hex: string) => (hex.length > LONG_HEX_CHARS ? summarizeHex(hex) : hex)
+
+const summarizeBytes = <T extends {bytes: string}>(args: T) => ({...args, bytes: summarizeHex(args.bytes)})
+
+// a batch holds its calls whole in its own args
+function briefNestedPreimages(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(briefNestedPreimages)
+    if (value == null || typeof value !== 'object') return value
+    const call = value as {__kind?: string; value?: {__kind: string; bytes: string}}
+    if (call.__kind && call.value && isNotePreimage(call.__kind, call.value.__kind)) return {...call, value: summarizeBytes(call.value)}
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, briefNestedPreimages(v)]))
+}
+
+const briefPreimages = ({pallet, method, args}: {pallet: string; method: string; args: unknown}) => (isNotePreimage(pallet, method) ? summarizeBytes(args as {bytes: string}) : briefNestedPreimages(args))
 
 function briefArgs(value: unknown): unknown {
     if (typeof value === 'string') return value.startsWith('0x') ? briefHex(value) : value
@@ -313,9 +331,13 @@ export function describeProposalArgs(call: Parameters<typeof describeArgs>[0]): 
     return view
 }
 
+/** Call rows with their args worked out, the way the call tree draws them. */
+export const withCallViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}; subcalls: unknown[]}>(rows: T[]) =>
+    rows.map(c => ({...c, args: briefPreimages(c), view: describeArgs({...c, specVersion: c.block.specVersion, nested: c.subcalls.length > 0})}))
+
 /** Proposal calls with their args worked out, a call nests whatever follows it deeper in preorder. */
 export const withProposalViews = <T extends {pallet: string; method: string; args: unknown; address: number[]}>(nodes: T[], specVersion: number | null) =>
-    nodes.map((c, i) => ({...c, args: briefArgs(c.args), view: describeProposalArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length})}))
+    nodes.map((c, i) => ({...c, args: briefArgs(briefPreimages(c)), view: describeProposalArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length})}))
 
 /** Event rows with their args worked out, ready for a client table that cannot read the metadata. */
 export const withEventViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}}>(rows: T[]) => rows.map(e => ({...e, view: describeEvent({...e, specVersion: e.block.specVersion})}))

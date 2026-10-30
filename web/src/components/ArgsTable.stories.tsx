@@ -117,7 +117,7 @@ export const ReferendumSubmit = story(
 
 export const UndecodableInlineProposal = story('Referenda', 'submit', {proposal: {value: '0xdeadbeef', __kind: 'Inline'}, proposalOrigin: {value: {__kind: 'SmallSpender'}, __kind: 'Origins'}, enactmentMoment: {value: 100, __kind: 'At'}}, ['0xdeadbeef', 'At', '#100'])
 
-export const PreimageText = story('Preimage', 'note_preimage', {bytes: PROPOSAL_TEXT}, ['UTF-8', 'Creation of the first DEX liquidity pool'])
+export const PreimageText = story('Preimage', 'note_preimage', {bytes: PROPOSAL_TEXT}, [`${PROPOSAL_TEXT.slice(0, 10)}…${PROPOSAL_TEXT.slice(-8)}`])
 
 export const PreimageBinary = story('Preimage', 'note_preimage', {bytes: '0x00ff10'}, ['0x00ff10'])
 

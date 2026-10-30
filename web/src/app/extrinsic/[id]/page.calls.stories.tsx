@@ -15,7 +15,11 @@ const expandAll: StoryObj['play'] = async ({canvasElement}) => {
 // what the call rows show for their outcome, leaving out the extrinsic's own badge above the tabs
 const outcomes = (root: HTMLElement) => [...root.querySelectorAll('[data-slot=collapsible-trigger] [data-slot=badge]')].map(badge => badge.textContent)
 
-const notePreimage = (height: number) => signedCall(height, 'Preimage.note_preimage', {bytes: wasm}, {fee: 104_857_612_000_000_000_000n, events: [['Preimage.Noted', {hash: hashOf('preimage', height)}]]})
+const notePreimage = (bytes: string) => (height: number) => signedCall(height, 'Preimage.note_preimage', {bytes}, {fee: 104_857_612_000_000_000_000n, events: [['Preimage.Noted', {hash: hashOf('preimage', height)}]]})
+
+const openJson = (canvas: ReturnType<typeof within>) => userEvent.click(canvas.getByRole('tab', {name: 'JSON'}))
+
+const utf8Hex = (text: string) => `0x${[...new TextEncoder().encode(text)].map(b => b.toString(16).padStart(2, '0')).join('')}`
 
 const sent = of(transfer)
 type Call = (typeof sent)['calls'][number]
@@ -68,7 +72,59 @@ export const TwoDepthsPage2 = detail(twoDepths, {tab: 'calls', page: '2'})
 
 export const ReferendumSubmissionLongArgs = detail(of(referendumSubmission))
 
-export const RuntimeUpgradePreimage = detail(of(notePreimage))
+// table and JSON show only the wasm's ends and size
+export const RuntimeUpgradePreimage: StoryObj = {
+    ...detail(of(notePreimage(wasm))),
+    play: async ({canvas, canvasElement}) => {
+        const summary = `${wasm.slice(0, 10)}…${wasm.slice(-8)} (1,000,000 bytes)`
+        await expect(canvas.getByText(summary)).toBeVisible()
+        await expect(canvasElement.textContent).not.toContain(wasm.slice(0, 64))
+        await openJson(canvas)
+        await expect(canvas.getByText(new RegExp(summary.replace(/[()]/g, '\\$&')))).toBeVisible()
+        await expect(canvasElement.textContent).not.toContain(wasm.slice(0, 64))
+    },
+}
+
+const SHORT_TEXT = utf8Hex('A short preimage')
+
+// a short text preimage shows the same ends and size, never its text
+export const NotePreimageText: StoryObj = {
+    ...detail(of(notePreimage(SHORT_TEXT))),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText(`${SHORT_TEXT.slice(0, 10)}…${SHORT_TEXT.slice(-8)} (16 bytes)`)).toBeVisible()
+        await expect(canvasElement.textContent).not.toContain('A short preimage')
+        await openJson(canvas)
+        await expect(canvasElement.textContent).not.toContain(SHORT_TEXT)
+    },
+}
+
+const batchedPreimage = (height: number) => {
+    const bytes = SHORT_TEXT
+    const args = {calls: [{__kind: 'Preimage', value: {__kind: 'note_preimage', bytes}}]}
+    return {...signedCall(height, 'Utility.batch_all', args), calls: [[[], 'Utility.batch_all', args], [[0], 'Preimage.note_preimage', {bytes}]]}
+}
+
+// the batch's own JSON holds the call it wraps, so that copy is summarized too
+export const BatchedNotePreimage: StoryObj = {
+    ...detail(of(batchedPreimage)),
+    play: async ({canvas, canvasElement}) => {
+        await openJson(canvas)
+        await expect(canvasElement.textContent).toContain('(16 bytes)')
+        await expect(canvasElement.textContent).not.toContain(SHORT_TEXT)
+    },
+}
+
+const LONG_REMARK = `0x${'ab'.repeat(2048)}`
+
+// every other call keeps its hex whole
+export const LongRemark: StoryObj = {
+    ...detail(of((height: number) => signedCall(height, 'System.remark', {remark: LONG_REMARK}))),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText(LONG_REMARK)).toBeVisible()
+        await openJson(canvas)
+        await expect(canvas.getByText(new RegExp(LONG_REMARK))).toBeVisible()
+    },
+}
 
 export const PayoutBatch = detail(payout)
 
