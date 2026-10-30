@@ -8,6 +8,7 @@ import {columnsFor, DataTable, expander} from '@/components/DataTable'
 import {NONE} from '@/components/Detail'
 import {BlockLink, Jump} from '@/components/links'
 import Pager from '@/components/Pager'
+import PivotalBadge, {type Stake} from '@/components/PivotalBadge'
 import {FilterChip} from '@/components/pills'
 import SearchBox from '@/components/SearchBox'
 import ShareBar from '@/components/ShareBar'
@@ -15,6 +16,7 @@ import {Card} from '@/components/ui/card'
 import {fmtCount, fmtInt} from '@/lib/format'
 import type {IdentityRef} from '@/lib/identity'
 import type {Paging} from '@/lib/paging'
+import type {Pivotal} from '@/lib/pivotal'
 
 export interface Delegator {
     addr: string
@@ -74,14 +76,23 @@ export function Stat({label, value}: {label: string; value: ReactNode}) {
     )
 }
 
+function Voter({addr, acc, pivotal, stake}: {addr: string; acc?: IdentityRef; pivotal: Pivotal | null; stake: Stake}) {
+    return (
+        <span className="flex min-w-0 items-center gap-2">
+            <AccountLink addr={addr} acc={acc} />
+            <PivotalBadge pivotal={pivotal} addr={addr} stake={stake} />
+        </span>
+    )
+}
+
 const dcol = columnsFor<Delegator>()
 
 /** What a standard vote brings to the tally, its own part and every delegation it carries, moreHref holding the delegators past the inline few. */
-export function VoteDetail({v, moreHref, decimals, symbol}: {v: VoteEntry; moreHref: string; decimals: number; symbol: string}) {
+export function VoteDetail({v, moreHref, decimals, symbol, pivotal = null}: {v: VoteEntry; moreHref: string; decimals: number; symbol: string; pivotal?: Pivotal | null}) {
     const hidden = v.delegatorCount - v.delegators.length
     const columns = useMemo(
         () => [
-            dcol.display({id: 'delegator', header: 'Delegator', meta: {className: 'w-full px-0 py-2 first:pl-0'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
+            dcol.display({id: 'delegator', header: 'Delegator', meta: {className: 'w-full px-0 py-2 first:pl-0'}, cell: ({row}) => <Voter addr={row.original.addr} acc={row.original.acc} pivotal={pivotal} stake="delegation" />}),
             dcol.display({
                 id: 'capital',
                 header: 'Capital',
@@ -94,7 +105,7 @@ export function VoteDetail({v, moreHref, decimals, symbol}: {v: VoteEntry; moreH
             }),
             dcol.display({id: 'votes', header: 'Votes', meta: {align: 'right', className: 'px-0 py-2 last:pr-0', cellClassName: AUX}, cell: ({row}) => <Approx planck={row.original.votes} decimals={decimals} symbol={symbol} />}),
         ],
-        [decimals, symbol]
+        [decimals, symbol, pivotal]
     )
     return (
         <div className="bg-[#fafaf9] px-5 py-4">
@@ -137,10 +148,10 @@ function blockColumn<T extends {block: number}>(helper: ReturnType<typeof column
 
 const col = columnsFor<VoteEntry>()
 
-function StandardTable({rows, whole, decimals, symbol, empty}: {rows: VoteEntry[]; whole: string; decimals: number; symbol: string; empty: string}) {
+function StandardTable({rows, whole, decimals, symbol, empty, pivotal}: {rows: VoteEntry[]; whole: string; decimals: number; symbol: string; empty: string; pivotal: Pivotal | null}) {
     const columns = useMemo(
         () => [
-            col.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
+            col.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <Voter addr={row.original.addr} acc={row.original.acc} pivotal={pivotal} stake="vote" />}),
             col.display({
                 id: 'capital',
                 header: 'Capital',
@@ -174,17 +185,17 @@ function StandardTable({rows, whole, decimals, symbol, empty}: {rows: VoteEntry[
             blockColumn(col),
             expander(col),
         ],
-        [whole, decimals, symbol]
+        [whole, decimals, symbol, pivotal]
     )
-    return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} canExpand={() => true} expand={v => <VoteDetail v={v} moreHref={`/account/${v.addr}`} decimals={decimals} symbol={symbol} />} />
+    return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} canExpand={() => true} expand={v => <VoteDetail v={v} moreHref={`/account/${v.addr}`} decimals={decimals} symbol={symbol} pivotal={pivotal} />} />
 }
 
 const scol = columnsFor<SplitEntry>()
 
-function SplitTable({labels, rows, decimals, symbol, empty}: {labels: string[]; rows: SplitEntry[]; decimals: number; symbol: string; empty: string}) {
+function SplitTable({labels, rows, decimals, symbol, empty, pivotal}: {labels: string[]; rows: SplitEntry[]; decimals: number; symbol: string; empty: string; pivotal: Pivotal | null}) {
     const columns = useMemo(
         () => [
-            scol.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={row.original.addr} acc={row.original.acc} />}),
+            scol.display({id: 'account', header: 'Account', meta: {className: 'w-full'}, cell: ({row}) => <Voter addr={row.original.addr} acc={row.original.acc} pivotal={pivotal} stake="vote" />}),
             ...labels.map((label, i) =>
                 scol.display({
                     id: label,
@@ -195,12 +206,12 @@ function SplitTable({labels, rows, decimals, symbol, empty}: {labels: string[]; 
             ),
             blockColumn(scol),
         ],
-        [labels, decimals, symbol]
+        [labels, decimals, symbol, pivotal]
     )
     return <DataTable columns={columns} rows={rows} empty={empty} getRowId={v => v.id} />
 }
 
-export default function VoteLists({groups, list, searched, paging, decimals, symbol}: {groups: VoteGroup[]; list: VoteRows; searched: boolean; paging: Paging; decimals: number; symbol: string}) {
+export default function VoteLists({groups, list, pivotal, searched, paging, decimals, symbol}: {groups: VoteGroup[]; list: VoteRows; pivotal: Pivotal | null; searched: boolean; paging: Paging; decimals: number; symbol: string}) {
     const group = groups.find(g => g.active)!
     const empty = `No ${searched ? 'matching ' : ''}${group.label.toLowerCase()} votes.`
     return (
@@ -215,9 +226,9 @@ export default function VoteLists({groups, list, searched, paging, decimals, sym
             </div>
             <Card size="flush">
                 {list.kind === 'standard' ? (
-                    <StandardTable rows={list.rows} whole={list.whole} decimals={decimals} symbol={symbol} empty={empty} />
+                    <StandardTable rows={list.rows} whole={list.whole} decimals={decimals} symbol={symbol} empty={empty} pivotal={pivotal} />
                 ) : (
-                    <SplitTable labels={list.labels} rows={list.rows} decimals={decimals} symbol={symbol} empty={empty} />
+                    <SplitTable labels={list.labels} rows={list.rows} decimals={decimals} symbol={symbol} empty={empty} pivotal={pivotal} />
                 )}
             </Card>
             <Pager paging={paging} total={group.total} href={group.href} />

@@ -45,7 +45,7 @@ const FIRST: Paging = {page: 1, size: 20, offset: 0}
 const groups = (at: string, ...totals: number[]): VoteGroup[] =>
     ['Aye', 'Nay', 'Abstain', 'Split'].slice(0, totals.length).map((label, i) => ({label, total: totals[i], href: `/referendum/12?tab=votes&group=${label.toLowerCase()}`, active: label === at}))
 
-const lists = (chips: VoteGroup[], list: VoteRows, paging = FIRST): Story => ({render: () => <VoteLists groups={chips} list={list} searched={false} paging={paging} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />})
+const lists = (chips: VoteGroup[], list: VoteRows, paging = FIRST): Story => ({render: () => <VoteLists groups={chips} list={list} pivotal={null} searched={false} paging={paging} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />})
 
 // the side's tally is every row on the list, so the shares add up to 100%
 const standard = (rows: VoteEntry[]): VoteRows => ({kind: 'standard', whole: String(rows.reduce((n, v) => n + BigInt(v.selfVotes) + BigInt(v.delegatedVotes), 0n)), rows})

@@ -2153,6 +2153,7 @@ export interface BallotDelegation {
     balance: string
     votes: string
     voter: {id: string}
+    delegator: {id: string}
 }
 
 // every standing vote on a referendum and every delegation it counts, each
@@ -2165,7 +2166,7 @@ export async function referendumBallots(index: number): Promise<{votes: BallotVo
         const page = await gql<{votes: BallotVote[]; delegatedVotes: BallotDelegation[]}>(
             `query ($index: Int!, $limit: Int!, $offset: Int!) {
                 votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { kind aye conviction balance ayeAmount nayAmount abstainAmount votes voter { id } }
-                delegatedVotes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { conviction balance votes voter { id } }
+                delegatedVotes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { conviction balance votes voter { id } delegator { id } }
             }`,
             {index, limit: SWEEP, offset}
         )

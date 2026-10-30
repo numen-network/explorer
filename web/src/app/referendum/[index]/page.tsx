@@ -224,12 +224,14 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const partyIds = [...new Set(requestAccounts(nodes))]
     const bountyIds = nodes.flatMap(node => (node.bounty != null ? [node.bounty] : []))
     const enactors = [...new Set(trail.flatMap(s => (s.byReferendum != null ? [s.byReferendum] : [])))]
+    const latest = data.dailyStats[0]
+    const activePlanck = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
     const [refs, evs, textEvs, votes, actions, stats, spec, bounties, titles] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.metadataActions.map(a => a.id)),
-        tab === 'votes' ? votesPanel({index: r.index, counts, tally: r, sp, pg, chain}) : null,
+        tab === 'votes' ? votesPanel({r, counts, snapshots, live: activePlanck, sp, pg, chain}) : null,
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
         specVersionAt(r.submittedAt),
@@ -259,8 +261,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const whoRefsRes = await accountRefs([...new Set(evWhos)])
     const whoRefs = new Map(whoRefsRes.accounts.map(a => [a.id, a]))
 
-    const latest = data.dailyStats[0]
-    const activePlanck = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
     const approvalNow = approvalOf(r)
     const supportNow: Share = [BigInt(r.support), activePlanck]
 

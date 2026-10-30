@@ -1,6 +1,6 @@
 import {expect, waitFor, within} from 'storybook/test'
 import {numn, PEOPLE} from '../../../../../mock/fixtures.js'
-import {anon, castVotes, CHAIN, delegation, delegationData, standard, voteData} from '../../../../../mock/fixtures/governance.js'
+import {anon, castVotes, CHAIN, delegation, delegationData, split, standard, voteData} from '../../../../../mock/fixtures/governance.js'
 import {ss58Encode} from '@/lib/ss58'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
@@ -217,3 +217,73 @@ const castWhen: Play = async ({canvas}) => {
 export const StandardCastAt = withPlay(cast(single, singleVote, 'votes'), castWhen)
 
 export const SplitCastAt = withPlay(story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'split'}), castWhen)
+
+// fixtures hold 52.5M active issuance. Once the decision period is over,
+// support needs about 1% on big_spender, 0.75% on medium_spender and 0.5% on
+// small_spender. Approval needs half the votes cast
+const row = async (canvas: Canvas, name: string) => (await canvas.findAllByText(name)).map(el => el.closest('tr')).find(tr => tr != null)!
+
+const pivotalTip =
+    (name: string, tip: string): Play =>
+    async ({canvas, userEvent}) => {
+        await userEvent.hover(within(await row(canvas, name)).getByText('Pivotal'))
+        await expect(await within(document.body).findByRole('tooltip')).toHaveTextContent(tip)
+    }
+
+const noPivotal: Play = async ({canvas}) => {
+    await canvas.findAllByRole('row')
+    await expect(canvas.queryByText('Pivotal')).toBeNull()
+}
+
+// the only vote carries both curves, without it nothing is cast
+export const PivotalVoter = withPlay(cast(single, singleVote, 'votes'), pivotalTip('Polaris Guild', 'Stops passing without this vote'))
+
+// a 500K delegation lifts support from 100K to 600K, past the 525K curve.
+// The delegator and the vote carrying it each decide it
+const liftedRef = deciding(32, 'A delegation lifts support past its curve')
+export const PivotalDelegator = withPlay(
+    cast(liftedRef, [{...standard(PEOPLE[3], true, 'Locked1x', numn(100_000)), block: 962_000}], 'votes', {}, [delegation(anon(80), PEOPLE[3], 'Locked1x', numn(500_000), '31')]),
+    async context => {
+        await expect(within(await row(context.canvas, 'Redshift')).getByText('Pivotal')).toBeVisible()
+        await expandRow('Redshift')!(context)
+        const delegator = context.canvas.getByRole('heading', {name: 'Delegation list'}).parentElement!
+        await context.userEvent.hover(within(delegator).getByText('Pivotal'))
+        await expect(await within(document.body).findByRole('tooltip')).toHaveTextContent('Stops passing without this delegation')
+    }
+)
+
+// a split's 1M aye part is the only support the tally holds
+export const PivotalSplit = withPlay(
+    cast(deciding(33, 'A split vote holds all the support'), [{...split(PEOPLE[1], numn(1_000_000), numn(0)), block: 962_000}], 'votes', {}, [], {group: 'split'}),
+    pivotalTip('Orbit Labs', 'Stops passing without this vote')
+)
+
+// two votes of 600K each, either one alone still clears the 525K support curve
+export const PivotalNone = withPlay(
+    cast(
+        deciding(34, 'Either vote alone still passes'),
+        [
+            {...standard(PEOPLE[0], true, 'Locked1x', numn(600_000)), block: 962_000},
+            {...standard(PEOPLE[5], true, 'Locked1x', numn(600_000)), block: 963_000},
+        ],
+        'votes'
+    ),
+    noPivotal
+)
+
+// 700K nays hold 600K ayes under half, without them the tally passes
+const nayAhead = [
+    {...standard(PEOPLE[0], true, 'Locked1x', numn(600_000)), block: 962_000},
+    {...standard(PEOPLE[4], false, 'Locked1x', numn(700_000)), block: 963_000},
+]
+export const PivotalWhileFailing = withPlay(cast(deciding(35, 'Nays hold a live tally under its curve'), nayAhead, 'votes', {}, [], {group: 'nay'}), pivotalTip('Spamlord', 'Starts passing without this vote'))
+
+export const PivotalWhenRejected = withPlay(cast({...curated(1), id: '36', index: 36}, nayAhead, 'votes', {}, [], {group: 'nay'}), pivotalTip('Spamlord', "Wouldn't have failed without this vote"))
+
+export const PivotalWhenApproved = withPlay(
+    cast({...curated(0), id: '37', index: 37}, [{...standard(PEOPLE[0], true, 'Locked1x', numn(1_000_000)), block: 560_000}], 'votes'),
+    pivotalTip('Polaris Guild', "Wouldn't have passed without this vote")
+)
+
+// a cancelled referendum's tally is never weighed again, so nothing marks it
+export const PivotalWhenCancelled = withPlay(cast({...curated(2), id: '38', index: 38}, [{...standard(PEOPLE[0], true, 'Locked1x', numn(1_000_000)), block: 645_000}], 'votes'), noPivotal)
