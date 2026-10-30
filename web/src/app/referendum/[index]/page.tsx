@@ -224,7 +224,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const [refs, evs, textEvs, votes, actions, actionRows, stats, spec, bounties, titles] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
-        eventsByIds(data.metadataActions.map(a => a.id)),
+        eventsByIds(data.revisions.map(a => a.id)),
         tab === 'votes' ? votesPanel({r, counts, snapshots, live: activePlanck, sp, pg, chain}) : null,
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
         tab === 'curves' ? votersOnCurves(r.index, chain.ss58) : [],
@@ -244,8 +244,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         else runs.push([e])
     }
     const rail = runs.flatMap(run => run.sort((a, b) => rank(b) - rank(a)))
-    const actionOf = new Map(data.metadataActions.map(a => [a.id, a]))
-    const textRail = textEvs.events.map(e => ({a: actionOf.get(e.id)!, e}))
+    const textEventOf = new Map(textEvs.events.map(e => [e.id, e]))
+    const textRail = data.metadataActions.map(a => ({a, e: textEventOf.get(a.id)}))
     // only a readable set on top is the text the card shows
     const versions = data.revisions.filter(a => a.method === 'MetadataSet' && (a.title !== null || a.description !== null))
     const edited = versions.length > 1 && versions[0] === data.revisions[0]
@@ -704,7 +704,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     ) : (
                         <p className="py-4 text-center text-sm text-dim">No description provided.</p>
                     )}
-                    {edited && <EditedHistory versions={versions} className="mt-4" />}
+                    {edited && <EditedHistory versions={versions.map(v => ({...v, event: textEventOf.get(v.id)}))} className="mt-4" />}
                 </Card>
 
                 <div className="space-y-4 lg:row-span-2">

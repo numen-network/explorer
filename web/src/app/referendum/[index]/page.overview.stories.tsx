@@ -102,6 +102,9 @@ export const EditedChanges = withPlay(story(latest, 'call', {}, revisions), asyn
     expect([...canvasElement.ownerDocument.querySelectorAll('[role=dialog] ins')].map(e => e.textContent)).toEqual(['2'])
     expect([...canvasElement.ownerDocument.querySelectorAll('[role=dialog] del')].map(e => e.textContent)).toEqual(['1'])
     expect(revision.getByText(revisions[0].hash)).toBeVisible()
+    expect(revision.getByRole('link', {name: /990,500/})).toBeVisible()
+    expect(revision.getByRole('link', {name: '990500-1'})).toBeVisible()
+    expect(revision.getByRole('link', {name: '990500-4'})).toBeVisible()
 })
 
 // the original version reads as it was, with nothing marked
@@ -109,6 +112,7 @@ export const EditedOriginal = withPlay(story(latest, 'call', {}, revisions), asy
     const revision = await openRevision(canvasElement, /^Original/)
     expect(revision.getByText(/^Original at/)).toBeVisible()
     expect(revision.getByText('Marketing budget')).toBeVisible()
+    expect(revision.getByRole('link', {name: '960020-2'})).toBeVisible()
     expect(canvasElement.ownerDocument.querySelectorAll('[role=dialog] ins, [role=dialog] del')).toHaveLength(0)
 })
 

@@ -49,7 +49,7 @@ export function TimelineItem({tone, icon: Icon, title, iso, links, detail}: {ton
                         <TimeCell iso={iso} cycle />
                     </div>
                 )}
-                {links && <div className="mt-1.5 flex flex-col items-start gap-1 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">{links}</div>}
+                {links && <StepLinksRow>{links}</StepLinksRow>}
             </div>
             {detail}
         </li>
@@ -82,7 +82,11 @@ function Tagged({icon: Icon, children}: {icon: LucideIcon; children: ReactNode})
     )
 }
 
-export function StepLinks({block, event}: {block: number; event?: {indexInBlock: number; extrinsic: {id: string} | null}}) {
+export function StepLinksRow({children}: {children: ReactNode}) {
+    return <div className="mt-1.5 flex flex-col items-start gap-1 text-xs sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">{children}</div>
+}
+
+export function StepLinks({block, event}:{block: number; event?: {indexInBlock: number; extrinsic: {id: string} | null}}) {
     return (
         <>
             <Tagged icon={Box}>

@@ -5,13 +5,14 @@ import {diffWords} from 'diff'
 import {ChevronDown, XIcon} from 'lucide-react'
 import CopyBtn from '@/components/CopyBtn'
 import {TimeCell} from '@/components/TimeCell'
+import {StepLinks, StepLinksRow} from '@/components/timeline'
 import {Button} from '@/components/ui/button'
 import {Dialog, DialogClose, DialogContent, DialogTitle} from '@/components/ui/dialog'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import {Separator} from '@/components/ui/separator'
 import type {MetadataActionRow} from '@/lib/gql'
 
-type Version = Pick<MetadataActionRow, 'id' | 'hash' | 'title' | 'description' | 'timestamp'>
+type Version = Pick<MetadataActionRow, 'id' | 'hash' | 'title' | 'description' | 'block' | 'timestamp'> & {event?: {indexInBlock: number; extrinsic: {id: string} | null}}
 
 // each version against the one before it, the original stands alone
 function Marked({from, to}: {from: string | null | undefined; to: string | null}) {
@@ -43,9 +44,14 @@ function Revision({version, previous}: {version: Version; previous: Version | un
                     </Button>
                 </DialogClose>
             </div>
-            <p className="text-xs text-muted-foreground">
-                {previous ? 'Edited' : 'Original'} at <TimeCell iso={version.timestamp} cycle />
-            </p>
+            <div>
+                <p className="text-xs text-muted-foreground">
+                    {previous ? 'Edited' : 'Original'} at <TimeCell iso={version.timestamp} cycle />
+                </p>
+                <StepLinksRow>
+                    <StepLinks block={version.block} event={version.event} />
+                </StepLinksRow>
+            </div>
             <p className="text-base font-semibold wrap-anywhere">
                 <Marked from={previous ? previous.title : undefined} to={version.title} />
             </p>
