@@ -1,20 +1,24 @@
 'use client'
 
-import {useState} from 'react'
+import {useId, useState} from 'react'
 import {diffWords} from 'diff'
 import {ChevronDown, XIcon} from 'lucide-react'
 import CopyBtn from '@/components/CopyBtn'
 import {TimeCell} from '@/components/TimeCell'
-import {StepLinks, StepLinksRow} from '@/components/timeline'
+import {StepLinks} from '@/components/timeline'
 import {Button} from '@/components/ui/button'
 import {Dialog, DialogClose, DialogContent, DialogTitle} from '@/components/ui/dialog'
+import {Label} from '@/components/ui/label'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {Separator} from '@/components/ui/separator'
 import type {MetadataActionRow} from '@/lib/gql'
 
 type Version = Pick<MetadataActionRow, 'id' | 'hash' | 'title' | 'description' | 'block' | 'timestamp'> & {event?: {indexInBlock: number; extrinsic: {id: string} | null}}
 
-// each version against the one before it, the original stands alone
+const NONE = 'none'
+
+// no version to compare against reads as it was
 function Marked({from, to}: {from: string | null | undefined; to: string | null}) {
     if (from === undefined) return to
     return diffWords(from ?? '', to ?? '').map((part, i) =>
@@ -32,7 +36,54 @@ function Marked({from, to}: {from: string | null | undefined; to: string | null}
     )
 }
 
-function Revision({version, previous}: {version: Version; previous: Version | undefined}) {
+const VersionName = ({versions, index}: {versions: Version[]; index: number}) => (
+    <span>
+        {index === versions.length - 1 ? 'Original' : 'Edited'} <TimeCell iso={versions[index].timestamp} />
+    </span>
+)
+
+function VersionSelect({label, versions, value, excluded, onChange, none}: {label: string; versions: Version[]; value: number | null; excluded: number | null; onChange: (value: number | null) => void; none?: boolean}) {
+    const id = useId()
+    const version = value === null ? null : versions[value]
+    return (
+        <div className="min-w-0">
+            <Label htmlFor={id} className="mb-1 text-xs font-normal text-muted-foreground">
+                {label}
+            </Label>
+            <Select value={value === null ? NONE : String(value)} onValueChange={v => onChange(v === NONE ? null : Number(v))}>
+                <SelectTrigger id={id} className="w-full text-left text-xs whitespace-normal data-[size=default]:h-auto *:data-[slot=select-value]:line-clamp-none">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                    {none && (
+                        <SelectItem value={NONE} className="text-xs">
+                            None
+                        </SelectItem>
+                    )}
+                    {versions.map(
+                        (v, i) =>
+                            i !== excluded && (
+                                <SelectItem key={v.id} value={String(i)} className="text-xs">
+                                    <VersionName versions={versions} index={i} />
+                                </SelectItem>
+                            )
+                    )}
+                </SelectContent>
+            </Select>
+            {version && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    <StepLinks block={version.block} event={version.event} />
+                </div>
+            )}
+        </div>
+    )
+}
+
+function Revision({versions, start}: {versions: Version[]; start: number}) {
+    const [to, setTo] = useState(start)
+    const [from, setFrom] = useState<number | null>(start === versions.length - 1 ? null : start + 1)
+    const version = versions[to]
+    const previous = from === null ? undefined : versions[from]
     const description = version.description ?? previous?.description
     return (
         <DialogContent aria-describedby={undefined} showCloseButton={false} className="max-h-[85dvh] gap-4 overflow-y-auto border p-6 shadow-lg ring-0 sm:max-w-[800px]">
@@ -44,13 +95,9 @@ function Revision({version, previous}: {version: Version; previous: Version | un
                     </Button>
                 </DialogClose>
             </div>
-            <div>
-                <p className="text-xs text-muted-foreground">
-                    {previous ? 'Edited' : 'Original'} at <TimeCell iso={version.timestamp} cycle />
-                </p>
-                <StepLinksRow>
-                    <StepLinks block={version.block} event={version.event} />
-                </StepLinksRow>
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
+                <VersionSelect label="From" versions={versions} value={from} excluded={to} onChange={setFrom} none />
+                <VersionSelect label="To" versions={versions} value={to} excluded={from} onChange={v => setTo(v!)} />
             </div>
             <p className="text-base font-semibold wrap-anywhere">
                 <Marked from={previous ? previous.title : undefined} to={version.title} />
@@ -68,7 +115,7 @@ function Revision({version, previous}: {version: Version; previous: Version | un
     )
 }
 
-/** A referendum's texts, newest first, each one diffed against the one before. */
+/** A referendum's texts, newest first, any two of them diffed against each other. */
 export default function EditedHistory({versions, className}: {versions: Version[]; className?: string}) {
     const [listed, setListed] = useState(false)
     const [picked, setPicked] = useState<number | null>(null)
@@ -95,14 +142,14 @@ export default function EditedHistory({versions, className}: {versions: Version[
                             }}
                             className="block w-full rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent"
                         >
-                            {i === edits ? 'Original' : 'Edited'} <TimeCell iso={v.timestamp} />
+                            <VersionName versions={versions} index={i} />
                             {i === 0 && ' (most recent)'}
                         </button>
                     ))}
                 </PopoverContent>
             </Popover>
             <Dialog open={picked !== null} onOpenChange={open => !open && setPicked(null)}>
-                {picked !== null && <Revision version={versions[picked]} previous={versions[picked + 1]} />}
+                {picked !== null && <Revision versions={versions} start={picked} />}
             </Dialog>
         </div>
     )

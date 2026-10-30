@@ -98,7 +98,8 @@ export const Edited = withPlay(story(latest, 'call', {}, revisions), async ({can
 // a version shows its changes against the one before it
 export const EditedChanges = withPlay(story(latest, 'call', {}, revisions), async ({canvasElement}) => {
     const revision = await openRevision(canvasElement, /most recent/)
-    expect(revision.getByText(/^Edited at/)).toBeVisible()
+    expect(revision.getByRole('combobox', {name: 'From'})).toHaveTextContent(/^Edited/)
+    expect(revision.getByRole('combobox', {name: 'To'})).toHaveTextContent(/^Edited/)
     expect([...canvasElement.ownerDocument.querySelectorAll('[role=dialog] ins')].map(e => e.textContent)).toEqual(['2'])
     expect([...canvasElement.ownerDocument.querySelectorAll('[role=dialog] del')].map(e => e.textContent)).toEqual(['1'])
     expect(revision.getByText(revisions[0].hash)).toBeVisible()
@@ -110,10 +111,45 @@ export const EditedChanges = withPlay(story(latest, 'call', {}, revisions), asyn
 // the original version reads as it was, with nothing marked
 export const EditedOriginal = withPlay(story(latest, 'call', {}, revisions), async ({canvasElement}) => {
     const revision = await openRevision(canvasElement, /^Original/)
-    expect(revision.getByText(/^Original at/)).toBeVisible()
+    expect(revision.getByRole('combobox', {name: 'From'})).toHaveTextContent('None')
+    expect(revision.getByRole('combobox', {name: 'To'})).toHaveTextContent(/^Original/)
     expect(revision.getByText('Marketing budget')).toBeVisible()
     expect(revision.getByRole('link', {name: '960020-2'})).toBeVisible()
     expect(canvasElement.ownerDocument.querySelectorAll('[role=dialog] ins, [role=dialog] del')).toHaveLength(0)
+})
+
+const choose = async (revision: ReturnType<typeof within>, select: string, option: RegExp) => {
+    await userEvent.click(revision.getByRole('combobox', {name: select}))
+    await userEvent.click((await within(document.body).findAllByRole('option', {name: option}))[0])
+    await waitFor(() => expect(within(document.body).queryByRole('listbox')).toBeNull())
+}
+const marks = (root: HTMLElement, tag: string) => [...root.ownerDocument.querySelectorAll(`[role=dialog] ${tag}`)].map(e => e.textContent).join('')
+
+// any two versions compare, the links following each select
+export const EditedCompareAny = withPlay(story(latest, 'call', {}, revisions), async ({canvasElement}) => {
+    const revision = await openRevision(canvasElement, /most recent/)
+    await choose(revision, 'From', /^Original/)
+    expect(marks(canvasElement, 'del')).toContain('First')
+    expect(marks(canvasElement, 'ins')).toContain('airdrop')
+    expect(revision.getByRole('link', {name: '960020-2'})).toBeVisible()
+    expect(revision.getByRole('link', {name: '990500-4'})).toBeVisible()
+    expect(revision.queryByRole('link', {name: '990100-2'})).toBeNull()
+})
+
+// a newer version on the From side marks the change going backwards
+export const EditedCompareBackwards = withPlay(story(latest, 'call', {}, revisions), async ({canvasElement}) => {
+    const revision = await openRevision(canvasElement, /^Original/)
+    await choose(revision, 'From', /^Edited/)
+    expect(marks(canvasElement, 'ins')).toContain('First')
+})
+
+// None reads the To version on its own
+export const EditedCompareNone = withPlay(story(latest, 'call', {}, revisions), async ({canvasElement}) => {
+    const revision = await openRevision(canvasElement, /most recent/)
+    await choose(revision, 'From', /^None/)
+    expect(canvasElement.ownerDocument.querySelectorAll('[role=dialog] ins, [role=dialog] del')).toHaveLength(0)
+    expect(revision.queryByRole('link', {name: '990100-2'})).toBeNull()
+    expect(revision.getByRole('link', {name: '990500-4'})).toBeVisible()
 })
 
 // a single edit reads in the singular
