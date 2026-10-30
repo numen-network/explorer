@@ -20,7 +20,7 @@ function splitRows(list: 'abstain' | 'split', rows: ReferendumVoteRow[], chain: 
     return {
         kind: 'split',
         labels: lead.map(f => PART[f]),
-        rows: rows.map(v => ({id: v.id, addr: ss58Encode(v.voter.id, chain.ss58), acc: v.voter, amounts: lead.map(f => v[f]!)})),
+        rows: rows.map(v => ({id: v.id, addr: ss58Encode(v.voter.id, chain.ss58), acc: v.voter, amounts: lead.map(f => v[f]!), block: v.block})),
     }
 }
 

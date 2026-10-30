@@ -21,7 +21,7 @@ export async function inlineRefs(lists: CountedDelegation[][]): Promise<Map<stri
 }
 
 /** A standard vote with the delegations it counts, biggest first. */
-export function voteEntry(v: VoteShape & {id: string}, voter: {id: string; acc?: AccountRef}, list: CountedDelegation[], refs: Map<string, AccountRef>, ss58: number): VoteEntry {
+export function voteEntry(v: VoteShape & {id: string; block: number}, voter: {id: string; acc?: AccountRef}, list: CountedDelegation[], refs: Map<string, AccountRef>, ss58: number): VoteEntry {
     const addr = (id: string) => ss58Encode(id, ss58)
     return {
         id: v.id,
@@ -40,5 +40,6 @@ export function voteEntry(v: VoteShape & {id: string}, voter: {id: string; acc?:
             capital: d.balance,
             votes: d.votes,
         })),
+        block: v.block,
     }
 }

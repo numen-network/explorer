@@ -206,3 +206,14 @@ export const SearchKeepsListAsked = withPlay(searchAt({q: 'Spamlord', group: 'ay
 export const SearchNoMatch = withPlay(searchAt({q: 'nobody by this name'}, () => false), async ({canvas}) => {
     await expect(await accounts(canvas)).toEqual(['No matching aye votes.'])
 })
+
+// each row names the block of its latest vote
+const castWhen: Play = async ({canvas}) => {
+    const row = (await canvas.findAllByRole('row'))[1]
+    await expect(within(row).getByRole('link', {name: /^#[\d,]+$/})).toBeVisible()
+    await expect(within(row.closest('table')!).getByRole('columnheader', {name: 'Block'})).toBeVisible()
+}
+
+export const StandardCastAt = withPlay(cast(single, singleVote, 'votes'), castWhen)
+
+export const SplitCastAt = withPlay(story(everyAction.referendum, 'votes', everyAction.data, [], {group: 'split'}), castWhen)

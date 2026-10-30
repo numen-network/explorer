@@ -6,7 +6,7 @@ import AccountLink from '@/components/AccountLink'
 import Approx from '@/components/Approx'
 import {columnsFor, DataTable, expander} from '@/components/DataTable'
 import {NONE} from '@/components/Detail'
-import {Jump} from '@/components/links'
+import {BlockLink, Jump} from '@/components/links'
 import Pager from '@/components/Pager'
 import {FilterChip} from '@/components/pills'
 import SearchBox from '@/components/SearchBox'
@@ -35,6 +35,7 @@ export interface VoteEntry {
     delegatedCapital: string
     delegatedVotes: string
     delegators: Delegator[]
+    block: number
 }
 
 /** A split vote, its amounts in the order of the list's labels. */
@@ -43,6 +44,7 @@ export interface SplitEntry {
     addr: string
     acc?: IdentityRef
     amounts: string[]
+    block: number
 }
 
 export interface VoteGroup {
@@ -129,6 +131,10 @@ export function VoteDetail({v, moreHref, decimals, symbol}: {v: VoteEntry; moreH
     )
 }
 
+function blockColumn<T extends {block: number}>(helper: ReturnType<typeof columnsFor<T>>) {
+    return helper.display({id: 'block', header: 'Block', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.block} />})
+}
+
 const col = columnsFor<VoteEntry>()
 
 function StandardTable({rows, whole, decimals, symbol, empty}: {rows: VoteEntry[]; whole: string; decimals: number; symbol: string; empty: string}) {
@@ -165,6 +171,7 @@ function StandardTable({rows, whole, decimals, symbol, empty}: {rows: VoteEntry[
                 meta: {align: 'right'},
                 cell: ({row}) => <ShareBar part={String(BigInt(row.original.selfVotes) + BigInt(row.original.delegatedVotes))} whole={whole} />,
             }),
+            blockColumn(col),
             expander(col),
         ],
         [whole, decimals, symbol]
@@ -186,6 +193,7 @@ function SplitTable({labels, rows, decimals, symbol, empty}: {labels: string[]; 
                     cell: ({row}) => <Approx planck={row.original.amounts[i]} decimals={decimals} symbol={symbol} />,
                 })
             ),
+            blockColumn(scol),
         ],
         [labels, decimals, symbol]
     )

@@ -30,12 +30,13 @@ const vote = (i: number, conviction: string, capital: number, delegators: Delega
         delegatedCapital: String(delegators.reduce((n, d) => n + BigInt(d.capital), 0n)),
         delegatedVotes: String(delegators.reduce((n, d) => n + BigInt(d.votes), 0n)),
         delegators,
+        block: 962_000 + i,
     }
 }
 
 const splitVote = (i: number, ...amounts: number[]): SplitEntry => {
     const acc = person(i)
-    return {id: `split-${i}`, addr: addr(acc.id), acc, amounts: amounts.map(numn)}
+    return {id: `split-${i}`, addr: addr(acc.id), acc, amounts: amounts.map(numn), block: 962_000 + i}
 }
 
 const FIRST: Paging = {page: 1, size: 20, offset: 0}
@@ -64,7 +65,7 @@ export const TruncationEdges: Story = {
         splits(['Aye', 'Nay'], [splitVote(0, 1.15, 4.35), splitVote(1, 8_200_000, 5_100_000), splitVote(2, 99.999, 9_999.99), splitVote(3, 0.000_001, 0.019), {...splitVote(4), amounts: [MAX_U128, numn(2.01)]}])
     ),
     play: async ({canvas}) => {
-        const parts = canvas.getAllByRole('row').slice(1).map(row => [...row.querySelectorAll('td')].slice(1).map(cell => cell.textContent))
+        const parts = canvas.getAllByRole('row').slice(1).map(row => [...row.querySelectorAll('td')].slice(1, 3).map(cell => cell.textContent))
         await expect(parts).toEqual([
             ['1.15 NUMN', '4.35 NUMN'],
             ['8.2M NUMN', '5.1M NUMN'],
