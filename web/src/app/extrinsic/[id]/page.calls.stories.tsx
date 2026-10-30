@@ -114,6 +114,20 @@ export const BatchedNotePreimage: StoryObj = {
     },
 }
 
+const SHORT_CODE = `0x${'ab'.repeat(32)}`
+
+// a runtime's code shows only its ends and size, whatever its length
+export const PrimeUpgrade: StoryObj = {
+    ...detail(of((height: number) => signedCall(height, 'Prime.upgrade', {code: SHORT_CODE}))),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText(`${SHORT_CODE.slice(0, 10)}…${SHORT_CODE.slice(-8)} (32 bytes)`)).toBeVisible()
+        await expect(canvasElement.textContent).not.toContain(SHORT_CODE)
+        await openJson(canvas)
+        await expect(canvasElement.textContent).toContain('(32 bytes)')
+        await expect(canvasElement.textContent).not.toContain(SHORT_CODE)
+    },
+}
+
 const LONG_REMARK = `0x${'ab'.repeat(2048)}`
 
 // every other call keeps its hex whole

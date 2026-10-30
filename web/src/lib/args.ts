@@ -104,7 +104,7 @@ class Walker {
 
     arg(pallet: string, method: string, f: Field, value: any): ArgNode {
         const node = this.field(f, value)
-        return isNotePreimage(pallet, method) && node.kind !== 'none' ? {kind: 'hex', hex: summarizeHex(value)} : node
+        return f.name === summarizedField(pallet, method) && node.kind !== 'none' ? {kind: 'hex', hex: summarizeHex(value)} : node
     }
 
     node(ti: number, value: any, typeName = ''): ArgNode {
@@ -298,24 +298,30 @@ export function nodesOf<K extends ArgNode['kind']>(nodes: (ArgNode | null)[], ki
 
 const LONG_HEX_CHARS = 2 + 2 * 16384
 
-const isNotePreimage = (pallet: string, method: string) => pallet === 'Preimage' && method === 'note_preimage'
+const SUMMARIZED_FIELDS: Record<string, string> = {'Preimage.note_preimage': 'bytes', 'Prime.upgrade': 'code'}
+
+const summarizedField = (pallet: string, method: string): string | undefined => SUMMARIZED_FIELDS[`${pallet}.${method}`]
 
 const summarizeHex = (hex: string) => `${hex.slice(0, 10)}…${hex.slice(-8)} (${fmtCount((hex.length - 2) / 2, 'byte')})`
 
 const briefHex = (hex: string) => (hex.length > LONG_HEX_CHARS ? summarizeHex(hex) : hex)
 
-const summarizeBytes = <T extends {bytes: string}>(args: T) => ({...args, bytes: summarizeHex(args.bytes)})
+const summarizeField = <T extends Record<string, string>>(args: T, field: string) => ({...args, [field]: summarizeHex(args[field])})
 
 // a batch holds its calls whole in its own args
-function briefNestedPreimages(value: unknown): unknown {
-    if (Array.isArray(value)) return value.map(briefNestedPreimages)
+function briefNestedCalls(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(briefNestedCalls)
     if (value == null || typeof value !== 'object') return value
-    const call = value as {__kind?: string; value?: {__kind: string; bytes: string}}
-    if (call.__kind && call.value && isNotePreimage(call.__kind, call.value.__kind)) return {...call, value: summarizeBytes(call.value)}
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, briefNestedPreimages(v)]))
+    const call = value as {__kind?: string; value?: {__kind: string} & Record<string, string>}
+    const field = call.__kind && call.value ? summarizedField(call.__kind, call.value.__kind) : undefined
+    if (field) return {...call, value: summarizeField(call.value!, field)}
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, briefNestedCalls(v)]))
 }
 
-const briefPreimages = ({pallet, method, args}: {pallet: string; method: string; args: unknown}) => (isNotePreimage(pallet, method) ? summarizeBytes(args as {bytes: string}) : briefNestedPreimages(args))
+function briefCall({pallet, method, args}: {pallet: string; method: string; args: unknown}): unknown {
+    const field = summarizedField(pallet, method)
+    return field ? summarizeField(args as Record<string, string>, field) : briefNestedCalls(args)
+}
 
 function briefArgs(value: unknown): unknown {
     if (typeof value === 'string') return value.startsWith('0x') ? briefHex(value) : value
@@ -333,11 +339,11 @@ export function describeProposalArgs(call: Parameters<typeof describeArgs>[0]): 
 
 /** Call rows with their args worked out, the way the call tree draws them. */
 export const withCallViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}; subcalls: unknown[]}>(rows: T[]) =>
-    rows.map(c => ({...c, args: briefPreimages(c), view: describeArgs({...c, specVersion: c.block.specVersion, nested: c.subcalls.length > 0})}))
+    rows.map(c => ({...c, args: briefCall(c), view: describeArgs({...c, specVersion: c.block.specVersion, nested: c.subcalls.length > 0})}))
 
 /** Proposal calls with their args worked out, a call nests whatever follows it deeper in preorder. */
 export const withProposalViews = <T extends {pallet: string; method: string; args: unknown; address: number[]}>(nodes: T[], specVersion: number | null) =>
-    nodes.map((c, i) => ({...c, args: briefArgs(briefPreimages(c)), view: describeProposalArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length})}))
+    nodes.map((c, i) => ({...c, args: briefArgs(briefCall(c)), view: describeProposalArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length})}))
 
 /** Event rows with their args worked out, ready for a client table that cannot read the metadata. */
 export const withEventViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}}>(rows: T[]) => rows.map(e => ({...e, view: describeEvent({...e, specVersion: e.block.specVersion})}))
