@@ -7,7 +7,7 @@ import type {Share} from '@/lib/format'
 import {HEAD} from '../../../mock/fixtures.js'
 import {linear, reciprocal} from '../../../mock/fixtures/governance.js'
 import {GREEN, RED, tint} from '@/lib/chartColors'
-import {axesLegible, filledSpans, lastTooltipLines, legendsIn, paintOrder, tooltipsInView, unselectLegend, yPixel} from '../../.storybook/fit'
+import {axesLegible, filledSpans, lastTooltipLines, legendsIn, tooltipsInView, unselectLegend, yPixel} from '../../.storybook/fit'
 import {CurvesChart, type TallyStep, type VoteStep} from './charts'
 import {Card} from './ui/card'
 
@@ -258,25 +258,73 @@ const UNOPPOSED = chart({
     open: true,
 })
 
+// the canvas pixels inside the plot where red outweighs green and blue
+const reddish = (root: HTMLElement) => {
+    const canvas = root.querySelector('canvas')!
+    const chart = echarts.getInstanceByDom(root.querySelector<HTMLElement>('[_echarts_instance_]')!)!
+    const bottom = Math.floor(yPixel(root, 0, 0) * chart.getDevicePixelRatio())
+    const {data} = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, bottom)
+    let count = 0
+    for (let i = 0; i < data.length; i += 4) if (data[i] > data[i + 1] + 12 && data[i] > data[i + 2] + 12) count++
+    return count
+}
+
 // nobody voted nay, so with the aye area hidden nothing stands above the axis
 export const ChartAyeNayValueAyeHiddenNoNays: Story = {
     ...UNOPPOSED,
     play: async ({canvasElement}) => {
         await showVotes(canvasElement)
         unselectLegend(canvasElement, 'Aye')
-        await waitFor(() => {
-            const [bottom, top] = reach(canvasElement, NAY_FILL)
-            expect(top).toBeCloseTo(bottom, 0)
-        })
+        await waitFor(() => expect(filledSpans(canvasElement, NAY_FILL)[0].filter(([top, bottom]) => bottom > top)).toEqual([]))
+        expect(reddish(canvasElement)).toBe(0)
     },
 }
 
-// nobody voted nay. the empty nay area sits on the aye area, which paints over its edges
-export const ChartAyeNayValueAyePaintedOverNay: Story = {
-    ...UNOPPOSED,
+// referendum 0's aye totals, every vote an aye, with sub-pixel swings just before hour zero
+export const ChartAyeNaySpike: Story = {
+    ...chart({
+        ...BIG,
+        zero: 85_205,
+        submitted: 16_748,
+        started: true,
+        tally: (
+            [
+                [16_811, 1_620],
+                [16_814, 1_600],
+                [16_851, 1_680],
+                [17_110, 80],
+                [36_966, 83_190],
+                [36_996, 2_207_190],
+                [80_463, 2_207_191],
+                [82_146, 3_274_568],
+                [85_081, 1_150_568],
+                [85_160, 11_765_568],
+                [85_164, 7_450_568],
+                [85_175, 1_150_568],
+                [85_184, 7_519_568],
+                [85_205, 7_519_568],
+                [85_224, 7_529_568],
+                [85_230, 7_529_573],
+                [85_848, 8_529_573],
+                [85_861, 8_529_573],
+                [90_740, 8_531_673],
+                [90_768, 8_530_773],
+                [117_565, 8_560_773],
+                [136_138, 8_560_774],
+                [165_541, 8_560_774],
+            ] as const
+        ).map(([block, ayes]): Spec['tally'][number] => [block, [1n, 1n], [BigInt(ayes) * 10n ** 18n, ISSUANCE]]),
+        open: false,
+    }),
     play: async ({canvasElement}) => {
         await showVotes(canvasElement)
-        await waitFor(() => expect(paintOrder(canvasElement, [AYE_FILL, NAY_FILL])[0]).toEqual([NAY_FILL, AYE_FILL]))
+        const chart = echarts.getInstanceByDom(canvasElement.querySelector<HTMLElement>('[_echarts_instance_]')!)!
+        await waitFor(() => expect(legendsIn(canvasElement)[0]).toContain('Nay'))
+        expect(lastTooltipLines(canvasElement, 'Aye')[0]).toContain('Nay0 NUMN')
+        chart.dispatchAction({type: 'dataZoom', startValue: -54, endValue: 60})
+        await waitFor(() => expect(chart.getOption().dataZoom).toMatchObject([{startValue: -54}, {startValue: -54}]))
+        await new Promise(settled => setTimeout(settled, 1500))
+        expect(reddish(canvasElement)).toBe(0)
     },
 }
 
@@ -307,16 +355,15 @@ export const ChartAyeNayValueNoAyes: Story = {
     },
 }
 
-// no votes yet, both areas lie flat on the axis and the axes stay legible
+// no votes yet, the aye area lies flat on the axis, no nay area shows, and the axes stay legible
 export const ChartAyeNayValueNoVotes: Story = {
     ...ChartSubmittedWithoutVotes,
     play: async context => {
         await showVotes(context.canvasElement)
         await axesLegible(context)
-        for (const fill of [AYE_FILL, NAY_FILL]) {
-            const [bottom, top] = reach(context.canvasElement, fill)
-            expect(top).toBeCloseTo(bottom, 0)
-        }
+        const [bottom, top] = reach(context.canvasElement, AYE_FILL)
+        expect(top).toBeCloseTo(bottom, 0)
+        expect(reddish(context.canvasElement)).toBe(0)
     },
 }
 

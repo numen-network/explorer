@@ -242,15 +242,32 @@ interface HeldPoint {
     reading: string
 }
 
-// a step line holds the last recorded value at each hour, and each point
-// carries its reading for the tooltip to print
+// the last recorded reading at each hour. the points sit on the axis floor so
+// they never scale it
 function heldAt(steps: Held[], grid: number[]): HeldPoint[] {
     let i = 0
     return grid.map(h => {
         while (i + 1 < steps.length && steps[i + 1][0] <= h) i++
-        return {value: [h, steps[i][1]], reading: steps[i][2]}
+        return {value: [h, 0], reading: steps[i][2]}
     })
 }
+
+const readingId = (name: string) => `${name} reading`
+
+// an unseen line on the hover grid that lends a stepped series its tooltip row.
+// echarts drops points closer than a pixel while painting, so a stepped series
+// on that grid would slant its edges
+const readings = (name: string, color: string, data: HeldPoint[]) => ({
+    id: readingId(name),
+    name,
+    type: 'line' as const,
+    silent: true,
+    symbol: 'none',
+    lineStyle: {opacity: 0},
+    itemStyle: {color},
+    emphasis: {disabled: true},
+    data,
+})
 
 const sharesOf = (steps: TallyStep[]): Held[] => steps.map(([h, share]) => [h, pctToNum(...share), fmtPct(...share)])
 
@@ -360,24 +377,26 @@ export function CurvesChart({
     lead: {from: number; submitted: number}
     height?: number
 }) {
-    const walked = (name: string, data: HeldPoint[], color: string) => ({
+    const walked = (name: string, steps: Held[], color: string) => ({
+        id: name,
         name,
         type: 'line' as const,
         z: LAYER.tally,
         symbol: 'none',
-        step: 'middle' as const,
+        step: 'end' as const,
+        tooltip: {show: false},
         lineStyle: {width: 2, color, type: 'dashed' as const},
         itemStyle: {color},
-        data,
+        data: steps.map(([h, value]) => [h, value]),
     })
     const [showVotes, setShowVotes] = useState(false)
     const toggle = useId()
     const [showVoters, setShowVoters] = useState(false)
     const votersToggle = useId()
     const chartTip = useChartTip()
-    // the aye area at the bottom, the nay area on top of it. the nay series
-    // comes first so the aye area paints over the edges of an empty nay area
-    const piled = (name: string, data: HeldPoint[], color: string) => ({
+    // the aye area at the bottom, the nay area on top of it
+    const piled = (name: string, data: [number, number | null][], color: string) => ({
+        id: name,
         name,
         type: 'line' as const,
         yAxisIndex: 1,
@@ -385,7 +404,8 @@ export function CurvesChart({
         stackOrder: 'seriesDesc' as const,
         z: LAYER.votes,
         symbol: 'none',
-        step: 'middle' as const,
+        step: 'end' as const,
+        tooltip: {show: false},
         lineStyle: {width: 0},
         itemStyle: {color: tint(color, 0.45)},
         areaStyle: {color: tint(color, 0.3), opacity: 1},
@@ -393,6 +413,10 @@ export function CurvesChart({
         data,
     })
     const amountsOf = (pick: 1 | 2): Held[] => currentVotes.map(step => [step[0], Number(step[pick]) / 10 ** unit.decimals, fmtApprox(step[pick], unit.decimals, unit.symbol)])
+    const heightsOf = (pick: 1 | 2) => amountsOf(pick).map(([h, value]): [number, number] => [h, value])
+    // a run of zero nays leaves a gap. a layer of no height still paints a
+    // fringe wherever the two passes around it drop different points
+    const nayHeights = heightsOf(2).map(([h, value], i, all): [number, number | null] => [h, value === 0 && (i === 0 || all[i - 1][1] === 0) ? null : value])
     const blockAt = (h: number) => clock.zero + Math.round(h * clock.perHour)
     // thresholds exist from hour zero on, the tally up to its last step
     const lines = (from: number, to: number) => {
@@ -522,11 +546,15 @@ export function CurvesChart({
                     ? {z: LAYER.now, silent: true, symbol: 'none', label: {show: false}, lineStyle: {color: GRAY, type: 'dashed', width: 1}, data: [{xAxis: now.at}]}
                     : undefined,
             },
-            walked('Current support', shown.currentSupport, SUPPORT),
+            walked('Current support', sharesOf(currentSupport), SUPPORT),
             {name: 'Approval', type: 'line' as const, z: LAYER.curve, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: shown.approval},
-            walked('Current approval', shown.currentApproval, GREEN),
-            piled('Nay', shown.nays, RED),
-            piled('Aye', shown.ayes, GREEN),
+            walked('Current approval', sharesOf(currentApproval), GREEN),
+            piled('Nay', showVotes ? nayHeights : [], RED),
+            piled('Aye', showVotes ? heightsOf(1) : [], GREEN),
+            readings('Current support', SUPPORT, shown.currentSupport),
+            readings('Current approval', GREEN, shown.currentApproval),
+            readings('Nay', tint(RED, 0.45), shown.nays),
+            readings('Aye', tint(GREEN, 0.45), shown.ayes),
             {name: VOTERS, type: 'scatter' as const, z: LAYER.voters, itemStyle: {opacity: 1}, data: points},
             windows([`Lead-in ${fmtSpan((clock.zero - lead.submitted) * clock.blockTime)}`, 'Lead-in'], SUB, SUB_FILL, [[lead.from, 0]]),
             windows('Confirmation', GREEN, GREEN_FILL, confirmations),
@@ -559,11 +587,11 @@ export function CurvesChart({
                     xAxis: {axisLabel: {customValues: ticksIn(from, to)}},
                     series: [
                         {name: 'Support', data: next.support},
-                        {name: 'Current support', data: next.currentSupport},
+                        {id: readingId('Current support'), data: next.currentSupport},
                         {name: 'Approval', data: next.approval},
-                        {name: 'Current approval', data: next.currentApproval},
-                        {name: 'Aye', data: next.ayes},
-                        {name: 'Nay', data: next.nays},
+                        {id: readingId('Current approval'), data: next.currentApproval},
+                        {id: readingId('Aye'), data: next.ayes},
+                        {id: readingId('Nay'), data: next.nays},
                     ],
                 })
             })

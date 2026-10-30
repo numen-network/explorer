@@ -86,18 +86,6 @@ export const filledSpans = (root: Element, fill: string) =>
             })
     )
 
-// the fills of the shapes a chart under root paints, in paint order, each fill once
-export const paintOrder = (root: Element, fills: string[]) =>
-    chartsIn(root).map(chart => [
-        ...new Set(
-            chart
-                .getZr()
-                .storage.getDisplayList(true)
-                .map(el => el.style?.fill)
-                .filter((fill): fill is string => fills.includes(fill))
-        ),
-    ])
-
 // where a value sits on a y axis of the first chart under root, in pixels
 export const yPixel = (root: Element, yAxisIndex: number, value: number) => chartsIn(root)[0].convertToPixel({yAxisIndex}, value)
 
