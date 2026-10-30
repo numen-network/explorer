@@ -18,8 +18,9 @@ export default async function Votes({hex, addr, chain, sp, firstSeenBlock, locke
     const pg = paging(sp)
     const type = VOTE_LIST_KEYS.find(l => l === sp.type) ?? ''
     const [page, sum, head] = await Promise.all([votesFor(hex, type, pg.size, pg.offset), votesSummary(hex, firstSeenBlock), chainDbHead()])
-    const refs = await inlineRefs([...page.delegations.values()])
-    const details = new Map(page.votes.filter(v => v.kind === 'Standard').map(v => [v.id, voteEntry(v, {id: hex}, page.delegations.get(v.referendum.index) ?? [], refs, chain.ss58)]))
+    const found = new Set<string>()
+    const refs = await inlineRefs([...page.delegations.values()], found)
+    const details = new Map(page.votes.filter(v => v.kind === 'Standard').map(v => [v.id, voteEntry(v, {id: hex}, page.delegations.get(v.referendum.index) ?? [], found, refs, chain.ss58)]))
     return (
         <>
             <StatTile

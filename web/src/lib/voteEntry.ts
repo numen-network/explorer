@@ -14,14 +14,19 @@ export interface CountedDelegation {
     delegator: {id: string}
 }
 
+// the biggest few plus any delegator a search found
+function inline(list: CountedDelegation[], found: Set<string>): CountedDelegation[] {
+    return list.filter((d, i) => i < INLINE_DELEGATORS || found.has(d.delegator.id))
+}
+
 /** Identities of the delegators each vote's panel lists. */
-export async function inlineRefs(lists: CountedDelegation[][]): Promise<Map<string, AccountRef>> {
-    const ids = [...new Set(lists.flatMap(list => list.slice(0, INLINE_DELEGATORS).map(d => d.delegator.id)))]
+export async function inlineRefs(lists: CountedDelegation[][], found: Set<string>): Promise<Map<string, AccountRef>> {
+    const ids = [...new Set(lists.flatMap(list => inline(list, found).map(d => d.delegator.id)))]
     return new Map((await accountRefs(ids)).accounts.map(a => [a.id, a]))
 }
 
 /** A standard vote with the delegations it counts, biggest first. */
-export function voteEntry(v: VoteShape & {id: string; block: number}, voter: {id: string; acc?: AccountRef}, list: CountedDelegation[], refs: Map<string, AccountRef>, ss58: number): VoteEntry {
+export function voteEntry(v: VoteShape & {id: string; block: number}, voter: {id: string; acc?: AccountRef}, list: CountedDelegation[], found: Set<string>, refs: Map<string, AccountRef>, ss58: number): VoteEntry {
     const addr = (id: string) => ss58Encode(id, ss58)
     return {
         id: v.id,
@@ -33,7 +38,7 @@ export function voteEntry(v: VoteShape & {id: string; block: number}, voter: {id
         delegatorCount: list.length,
         delegatedCapital: String(list.reduce((n, d) => n + BigInt(d.balance), 0n)),
         delegatedVotes: String(list.reduce((n, d) => n + BigInt(d.votes), 0n)),
-        delegators: list.slice(0, INLINE_DELEGATORS).map(d => ({
+        delegators: inline(list, found).map(d => ({
             addr: addr(d.delegator.id),
             acc: refs.get(d.delegator.id),
             conviction: convictionLabel(d.conviction),

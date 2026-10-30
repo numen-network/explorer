@@ -145,8 +145,8 @@ const voterIs = (who: {id: string}) => (v: {voter: {id: string}}) => v.voter.id 
 // the server's answer to a search. keep picks the votes it finds, given the
 // targets of the delegators it names
 type Carried = (v: {voter: {id: string}}, carriers: string[]) => boolean
-const searchAt = (query: Record<string, string>, keep: Carried, named: object[] = []) => {
-    const {referendum, ...all} = castVotes(delegatedRef, searchVotes, fewAndMany)
+const searchAt = (query: Record<string, string>, keep: Carried, named: object[] = [], delegated: object[] = fewAndMany) => {
+    const {referendum, ...all} = castVotes(delegatedRef, searchVotes, delegated)
     type Where = {AND?: {OR: [object, {voter: {id_in: string[]}}]}[]; delegator?: object}
     const hits = (where: Where) => voteData(referendum.index, searchVotes.filter(v => keep(v, where.AND![0].OR[1].voter.id_in)))
     return story(
@@ -186,9 +186,22 @@ export const SearchVoter = withPlay(searchAt({q: 'Redshift'}, voterIs(PEOPLE[3])
 // a delegator's address finds the vote carrying its delegation
 const delegatorOfRedshift = fewAndMany[0] as {who: {id: string}}
 export const SearchDelegator = withPlay(
-    searchAt({q: ss58Encode(delegatorOfRedshift.who.id, CHAIN.ss58)}, (v, carriers) => carriers.includes(v.voter.id), [{voter: {id: PEOPLE[3].id}}]),
+    searchAt({q: ss58Encode(delegatorOfRedshift.who.id, CHAIN.ss58)}, (v, carriers) => carriers.includes(v.voter.id), [{voter: {id: PEOPLE[3].id}, delegator: {id: delegatorOfRedshift.who.id}}]),
     async ({canvas}) => {
         await expect(await accounts(canvas)).toEqual(['Redshift'])
+    }
+)
+
+// a searched delegator past the inline ten still shows in the panel
+const polarisDelegators = delegators(PEOPLE[0], anons(80, 13)).sort((a, b) => Number(BigInt(b.balance) - BigInt(a.balance)))
+const smallestOfPolaris = polarisDelegators.at(-1)!.who
+export const SearchDelegatorOverInlineLimit = withPlay(
+    searchAt({q: ss58Encode(smallestOfPolaris.id, CHAIN.ss58)}, (v, carriers) => carriers.includes(v.voter.id), [{voter: {id: PEOPLE[0].id}, delegator: {id: smallestOfPolaris.id}}], polarisDelegators),
+    async context => {
+        await expandRow('Polaris Guild')!(context)
+        const href = `/account/${ss58Encode(smallestOfPolaris.id, CHAIN.ss58)}`
+        await waitFor(() => expect(context.canvas.queryAllByRole('link').some(link => link.getAttribute('href') === href)).toBe(true))
+        await expect(await context.canvas.findByRole('link', {name: '2 more delegators on the account page'})).toBeVisible()
     }
 )
 

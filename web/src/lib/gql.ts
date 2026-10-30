@@ -2076,23 +2076,25 @@ export interface VoteSearch {
     where: string
     vars: string
     values: Record<string, unknown>
+    delegators: Set<string>
 }
 
 export async function voteSearch(index: number, {account, name}: AccountSearch): Promise<VoteSearch> {
     const own = 'referendum: {index_eq: $index}, removed_eq: false'
     const match = account != null ? '{id_eq: $account}' : name != null ? nameMatch('$name') : null
-    if (match === null) return {where: own, vars: '', values: {index}}
+    if (match === null) return {where: own, vars: '', values: {index}, delegators: new Set()}
     const vars = account != null ? '$account: String!, ' : '$name: String!, '
     const values = {index, ...(account != null ? {account} : {name})}
-    const carriers = await sweep(page =>
-        gql<{delegatedVotes: {voter: {id: string}}[]}>(
+    const found = await sweep(page =>
+        gql<{delegatedVotes: {voter: {id: string}; delegator: {id: string}}[]}>(
             `query ($index: Int!, ${vars}$limit: Int!, $offset: Int!) {
-                delegatedVotes(where: {${own}, delegator: ${match}}, orderBy: id_ASC, limit: $limit, offset: $offset) { voter { id } }
+                delegatedVotes(where: {${own}, delegator: ${match}}, orderBy: id_ASC, limit: $limit, offset: $offset) { voter { id } delegator { id } }
             }`,
             {...values, ...page}
-        ).then(r => r.delegatedVotes.map(d => d.voter.id))
+        ).then(r => r.delegatedVotes)
     )
-    return {where: `${own}, AND: {OR: [{voter: ${match}}, {voter: {id_in: $carriers}}]}`, vars: `${vars}$carriers: [String!], `, values: {...values, carriers: [...new Set(carriers)]}}
+    const carriers = [...new Set(found.map(d => d.voter.id))]
+    return {where: `${own}, AND: {OR: [{voter: ${match}}, {voter: {id_in: $carriers}}]}`, vars: `${vars}$carriers: [String!], `, values: {...values, carriers}, delegators: new Set(found.map(d => d.delegator.id))}
 }
 
 export function referendumVoteCounts({where, vars, values}: VoteSearch): Promise<Record<VoteList, number>> {

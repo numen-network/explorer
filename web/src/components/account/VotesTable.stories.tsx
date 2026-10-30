@@ -23,7 +23,7 @@ const REFS = new Map(PEOPLE.map(p => [p.id, p]))
 
 // each standard vote's panel, from the delegations its referendum counts through it
 const table = (rows: AccountVoteRow[], delegations: Record<number, CountedDelegation[]> = {}) => {
-    const details = new Map(rows.filter(v => v.kind === 'Standard').map(v => [v.id, voteEntry(v, {id: SUBJECT}, delegations[v.referendum.index] ?? [], REFS, CHAIN.ss58)]))
+    const details = new Map(rows.filter(v => v.kind === 'Standard').map(v => [v.id, voteEntry(v, {id: SUBJECT}, delegations[v.referendum.index] ?? [], new Set(), REFS, CHAIN.ss58)]))
     return (
         <Card size="flush">
             <VotesTable rows={rows} details={details} moreHref={MORE} head={HEAD} chain={CHAIN} />

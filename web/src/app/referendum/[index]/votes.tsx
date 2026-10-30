@@ -26,12 +26,12 @@ function splitRows(list: 'abstain' | 'split', rows: ReferendumVoteRow[], chain: 
     }
 }
 
-async function standardRows(rows: ReferendumVoteRow[], index: number, whole: string, chain: ChainProps): Promise<VoteRows> {
+async function standardRows(rows: ReferendumVoteRow[], index: number, whole: string, found: Set<string>, chain: ChainProps): Promise<VoteRows> {
     const dels = await countedDelegations(index, rows.map(v => v.voter.id))
     const byVoter = new Map<string, typeof dels>()
     for (const d of dels) byVoter.set(d.voter.id, [...(byVoter.get(d.voter.id) ?? []), d])
-    const refs = await inlineRefs([...byVoter.values()])
-    return {kind: 'standard', whole, rows: rows.map(v => voteEntry(v, {id: v.voter.id, acc: v.voter}, byVoter.get(v.voter.id) ?? [], refs, chain.ss58))}
+    const refs = await inlineRefs([...byVoter.values()], found)
+    return {kind: 'standard', whole, rows: rows.map(v => voteEntry(v, {id: v.voter.id, acc: v.voter}, byVoter.get(v.voter.id) ?? [], found, refs, chain.ss58))}
 }
 
 // a live tally is weighed against today's active issuance, an ended one
@@ -69,6 +69,6 @@ export async function votesPanel({r, counts, snapshots, live, sp, pg, chain}: Pr
     const href = (l: VoteList) => `/referendum/${index}?${new URLSearchParams({tab: 'votes', group: l, ...(q && {q})})}`
     const groups: VoteGroup[] = lists.map(([l, label]) => ({label, total: found[l], href: href(l), active: l === list}))
     const [votes, pivotal] = await Promise.all([referendumVotes(list, search, {limit: pg.size, offset: pg.offset}), pivotalOf(r, snapshots, live, chain.ss58)])
-    const shown = list === 'abstain' || list === 'split' ? splitRows(list, votes, chain) : await standardRows(votes, index, list === 'aye' ? r.ayes : r.nays, chain)
+    const shown = list === 'abstain' || list === 'split' ? splitRows(list, votes, chain) : await standardRows(votes, index, list === 'aye' ? r.ayes : r.nays, search.delegators, chain)
     return <VoteLists groups={groups} list={shown} pivotal={pivotal} searched={q !== ''} paging={pg} decimals={chain.decimals} symbol={chain.symbol} />
 }
