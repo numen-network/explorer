@@ -19,7 +19,6 @@ const PREIMAGE_FOR_PREFIX = '0xd8f314b7f4e6b095f0f8ee4656a448257c7dda85c9c297999
 // scheduler echoes the same id back on dispatch
 const ASSEMBLY_ID = 'assembly'
 const ENACTMENT = 'enactment'
-const MAX_PREIMAGE_BYTES = 16384
 const BATCH_CALLS = new Set(['Utility.batch', 'Utility.batch_all', 'Utility.force_batch'])
 // a preimage is bytes somebody paid to store, so a proposal nests as deep as it
 // likes and the walk has to stop on its own
@@ -526,9 +525,7 @@ async function fetchPreimage(rpc: RpcClient, hash: string, height: number): Prom
     const raw: string | null = await rpc.call('state_getStorage', [keys[0], at])
     if (raw == null) return undefined
     const src = new Src(hexToBytes(raw.slice(2)))
-    const len = src.compactLength()
-    if (len > MAX_PREIMAGE_BYTES) return undefined
-    return src.bytes(len)
+    return src.bytes(src.compactLength())
 }
 
 // the convention is a noted preimage holding commit shaped utf8 text, the

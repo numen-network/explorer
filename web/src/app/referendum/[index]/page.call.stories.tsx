@@ -1,8 +1,9 @@
+import {expect, within} from 'storybook/test'
 import {HEAD, numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {proposal} from '../../../../../mock/fixtures/governance.js'
 import {pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
-import {curated, story, curatedCase, treasurySpend} from './page.stories.helpers'
+import {curated, story, curatedCase, treasurySpend, withPlay} from './page.stories.helpers'
 
 export default {title: 'Pages/Referendum/Call', ...pageMeta(ReferendumPage)}
 
@@ -62,6 +63,32 @@ export const BatchTree = story(
         }),
     },
     'call'
+)
+
+const UPGRADE_SUMMARY = '0x52bc5376…cdef0123 (20,008 bytes)'
+
+export const RuntimeUpgrade = withPlay(
+    story(
+        {
+            ...curated(8),
+            id: '16',
+            index: 16,
+            title: 'Runtime v10100',
+            proposalPallet: 'Prime',
+            proposalMethod: 'upgrade',
+            proposalCalls: [{pallet: 'Prime', method: 'upgrade', address: [], args: {code: `0x52bc5376${'ab'.repeat(20000)}cdef0123`}}],
+            proposalPayouts: null,
+            proposalAmount: null,
+            proposalBeneficiary: null,
+        },
+        'call'
+    ),
+    async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByText('Upgrade runtime')).toBeVisible()
+        await expect(canvas.getByText(UPGRADE_SUMMARY)).toBeVisible()
+        await expect(canvasElement.textContent).not.toContain('abababab')
+    }
 )
 
 export const Unreadable = story(

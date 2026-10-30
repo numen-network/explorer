@@ -295,9 +295,27 @@ export function nodesOf<K extends ArgNode['kind']>(nodes: (ArgNode | null)[], ki
 export const withCallViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}; subcalls: unknown[]}>(rows: T[]) =>
     rows.map(c => ({...c, view: describeArgs({...c, specVersion: c.block.specVersion, nested: c.subcalls.length > 0})}))
 
+const LONG_HEX_CHARS = 2 + 2 * 16384
+
+const briefHex = (hex: string) => (hex.length > LONG_HEX_CHARS ? `${hex.slice(0, 10)}…${hex.slice(-8)} (${fmtCount((hex.length - 2) / 2, 'byte')})` : hex)
+
+function briefArgs(value: unknown): unknown {
+    if (typeof value === 'string') return value.startsWith('0x') ? briefHex(value) : value
+    if (Array.isArray(value)) return value.map(briefArgs)
+    if (value == null || typeof value !== 'object') return value
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, briefArgs(v)]))
+}
+
+/** A proposal's args as a page sends them, a runtime upgrade would otherwise put its whole wasm in the html. */
+export function describeProposalArgs(call: Parameters<typeof describeArgs>[0]): ArgNode | null {
+    const view = describeArgs(call)
+    for (const node of nodesOf([view], 'hex')) node.hex = briefHex(node.hex)
+    return view
+}
+
 /** Proposal calls with their args worked out, a call nests whatever follows it deeper in preorder. */
 export const withProposalViews = <T extends {pallet: string; method: string; args: unknown; address: number[]}>(nodes: T[], specVersion: number | null) =>
-    nodes.map((c, i) => ({...c, view: describeArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length})}))
+    nodes.map((c, i) => ({...c, args: briefArgs(c.args), view: describeProposalArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length})}))
 
 /** Event rows with their args worked out, ready for a client table that cannot read the metadata. */
 export const withEventViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}}>(rows: T[]) => rows.map(e => ({...e, view: describeEvent({...e, specVersion: e.block.specVersion})}))
