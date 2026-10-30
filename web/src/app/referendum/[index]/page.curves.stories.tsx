@@ -2,7 +2,7 @@ import {expect, userEvent, waitFor, within} from 'storybook/test'
 import {numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {actionLog, castFromSnapshots, CHAIN, snapshots, standard} from '../../../../../mock/fixtures/governance.js'
 import {ss58Encode} from '@/lib/ss58'
-import {expectLegibleAxes, lastTooltipLines} from '../../../../.storybook/fit'
+import {expectLegibleAxes, filledSpans, lastTooltipLines} from '../../../../.storybook/fit'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
 import ReferendumPage from './page'
 import {curated, story, curatedCase, cast, withPlay, secondAttempt, deciding, single, singleVote, alice, bob, grace, everyRows, everyAction, manyVotes, many, extremeAmounts} from './page.stories.helpers'
@@ -25,6 +25,13 @@ export const SubmittedWithoutVotes = withPlay(curatedCase(7), async ({canvasElem
 })
 
 export const DecidingBelowCurves = curatedCase(5)
+
+const aboveCurves = {...curated(5), ayes: numn(40_000_000), nays: numn(1_000_000), support: numn(40_000_000)}
+
+// a tally that holds opens its confirmation window ahead of any ConfirmStarted
+export const DecidingAboveCurves = withPlay(story(aboveCurves, 'curves', castFromSnapshots(aboveCurves)), async ({canvasElement}) => {
+    await waitFor(() => expect(filledSpans(canvasElement, 'rgba(76,175,80,.11)')[0]).toHaveLength(1))
+})
 
 export const KilledWhileDeciding = curatedCase(4)
 

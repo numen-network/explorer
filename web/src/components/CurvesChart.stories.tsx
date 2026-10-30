@@ -110,6 +110,38 @@ export const ChartConfirmingEndsEarly = chart({
     confirmations: [[990_000, 1_015_920]],
 })
 
+const CONFIRMATION_FILL = 'rgba(76,175,80,.11)'
+
+const confirmationWindows = (root: Element, count: number) => waitFor(() => expect(filledSpans(root, CONFIRMATION_FILL)[0]).toHaveLength(count))
+
+// a tally already over both curves opens its window on the next block
+export const ChartConfirmationOnNextBlock: Story = {
+    ...chart({
+        ...MEDIUM,
+        zero: 962_000,
+        submitted: 960_560,
+        started: true,
+        tally: [
+            [960_700, pct(100), pct(1.5)],
+            [976_400, pct(99), pct(40)],
+        ],
+        open: true,
+        confirmations: [[HEAD + 1, HEAD + 25_921]],
+    }),
+    play: async context => {
+        await axesLegible(context)
+        await confirmationWindows(context.canvasElement, 1)
+    },
+}
+
+export const ChartNoConfirmationBelowCurves: Story = {
+    ...ChartDecidingBelowCurves,
+    play: async context => {
+        await axesLegible(context)
+        await confirmationWindows(context.canvasElement, 0)
+    },
+}
+
 export const ChartTwoConfirmAttempts = chart({
     ...SMALL,
     zero: 701_440,

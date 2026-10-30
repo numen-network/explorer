@@ -291,6 +291,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         currentSupport.push([now.at, supportNow])
         currentVotes.push([now.at, BigInt(r.ayes), BigInt(r.nays)])
     }
+    const confirmStart = phaseOf(r) === 'Deciding' ? confirmEstimate({...r, decidingSince: r.decidingSince!}, activePlanck, head.height) : undefined
     // a kill, a cancellation or a rejection past the decision period cuts a
     // confirmation off with no abort event, an open one runs to the block the
     // pallet schedules it to pass at
@@ -300,9 +301,11 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         const close = trail.slice(i + 1).find(t => t.name === 'Referenda.ConfirmAborted' || t.name === 'Referenda.Confirmed')
         confirmations.push([toX(s.block), toX(close?.block ?? r.endedAt ?? s.block + r.track.confirmPeriod)])
     }
-    // only a pass ends a referendum early, one still confirming passes where
-    // its open window closes
-    const end = r.status === 'Approved' ? toX(r.endedAt!) : phaseOf(r) === 'Confirming' ? confirmations.at(-1)?.[1] : undefined
+    // a tally that holds starts confirming when the pallet's alarm fires
+    if (confirmStart != null) confirmations.push([toX(confirmStart), toX(confirmStart + r.track.confirmPeriod)])
+    // only a pass ends a referendum early, one confirming or set to confirm
+    // passes where its last window closes
+    const end = r.status === 'Approved' ? toX(r.endedAt!) : phaseOf(r) === 'Confirming' || confirmStart != null ? confirmations.at(-1)?.[1] : undefined
     const earlyEnd = end !== undefined && end < decisionHours ? end : null
 
     const ended = r.endedAt !== null
@@ -335,7 +338,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const enactAt = approvedAt !== null && enactClose !== null ? phaseFraction(approvedAt, enactClose - approvedAt, head.height) : null
     // a phase not yet started is only expected, a confirmation can still be
     // aborted and a tally can still turn
-    const confirmStart = phaseOf(r) === 'Deciding' ? confirmEstimate({...r, decidingSince: r.decidingSince!}, activePlanck, head.height) : undefined
     const confirmTime = confirmStart === undefined ? phaseEnd(confirmDue, approvedAt) : expected(confirmStart)
     const enactTime =
         confirmStart !== undefined
