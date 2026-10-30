@@ -163,12 +163,16 @@ export function ThresholdChart({approval, support, seconds, height = 180}: {appr
     return <div ref={ref} style={{height}} />
 }
 
+// the curves chart paints bottom up in this order. the axis line at hour
+// zero splits the lead-in from the decision period
+const LAYER = {window: 1, votes: 2, axis: 3, curve: 4, tally: 5, now: 6}
+
 // a window shades the plot behind the curves and runs a pill along the top,
 // the first label the pill is wide enough to hold sitting in a gap of it
 function windows(label: string | string[], color: string, fill: string, spans: [number, number][]): echarts.CustomSeriesOption {
     return {
         type: 'custom',
-        z: 1,
+        z: LAYER.window,
         silent: true,
         tooltip: {show: false},
         encode: {x: [0, 1]},
@@ -276,6 +280,7 @@ export function CurvesChart({
     const walked = (name: string, data: HeldPoint[], color: string) => ({
         name,
         type: 'line' as const,
+        z: LAYER.tally,
         symbol: 'none',
         step: 'middle' as const,
         lineStyle: {width: 2, color, type: 'dashed' as const},
@@ -292,7 +297,7 @@ export function CurvesChart({
         yAxisIndex: 1,
         stack: 'votes',
         stackOrder: 'seriesDesc' as const,
-        z: 1,
+        z: LAYER.votes,
         symbol: 'none',
         step: 'middle' as const,
         lineStyle: {width: 0},
@@ -385,6 +390,7 @@ export function CurvesChart({
         yAxis: [
             {
                 type: 'value',
+                z: LAYER.axis,
                 min: 0,
                 max: 100,
                 interval: 25,
@@ -406,16 +412,17 @@ export function CurvesChart({
             {
                 name: 'Support',
                 type: 'line',
+                z: LAYER.curve,
                 symbol: 'none',
                 lineStyle: {width: 2, color: SUPPORT},
                 itemStyle: {color: SUPPORT},
                 data: shown.support,
                 markLine: now
-                    ? {silent: true, symbol: 'none', label: {show: false}, lineStyle: {color: GRAY, type: 'dashed', width: 1}, data: [{xAxis: now.at}]}
+                    ? {z: LAYER.now, silent: true, symbol: 'none', label: {show: false}, lineStyle: {color: GRAY, type: 'dashed', width: 1}, data: [{xAxis: now.at}]}
                     : undefined,
             },
             walked('Current support', shown.currentSupport, SUPPORT),
-            {name: 'Approval', type: 'line' as const, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: shown.approval},
+            {name: 'Approval', type: 'line' as const, z: LAYER.curve, symbol: 'none', lineStyle: {width: 2, color: GREEN}, itemStyle: {color: GREEN}, data: shown.approval},
             walked('Current approval', shown.currentApproval, GREEN),
             piled('Nay', shown.nays, RED),
             piled('Aye', shown.ayes, GREEN),
