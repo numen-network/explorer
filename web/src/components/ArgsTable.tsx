@@ -120,12 +120,6 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
                 </>
             )
         case 'text':
-            if (!node.text.includes('\n')) return node.hash ? (
-                <>
-                    {node.text}
-                    <HashLine hash={node.hash} />
-                </>
-            ) : node.text
             return (
                 <>
                     <div className="mb-1 text-xs text-muted-foreground">{fmtCount(node.bytes, 'byte')} · UTF-8</div>

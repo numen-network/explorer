@@ -186,6 +186,7 @@ export const RemarkText: StoryObj = {
     ...detail(of(remark(utf8Hex(REMARK_TEXT)))),
     play: async ({canvas}) => {
         await expect(canvas.getByText(REMARK_TEXT)).toBeVisible()
+        await expect(canvas.getByText('14 bytes · UTF-8')).toBeVisible()
         await expect(canvas.getByText(hexHash(utf8Hex(REMARK_TEXT)))).toBeVisible()
         await expect(canvas.queryByRole('link', {name: 'download'})).toBeNull()
     },
