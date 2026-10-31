@@ -156,14 +156,29 @@ export const PrimeUpgrade: StoryObj = {
 
 const LONG_REMARK = `0x${'ab'.repeat(2048)}`
 
-// every other call keeps its hex whole
+const remark = (hex: string) => (height: number) => signedCall(height, 'System.remark', {remark: hex})
+
+// bytes that aren't text show their ends and size in the table, the JSON keeps them whole
 export const LongRemark: StoryObj = {
-    ...detail(of((height: number) => signedCall(height, 'System.remark', {remark: LONG_REMARK}))),
-    play: async ({canvas}) => {
-        await expect(canvas.getByText(LONG_REMARK)).toBeVisible()
+    ...detail(of(remark(LONG_REMARK))),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText(`${LONG_REMARK.slice(0, 10)}…${LONG_REMARK.slice(-8)} (2,048 bytes)`)).toBeVisible()
+        await expect(canvasElement.textContent).not.toContain(LONG_REMARK)
         await openJson(canvas)
         await expect(canvas.getByText(new RegExp(LONG_REMARK))).toBeVisible()
     },
+}
+
+const REMARK_TEXT = 'A short remark'
+
+export const RemarkText: StoryObj = {
+    ...detail(of(remark(utf8Hex(REMARK_TEXT)))),
+    play: async ({canvas}) => expect(canvas.getByText(REMARK_TEXT)).toBeVisible(),
+}
+
+export const RemarkShortBinary: StoryObj = {
+    ...detail(of(remark('0x00ff10'))),
+    play: async ({canvas}) => expect(canvas.getByText('0x00ff10 (3 bytes)')).toBeVisible(),
 }
 
 export const PayoutBatch = detail(payout)

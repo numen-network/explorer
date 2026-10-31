@@ -104,7 +104,8 @@ class Walker {
 
     arg(pallet: string, method: string, f: Field, value: any): ArgNode {
         const node = this.field(f, value)
-        return f.name === summarizedField(pallet, method) && node.kind !== 'none' ? {kind: 'hex', hex: summarizeHex(value)} : node
+        const summarized = f.name === summarizedField(pallet, method) ? node.kind !== 'none' : node.kind === 'hex' && REMARKS.has(`${pallet}.${method}`)
+        return summarized ? {kind: 'hex', hex: summarizeHex(value)} : node
     }
 
     node(ti: number, value: any, typeName = ''): ArgNode {
@@ -301,6 +302,8 @@ const LONG_HEX_CHARS = 2 + 2 * 16384
 const SUMMARIZED_FIELDS: Record<string, string> = {'Preimage.note_preimage': 'bytes', 'Prime.upgrade': 'code'}
 
 const summarizedField = (pallet: string, method: string): string | undefined => SUMMARIZED_FIELDS[`${pallet}.${method}`]
+
+const REMARKS = new Set(['System.remark', 'System.remark_with_event'])
 
 const WHOLE_HEX_BYTES = 10
 
