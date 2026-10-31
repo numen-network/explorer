@@ -96,6 +96,7 @@ export const NotePreimageText: StoryObj = {
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText(`${SHORT_TEXT.slice(0, 10)}…${SHORT_TEXT.slice(-8)} (16 bytes)`)).toBeVisible()
         await expect(canvas.getByText(hexHash(SHORT_TEXT))).toBeVisible()
+        await expect(canvas.getByRole('link', {name: 'download'})).toBeVisible()
         await expect(canvasElement.textContent).not.toContain('A short preimage')
         await openJson(canvas)
         await expect(canvasElement.textContent).not.toContain(SHORT_TEXT)
@@ -152,6 +153,7 @@ export const PrimeUpgrade: StoryObj = {
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText(`${SHORT_CODE.slice(0, 10)}…${SHORT_CODE.slice(-8)} (32 bytes)`)).toBeVisible()
         await expect(canvas.getByText(hexHash(SHORT_CODE))).toBeVisible()
+        await expect(canvas.getByRole('link', {name: 'download'})).toBeVisible()
         await expect(canvasElement.textContent).not.toContain(SHORT_CODE)
         await openJson(canvas)
         await expect(canvasElement.textContent).toContain('(32 bytes)')
@@ -170,6 +172,7 @@ export const LongRemark: StoryObj = {
         await expect(canvas.getByText(`${LONG_REMARK.slice(0, 10)}…${LONG_REMARK.slice(-8)} (2,048 bytes)`)).toBeVisible()
         await expect(canvas.getByText(hexHash(LONG_REMARK))).toBeVisible()
         await expect(within(canvasElement.querySelector<HTMLElement>('[data-slot=args-table]')!).getByRole('button', {name: 'copy'})).toBeVisible()
+        await expect(canvas.getByRole('link', {name: 'download'}).getAttribute('href')).toMatch(new RegExp(`^/api/bytes\\?call=.+&hash=${hexHash(LONG_REMARK)}$`))
         await expect(canvasElement.textContent).not.toContain(LONG_REMARK)
         await openJson(canvas)
         await expect(canvas.getByText(new RegExp(LONG_REMARK))).toBeVisible()
@@ -178,12 +181,13 @@ export const LongRemark: StoryObj = {
 
 const REMARK_TEXT = 'A short remark'
 
-// text has a hash to copy
+// text has a hash to copy and nothing to download
 export const RemarkText: StoryObj = {
     ...detail(of(remark(utf8Hex(REMARK_TEXT)))),
     play: async ({canvas}) => {
         await expect(canvas.getByText(REMARK_TEXT)).toBeVisible()
         await expect(canvas.getByText(hexHash(utf8Hex(REMARK_TEXT)))).toBeVisible()
+        await expect(canvas.queryByRole('link', {name: 'download'})).toBeNull()
     },
 }
 

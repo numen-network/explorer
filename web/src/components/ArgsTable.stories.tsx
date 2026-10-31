@@ -1,6 +1,8 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {describeArgs, describeError, describeEvent, nodesOf, type Preimage} from '@/lib/args'
+import {describeArgs, describeError, describeEvent, findBytes, nodesOf, type Preimage} from '@/lib/args'
+import {blake2_256} from '@/lib/hash'
+import {runtimeAt} from '@/lib/runtime'
 import {ss58Encode} from '@/lib/ss58'
 import {block, PEOPLE} from '../../../mock/fixtures.js'
 import {CHAIN_PROPS} from '../../../mock/fixtures/blocks.js'
@@ -152,9 +154,25 @@ const REMARK = {__kind: 'System', value: {__kind: 'remark', remark: '0x'}}
 
 const BINARY_REMARK = `0x${'ab'.repeat(32)}`
 
+const BINARY_CALL = {__kind: 'System', value: {__kind: 'remark', remark: BINARY_REMARK}}
+
 export const RemarkWithEventBinary = story('System', 'remark_with_event', {remark: BINARY_REMARK}, ['0xabababab…abababab (32 bytes)'])
 
-export const NestedRemarkBinary = story('Scheduler', 'schedule_after', {after: 100, maybePeriodic: null, priority: 63, call: {__kind: 'System', value: {__kind: 'remark', remark: BINARY_REMARK}}}, ['0xabababab…abababab (32 bytes)'])
+const REMARK_HASH = blake2_256(new Uint8Array(32).fill(0xab))
+
+// a nested or inline call's bytes are found by their hash wherever they sit in the args
+export const FindsBytesInArgs: Story = {
+    ...story('System', 'remark', {remark: BINARY_REMARK}, ['(32 bytes)']),
+    play: async () => {
+        const spec = block(0).specVersion
+        const inline = runtimeAt(spec)!.encodeCall(BINARY_CALL)
+        await expect(findBytes([{args: {remark: BINARY_REMARK}}], REMARK_HASH, spec)).toBe(BINARY_REMARK)
+        await expect(findBytes({proposal: {__kind: 'Inline', value: inline}}, REMARK_HASH, spec)).toBe(BINARY_REMARK)
+        await expect(findBytes({remark: '0xabcd'}, REMARK_HASH, spec)).toBeUndefined()
+    },
+}
+
+export const NestedRemarkBinary = story('Scheduler', 'schedule_after', {after: 100, maybePeriodic: null, priority: 63, call: BINARY_CALL}, ['0xabababab…abababab (32 bytes)'])
 
 // a block number field that counts blocks reads as a span, the one that names a block links to it
 export const BlockSpanAndHeight: Story = {

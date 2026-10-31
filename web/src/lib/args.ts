@@ -13,7 +13,7 @@ export type ArgNode =
     | {kind: 'none'}
     | {kind: 'plain'; text: string}
     | {kind: 'text'; text: string; bytes: number; hash?: string}
-    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string}
+    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string}
     | {kind: 'account'; id: string; acc?: IdentityRef}
     | {kind: 'amount'; planck: string}
     | {kind: 'gasPrice'; wei: string}
@@ -348,13 +348,44 @@ export function describeProposalArgs(call: Parameters<typeof describeArgs>[0]): 
     return view
 }
 
+function linkBytes(view: ArgNode | null, source: string): ArgNode | null {
+    for (const node of nodesOf([view], 'hex')) if (node.hash) node.download = `/api/bytes?${source}&hash=${node.hash}`
+    return view
+}
+
+/** A proposal's args with their bytes linked through its referendum. */
+export const describeReferendumArgs = (call: Parameters<typeof describeArgs>[0], referendum: number) => linkBytes(describeProposalArgs(call), `referendum=${referendum}`)
+
+function decodeInline(hex: unknown, specVersion: number | null): unknown {
+    try {
+        return runtimeAt(specVersion)?.decodeCall(hex as string)
+    } catch {
+        return undefined
+    }
+}
+
+const hashesTo = (hex: string, hash: string) => /^0x([0-9a-f]{2})*$/i.test(hex) && blake2_256(hexToBytes(hex.slice(2))) === hash
+
+/** The bytes in a call's args with that hash, an inline proposal holds its call still encoded. */
+export function findBytes(value: unknown, hash: string, specVersion: number | null): string | undefined {
+    if (typeof value === 'string') return hashesTo(value, hash) ? value : undefined
+    if (value == null || typeof value !== 'object') return undefined
+    const {__kind, value: inner} = value as {__kind?: string; value?: unknown}
+    const inlined = __kind === 'Inline' ? decodeInline(inner, specVersion) : undefined
+    for (const child of [...Object.values(value), inlined]) {
+        const found = findBytes(child, hash, specVersion)
+        if (found) return found
+    }
+    return undefined
+}
+
 /** Call rows with their args worked out, the way the call tree draws them. */
-export const withCallViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}; subcalls: unknown[]}>(rows: T[]) =>
-    rows.map(c => ({...c, args: briefCall(c), view: describeArgs({...c, specVersion: c.block.specVersion, nested: c.subcalls.length > 0})}))
+export const withCallViews = <T extends {id: string; pallet: string; method: string; args: unknown; block: {specVersion: number}; subcalls: unknown[]}>(rows: T[]) =>
+    rows.map(c => ({...c, args: briefCall(c), view: linkBytes(describeArgs({...c, specVersion: c.block.specVersion, nested: c.subcalls.length > 0}), `call=${c.id}`)}))
 
 /** Proposal calls with their args worked out, a call nests whatever follows it deeper in preorder. */
-export const withProposalViews = <T extends {pallet: string; method: string; args: unknown; address: number[]}>(nodes: T[], specVersion: number | null) =>
-    nodes.map((c, i) => ({...c, args: briefArgs(briefCall(c)), view: describeProposalArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length})}))
+export const withProposalViews = <T extends {pallet: string; method: string; args: unknown; address: number[]}>(nodes: T[], specVersion: number | null, referendum: number) =>
+    nodes.map((c, i) => ({...c, args: briefArgs(briefCall(c)), view: describeReferendumArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length}, referendum)}))
 
 /** Event rows with their args worked out, ready for a client table that cannot read the metadata. */
 export const withEventViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}}>(rows: T[]) => rows.map(e => ({...e, view: describeEvent({...e, specVersion: e.block.specVersion})}))

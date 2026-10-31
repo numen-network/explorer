@@ -5,6 +5,7 @@ import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
 import CopyBtn from '@/components/CopyBtn'
 import {JsonBlock, NONE} from '@/components/Detail'
+import DownloadBtn from '@/components/DownloadBtn'
 import HashText from '@/components/HashText'
 import {BlockLink, BountyLink, ReferendumLink} from '@/components/links'
 import RegistrarSeat from '@/components/RegistrarSeat'
@@ -61,6 +62,7 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
             return (
                 <>
                     <span className="font-code text-xs">{node.hex}</span>
+                    {node.download && <DownloadBtn href={node.download} />}
                     {node.hash && <HashLine hash={node.hash} />}
                     {node.preimage && <PreimageFold preimage={node.preimage} ctx={ctx} />}
                 </>

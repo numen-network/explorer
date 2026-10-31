@@ -415,6 +415,19 @@ export async function specVersionAt(height: number): Promise<number | null> {
     return blocks[0]?.specVersion ?? null
 }
 
+/** A call's whole args and the runtime it ran under. */
+export async function callArgs(id: string): Promise<{args: unknown; specVersion: number} | undefined> {
+    const {calls} = await gql<{calls: {args: unknown; block: {specVersion: number}}[]}>(`query ($id: String!) { calls(where: {id_eq: $id}, limit: 1) { args block { specVersion } } }`, {id})
+    return calls[0] && {args: calls[0].args, specVersion: calls[0].block.specVersion}
+}
+
+/** A referendum's proposal calls and the runtime it was submitted under. */
+export async function proposalArgs(index: number): Promise<{args: unknown; specVersion: number | null} | undefined> {
+    const {referendums} = await gql<{referendums: {proposalCalls: ProposalNode[] | null; submittedAt: number}[]}>(`query ($index: Int!) { referendums(where: {index_eq: $index}, limit: 1) { proposalCalls submittedAt } }`, {index})
+    const referendum = referendums[0]
+    return referendum && {args: referendum.proposalCalls, specVersion: await specVersionAt(referendum.submittedAt)}
+}
+
 export type ExtrinsicHit = Pick<ExtrinsicRow, 'id' | 'indexInBlock' | 'hash' | 'pallet' | 'method' | 'success' | 'block'>
 
 // a hash can name more than one extrinsic, the canonical pair never can

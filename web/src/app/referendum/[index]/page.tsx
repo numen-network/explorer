@@ -243,7 +243,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         bountyIds.length > 0 ? bountiesByIndex(bountyIds) : {bounties: []},
         enactors.length > 0 ? indexTitles({referenda: enactors, bounties: [], spends: [], registrars: []}) : {referendums: []},
     ])
-    const callRows = withProposalViews(nodes, spec)
+    const callRows = withProposalViews(nodes, spec, r.index)
     await markArgs(callRows.map(c => c.view))
     const stepOf = new Map(trail.map(s => [s.event, s]))
     const rank = (e: TimelineEventRow) => EXTRINSIC_ORDER.indexOf(stepOf.get(e.id)!.name)
