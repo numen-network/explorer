@@ -1,3 +1,5 @@
+export const TEXT_PREVIEW_CHARS = 100
+
 const GROUP = /\B(?=(\d{3})+(?!\d))/g
 
 export function fmtInt(n: number | string | bigint): string {

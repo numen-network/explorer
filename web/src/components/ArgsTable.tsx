@@ -124,7 +124,7 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
             return (
                 <>
                     <div className="mb-1 text-xs text-muted-foreground">{fmtCount(node.bytes, 'byte')} · UTF-8</div>
-                    <ClampedText text={node.text} />
+                    <ClampedText text={node.text} full={node.full} />
                     {node.hash && <HashLine hash={node.hash} />}
                 </>
             )

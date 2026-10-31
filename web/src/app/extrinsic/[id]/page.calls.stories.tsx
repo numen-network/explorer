@@ -1,5 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, userEvent, within} from 'storybook/test'
+import {http, HttpResponse} from 'msw'
+import {expect, userEvent, waitFor, within} from 'storybook/test'
 import {hashOf} from '../../../../../mock/fixtures.js'
 import {batchAll, batchInterrupted, batchOfProxies, failedReferendumSubmission, failedVoteRemoval, heartbeat, proxied, referendumSubmission, signedCall, transfer} from '../../../../../mock/fixtures/blocks.js'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
@@ -165,7 +166,7 @@ const LONG_REMARK = `0x${'ab'.repeat(2048)}`
 
 const remark = (hex: string) => (height: number) => signedCall(height, 'System.remark', {remark: hex})
 
-// bytes that aren't text show their ends and size in the table, the JSON keeps them whole
+// bytes that aren't text show their ends and size in the table and the JSON
 export const LongRemark: StoryObj = {
     ...detail(of(remark(LONG_REMARK))),
     play: async ({canvas, canvasElement}) => {
@@ -175,7 +176,8 @@ export const LongRemark: StoryObj = {
         await expect(canvas.getByRole('link', {name: 'download'}).getAttribute('href')).toMatch(new RegExp(`^/api/bytes\\?call=.+&hash=${hexHash(LONG_REMARK)}$`))
         await expect(canvasElement.textContent).not.toContain(LONG_REMARK)
         await openJson(canvas)
-        await expect(canvas.getByText(new RegExp(LONG_REMARK))).toBeVisible()
+        await expect(canvasElement.textContent).toContain('(2,048 bytes)')
+        await expect(canvasElement.textContent).not.toContain(LONG_REMARK)
     },
 }
 
@@ -184,11 +186,14 @@ const REMARK_TEXT = 'A short remark'
 // text has a hash to copy and nothing to download
 export const RemarkText: StoryObj = {
     ...detail(of(remark(utf8Hex(REMARK_TEXT)))),
-    play: async ({canvas}) => {
+    play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText(REMARK_TEXT)).toBeVisible()
         await expect(canvas.getByText('14 bytes · UTF-8')).toBeVisible()
         await expect(canvas.getByText(hexHash(utf8Hex(REMARK_TEXT)))).toBeVisible()
         await expect(canvas.queryByRole('link', {name: 'download'})).toBeNull()
+        await openJson(canvas)
+        await expect(canvasElement.textContent).toContain('(14 bytes)')
+        await expect(canvasElement.textContent).not.toContain(utf8Hex(REMARK_TEXT))
     },
 }
 
@@ -214,18 +219,20 @@ export const RemarkAtTextLimit: StoryObj = {
     },
 }
 
+const bytesApi = (text: string) => [http.get('*/api/bytes', () => HttpResponse.text(text))]
+
 const LONG_TEXT = `${'😀'.repeat(100)} and the rest\nof the remark`
 
-// past the limit it cuts on a whole character and opens in full in a dialog
+// past the limit it cuts on a whole character and fetches the rest when the dialog opens
 export const RemarkLongText: StoryObj = {
-    ...detail(of(remark(utf8Hex(LONG_TEXT)))),
+    ...detail(of(remark(utf8Hex(LONG_TEXT))), {msw: bytesApi(LONG_TEXT)}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('(truncated)')).toBeVisible()
         await expect(canvasElement.textContent).toContain(`${'😀'.repeat(100)}…`)
         await expect(canvasElement.textContent).not.toContain('and the rest')
         await userEvent.click(canvas.getByRole('button', {name: 'Show full'}))
         const dialog = within(canvasElement.ownerDocument.body).getByRole('dialog')
-        await expect(dialog.textContent).toContain(LONG_TEXT)
+        await waitFor(() => expect(dialog.textContent).toContain(LONG_TEXT))
         await expect(dialog.textContent).not.toContain('(truncated)')
     },
 }
@@ -244,19 +251,29 @@ const centerY = (el: Element) => {
 
 // the dialog opens on the raw text and renders it as markdown on request, its header on one line
 export const RemarkLongMarkdown: StoryObj = {
-    ...detail(of(remark(utf8Hex(LONG_MARKDOWN)))),
+    ...detail(of(remark(utf8Hex(LONG_MARKDOWN))), {msw: bytesApi(LONG_MARKDOWN)}),
     play: async ({canvas, canvasElement}) => {
         await userEvent.click(canvas.getByRole('button', {name: 'Show full'}))
         const dialog = within(canvasElement.ownerDocument.body).getByRole('dialog')
         const panel = within(dialog)
-        await expect(dialog.textContent).toContain('**2,000,000 NUMN**')
+        await waitFor(() => expect(dialog.textContent).toContain('**2,000,000 NUMN**'))
         await expect(panel.queryByRole('heading', {level: 1})).toBeNull()
-        const centers = [panel.getByRole('heading', {name: 'Text'}), panel.getByRole('tablist'), panel.getByRole('button', {name: 'Close'})].map(centerY)
-        await expect(centers[1]).toBeCloseTo(centers[0], 0)
-        await expect(centers[2]).toBeCloseTo(centers[0], 0)
+        await waitFor(() => {
+            const centers = [panel.getByRole('heading', {name: 'Text'}), panel.getByRole('tablist'), panel.getByRole('button', {name: 'Close'})].map(centerY)
+            expect(centers[1]).toBeCloseTo(centers[0], 0)
+            expect(centers[2]).toBeCloseTo(centers[0], 0)
+        })
         await userEvent.click(panel.getByRole('tab', {name: 'Markdown'}))
-        await expect(panel.getByRole('heading', {level: 1, name: 'Marketing budget'})).toBeVisible()
+        await waitFor(() => expect(panel.getByRole('heading', {level: 1, name: 'Marketing budget'})).toBeVisible())
         await expect(dialog.textContent).not.toContain('**')
+    },
+}
+
+export const RemarkLongTextLoadFailed: StoryObj = {
+    ...detail(of(remark(utf8Hex(LONG_TEXT))), {msw: [http.get('*/api/bytes', () => new HttpResponse(null, {status: 404}))]}),
+    play: async ({canvas, canvasElement}) => {
+        await userEvent.click(canvas.getByRole('button', {name: 'Show full'}))
+        await waitFor(() => expect(within(canvasElement.ownerDocument.body).getByText('Could not load the full text')).toBeVisible())
     },
 }
 

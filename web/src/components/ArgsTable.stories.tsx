@@ -1,6 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {describeArgs, describeError, describeEvent, findBytes, nodesOf, type Preimage} from '@/lib/args'
+import {describeArgs, describeError, describeEvent, findBytes, nodesOf, type Preimage, withCallViews} from '@/lib/args'
 import {blake2_256} from '@/lib/hash'
 import {runtimeAt} from '@/lib/runtime'
 import {ss58Encode} from '@/lib/ss58'
@@ -169,6 +169,31 @@ export const FindsBytesInArgs: Story = {
         await expect(findBytes([{args: {remark: BINARY_REMARK}}], REMARK_HASH, spec)).toBe(BINARY_REMARK)
         await expect(findBytes({proposal: {__kind: 'Inline', value: inline}}, REMARK_HASH, spec)).toBe(BINARY_REMARK)
         await expect(findBytes({remark: '0xabcd'}, REMARK_HASH, spec)).toBeUndefined()
+    },
+}
+
+const LONG_REMARK_TEXT = `${'a'.repeat(100)} and the rest`
+
+const callRow = (pallet: string, method: string, args: unknown, subcalls: unknown[] = []) => ({id: 'call', pallet, method, args, block: {specVersion: block(0).specVersion}, subcalls})
+
+const textHex = (text: string) => `0x${Buffer.from(text).toString('hex')}`
+
+// what a page hands to the browser holds previews and links, however long the remark
+export const CallViewsLeaveRemarksOut: Story = {
+    ...story('System', 'remark', {remark: BINARY_REMARK}, ['(32 bytes)']),
+    play: async () => {
+        const remark = (hex: string) => ({__kind: 'System', value: {__kind: 'remark', remark: hex}})
+        const sent = JSON.stringify(
+            withCallViews([
+                callRow('System', 'remark', {remark: BINARY_REMARK}),
+                callRow('System', 'remark', {remark: textHex(LONG_REMARK_TEXT)}),
+                callRow('Utility', 'batch', {calls: [remark(BINARY_REMARK), remark(textHex(LONG_REMARK_TEXT))]}, [{}]),
+            ])
+        )
+        await expect(sent).not.toContain(BINARY_REMARK)
+        await expect(sent).not.toContain(textHex(LONG_REMARK_TEXT))
+        await expect(sent).not.toContain('and the rest')
+        await expect(sent).toContain('/api/bytes?call=call&hash=')
     },
 }
 

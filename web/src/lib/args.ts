@@ -2,7 +2,7 @@ import {TypeKind} from '@subsquid/scale-codec'
 import {hexToBytes} from '@noble/hashes/utils.js'
 import {Runtime} from '@subsquid/substrate-runtime'
 import type {Field, Type} from '@subsquid/substrate-runtime/lib/metadata'
-import {fmtCount, fmtInt, fmtPct, trackLabel} from '@/lib/format'
+import {fmtCount, fmtInt, fmtPct, TEXT_PREVIEW_CHARS, trackLabel} from '@/lib/format'
 import type {AccountRef} from '@/lib/gql'
 import {blake2_256} from '@/lib/hash'
 import type {IdentityRef} from '@/lib/identity'
@@ -12,7 +12,7 @@ import {runtimeAt} from '@/lib/runtime'
 export type ArgNode =
     | {kind: 'none'}
     | {kind: 'plain'; text: string}
-    | {kind: 'text'; text: string; bytes: number; hash?: string}
+    | {kind: 'text'; text: string; bytes: number; hash?: string; full?: string}
     | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string}
     | {kind: 'account'; id: string; acc?: IdentityRef}
     | {kind: 'amount'; planck: string}
@@ -236,7 +236,7 @@ function bytes(hex: string): ArgNode {
     const raw = hexToBytes(hex.slice(2))
     let text: string
     try {
-        text = new TextDecoder('utf-8', {fatal: true}).decode(raw)
+        text = new TextDecoder('utf-8', {fatal: true, ignoreBOM: true}).decode(raw)
     } catch {
         return {kind: 'hex', hex}
     }
@@ -308,6 +308,8 @@ const summarizedField = (pallet: string, method: string): string | undefined => 
 
 const TEXT_OR_SUMMARY_FIELDS: Record<string, string> = {'System.remark': 'remark', 'System.remark_with_event': 'remark'}
 
+const briefField = (pallet: string, method: string): string | undefined => summarizedField(pallet, method) ?? TEXT_OR_SUMMARY_FIELDS[`${pallet}.${method}`]
+
 const WHOLE_HEX_BYTES = 10
 
 function summarizeHex(hex: string): string {
@@ -324,13 +326,13 @@ function briefNestedCalls(value: unknown): unknown {
     if (Array.isArray(value)) return value.map(briefNestedCalls)
     if (value == null || typeof value !== 'object') return value
     const call = value as {__kind?: string; value?: {__kind: string} & Record<string, string>}
-    const field = call.__kind && call.value ? summarizedField(call.__kind, call.value.__kind) : undefined
+    const field = call.__kind && call.value ? briefField(call.__kind, call.value.__kind) : undefined
     if (field) return {...call, value: summarizeField(call.value!, field)}
     return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, briefNestedCalls(v)]))
 }
 
 function briefCall({pallet, method, args}: {pallet: string; method: string; args: unknown}): unknown {
-    const field = summarizedField(pallet, method)
+    const field = briefField(pallet, method)
     return field ? summarizeField(args as Record<string, string>, field) : briefNestedCalls(args)
 }
 
@@ -349,7 +351,14 @@ export function describeProposalArgs(call: Parameters<typeof describeArgs>[0]): 
 }
 
 function linkBytes(view: ArgNode | null, source: string): ArgNode | null {
-    for (const node of nodesOf([view], 'hex')) if (node.hash) node.download = `/api/bytes?${source}&hash=${node.hash}`
+    const href = (hash: string) => `/api/bytes?${source}&hash=${hash}`
+    for (const node of nodesOf([view], 'hex')) if (node.hash) node.download = href(node.hash)
+    for (const node of nodesOf([view], 'text')) {
+        const chars = [...node.text]
+        if (chars.length <= TEXT_PREVIEW_CHARS) continue
+        node.full = href(node.hash ?? blake2_256(new TextEncoder().encode(node.text)))
+        node.text = chars.slice(0, TEXT_PREVIEW_CHARS).join('')
+    }
     return view
 }
 

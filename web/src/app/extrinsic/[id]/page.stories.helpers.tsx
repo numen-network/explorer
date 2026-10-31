@@ -1,3 +1,4 @@
+import type {RequestHandler} from 'msw'
 import {HEAD, hashOf, paged} from '../../../../../mock/fixtures.js'
 import {evmTxHash, heartbeat, mined, pick, timestampSet, vestingPayout} from '../../../../../mock/fixtures/blocks.js'
 import {expectInContentBox} from '../../../../.storybook/fit'
@@ -10,7 +11,7 @@ export const H = HEAD - 120
 
 export const of = (spec: Spec) => pick(mined(H, [timestampSet, spec]), 1)
 
-export function detail({extrinsics, calls, events}: Picked, {tab = '', page = '1', evm = false} = {}) {
+export function detail({extrinsics, calls, events}: Picked, {tab = '', page = '1', evm = false, msw = [] as RequestHandler[]} = {}) {
     const [x] = extrinsics
     const data = {
         extrinsics,
@@ -20,7 +21,7 @@ export function detail({extrinsics, calls, events}: Picked, {tab = '', page = '1
         eventsConnection: {totalCount: events.length},
         evmTransactions: evm ? [{id: evmTxHash(H)}] : [],
     }
-    return pageStory(data, {params: {id: `${x.block.height}-${x.indexInBlock}`}, searchParams: {tab, page}})
+    return pageStory(data, {params: {id: `${x.block.height}-${x.indexInBlock}`}, searchParams: {tab, page}, msw})
 }
 
 // each call row keeps whatever its lines hold, from its name and event count
