@@ -8,7 +8,7 @@ import CopyBtn from '@/components/CopyBtn'
 import {JsonBlock, NONE} from '@/components/Detail'
 import DownloadBtn from '@/components/DownloadBtn'
 import HashText from '@/components/HashText'
-import {BlockLink, BountyLink, ReferendumLink} from '@/components/links'
+import {BlockLink, BountyLink, ExtrinsicLink, ReferendumLink} from '@/components/links'
 import RegistrarSeat from '@/components/RegistrarSeat'
 import SegmentedControl from '@/components/SegmentedControl'
 import {TimeCell} from '@/components/TimeCell'
@@ -16,7 +16,7 @@ import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Tabs, TabsContent} from '@/components/ui/tabs'
 import {TEXT_BOX} from '@/components/textBox'
-import type {ArgNode, Preimage} from '@/lib/args'
+import type {ArgNode, NotedPreimage, Preimage} from '@/lib/args'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtCount, fmtInt} from '@/lib/format'
 import {ss58Encode} from '@/lib/ss58'
@@ -64,6 +64,7 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
             return (
                 <>
                     <span className="font-code text-xs">{node.hex}</span>
+                    {node.noted && <CopyBtn text={node.hex} />}
                     {node.download && <DownloadBtn href={node.download} />}
                     {node.hash && <HashLine hash={node.hash} />}
                     {node.call && (
@@ -71,6 +72,7 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
                             <ArgsTable node={node.call} chain={ctx.chain} />
                         </div>
                     )}
+                    {node.noted && <NotedDetail noted={node.noted} ctx={ctx} />}
                     {node.preimage && <PreimageFold preimage={node.preimage} ctx={ctx} />}
                 </>
             )
@@ -147,6 +149,37 @@ function HashLine({hash}: {hash: string}) {
             </span>
             <CopyBtn text={hash} />
         </div>
+    )
+}
+
+function NotedDetail({noted, ctx}: {noted: NotedPreimage; ctx: Ctx}) {
+    return (
+        <>
+            {noted.lines.map(({referendum, extrinsic}) => (
+                <div key={`${referendum?.kind}-${referendum?.index}-${extrinsic}`} className="mt-1 text-xs wrap-break-word text-muted-foreground">
+                    {referendum && (
+                        <>
+                            {referendum.kind} of{' '}
+                            <Link href={`/referendum/${referendum.index}?tab=${referendum.kind}`} className="font-mono whitespace-nowrap text-primary hover:underline">
+                                Referendum #{fmtInt(referendum.index)}
+                            </Link>
+                            {referendum.title && ` · ${referendum.title}`}
+                            {extrinsic && ' · '}
+                        </>
+                    )}
+                    {extrinsic && (
+                        <>
+                            noted in <ExtrinsicLink id={extrinsic} />
+                        </>
+                    )}
+                </div>
+            ))}
+            {noted.content && (
+                <div className="mt-2">
+                    <Inline node={noted.content} ctx={ctx} />
+                </div>
+            )}
+        </>
     )
 }
 

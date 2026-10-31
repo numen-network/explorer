@@ -394,7 +394,7 @@ export async function blockDetail(idOrHash: string, page: Slice) {
 }
 
 export interface PreimageHit {
-    texts: {hash: string; title: string | null; description: string | null; referendum: {index: number}}[]
+    texts: {hash: string; title: string | null; description: string | null; block: number; referendum: {index: number}}[]
     proposals: {index: number; title: string | null; proposalHash: string; proposalPallet: string | null; proposalMethod: string | null; proposalCalls: ProposalNode[] | null; submittedAt: number}[]
 }
 
@@ -402,7 +402,7 @@ export interface PreimageHit {
 export function preimagesByHash(hashes: string[]) {
     return gql<PreimageHit>(
         `query ($h: [String!]) {
-            texts: metadataActions(where: {hash_in: $h, method_eq: "MetadataSet"}, orderBy: id_ASC, limit: 500) { hash title description referendum { index } }
+            texts: metadataActions(where: {hash_in: $h, method_eq: "MetadataSet"}, orderBy: id_ASC, limit: 500) { hash title description block referendum { index } }
             proposals: referendums(where: {proposalHash_in: $h}, orderBy: index_ASC, limit: 500) { index title proposalHash proposalPallet proposalMethod proposalCalls submittedAt }
         }`,
         {h: hashes}
@@ -413,6 +413,24 @@ export function preimagesByHash(hashes: string[]) {
 export async function specVersionAt(height: number): Promise<number | null> {
     const {blocks} = await gql<{blocks: {specVersion: number}[]}>(`query ($height: Int!) { blocks(where: {height_eq: $height}, limit: 1) { specVersion } }`, {height})
     return blocks[0]?.specVersion ?? null
+}
+
+/** The extrinsics that noted a hash, earliest first. */
+export async function preimageNotes(hash: string): Promise<{height: number; extrinsic: string}[]> {
+    const {events} = await gql<{events: {args: {hash?: string}; block: {height: number}; extrinsic: {id: string} | null}[]}>(
+        `query ($args: JSON) { events(where: {pallet_eq: "Preimage", method_eq: "Noted", args_jsonContains: $args}, orderBy: id_ASC, limit: 20) { args block { height } extrinsic { id } } }`,
+        {args: {hash}}
+    )
+    return events.flatMap(e => (e.extrinsic && e.args?.hash === hash ? [{height: e.block.height, extrinsic: e.extrinsic.id}] : []))
+}
+
+/** The note_preimage calls of an extrinsic with their bytes and the runtime they ran under. */
+export async function preimageNoteCalls(extrinsic: string): Promise<{id: string; bytes: string; specVersion: number}[]> {
+    const {calls} = await gql<{calls: {id: string; args: {bytes: string}; block: {specVersion: number}}[]}>(
+        `query ($extrinsic: String!) { calls(where: {extrinsic: {id_eq: $extrinsic}, pallet_eq: "Preimage", method_eq: "note_preimage"}, limit: 100) { id args block { specVersion } } }`,
+        {extrinsic}
+    )
+    return calls.map(c => ({id: c.id, bytes: c.args.bytes, specVersion: c.block.specVersion}))
 }
 
 /** A call's whole args and the runtime it ran under. */

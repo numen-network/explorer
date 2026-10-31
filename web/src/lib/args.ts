@@ -13,7 +13,7 @@ export type ArgNode =
     | {kind: 'none'}
     | {kind: 'plain'; text: string}
     | {kind: 'text'; text: string; bytes: number; hash?: string; full?: string}
-    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string; call?: ArgNode}
+    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string; call?: ArgNode; noted?: NotedPreimage}
     | {kind: 'account'; id: string; acc?: IdentityRef}
     | {kind: 'amount'; planck: string}
     | {kind: 'gasPrice'; wei: string}
@@ -30,6 +30,12 @@ export type ArgNode =
     | {kind: 'list'; columns: string[]; rows: ArgNode[][]}
     | {kind: 'call'; name: string; args: ArgNode}
     | {kind: 'listed'; label: string}
+
+/** The referendum a hash serves and the extrinsic that noted it for that use, either can stand alone. */
+export type NotedLine = {referendum?: {kind: 'text' | 'call'; index: number; title: string | null}; extrinsic?: string}
+
+/** What the chain holds of a hash passed to a preimage call. */
+export type NotedPreimage = {lines: NotedLine[]; content: ArgNode | null}
 
 /** What a hash in the args stands for, when the index knows it as a preimage. */
 export type Preimage = {referendum: number; title: string | null} & ({kind: 'text'; text: string} | {kind: 'proposal'; call: ArgNode | null})
@@ -106,6 +112,7 @@ class Walker {
     arg(pallet: string, method: string, f: Field, value: any): ArgNode {
         const node = this.field(f, value)
         const name = `${pallet}.${method}`
+        if (node.kind === 'hex' && f.name === PREIMAGE_HASH_FIELDS[name]) return {...node, noted: {lines: [], content: null}}
         const summarized = f.name === SUMMARIZED_FIELDS[name]
         if (node.kind === 'none' || !(summarized || f.name === TEXT_OR_SUMMARY_FIELDS[name])) return node
         const hash = blake2_256(hexToBytes(value.slice(2)))
@@ -314,6 +321,8 @@ const LONG_HEX_CHARS = 2 + 2 * 16384
 
 const NOTE_PREIMAGE = 'Preimage.note_preimage'
 
+const PREIMAGE_HASH_FIELDS: Record<string, string> = {'Preimage.unnote_preimage': 'hash', 'Preimage.request_preimage': 'hash', 'Preimage.unrequest_preimage': 'hash'}
+
 const SUMMARIZED_FIELDS: Record<string, string> = {'Prime.upgrade': 'code', 'System.set_code': 'code', 'System.set_code_without_checks': 'code'}
 
 const TEXT_OR_SUMMARY_FIELDS: Record<string, string> = {[NOTE_PREIMAGE]: 'bytes', 'System.remark': 'remark', 'System.remark_with_event': 'remark'}
@@ -374,6 +383,18 @@ function linkBytes(view: ArgNode | null, source: string): ArgNode | null {
 
 /** A proposal's args with their bytes linked through its referendum. */
 export const describeReferendumArgs = (call: Parameters<typeof describeArgs>[0], referendum: number) => linkBytes(describeProposalArgs(call), `referendum=${referendum}`)
+
+/** A note_preimage call's bytes drawn the way its own row does, minus the hash. */
+export function describeNotedBytes(call: {id: string; bytes: string; specVersion: number}): ArgNode | null {
+    const rt = runtimeAt(call.specVersion)
+    if (!rt) return null
+    const w = new Walker(rt)
+    const field = w.callFields('Preimage', 'note_preimage').find(f => f.name === 'bytes')
+    if (!field) throw new Error(`no note_preimage bytes in spec ${rt.specVersion}`)
+    const node = linkBytes(w.arg('Preimage', 'note_preimage', field, call.bytes), `call=${call.id}`)
+    if (node?.kind === 'hex' || node?.kind === 'text') delete node.hash
+    return node
+}
 
 function decodeEmbedded(hex: unknown, specVersion: number | null): unknown {
     try {

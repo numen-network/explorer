@@ -1,6 +1,7 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {describeArgs, describeError, describeEvent, findBytes, nodesOf, type Preimage, withCallViews} from '@/lib/args'
+import {notedLines, type Use} from '@/lib/argMarks'
+import {describeArgs, describeError, describeEvent, describeNotedBytes, findBytes, nodesOf, type NotedPreimage, type Preimage, withCallViews} from '@/lib/args'
 import {blake2_256} from '@/lib/hash'
 import {runtimeAt} from '@/lib/runtime'
 import {ss58Encode} from '@/lib/ss58'
@@ -259,16 +260,72 @@ function marked(pallet: string, method: string, args: unknown, preimage: Preimag
     }
 }
 
-export const HashOfText = marked('Preimage', 'unnote_preimage', {hash: OLD_TEXT}, TEXT, ['text of', 'Creation of the first DEX liquidity pool'])
+const SET_METADATA = {index: 9, maybeHash: OLD_TEXT}
 
-export const HashOfTextOpened = marked('Preimage', 'unnote_preimage', {hash: OLD_TEXT}, TEXT, ['This proposal creates the first DEX liquidity pool for NUMN.'], true)
+export const HashOfText = marked('Referenda', 'set_metadata', SET_METADATA, TEXT, ['text of', 'Creation of the first DEX liquidity pool'])
+
+export const HashOfTextOpened = marked('Referenda', 'set_metadata', SET_METADATA, TEXT, ['This proposal creates the first DEX liquidity pool for NUMN.'], true)
+
+function notedStory(noted: NotedPreimage, shows: string[]): Story {
+    const node = view('Preimage', 'unnote_preimage', {hash: OLD_TEXT})
+    for (const hex of nodesOf([node], 'hex')) hex.noted = noted
+    return {
+        render: () => <ArgsTable node={node} chain={CHAIN_PROPS} />,
+        play: async ({canvas, canvasElement}) => {
+            await expect(canvas.getByText(OLD_TEXT)).toBeVisible()
+            await expect(canvas.getByRole('button', {name: 'copy'})).toBeVisible()
+            for (const text of shows) await expect(canvas.getAllByText(text, {exact: false})[0]).toBeVisible()
+            await expect(canvasElement.querySelector('[data-slot=collapsible-trigger]')).toBeNull()
+            expectFits(...canvasElement.querySelectorAll('[data-slot=args-table]'))
+        },
+    }
+}
+
+const NOTED_IN = 'noted in'
+
+// a hash names what its note held, one line per referendum with the note it used
+export const NotedText = notedStory(
+    {
+        lines: [
+            {referendum: {kind: 'text', index: 1, title: 'First'}, extrinsic: '0000000100-abcde-000001'},
+            {referendum: {kind: 'text', index: 4, title: 'Second'}, extrinsic: '0000000200-abcde-000002'},
+        ],
+        content: describeNotedBytes({id: 'call', bytes: PROPOSAL_TEXT, specVersion: block(0).specVersion}),
+    },
+    ['text of', '100-1', '200-2', NOTED_IN, 'Creation of the first DEX liquidity pool', 'UTF-8']
+)
+
+export const NotedWithoutReferendum = notedStory({lines: [{extrinsic: '0000000100-abcde-000001'}], content: describeNotedBytes({id: 'call', bytes: '0x00ff10', specVersion: block(0).specVersion})}, [NOTED_IN, '100-1', '0x00ff10 (3 bytes)'])
+
+export const NeverNoted = notedStory({lines: [], content: null}, [])
+
+// the chain ties no note to a referendum, each goes with the last note before it
+export const PairsNotesWithReferenda: Story = {
+    ...notedStory({lines: [], content: null}, []),
+    play: async () => {
+        const uses: Use[] = [
+            {kind: 'call', index: 1, title: null, at: 380602},
+            {kind: 'call', index: 2, title: null, at: 380761},
+        ]
+        const notes = [
+            {height: 380596, extrinsic: 'a'},
+            {height: 380761, extrinsic: 'b'},
+            {height: 380900, extrinsic: 'c'},
+        ]
+        await expect(notedLines(uses, notes).map(l => [l.referendum?.index, l.extrinsic])).toEqual([
+            [1, 'a'],
+            [2, 'b'],
+            [undefined, 'c'],
+        ])
+    },
+}
 
 const GRANT = view('Treasury', 'spend', {amount: '10000000000000000000000000', beneficiary: BOB, validFrom: null})
 
 export const HashOfProposalOpened = marked(
-    'Preimage',
-    'unnote_preimage',
-    {hash: OLD_TEXT},
+    'Referenda',
+    'set_metadata',
+    SET_METADATA,
     {kind: 'proposal', referendum: 3, title: 'Fund the DEX', call: {kind: 'call', name: 'Treasury.spend', args: GRANT}},
     ['proposal of', 'Treasury.spend', '10,000,000'],
     true
