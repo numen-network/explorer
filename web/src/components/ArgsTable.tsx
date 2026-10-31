@@ -3,7 +3,9 @@ import {ChevronRight} from 'lucide-react'
 import Link from 'next/link'
 import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
+import CopyBtn from '@/components/CopyBtn'
 import {JsonBlock, NONE} from '@/components/Detail'
+import HashText from '@/components/HashText'
 import {BlockLink, BountyLink, ReferendumLink} from '@/components/links'
 import RegistrarSeat from '@/components/RegistrarSeat'
 import SegmentedControl from '@/components/SegmentedControl'
@@ -59,6 +61,7 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
             return (
                 <>
                     <span className="font-code text-xs">{node.hex}</span>
+                    {node.hash && <HashLine hash={node.hash} />}
                     {node.preimage && <PreimageFold preimage={node.preimage} ctx={ctx} />}
                 </>
             )
@@ -115,16 +118,34 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
                 </>
             )
         case 'text':
-            if (!node.text.includes('\n')) return node.text
+            if (!node.text.includes('\n')) return node.hash ? (
+                <>
+                    {node.text}
+                    <HashLine hash={node.hash} />
+                </>
+            ) : node.text
             return (
                 <>
                     <div className="mb-1 text-xs text-muted-foreground">{fmtCount(node.bytes, 'byte')} · UTF-8</div>
                     <div className="max-h-48 overflow-auto leading-relaxed whitespace-pre-wrap">{node.text}</div>
+                    {node.hash && <HashLine hash={node.hash} />}
                 </>
             )
         default:
             return null
     }
+}
+
+function HashLine({hash}: {hash: string}) {
+    return (
+        <div className="mt-1 text-xs text-muted-foreground">
+            hash{' '}
+            <span className="font-code">
+                <HashText hash={hash} full />
+            </span>
+            <CopyBtn text={hash} />
+        </div>
+    )
 }
 
 // a hash the index knows opens onto what it was a hash of, the way the

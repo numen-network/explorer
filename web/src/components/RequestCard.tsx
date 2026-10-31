@@ -1,7 +1,6 @@
 import type {ReactNode} from 'react'
 import Link from 'next/link'
-import {blake2b} from '@noble/hashes/blake2.js'
-import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
+import {hexToBytes} from '@noble/hashes/utils.js'
 import AccountLink from '@/components/AccountLink'
 import CopyBtn from '@/components/CopyBtn'
 import {NONE} from '@/components/Detail'
@@ -12,6 +11,7 @@ import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtCount, fmtInt, fmtSpan, shortHash, truncFixed} from '@/lib/format'
 import type {AccountRef, ProposalNode, ReferendumSpendRow} from '@/lib/gql'
+import {blake2_256} from '@/lib/hash'
 import {ss58Encode} from '@/lib/ss58'
 
 const BATCHES = new Set(['Utility.batch', 'Utility.batch_all', 'Utility.force_batch'])
@@ -105,7 +105,7 @@ function describe(node: ProposalNode, ctx: Ctx): {title: string; rows: Row[]} | 
         case 'Prime.upgrade': {
             if (typeof a.code !== 'string' || !a.code.startsWith('0x')) return null
             const code = hexToBytes(a.code.slice(2))
-            const hash = '0x' + bytesToHex(blake2b(code, {dkLen: 32}))
+            const hash = blake2_256(code)
             return {
                 title: 'Upgrade runtime',
                 rows: [

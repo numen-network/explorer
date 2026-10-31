@@ -4,6 +4,7 @@ import {Runtime} from '@subsquid/substrate-runtime'
 import type {Field, Type} from '@subsquid/substrate-runtime/lib/metadata'
 import {fmtCount, fmtInt, fmtPct, trackLabel} from '@/lib/format'
 import type {AccountRef} from '@/lib/gql'
+import {blake2_256} from '@/lib/hash'
 import type {IdentityRef} from '@/lib/identity'
 import {runtimeAt} from '@/lib/runtime'
 
@@ -11,8 +12,8 @@ import {runtimeAt} from '@/lib/runtime'
 export type ArgNode =
     | {kind: 'none'}
     | {kind: 'plain'; text: string}
-    | {kind: 'text'; text: string; bytes: number}
-    | {kind: 'hex'; hex: string; preimage?: Preimage}
+    | {kind: 'text'; text: string; bytes: number; hash?: string}
+    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string}
     | {kind: 'account'; id: string; acc?: IdentityRef}
     | {kind: 'amount'; planck: string}
     | {kind: 'gasPrice'; wei: string}
@@ -104,8 +105,10 @@ class Walker {
 
     arg(pallet: string, method: string, f: Field, value: any): ArgNode {
         const node = this.field(f, value)
-        const summarized = f.name === summarizedField(pallet, method) ? node.kind !== 'none' : node.kind === 'hex' && REMARKS.has(`${pallet}.${method}`)
-        return summarized ? {kind: 'hex', hex: summarizeHex(value)} : node
+        const summarized = f.name === summarizedField(pallet, method)
+        if (node.kind === 'none' || !(summarized || f.name === TEXT_OR_SUMMARY_FIELDS[`${pallet}.${method}`])) return node
+        const hash = blake2_256(hexToBytes(value.slice(2)))
+        return node.kind === 'text' && !summarized ? {...node, hash} : {kind: 'hex', hex: summarizeHex(value), hash}
     }
 
     node(ti: number, value: any, typeName = ''): ArgNode {
@@ -303,7 +306,7 @@ const SUMMARIZED_FIELDS: Record<string, string> = {'Preimage.note_preimage': 'by
 
 const summarizedField = (pallet: string, method: string): string | undefined => SUMMARIZED_FIELDS[`${pallet}.${method}`]
 
-const REMARKS = new Set(['System.remark', 'System.remark_with_event'])
+const TEXT_OR_SUMMARY_FIELDS: Record<string, string> = {'System.remark': 'remark', 'System.remark_with_event': 'remark'}
 
 const WHOLE_HEX_BYTES = 10
 

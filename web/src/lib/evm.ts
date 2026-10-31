@@ -1,5 +1,5 @@
-import {blake2b} from '@noble/hashes/blake2.js'
-import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
+import {hexToBytes} from '@noble/hashes/utils.js'
+import {blake2_256} from './hash'
 import {variantName, variantValue} from './variant'
 
 export function isH160(s: string): boolean {
@@ -22,5 +22,5 @@ export function evmMappedAccount(h160: string): string {
     const data = new Uint8Array(prefix.length + addr.length)
     data.set(prefix)
     data.set(addr, prefix.length)
-    return '0x' + bytesToHex(blake2b(data, {dkLen: 32}))
+    return blake2_256(data)
 }

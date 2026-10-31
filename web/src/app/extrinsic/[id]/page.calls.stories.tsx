@@ -3,6 +3,7 @@ import {expect, userEvent, within} from 'storybook/test'
 import {hashOf} from '../../../../../mock/fixtures.js'
 import {batchAll, batchInterrupted, batchOfProxies, failedReferendumSubmission, failedVoteRemoval, heartbeat, proxied, referendumSubmission, signedCall, transfer} from '../../../../../mock/fixtures/blocks.js'
 import {lastPage, pageMeta} from '../../../../.storybook/page'
+import {blake2_256} from '@/lib/hash'
 import ExtrinsicPage from './page'
 import {of, detail, expectCallRowsFit, payout, wasm} from './page.stories.helpers'
 
@@ -20,6 +21,8 @@ const notePreimage = (bytes: string) => (height: number) => signedCall(height, '
 const openJson = (canvas: ReturnType<typeof within>) => userEvent.click(canvas.getByRole('tab', {name: 'JSON'}))
 
 const utf8Hex = (text: string) => `0x${[...new TextEncoder().encode(text)].map(b => b.toString(16).padStart(2, '0')).join('')}`
+
+const hexHash = (hex: string) => blake2_256(Uint8Array.from(hex.slice(2).match(/../g) ?? [], byte => parseInt(byte, 16)))
 
 const sent = of(transfer)
 type Call = (typeof sent)['calls'][number]
@@ -92,6 +95,7 @@ export const NotePreimageText: StoryObj = {
     ...detail(of(notePreimage(SHORT_TEXT))),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText(`${SHORT_TEXT.slice(0, 10)}…${SHORT_TEXT.slice(-8)} (16 bytes)`)).toBeVisible()
+        await expect(canvas.getByText(hexHash(SHORT_TEXT))).toBeVisible()
         await expect(canvasElement.textContent).not.toContain('A short preimage')
         await openJson(canvas)
         await expect(canvasElement.textContent).not.toContain(SHORT_TEXT)
@@ -147,6 +151,7 @@ export const PrimeUpgrade: StoryObj = {
     ...detail(of((height: number) => signedCall(height, 'Prime.upgrade', {code: SHORT_CODE}))),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText(`${SHORT_CODE.slice(0, 10)}…${SHORT_CODE.slice(-8)} (32 bytes)`)).toBeVisible()
+        await expect(canvas.getByText(hexHash(SHORT_CODE))).toBeVisible()
         await expect(canvasElement.textContent).not.toContain(SHORT_CODE)
         await openJson(canvas)
         await expect(canvasElement.textContent).toContain('(32 bytes)')
@@ -163,6 +168,8 @@ export const LongRemark: StoryObj = {
     ...detail(of(remark(LONG_REMARK))),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText(`${LONG_REMARK.slice(0, 10)}…${LONG_REMARK.slice(-8)} (2,048 bytes)`)).toBeVisible()
+        await expect(canvas.getByText(hexHash(LONG_REMARK))).toBeVisible()
+        await expect(within(canvasElement.querySelector<HTMLElement>('[data-slot=args-table]')!).getByRole('button', {name: 'copy'})).toBeVisible()
         await expect(canvasElement.textContent).not.toContain(LONG_REMARK)
         await openJson(canvas)
         await expect(canvas.getByText(new RegExp(LONG_REMARK))).toBeVisible()
@@ -171,14 +178,23 @@ export const LongRemark: StoryObj = {
 
 const REMARK_TEXT = 'A short remark'
 
+// text has a hash to copy
 export const RemarkText: StoryObj = {
     ...detail(of(remark(utf8Hex(REMARK_TEXT)))),
-    play: async ({canvas}) => expect(canvas.getByText(REMARK_TEXT)).toBeVisible(),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText(REMARK_TEXT)).toBeVisible()
+        await expect(canvas.getByText(hexHash(utf8Hex(REMARK_TEXT)))).toBeVisible()
+    },
 }
 
-export const RemarkShortBinary: StoryObj = {
-    ...detail(of(remark('0x00ff10'))),
-    play: async ({canvas}) => expect(canvas.getByText('0x00ff10 (3 bytes)')).toBeVisible(),
+const REMARK_LINES = 'Line one of a remark\nLine two'
+
+export const RemarkMultilineText: StoryObj = {
+    ...detail(of(remark(utf8Hex(REMARK_LINES)))),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText('29 bytes · UTF-8')).toBeVisible()
+        await expect(canvas.getByText(hexHash(utf8Hex(REMARK_LINES)))).toBeVisible()
+    },
 }
 
 export const PayoutBatch = detail(payout)
