@@ -321,7 +321,7 @@ const LONG_HEX_CHARS = 2 + 2 * 16384
 
 const NOTE_PREIMAGE = 'Preimage.note_preimage'
 
-const PREIMAGE_HASH_FIELDS: Record<string, string> = {'Preimage.unnote_preimage': 'hash', 'Preimage.request_preimage': 'hash', 'Preimage.unrequest_preimage': 'hash'}
+const PREIMAGE_HASH_FIELDS: Record<string, string> = {'Preimage.unnote_preimage': 'hash', 'Preimage.request_preimage': 'hash', 'Preimage.unrequest_preimage': 'hash', 'Referenda.set_metadata': 'maybeHash'}
 
 const SUMMARIZED_FIELDS: Record<string, string> = {'Prime.upgrade': 'code', 'System.set_code': 'code', 'System.set_code_without_checks': 'code'}
 

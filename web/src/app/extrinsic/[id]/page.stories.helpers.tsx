@@ -15,7 +15,7 @@ export function detail({extrinsics, calls, events}: Picked, {tab = '', page = '1
     const [x] = extrinsics
     const data = {
         extrinsics,
-        calls: paged(calls),
+        calls: (args: {where?: {method_eq?: string}; offset?: number; limit: number}) => (args.where?.method_eq === 'note_preimage' ? calls.filter((c: {method: string}) => c.method === 'note_preimage') : paged(calls)(args)),
         callsConnection: {totalCount: calls.length},
         events: paged(events),
         eventsConnection: {totalCount: events.length},

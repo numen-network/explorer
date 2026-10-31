@@ -260,11 +260,11 @@ function marked(pallet: string, method: string, args: unknown, preimage: Preimag
     }
 }
 
-const SET_METADATA = {index: 9, maybeHash: OLD_TEXT}
+const LOOKUP = {...SUBMIT, proposal: {__kind: 'Lookup', hash: OLD_TEXT, len: 10}}
 
-export const HashOfText = marked('Referenda', 'set_metadata', SET_METADATA, TEXT, ['text of', 'Creation of the first DEX liquidity pool'])
+export const HashOfText = marked('Referenda', 'submit', LOOKUP, TEXT, ['text of', 'Creation of the first DEX liquidity pool'])
 
-export const HashOfTextOpened = marked('Referenda', 'set_metadata', SET_METADATA, TEXT, ['This proposal creates the first DEX liquidity pool for NUMN.'], true)
+export const HashOfTextOpened = marked('Referenda', 'submit', LOOKUP, TEXT, ['This proposal creates the first DEX liquidity pool for NUMN.'], true)
 
 function notedStory(noted: NotedPreimage, shows: string[]): Story {
     const node = view('Preimage', 'unnote_preimage', {hash: OLD_TEXT})
@@ -299,6 +299,18 @@ export const NotedWithoutReferendum = notedStory({lines: [{extrinsic: '000000010
 
 export const NeverNoted = notedStory({lines: [], content: null}, [])
 
+// setting a referendum's text names its preimage the same way
+export const SetMetadataHash: Story = {
+    ...story('Referenda', 'set_metadata', {index: 9, maybeHash: OLD_TEXT}, [OLD_TEXT]),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText(OLD_TEXT)).toBeVisible()
+        await expect(canvas.getByRole('button', {name: 'copy'})).toBeVisible()
+        await expect(canvasElement.querySelector('[data-slot=collapsible-trigger]')).toBeNull()
+    },
+}
+
+export const SetMetadataCleared = story('Referenda', 'set_metadata', {index: 9, maybeHash: null}, ['maybeHash', '—'])
+
 // the chain ties no note to a referendum, each goes with the last note before it
 export const PairsNotesWithReferenda: Story = {
     ...notedStory({lines: [], content: null}, []),
@@ -324,8 +336,8 @@ const GRANT = view('Treasury', 'spend', {amount: '10000000000000000000000000', b
 
 export const HashOfProposalOpened = marked(
     'Referenda',
-    'set_metadata',
-    SET_METADATA,
+    'submit',
+    LOOKUP,
     {kind: 'proposal', referendum: 3, title: 'Fund the DEX', call: {kind: 'call', name: 'Treasury.spend', args: GRANT}},
     ['proposal of', 'Treasury.spend', '10,000,000'],
     true
