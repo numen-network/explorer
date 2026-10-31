@@ -119,7 +119,12 @@ export const ReferendumSubmit = story(
 
 export const UndecodableInlineProposal = story('Referenda', 'submit', {proposal: {value: '0xdeadbeef', __kind: 'Inline'}, proposalOrigin: {value: {__kind: 'SmallSpender'}, __kind: 'Origins'}, enactmentMoment: {value: 100, __kind: 'At'}}, ['0xdeadbeef', 'At', '#100'])
 
-export const PreimageText = story('Preimage', 'note_preimage', {bytes: PROPOSAL_TEXT}, [`${PROPOSAL_TEXT.slice(0, 10)}…${PROPOSAL_TEXT.slice(-8)}`])
+export const PreimageText = story('Preimage', 'note_preimage', {bytes: PROPOSAL_TEXT}, ['UTF-8', 'Creation of the first DEX liquidity pool', 'hash'])
+
+const encodedCall = (call: unknown) => `0x${Buffer.from(runtimeAt(block(0).specVersion)!.encodeCall(call as never)).toString('hex')}`
+
+// a noted call opens onto its own table
+export const PreimageCall = story('Preimage', 'note_preimage', {bytes: encodedCall({__kind: 'Prime', value: {__kind: 'upgrade', code: `0x${'cd'.repeat(32)}`}})}, ['Prime.upgrade', '0xcdcdcdcd…cdcdcdcd (32 bytes)', 'hash'])
 
 export const PreimageBinary = story('Preimage', 'note_preimage', {bytes: '0x00ff10'}, ['0x00ff10'])
 
@@ -165,7 +170,7 @@ export const FindsBytesInArgs: Story = {
     ...story('System', 'remark', {remark: BINARY_REMARK}, ['(32 bytes)']),
     play: async () => {
         const spec = block(0).specVersion
-        const inline = runtimeAt(spec)!.encodeCall(BINARY_CALL)
+        const inline = encodedCall(BINARY_CALL)
         await expect(findBytes([{args: {remark: BINARY_REMARK}}], REMARK_HASH, spec)).toBe(BINARY_REMARK)
         await expect(findBytes({proposal: {__kind: 'Inline', value: inline}}, REMARK_HASH, spec)).toBe(BINARY_REMARK)
         await expect(findBytes({remark: '0xabcd'}, REMARK_HASH, spec)).toBeUndefined()
@@ -194,6 +199,23 @@ export const CallViewsLeaveRemarksOut: Story = {
         await expect(sent).not.toContain(textHex(LONG_REMARK_TEXT))
         await expect(sent).not.toContain('and the rest')
         await expect(sent).toContain('/api/bytes?call=call&hash=')
+    },
+}
+
+const BIG_CODE = `0x${'cd'.repeat(20_000)}`
+
+// a noted runtime upgrade stays out of what the page sends, and its code can still be downloaded
+export const CallViewsLeaveNotedCodeOut: Story = {
+    ...story('System', 'set_code', {code: BIG_CODE}, ['(20,000 bytes)']),
+    play: async () => {
+        const noted = encodedCall({__kind: 'System', value: {__kind: 'set_code', code: BIG_CODE}})
+        const sent = JSON.stringify(withCallViews([callRow('Preimage', 'note_preimage', {bytes: noted})]))
+        await expect(sent).not.toContain('cd'.repeat(100))
+        await expect(sent).toContain('System.set_code')
+        await expect(sent).toContain('(20,000 bytes)')
+        const codeHash = blake2_256(new Uint8Array(20_000).fill(0xcd))
+        await expect(sent).toContain(`/api/bytes?call=call&hash=${codeHash}`)
+        await expect(findBytes({bytes: noted}, codeHash, block(0).specVersion)).toBe(BIG_CODE)
     },
 }
 

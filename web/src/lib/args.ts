@@ -13,7 +13,7 @@ export type ArgNode =
     | {kind: 'none'}
     | {kind: 'plain'; text: string}
     | {kind: 'text'; text: string; bytes: number; hash?: string; full?: string}
-    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string}
+    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string; call?: ArgNode}
     | {kind: 'account'; id: string; acc?: IdentityRef}
     | {kind: 'amount'; planck: string}
     | {kind: 'gasPrice'; wei: string}
@@ -105,10 +105,13 @@ class Walker {
 
     arg(pallet: string, method: string, f: Field, value: any): ArgNode {
         const node = this.field(f, value)
-        const summarized = f.name === summarizedField(pallet, method)
-        if (node.kind === 'none' || !(summarized || f.name === TEXT_OR_SUMMARY_FIELDS[`${pallet}.${method}`])) return node
+        const name = `${pallet}.${method}`
+        const summarized = f.name === SUMMARIZED_FIELDS[name]
+        if (node.kind === 'none' || !(summarized || f.name === TEXT_OR_SUMMARY_FIELDS[name])) return node
         const hash = blake2_256(hexToBytes(value.slice(2)))
-        return node.kind === 'text' && !summarized ? {...node, hash} : {kind: 'hex', hex: summarizeHex(value), hash}
+        const call = name === NOTE_PREIMAGE ? this.decoded(value) : null
+        if (node.kind === 'text' && !summarized && !call) return {...node, hash}
+        return {kind: 'hex', hex: summarizeHex(value), hash, ...(call && {call})}
     }
 
     node(ti: number, value: any, typeName = ''): ArgNode {
@@ -204,13 +207,19 @@ class Walker {
 
     // a proposal small enough to ride along with its referendum, still encoded
     inline(hex: string): ArgNode {
-        let decoded
+        return this.decoded(hex) ?? {kind: 'hex', hex}
+    }
+
+    decoded(hex: string): ArgNode | null {
+        let call
         try {
-            decoded = this.rt.decodeCall(hex)
+            call = this.rt.decodeCall(hex)
         } catch {
-            return {kind: 'hex', hex}
+            return null
         }
-        return this.call(decoded)
+        const node = this.call(call)
+        for (const nested of nodesOf([node], 'hex')) nested.hex = briefHex(nested.hex)
+        return node
     }
 
     list(ti: number, value: any[]): ArgNode {
@@ -295,6 +304,7 @@ export function nodesOf<K extends ArgNode['kind']>(nodes: (ArgNode | null)[], ki
         if (node.kind === 'fields') node.fields.forEach(([, v]) => walk(v))
         if (node.kind === 'list') node.rows.forEach(row => row.forEach(walk))
         if (node.kind === 'call') walk(node.args)
+        if (node.kind === 'hex') walk(node.call ?? null)
     }
     nodes.forEach(walk)
     return found
@@ -302,13 +312,13 @@ export function nodesOf<K extends ArgNode['kind']>(nodes: (ArgNode | null)[], ki
 
 const LONG_HEX_CHARS = 2 + 2 * 16384
 
-const SUMMARIZED_FIELDS: Record<string, string> = {'Preimage.note_preimage': 'bytes', 'Prime.upgrade': 'code'}
+const NOTE_PREIMAGE = 'Preimage.note_preimage'
 
-const summarizedField = (pallet: string, method: string): string | undefined => SUMMARIZED_FIELDS[`${pallet}.${method}`]
+const SUMMARIZED_FIELDS: Record<string, string> = {'Prime.upgrade': 'code', 'System.set_code': 'code', 'System.set_code_without_checks': 'code'}
 
-const TEXT_OR_SUMMARY_FIELDS: Record<string, string> = {'System.remark': 'remark', 'System.remark_with_event': 'remark'}
+const TEXT_OR_SUMMARY_FIELDS: Record<string, string> = {[NOTE_PREIMAGE]: 'bytes', 'System.remark': 'remark', 'System.remark_with_event': 'remark'}
 
-const briefField = (pallet: string, method: string): string | undefined => summarizedField(pallet, method) ?? TEXT_OR_SUMMARY_FIELDS[`${pallet}.${method}`]
+const briefField = (pallet: string, method: string): string | undefined => SUMMARIZED_FIELDS[`${pallet}.${method}`] ?? TEXT_OR_SUMMARY_FIELDS[`${pallet}.${method}`]
 
 const WHOLE_HEX_BYTES = 10
 
@@ -365,7 +375,7 @@ function linkBytes(view: ArgNode | null, source: string): ArgNode | null {
 /** A proposal's args with their bytes linked through its referendum. */
 export const describeReferendumArgs = (call: Parameters<typeof describeArgs>[0], referendum: number) => linkBytes(describeProposalArgs(call), `referendum=${referendum}`)
 
-function decodeInline(hex: unknown, specVersion: number | null): unknown {
+function decodeEmbedded(hex: unknown, specVersion: number | null): unknown {
     try {
         return runtimeAt(specVersion)?.decodeCall(hex as string)
     } catch {
@@ -375,13 +385,13 @@ function decodeInline(hex: unknown, specVersion: number | null): unknown {
 
 const hashesTo = (hex: string, hash: string) => /^0x([0-9a-f]{2})*$/i.test(hex) && blake2_256(hexToBytes(hex.slice(2))) === hash
 
-/** The bytes in a call's args with that hash, an inline proposal holds its call still encoded. */
+/** The bytes in a call's args with that hash, an inline proposal or a preimage holds its call still encoded. */
 export function findBytes(value: unknown, hash: string, specVersion: number | null): string | undefined {
     if (typeof value === 'string') return hashesTo(value, hash) ? value : undefined
     if (value == null || typeof value !== 'object') return undefined
-    const {__kind, value: inner} = value as {__kind?: string; value?: unknown}
-    const inlined = __kind === 'Inline' ? decodeInline(inner, specVersion) : undefined
-    for (const child of [...Object.values(value), inlined]) {
+    const {__kind, value: inner, bytes: noted} = value as {__kind?: string; value?: unknown; bytes?: unknown}
+    const embedded = [__kind === 'Inline' ? decodeEmbedded(inner, specVersion) : undefined, decodeEmbedded(noted, specVersion)]
+    for (const child of [...Object.values(value), ...embedded]) {
         const found = findBytes(child, hash, specVersion)
         if (found) return found
     }

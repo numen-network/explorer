@@ -91,15 +91,15 @@ export const RuntimeUpgradePreimage: StoryObj = {
 
 const SHORT_TEXT = utf8Hex('A short preimage')
 
-// a short text preimage shows the same ends and size, never its text
+// a text preimage reads as text, its JSON still shows only the ends and size
 export const NotePreimageText: StoryObj = {
     ...detail(of(notePreimage(SHORT_TEXT))),
     play: async ({canvas, canvasElement}) => {
-        await expect(canvas.getByText(`${SHORT_TEXT.slice(0, 10)}…${SHORT_TEXT.slice(-8)} (16 bytes)`)).toBeVisible()
+        await expect(canvas.getByText('A short preimage')).toBeVisible()
         await expect(canvas.getByText(hexHash(SHORT_TEXT))).toBeVisible()
-        await expect(canvas.getByRole('link', {name: 'download'})).toBeVisible()
-        await expect(canvasElement.textContent).not.toContain('A short preimage')
+        await expect(canvas.queryByRole('link', {name: 'download'})).toBeNull()
         await openJson(canvas)
+        await expect(canvasElement.textContent).toContain('(16 bytes)')
         await expect(canvasElement.textContent).not.toContain(SHORT_TEXT)
     },
 }

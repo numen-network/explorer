@@ -65,6 +65,11 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
                     <span className="font-code text-xs">{node.hex}</span>
                     {node.download && <DownloadBtn href={node.download} />}
                     {node.hash && <HashLine hash={node.hash} />}
+                    {node.call && (
+                        <div className="mt-2">
+                            <ArgsTable node={node.call} chain={ctx.chain} />
+                        </div>
+                    )}
                     {node.preimage && <PreimageFold preimage={node.preimage} ctx={ctx} />}
                 </>
             )
