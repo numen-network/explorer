@@ -302,7 +302,12 @@ const SUMMARIZED_FIELDS: Record<string, string> = {'Preimage.note_preimage': 'by
 
 const summarizedField = (pallet: string, method: string): string | undefined => SUMMARIZED_FIELDS[`${pallet}.${method}`]
 
-const summarizeHex = (hex: string) => `${hex.slice(0, 10)}…${hex.slice(-8)} (${fmtCount((hex.length - 2) / 2, 'byte')})`
+const WHOLE_HEX_BYTES = 10
+
+function summarizeHex(hex: string): string {
+    const size = (hex.length - 2) / 2
+    return `${size < WHOLE_HEX_BYTES ? hex : `${hex.slice(0, 10)}…${hex.slice(-8)}`} (${fmtCount(size, 'byte')})`
+}
 
 const briefHex = (hex: string) => (hex.length > LONG_HEX_CHARS ? summarizeHex(hex) : hex)
 

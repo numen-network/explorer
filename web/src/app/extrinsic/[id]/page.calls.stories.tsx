@@ -98,6 +98,32 @@ export const NotePreimageText: StoryObj = {
     },
 }
 
+const NINE_BYTES = `0x${'ab'.repeat(9)}`
+
+// under ten bytes there is nothing worth eliding, the size still shows
+export const NotePreimageNineBytes: StoryObj = {
+    ...detail(of(notePreimage(NINE_BYTES))),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText(`${NINE_BYTES} (9 bytes)`)).toBeVisible()
+        await openJson(canvas)
+        await expect(canvasElement.textContent).toContain(`${NINE_BYTES} (9 bytes)`)
+    },
+}
+
+const TEN_BYTES = `0x${'ab'.repeat(10)}`
+
+export const NotePreimageTenBytes: StoryObj = {
+    ...detail(of(notePreimage(TEN_BYTES))),
+    play: async ({canvas}) => expect(canvas.getByText(`${TEN_BYTES.slice(0, 10)}…${TEN_BYTES.slice(-8)} (10 bytes)`)).toBeVisible(),
+}
+
+const ONE_BYTE = '0xab'
+
+export const NotePreimageOneByte: StoryObj = {
+    ...detail(of(notePreimage(ONE_BYTE))),
+    play: async ({canvas}) => expect(canvas.getByText(`${ONE_BYTE} (1 byte)`)).toBeVisible(),
+}
+
 const batchedPreimage = (height: number) => {
     const bytes = SHORT_TEXT
     const args = {calls: [{__kind: 'Preimage', value: {__kind: 'note_preimage', bytes}}]}
