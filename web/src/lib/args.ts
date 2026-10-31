@@ -2,7 +2,7 @@ import {TypeKind} from '@subsquid/scale-codec'
 import {hexToBytes} from '@noble/hashes/utils.js'
 import {Runtime} from '@subsquid/substrate-runtime'
 import type {Field, Type} from '@subsquid/substrate-runtime/lib/metadata'
-import {fmtCount, fmtInt, fmtPct, TEXT_PREVIEW_CHARS, trackLabel} from '@/lib/format'
+import {fmtCount, fmtInt, fmtPct, textPreview, trackLabel} from '@/lib/format'
 import type {AccountRef} from '@/lib/gql'
 import {blake2_256} from '@/lib/hash'
 import type {IdentityRef} from '@/lib/identity'
@@ -364,10 +364,10 @@ function linkBytes(view: ArgNode | null, source: string): ArgNode | null {
     const href = (hash: string) => `/api/bytes?${source}&hash=${hash}`
     for (const node of nodesOf([view], 'hex')) if (node.hash) node.download = href(node.hash)
     for (const node of nodesOf([view], 'text')) {
-        const chars = [...node.text]
-        if (chars.length <= TEXT_PREVIEW_CHARS) continue
+        const preview = textPreview(node.text)
+        if (preview === node.text) continue
         node.full = href(node.hash ?? blake2_256(new TextEncoder().encode(node.text)))
-        node.text = chars.slice(0, TEXT_PREVIEW_CHARS).join('')
+        node.text = preview
     }
     return view
 }

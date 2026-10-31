@@ -1,4 +1,11 @@
-export const TEXT_PREVIEW_CHARS = 100
+const TEXT_PREVIEW_BYTES = 4096
+
+/** The head of a text that fits a preview, cut on a whole character. */
+export function textPreview(text: string): string {
+    const bytes = new TextEncoder().encode(text)
+    if (bytes.length <= TEXT_PREVIEW_BYTES) return text
+    return new TextDecoder('utf-8', {ignoreBOM: true}).decode(bytes.subarray(0, TEXT_PREVIEW_BYTES)).replace(/\uFFFD+$/, '')
+}
 
 const GROUP = /\B(?=(\d{3})+(?!\d))/g
 

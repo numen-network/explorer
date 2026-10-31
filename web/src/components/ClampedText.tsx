@@ -7,7 +7,8 @@ import SegmentedControl from '@/components/SegmentedControl'
 import {Button} from '@/components/ui/button'
 import {Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 import {Tabs, TabsContent} from '@/components/ui/tabs'
-import {TEXT_PREVIEW_CHARS} from '@/lib/format'
+import {fmtCount, textPreview} from '@/lib/format'
+import {TEXT_BOX} from './textBox'
 
 const BODY = 'leading-relaxed wrap-anywhere whitespace-pre-wrap'
 
@@ -56,17 +57,21 @@ function TextViews({text, href}: {text: string; href?: string}) {
     )
 }
 
-/** A text preview with a dialog for the whole, fetched from `full` when the page holds only the preview. */
-export default function ClampedText({text, full}: {text: string; full?: string}) {
-    const chars = [...text]
-    if (!full && chars.length <= TEXT_PREVIEW_CHARS) return <div className={`max-h-48 overflow-auto ${BODY}`}>{text}</div>
+/** Text in a scrolling box with a larger view in a dialog, fetched from `full` when the page holds only a preview. */
+export default function ClampedText({text, bytes, full}: {text: string; bytes: number; full?: string}) {
+    const preview = textPreview(text)
+    const truncated = full != null || preview !== text
     return (
         <>
-            <div className={`max-h-48 overflow-auto ${BODY}`}>
-                {chars.slice(0, TEXT_PREVIEW_CHARS).join('')}… <span className="text-muted-foreground">(truncated)</span>
+            <div className="mb-1 text-xs text-muted-foreground">
+                {fmtCount(bytes, 'byte')} · UTF-8{truncated && ' (truncated)'}
+            </div>
+            <div className={TEXT_BOX}>
+                {preview}
+                {truncated && '…'}
             </div>
             <Dialog>
-                <DialogTrigger className="mt-1 cursor-pointer text-xs text-primary hover:underline">Show full</DialogTrigger>
+                <DialogTrigger className="mt-1 block cursor-pointer text-xs text-primary hover:underline">View</DialogTrigger>
                 <DialogContent aria-describedby={undefined} showCloseButton={false} className="max-h-[85dvh] overflow-y-auto border p-6 shadow-lg ring-0 sm:max-w-[800px]">
                     <TextViews text={text} href={full} />
                 </DialogContent>

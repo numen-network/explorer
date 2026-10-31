@@ -177,7 +177,7 @@ export const FindsBytesInArgs: Story = {
     },
 }
 
-const LONG_REMARK_TEXT = `${'a'.repeat(100)} and the rest`
+const LONG_REMARK_TEXT = `${'a'.repeat(4096)} and the rest`
 
 const callRow = (pallet: string, method: string, args: unknown, subcalls: unknown[] = []) => ({id: 'call', pallet, method, args, block: {specVersion: block(0).specVersion}, subcalls})
 

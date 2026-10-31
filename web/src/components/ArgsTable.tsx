@@ -15,6 +15,7 @@ import {TimeCell} from '@/components/TimeCell'
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Tabs, TabsContent} from '@/components/ui/tabs'
+import {TEXT_BOX} from '@/components/textBox'
 import type {ArgNode, Preimage} from '@/lib/args'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtCount, fmtInt} from '@/lib/format'
@@ -128,8 +129,7 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
         case 'text':
             return (
                 <>
-                    <div className="mb-1 text-xs text-muted-foreground">{fmtCount(node.bytes, 'byte')} · UTF-8</div>
-                    <ClampedText text={node.text} full={node.full} />
+                    <ClampedText text={node.text} bytes={node.bytes} full={node.full} />
                     {node.hash && <HashLine hash={node.hash} />}
                 </>
             )
@@ -168,7 +168,7 @@ function PreimageFold({preimage, ctx}: {preimage: Preimage; ctx: Ctx}) {
             </div>
             <CollapsibleContent className="mt-2">
                 {preimage.kind === 'text' ? (
-                    <div className="max-h-48 overflow-y-auto rounded-lg border bg-background px-3 py-2 font-sans whitespace-pre-wrap text-foreground">{preimage.text}</div>
+                    <div className={TEXT_BOX}>{preimage.text}</div>
                 ) : preimage.call ? (
                     <ArgsTable node={preimage.call} chain={ctx.chain} />
                 ) : (
