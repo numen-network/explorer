@@ -447,6 +447,8 @@ type Referendum @entity {
   proposalBeneficiary: String
   "bounty this referendum moves to approve, taken from the proposal call"
   proposalBountyIndex: Int @index
+  "the stay in the preimage store a lookup proposal named when it was submitted, null for an inline proposal or a hash nobody had noted or requested by then"
+  proposalPreimage: Preimage @index
   "the origin the submit dispatched under, which pays the submission deposit"
   submitter: Account @index
   submittedAt: Int!
@@ -606,11 +608,52 @@ type MetadataAction @entity {
   method: String!
   "preimage the pointer moved to or came off"
   hash: String!
+  "the stay in the preimage store that hash was on at this event, null when the store did not hold it"
+  preimage: Preimage @index
   "null when the preimage was missing or held no first line"
   title: String
   description: String
   block: Int!
   timestamp: DateTime!
+}
+
+"""
+one row per stay of a hash in the preimage store, from the Noted or Requested
+that opened it to the Cleared that closed it, the same hash coming back opens
+a new row. kind, title and calls are worked out by the indexer, the chain holds
+only the bytes
+"""
+type Preimage @entity {
+  "the id of the event that opened it"
+  id: ID!
+  hash: String! @index
+  "the RequestStatus variant name while the chain holds it, Cleared after, the variant moves without an event so every batch reads it back"
+  status: String! @index
+  "byte length, null on a request nobody has noted yet"
+  len: Int
+  "who holds the deposit, null while a request carries no ticket"
+  depositor: Account @index
+  "what the ticket holds"
+  deposit: BigInt
+  "open requests, 0 on an Unrequested or Cleared row"
+  requestCount: Int!
+  "null until noted and when the block that noted them also dropped them"
+  bytes: Bytes @byteWeight(value: 1000.0)
+  "block of the Noted event, null on a request nobody has noted"
+  notedBlock: Int
+  notedAt: DateTime
+  "the extrinsic that raised Noted, null when the block itself did"
+  extrinsic: Extrinsic
+  clearedBlock: Int
+  clearedAt: DateTime
+  "Call when the bytes decode whole as a call of the runtime at notedBlock, otherwise Text when they are valid utf8 free of NUL, otherwise Raw, null without bytes"
+  kind: String
+  "first line of Text bytes, null when it is blank"
+  title: String
+  "a Call flattened in preorder, shaped like Referendum.proposalCalls"
+  calls: JSON
+  metadataActions: [MetadataAction!]! @derivedFrom(field: "preimage")
+  referenda: [Referendum!]! @derivedFrom(field: "proposalPreimage")
 }
 
 "tally read back from chain storage at each block a voting action landed in"

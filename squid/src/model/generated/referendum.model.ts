@@ -1,5 +1,6 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, JSONColumn as JSONColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_, BooleanColumn as BooleanColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Track} from "./track.model"
+import {Preimage} from "./preimage.model"
 import {Account} from "./account.model"
 import {ReferendumStatus} from "./_referendumStatus"
 import {ReferendumDeposit} from "./referendumDeposit.model"
@@ -80,6 +81,13 @@ export class Referendum {
     @Index_("idx_referendum_proposal_bounty_index_d217b665")
     @IntColumn_({nullable: true})
     proposalBountyIndex!: number | undefined | null
+
+    /**
+     * the stay in the preimage store a lookup proposal named when it was submitted, null for an inline proposal or a hash nobody had noted or requested by then
+     */
+    @Index_("idx_referendum_proposal_preimage_dc0f5b45")
+    @ManyToOne_(() => Preimage, {nullable: true})
+    proposalPreimage!: Relation_<Preimage> | undefined | null
 
     /**
      * the origin the submit dispatched under, which pays the submission deposit

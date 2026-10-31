@@ -1,6 +1,6 @@
 'use client'
 
-import {useEffect, useState} from 'react'
+import {type ReactNode, useEffect, useState} from 'react'
 import {XIcon} from 'lucide-react'
 import Markdown from '@/components/Markdown'
 import SegmentedControl from '@/components/SegmentedControl'
@@ -57,6 +57,18 @@ function TextViews({text, href}: {text: string; href?: string}) {
     )
 }
 
+/** A larger view of text in a dialog, fetched from `full` when the page holds only a preview. */
+export function TextDialog({text, full, trigger}: {text: string; full?: string; trigger: ReactNode}) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>{trigger}</DialogTrigger>
+            <DialogContent aria-describedby={undefined} showCloseButton={false} className="max-h-[85dvh] overflow-y-auto border p-6 shadow-lg ring-0 sm:max-w-[800px]">
+                <TextViews text={text} href={full} />
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 /** Text in a scrolling box with a larger view in a dialog, fetched from `full` when the page holds only a preview. */
 export default function ClampedText({text, bytes, full}: {text: string; bytes: number; full?: string}) {
     const preview = textPreview(text)
@@ -70,12 +82,7 @@ export default function ClampedText({text, bytes, full}: {text: string; bytes: n
                 {preview}
                 {truncated && '…'}
             </div>
-            <Dialog>
-                <DialogTrigger className="mt-1 block cursor-pointer text-xs text-primary hover:underline">View</DialogTrigger>
-                <DialogContent aria-describedby={undefined} showCloseButton={false} className="max-h-[85dvh] overflow-y-auto border p-6 shadow-lg ring-0 sm:max-w-[800px]">
-                    <TextViews text={text} href={full} />
-                </DialogContent>
-            </Dialog>
+            <TextDialog text={text} full={full} trigger={<button className="mt-1 block cursor-pointer text-xs text-primary hover:underline">View</button>} />
         </>
     )
 }

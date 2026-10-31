@@ -20,7 +20,7 @@ function tally(refs: CallRef[]): string[] {
 }
 
 // a proposal call has not run, so it carries no outcome, origin or events
-type TreeCall = Pick<CallRow, 'address' | 'pallet' | 'method' | 'args'> & Partial<Pick<CallRow, 'success' | 'origin' | 'events'>> & {view: ArgNode | null}
+export type TreeCall = Pick<CallRow, 'address' | 'pallet' | 'method' | 'args'> & Partial<Pick<CallRow, 'success' | 'origin' | 'events'>> & {view: ArgNode | null}
 
 // calls arrive in preorder, so the length of the address is all the tree there is to draw
 export function CallTree({calls, chain, signer = null}: {calls: TreeCall[]; chain: ChainProps; signer?: AccountRef | null}) {

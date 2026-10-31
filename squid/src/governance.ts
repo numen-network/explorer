@@ -4,14 +4,16 @@ import {RpcClient} from '@subsquid/rpc-client'
 import {Src} from '@subsquid/scale-codec'
 import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
-import {In, IsNull} from 'typeorm'
+import {In, IsNull, Not} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, Delegate, DelegateTrack, DelegatedVote, Delegation, DelegationAction, MetadataAction, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
+import {Account, Delegate, DelegateTrack, DelegatedVote, Delegation, DelegationAction, Extrinsic, MetadataAction, Preimage, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
 import {convictionVotes, lockPeriods, ownVotes} from './conviction'
+import {decodeUtf8} from './utf8'
 import {constants, storage} from './types'
-import type {AccountVote, DispatchTime} from './types/v100'
+import type {AccountVote, DispatchTime, RequestStatus} from './types/v100'
 
-const GOV_PALLETS = new Set(['Referenda', 'ConvictionVoting', 'Treasury', 'Scheduler'])
+const GOV_PALLETS = new Set(['Referenda', 'ConvictionVoting', 'Treasury', 'Scheduler', 'Preimage'])
+const PREIMAGE_CLEARED = 'Cleared'
 
 // twox128("Preimage") ++ twox128("PreimageFor"), the map uses the identity hasher
 const PREIMAGE_FOR_PREFIX = '0xd8f314b7f4e6b095f0f8ee4656a448257c7dda85c9c297999fd02215e8c8f9de'
@@ -31,6 +33,7 @@ export function collectGovEvent(batch: BatchData, id: string, indexInBlock: numb
 }
 
 export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, lastHeader: any, rpc: RpcClient): Promise<void> {
+    const preimages = await followPreimages(ctx, batch, rpc)
     if (batch.govEvents.length > 0) {
         await loadTouchedReferenda(ctx, batch)
         await loadEnactments(ctx, batch)
@@ -51,6 +54,7 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         await reconcileTallies(ctx, batch, folded)
     }
     await refreshOngoing(ctx, batch, lastHeader)
+    await refreshPreimages(batch, preimages, lastHeader)
 }
 
 async function issuanceAt(header: any): Promise<{total: bigint; inactive: bigint}> {
@@ -508,6 +512,7 @@ async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
                 referendum: new Referendum({id: String(ev.args.index)}),
                 method: ev.name.split('.')[1],
                 hash: ev.args.hash,
+                preimage: batch.preimageAt.get(ev.id) ?? null,
                 title: meta.title,
                 description: meta.description,
                 block: ev.height,
@@ -515,6 +520,115 @@ async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
             })
         )
     }
+}
+
+// walks the store's events in order, a row stays open from the Noted or
+// Requested that opened it to its Cleared, and each referendum reference lands
+// on the row open at that moment. returns the rows left open, by hash
+async function followPreimages(ctx: {store: any}, batch: BatchData, rpc: RpcClient): Promise<Map<string, Preimage>> {
+    const stored: Preimage[] = await ctx.store.find(Preimage, {where: {status: Not(PREIMAGE_CLEARED)}, relations: {depositor: true}})
+    const open = new Map(stored.map(p => [p.hash, p]))
+    for (const ev of batch.govEvents) {
+        if (ev.name === 'Preimage.Noted' || ev.name === 'Preimage.Requested') {
+            const row = open.get(ev.args.hash) ?? openPreimage(ev)
+            open.set(row.hash, row)
+            batch.preimages.set(row.id, row)
+            if (ev.name === 'Preimage.Noted') await notePreimage(batch, row, ev, rpc)
+        } else if (ev.name === 'Preimage.Cleared') {
+            const row = open.get(ev.args.hash)
+            if (row == null) throw new Error(`Preimage.Cleared at block ${ev.height} names ${ev.args.hash}, which the store never opened`)
+            open.delete(row.hash)
+            batch.preimages.set(row.id, row)
+            row.status = PREIMAGE_CLEARED
+            row.requestCount = 0
+            row.clearedBlock = ev.height
+            row.clearedAt = stampOf(ev)
+        } else if (ev.name === 'Referenda.MetadataSet' || ev.name === 'Referenda.MetadataCleared' || ev.name === 'Referenda.Submitted') {
+            const row = open.get(ev.name === 'Referenda.Submitted' ? ev.args.proposal?.hash : ev.args.hash)
+            if (row != null) batch.preimageAt.set(ev.id, row)
+        }
+    }
+    return open
+}
+
+function openPreimage(ev: GovEvent): Preimage {
+    return new Preimage({
+        id: ev.id,
+        hash: ev.args.hash,
+        status: 'Requested',
+        len: null,
+        depositor: null,
+        deposit: null,
+        requestCount: 0,
+        bytes: null,
+        notedBlock: null,
+        notedAt: null,
+        extrinsic: null,
+        clearedBlock: null,
+        clearedAt: null,
+        kind: null,
+        title: null,
+        calls: null,
+    })
+}
+
+// the block that noted a row may be the last one to hold its bytes and ticket
+async function notePreimage(batch: BatchData, row: Preimage, ev: GovEvent, rpc: RpcClient): Promise<void> {
+    row.notedBlock = ev.height
+    row.notedAt = stampOf(ev)
+    row.extrinsic = ev.extrinsic == null ? null : new Extrinsic({id: ev.extrinsic})
+    const status = await requestStatus(ev.header).get(ev.header, row.hash)
+    if (status != null) applyRequestStatus(batch, row, status, ev.height)
+    const bytes = await fetchPreimage(rpc, row.hash, ev.height)
+    if (bytes == null) return
+    row.bytes = bytes
+    Object.assign(row, readPreimage(bytes, ev.header._runtime))
+}
+
+function requestStatus(header: any) {
+    const s = storage.preimage.requestStatusFor.v100
+    if (!s.is(header)) throw new Error(`unhandled spec version for preimage status at block ${header.height}`)
+    return s
+}
+
+// a request count moves without an event, so every row still open is read back
+async function refreshPreimages(batch: BatchData, open: Map<string, Preimage>, lastHeader: any): Promise<void> {
+    if (open.size === 0) return
+    const rows = [...open.values()]
+    const statuses = await requestStatus(lastHeader).getMany(lastHeader, rows.map(p => p.hash))
+    rows.forEach((row, i) => {
+        const status = statuses[i]
+        if (status == null) throw new Error(`preimage ${row.hash} has no status at block ${lastHeader.height}`)
+        if (applyRequestStatus(batch, row, status, lastHeader.height)) batch.preimages.set(row.id, row)
+    })
+}
+
+function applyRequestStatus(batch: BatchData, row: Preimage, status: RequestStatus, height: number): boolean {
+    const ticket = status.__kind === 'Requested' ? status.maybeTicket : status.ticket
+    const len = (status.__kind === 'Requested' ? status.maybeLen : status.len) ?? null
+    const count = status.__kind === 'Requested' ? status.count : 0
+    const deposit = ticket?.[1] ?? null
+    const changed = row.status !== status.__kind || row.len !== len || row.requestCount !== count || row.deposit !== deposit || (row.depositor?.id ?? null) !== (ticket?.[0] ?? null)
+    if (!changed) return false
+    row.status = status.__kind
+    row.len = len
+    row.requestCount = count
+    row.deposit = deposit
+    row.depositor = ticket == null ? null : batch.touch(ticket[0], height)
+    return true
+}
+
+// postgres text cannot hold a NUL, and anybody can pay to note one
+function readPreimage(bytes: Uint8Array, runtime: Runtime): Pick<Preimage, 'kind' | 'title' | 'calls'> {
+    const call = decodeCall(bytes, runtime)
+    if (call != null) {
+        const calls: ProposalNode[] = []
+        walkProposal(call, runtime, calls, [])
+        return {kind: 'Call', title: null, calls}
+    }
+    const text = decodeUtf8('0x' + bytesToHex(bytes))
+    if (text == null || text.includes('\0')) return {kind: 'Raw', title: null, calls: null}
+    return {kind: 'Text', title: readMetadataText(bytes).title, calls: null}
 }
 
 // the full key ends with the encoded (hash, len) pair, prefix scanning recovers len
@@ -578,6 +692,7 @@ async function applyProposals(batch: BatchData, rpc: RpcClient): Promise<void> {
         if (ev.name !== 'Referenda.Submitted') continue
         const r = batch.referenda.get(ev.args.index)
         if (r == null) continue
+        r.proposalPreimage = batch.preimageAt.get(ev.id) ?? null
         // the call was encoded against the runtime of the block that took it
         const runtime: Runtime = ev.header._runtime
         const call = await proposalCall(rpc, ev.args.proposal, ev.height, runtime)

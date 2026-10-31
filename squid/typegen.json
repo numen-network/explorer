@@ -50,6 +50,7 @@
     "Proxy.Proxies",
     "Proxy.Announcements",
     "Multisig.Multisigs",
+    "Preimage.RequestStatusFor",
     "Prime.Key",
     "Bounties.Bounties",
     "Bounties.BountyDescriptions",

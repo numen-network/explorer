@@ -1,3 +1,6 @@
 allowBuilds:
   esbuild: false
   msw: false
+
+fetchTimeout: 900000
+networkConcurrency: 4

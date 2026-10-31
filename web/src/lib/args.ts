@@ -391,8 +391,8 @@ function linkBytes(view: ArgNode | null, source: string): ArgNode | null {
     return view
 }
 
-/** A proposal's args with their bytes linked through its referendum. */
-export const describeReferendumArgs = (call: Parameters<typeof describeArgs>[0], referendum: number) => linkBytes(describeProposalArgs(call), `referendum=${referendum}`)
+/** A preimage's bytes drawn the way a note_preimage call draws them, downloads go through the preimage. */
+export const describePreimage = (id: string, bytes: string, specVersion: number | null) => linkBytes(describeProposalArgs({pallet: 'Preimage', method: 'note_preimage', args: {bytes}, specVersion, nested: false}), `preimage=${id}`)
 
 /** A note_preimage call's bytes drawn the way its own row does, minus the hash. */
 export function describeNotedBytes(call: {id: string; bytes: string; specVersion: number}): ArgNode | null {
@@ -434,8 +434,10 @@ export const withCallViews = <T extends {id: string; pallet: string; method: str
     rows.map(c => ({...c, args: briefCall(c), view: linkBytes(describeArgs({...c, specVersion: c.block.specVersion, nested: c.subcalls.length > 0}), `call=${c.id}`)}))
 
 /** Proposal calls with their args worked out, a call nests whatever follows it deeper in preorder. */
-export const withProposalViews = <T extends {pallet: string; method: string; args: unknown; address: number[]}>(nodes: T[], specVersion: number | null, referendum: number) =>
-    nodes.map((c, i) => ({...c, args: briefArgs(briefCall(c)), view: describeReferendumArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length}, referendum)}))
+const linkedCallViews = <T extends {pallet: string; method: string; args: unknown; address: number[]}>(nodes: T[], specVersion: number | null, source: string) =>
+    nodes.map((c, i) => ({...c, args: briefArgs(briefCall(c)), view: linkBytes(describeProposalArgs({...c, specVersion, nested: (nodes[i + 1]?.address.length ?? 0) > c.address.length}), source)}))
+
+export const withProposalViews = <T extends {pallet: string; method: string; args: unknown; address: number[]}>(nodes: T[], specVersion: number | null, referendum: number) => linkedCallViews(nodes, specVersion, `referendum=${referendum}`)
 
 /** Event rows with their args worked out, ready for a client table that cannot read the metadata. */
 export const withEventViews = <T extends {pallet: string; method: string; args: unknown; block: {specVersion: number}}>(rows: T[]) => rows.map(e => ({...e, view: describeEvent({...e, specVersion: e.block.specVersion})}))

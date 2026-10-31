@@ -22,6 +22,7 @@ import {
     MinedObject,
     MinerDayStat,
     MultisigOp,
+    Preimage,
     PrimeState,
     Judgement,
     ProxyRelation,
@@ -140,6 +141,9 @@ export class BatchData {
     delegationActions: DelegationAction[] = []
     metadataActions: MetadataAction[] = []
     tallySnapshots = new Map<string, ReferendumTallySnapshot>()
+    preimages = new Map<string, Preimage>()
+    // the preimage row open when a referendum event named its hash, by event id
+    preimageAt = new Map<string, Preimage>()
     spends = new Map<string, TreasurySpend>()
     payouts: TreasuryPayout[] = []
     // scheduler task id to referendum index, and the spends still waiting for

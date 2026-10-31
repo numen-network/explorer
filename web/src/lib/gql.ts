@@ -446,6 +446,12 @@ export async function proposalArgs(index: number): Promise<{args: unknown; specV
     return referendum && {args: referendum.proposalCalls, specVersion: await specVersionAt(referendum.submittedAt)}
 }
 
+/** A preimage's bytes and the runtime that noted it. */
+export async function preimageArgs(id: string): Promise<{args: unknown; specVersion: number | null} | undefined> {
+    const {preimageById} = await gql<{preimageById: {bytes: string | null; notedBlock: number | null} | null}>(`query ($id: String!) { preimageById(id: $id) { bytes notedBlock } }`, {id})
+    return preimageById?.bytes && preimageById.notedBlock != null ? {args: {bytes: preimageById.bytes}, specVersion: await specVersionAt(preimageById.notedBlock)} : undefined
+}
+
 export type ExtrinsicHit = Pick<ExtrinsicRow, 'id' | 'indexInBlock' | 'hash' | 'pallet' | 'method' | 'success' | 'block'>
 
 // a hash can name more than one extrinsic, the canonical pair never can
@@ -1118,6 +1124,38 @@ export async function delegatesPage(limit: number, offset: number): Promise<Dele
         }`
     )
     return delegates.map((d, i) => ({...d, voted: voted[`v${i}`].totalCount}))
+}
+
+export interface PreimageRow {
+    id: string
+    hash: string
+    status: string
+    len: number | null
+    depositor: AccountRef | null
+    deposit: string | null
+    notedBlock: number | null
+    clearedBlock: number | null
+    kind: string | null
+    title: string | null
+    bytes: string | null
+    calls: ProposalNode[] | null
+    metadataActions: {referendum: {index: number; title: string | null}}[]
+    referenda: {index: number; title: string | null}[]
+}
+
+export async function preimagesPage(limit: number, offset: number): Promise<PreimageRow[]> {
+    const {preimages} = await gql<{preimages: PreimageRow[]}>(
+        `query ($limit: Int!, $offset: Int!) {
+            preimages(orderBy: id_DESC, limit: $limit, offset: $offset) {
+                id hash status len deposit notedBlock clearedBlock kind title bytes calls
+                depositor { ${ACCOUNT_REF} }
+                metadataActions(where: {method_eq: "MetadataSet"}, orderBy: id_ASC) { referendum { index title } }
+                referenda(orderBy: index_ASC) { index title }
+            }
+        }`,
+        {limit, offset}
+    )
+    return preimages
 }
 
 export interface RegistrarRow {
@@ -1946,6 +1984,7 @@ export function governanceSummary() {
         spends: {totalCount: number}
         tracks: {totalCount: number}
         delegates: {totalCount: number}
+        preimages: {totalCount: number}
         trackList: {id: string; name: string}[]
     }>(
         `query {
@@ -1955,6 +1994,7 @@ export function governanceSummary() {
             spends: treasurySpendsConnection(orderBy: block_DESC) { totalCount }
             tracks: tracksConnection(orderBy: index_ASC) { totalCount }
             delegates: delegatesConnection(orderBy: id_ASC) { totalCount }
+            preimages: preimagesConnection(orderBy: id_ASC) { totalCount }
             trackList: tracks(orderBy: index_ASC) { id name }
         }`
     )

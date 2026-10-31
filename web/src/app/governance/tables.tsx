@@ -1,16 +1,28 @@
 'use client'
 
 import {useMemo} from 'react'
+import {FileText} from 'lucide-react'
+import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
+import Approx from '@/components/Approx'
+import {ArgsTable} from '@/components/ArgsTable'
 import {RefCell} from '@/components/bounties'
-import {columnsFor, DataTable} from '@/components/DataTable'
+import {TextDialog} from '@/components/ClampedText'
+import CopyBtn from '@/components/CopyBtn'
+import {columnsFor, DataTable, expander} from '@/components/DataTable'
+import DownloadBtn from '@/components/DownloadBtn'
 import {emptyText} from '@/components/EmptyList'
+import HashText from '@/components/HashText'
+import {INLINE_ICON_BUTTON} from '@/components/inlineIconButton'
 import {BlockLink} from '@/components/links'
+import RefList from '@/components/RefList'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
+import {Button} from '@/components/ui/button'
+import type {ArgNode} from '@/lib/args'
 import type {ChainProps} from '@/lib/chain'
 import {camelLabel, fmtBalance, fmtCount, fmtInt, fmtSpan, trackLabel} from '@/lib/format'
-import type {DelegateRow, TrackRow, TreasurySpendRow} from '@/lib/gql'
+import type {DelegateRow, PreimageRow, TrackRow, TreasurySpendRow} from '@/lib/gql'
 import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -82,4 +94,89 @@ export function DelegatesTable({rows, chain, referenda}: {rows: DelegateRow[]; c
         [chain, referenda]
     )
     return <DataTable columns={columns} rows={rows} empty={emptyText('delegates')} getRowId={d => d.id} />
+}
+
+export type PreimageView = Omit<PreimageRow, 'bytes' | 'calls'> & {call: string | null; raw: string | null; view: ArgNode | null; text: {text: string; full?: string} | null; download: string | null}
+
+const pcol = columnsFor<PreimageView>()
+
+const PREIMAGE_TONE = {Requested: 'pos', Unrequested: 'primary', Cleared: 'idle'} as const
+
+// the same text set twice on one referendum is one reference
+function preimageRefs({metadataActions, referenda}: PreimageView) {
+    const texts = new Map(metadataActions.map(a => [a.referendum.index, a.referendum.title]))
+    const refs = [...texts].map(([index, title]) => ({index, title, href: `/referendum/${index}?tab=text`}))
+    return [...refs, ...referenda.map(({index, title}) => ({index, title, href: `/referendum/${index}?tab=call`}))].sort((a, b) => a.index - b.index)
+}
+
+// its buttons sit in a row that expands, clicks stop here
+function PreimageContent({row}: {row: PreimageView}) {
+    return (
+        <span className="inline-flex items-center" onClick={e => e.stopPropagation()}>
+            {row.call || row.raw ? <span className="font-mono text-[13px]">{row.call ?? row.raw}</span> : row.title ? <span className="block max-w-22 truncate text-[13px] 2xl:max-w-96">{row.title}</span> : '—'}
+            {row.text && (
+                <TextDialog
+                    {...row.text}
+                    trigger={
+                        <Button variant="outline" size="icon-xs" aria-label="View text" className={cn(INLINE_ICON_BUTTON, 'ml-1.5')}>
+                            <FileText className="size-2.5" />
+                        </Button>
+                    }
+                />
+            )}
+            {row.download && <DownloadBtn href={row.download} />}
+        </span>
+    )
+}
+
+export function PreimagesTable({rows, chain}: {rows: PreimageView[]; chain: ChainProps}) {
+    const columns = useMemo(
+        () =>
+            pcol.columns([
+                pcol.display({
+                    id: 'hash',
+                    header: 'Hash',
+                    meta: {cellClassName: 'font-mono text-xs'},
+                    cell: ({row}) => (
+                        <span className="inline-flex items-center" onClick={e => e.stopPropagation()}>
+                            <HashText hash={row.original.hash} />
+                            <CopyBtn text={row.original.hash} />
+                        </span>
+                    ),
+                }),
+                pcol.display({id: 'type', header: 'Type', meta: {cellClassName: 'text-[13px]'}, cell: ({row}) => row.original.kind ?? '—'}),
+                pcol.display({id: 'content', header: 'Content', meta: {className: 'w-full'}, cell: ({row}) => <PreimageContent row={row.original} />}),
+                pcol.display({id: 'referenda', header: 'Referenda', cell: ({row}) => <RefList refs={preimageRefs(row.original)} />}),
+                pcol.display({
+                    id: 'status',
+                    header: 'Status',
+                    cell: ({row}) => <Badge variant={PREIMAGE_TONE[row.original.status as keyof typeof PREIMAGE_TONE] ?? 'idle'}>{row.original.status}</Badge>,
+                }),
+                pcol.display({id: 'size', header: 'Size', meta: num, cell: ({row}) => (row.original.len == null ? '—' : fmtCount(row.original.len, 'byte'))}),
+                pcol.display({
+                    id: 'depositor',
+                    header: 'Depositor',
+                    cell: ({row}) => (row.original.depositor ? <AccountLink addr={ss58Encode(row.original.depositor.id, chain.ss58)} acc={row.original.depositor} /> : '—'),
+                }),
+                pcol.display({id: 'deposit', header: 'Deposit', meta: num, cell: ({row}) => (row.original.deposit == null ? '—' : <Approx planck={row.original.deposit} decimals={chain.decimals} symbol={chain.symbol} />)}),
+                pcol.display({id: 'noted', header: 'Noted', meta: {align: 'right'}, cell: ({row}) => (row.original.notedBlock == null ? '—' : <BlockLink height={row.original.notedBlock} />)}),
+                pcol.display({id: 'cleared', header: 'Cleared', meta: {align: 'right'}, cell: ({row}) => (row.original.clearedBlock == null ? '—' : <BlockLink height={row.original.clearedBlock} />)}),
+                expander(pcol),
+            ]),
+        [chain]
+    )
+    return (
+        <DataTable
+            columns={columns}
+            rows={rows}
+            empty={emptyText('preimages')}
+            getRowId={p => p.id}
+            canExpand={p => p.view != null}
+            expand={p => (
+                <div className="px-5 py-3">
+                    <ArgsTable node={p.view!} chain={chain} />
+                </div>
+            )}
+        />
+    )
 }

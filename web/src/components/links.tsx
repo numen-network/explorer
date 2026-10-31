@@ -23,7 +23,7 @@ export function BlockLink({height}: {height: number}) {
 }
 
 // a number with its title, or the bare number when the index has none
-function NumberedLink({href, index, title}: {href: string; index: number; title?: string | null}) {
+export function NumberedLink({href, index, title}: {href: string; index: number; title?: string | null}) {
     return (
         <Link href={href} className="text-primary hover:underline">
             <span className="font-mono">#{fmtInt(index)}</span>

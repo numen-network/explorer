@@ -12,12 +12,12 @@ const spends = SPEND_STATUSES.map((status, i) => spend(i, status))
 
 // opened without a tab the page lands on Referenda, and every tab counts its list
 export const EveryTab: StoryObj = {
-    ...pageStory({...data, treasurySpends: listed(spends), treasurySpendsConnection: counted(spends), delegatesConnection: {totalCount: 3}}),
+    ...pageStory({...data, treasurySpends: listed(spends), treasurySpendsConnection: counted(spends), delegatesConnection: {totalCount: 3}, preimagesConnection: {totalCount: 5}}),
     play: async ({canvas}) => {
         const nav = canvas.getByRole('navigation', {name: 'Governance'})
         const slugs = within(nav).getAllByRole('link').map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!)
-        expect(slugs).toEqual(['referenda', 'treasury', 'tracks', 'delegates'])
+        expect(slugs).toEqual(['referenda', 'treasury', 'tracks', 'delegates', 'preimages'])
         expect(within(nav).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Referenda/)
-        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['12', '7', '9', '3'])
+        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['12', '7', '9', '3', '5'])
     },
 }
