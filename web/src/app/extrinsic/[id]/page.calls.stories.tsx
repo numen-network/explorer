@@ -235,6 +235,31 @@ export const RemarkShortBinary: StoryObj = {
     play: async ({canvas}) => expect(canvas.getByText('0x00ff10 (3 bytes)')).toBeVisible(),
 }
 
+const LONG_MARKDOWN = `# Marketing budget\n\nThis referendum allocates **2,000,000 NUMN** from the treasury to community airdrops and task rewards.`
+
+const centerY = (el: Element) => {
+    const {top, height} = el.getBoundingClientRect()
+    return top + height / 2
+}
+
+// the dialog opens on the raw text and renders it as markdown on request, its header on one line
+export const RemarkLongMarkdown: StoryObj = {
+    ...detail(of(remark(utf8Hex(LONG_MARKDOWN)))),
+    play: async ({canvas, canvasElement}) => {
+        await userEvent.click(canvas.getByRole('button', {name: 'Show full'}))
+        const dialog = within(canvasElement.ownerDocument.body).getByRole('dialog')
+        const panel = within(dialog)
+        await expect(dialog.textContent).toContain('**2,000,000 NUMN**')
+        await expect(panel.queryByRole('heading', {level: 1})).toBeNull()
+        const centers = [panel.getByRole('heading', {name: 'Text'}), panel.getByRole('tablist'), panel.getByRole('button', {name: 'Close'})].map(centerY)
+        await expect(centers[1]).toBeCloseTo(centers[0], 0)
+        await expect(centers[2]).toBeCloseTo(centers[0], 0)
+        await userEvent.click(panel.getByRole('tab', {name: 'Markdown'}))
+        await expect(panel.getByRole('heading', {level: 1, name: 'Marketing budget'})).toBeVisible()
+        await expect(dialog.textContent).not.toContain('**')
+    },
+}
+
 export const PayoutBatch = detail(payout)
 
 export const PayoutBatchPage2 = detail(payout, {tab: 'calls', page: '2'})
