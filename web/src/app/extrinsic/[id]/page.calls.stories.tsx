@@ -202,6 +202,39 @@ export const RemarkMultilineText: StoryObj = {
     },
 }
 
+const HUNDRED_CHARS = '界'.repeat(100)
+
+// exactly at the limit, counted in characters rather than bytes
+export const RemarkAtTextLimit: StoryObj = {
+    ...detail(of(remark(utf8Hex(HUNDRED_CHARS)))),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText(HUNDRED_CHARS)).toBeVisible()
+        await expect(canvas.queryByText('(truncated)')).toBeNull()
+        await expect(canvas.queryByRole('button', {name: 'Show full'})).toBeNull()
+    },
+}
+
+const LONG_TEXT = `${'😀'.repeat(100)} and the rest\nof the remark`
+
+// past the limit it cuts on a whole character and opens in full in a dialog
+export const RemarkLongText: StoryObj = {
+    ...detail(of(remark(utf8Hex(LONG_TEXT)))),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('(truncated)')).toBeVisible()
+        await expect(canvasElement.textContent).toContain(`${'😀'.repeat(100)}…`)
+        await expect(canvasElement.textContent).not.toContain('and the rest')
+        await userEvent.click(canvas.getByRole('button', {name: 'Show full'}))
+        const dialog = within(canvasElement.ownerDocument.body).getByRole('dialog')
+        await expect(dialog.textContent).toContain(LONG_TEXT)
+        await expect(dialog.textContent).not.toContain('(truncated)')
+    },
+}
+
+export const RemarkShortBinary: StoryObj = {
+    ...detail(of(remark('0x00ff10'))),
+    play: async ({canvas}) => expect(canvas.getByText('0x00ff10 (3 bytes)')).toBeVisible(),
+}
+
 export const PayoutBatch = detail(payout)
 
 export const PayoutBatchPage2 = detail(payout, {tab: 'calls', page: '2'})

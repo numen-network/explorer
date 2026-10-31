@@ -3,6 +3,7 @@ import {ChevronRight} from 'lucide-react'
 import Link from 'next/link'
 import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
+import ClampedText from '@/components/ClampedText'
 import CopyBtn from '@/components/CopyBtn'
 import {JsonBlock, NONE} from '@/components/Detail'
 import DownloadBtn from '@/components/DownloadBtn'
@@ -123,7 +124,7 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
             return (
                 <>
                     <div className="mb-1 text-xs text-muted-foreground">{fmtCount(node.bytes, 'byte')} · UTF-8</div>
-                    <div className="max-h-48 overflow-auto leading-relaxed whitespace-pre-wrap">{node.text}</div>
+                    <ClampedText text={node.text} />
                     {node.hash && <HashLine hash={node.hash} />}
                 </>
             )
