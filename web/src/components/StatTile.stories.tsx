@@ -48,7 +48,7 @@ export const WidestChips: Story = {
         value: <Approx planck={numn(65_589_123)} decimals={CHAIN.decimals} symbol={CHAIN.symbol} />,
         href: '/charts/active-issuance',
         className: 'sm:[--card-spacing:--spacing(4)]',
-        chips: chips([<Approx planck={`-${numn(888_889)}`} decimals={CHAIN.decimals} move />, '24h', 'neg'], [<Approx planck={`-${numn(888_889_000)}`} decimals={CHAIN.decimals} move />, '30d', 'neg']),
+        chips: chips([<Approx planck={numn(600_012_345)} decimals={CHAIN.decimals} move />, '24h', 'pos'], [<Approx planck={numn(600_012_345)} decimals={CHAIN.decimals} move />, '30d', 'pos']),
     },
     decorators: [
         Story => (
