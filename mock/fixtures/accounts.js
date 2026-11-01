@@ -965,7 +965,7 @@ export function accountPage({
         treasuryPayouts: args => paged(payouts.filter(p => (args.where.source_eq ?? p.source) === p.source))(args),
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
-        votesConnection: ({where}) => count(where.removed_eq === false ? standing.length : where.kind_eq ? ofType(where).length : votes.length),
+        votesConnection: ({where}) => count(where.removed_eq === false ? standing.filter(v => v.block >= (where.block_gte ?? 0)).length : where.kind_eq ? ofType(where).length : votes.length),
         delegatedVotes: ({where}) => (where.delegator ? delegatedVotesOut : delegatedVotes),
         delegatedVotesConnection: ({where}) => {
             const side = where.aye_eq == null ? delegatedVotesOut : delegatedVotesOut.filter(d => d.aye === where.aye_eq)

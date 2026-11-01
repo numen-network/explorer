@@ -853,14 +853,16 @@ export async function voteGrid(idHex: string) {
     return {referenda, votes}
 }
 
-// open counts the referenda still taking votes once the account showed up
-export function votesSummary(idHex: string, firstSeenBlock: number) {
-    return gql<Record<'all' | 'open', {totalCount: number}>>(
+// open counts the referenda still taking votes at the window's start, voted
+// those the account cast a standing vote on since
+export function votesSummary(idHex: string, from: number) {
+    return gql<Record<'all' | 'voted' | 'open', {totalCount: number}>>(
         `query ($id: String!, $from: Int!) {
             all: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { totalCount }
+            voted: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false, block_gte: $from}, orderBy: id_ASC) { totalCount }
             open: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: $from}]}, orderBy: index_ASC) { totalCount }
         }`,
-        {id: idHex, from: firstSeenBlock}
+        {id: idHex, from}
     )
 }
 
