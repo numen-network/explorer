@@ -451,6 +451,7 @@ export function CurvesChart({
     ]
     const points = showVoters ? voterPoints(voters) : []
     const opt: echarts.EChartsOption = {
+        animation: false,
         axisPointer: {triggerOn: 'none'},
         tooltip: {
             ...TOOLTIP,
