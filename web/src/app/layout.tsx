@@ -50,7 +50,7 @@ export default async function RootLayout({children}: {children: ReactNode}) {
                             </div>
                             <IndexerBanner />
                             {chain && heads ? (
-                                <LiveHeads initial={heads} ms={chain.blockTime * 1000}>
+                                <LiveHeads rendered={heads} ms={chain.blockTime * 1000}>
                                     {page}
                                 </LiveHeads>
                             ) : (

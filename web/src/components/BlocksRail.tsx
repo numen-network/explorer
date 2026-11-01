@@ -5,7 +5,7 @@ import EmptyList from './EmptyList'
 import DotRow from './DotRow'
 import TimeAgo from './TimeAgo'
 import AccountLink from './AccountLink'
-import {StatusDot} from './pills'
+import {FinalityDot} from './blockStatus'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {fmtInt, shortHash} from '@/lib/format'
@@ -16,7 +16,6 @@ export interface BlockCard {
     height: number
     hash: string
     timestamp: string
-    finalized: boolean
     extrinsicCount: number
     eventCount: number
     workHash: string
@@ -48,8 +47,7 @@ export default function BlocksRail({cards}: {cards: BlockCard[]}) {
                     </div>
                     <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                         <TimeAgo iso={c.timestamp} />
-                        <StatusDot tone={c.finalized ? 'pos' : 'warn'} />
-                        <span>{c.finalized ? 'Finalized' : 'Confirming'}</span>
+                        <FinalityDot height={c.height} />
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-xs">
                         <span className="text-muted-foreground">Miner</span>

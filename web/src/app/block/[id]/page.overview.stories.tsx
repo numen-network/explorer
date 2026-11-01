@@ -37,7 +37,10 @@ export const ObjectFit: StoryObj = {
     },
 }
 
-export const Confirming = detail(FRESH)
+export const Confirming: StoryObj = {...detail(FRESH), play: async ({canvas}) => expect(canvas.getByText('Confirming')).toBeVisible()}
+
+// the badge reads the chain heads, whatever the block row itself says
+export const FinalizedHead: StoryObj = {...detail(mined(chainInfo.finalizedHead, [timestampSet], {traits: {finalized: false}})), play: async ({canvas}) => expect(canvas.getByText('Finalized')).toBeVisible()}
 
 export const ExtremeValues = detail(EXTREME)
 

@@ -37,7 +37,6 @@ export interface BlockRow {
     hash: string
     parentHash: string
     timestamp: string | null
-    finalized: boolean
     extrinsicCount: number
     eventCount: number
     logs?: string[]
@@ -56,8 +55,7 @@ export interface ObjectRow {
         height: number
         hash: string
         timestamp: string
-        finalized: boolean
-        extrinsicCount: number
+            extrinsicCount: number
         eventCount: number
         workHash: string | null
         author: AccountRef | null
@@ -125,7 +123,7 @@ export interface DailyRow {
 const IDENTITY_REF = `id identityDisplay identityJson identitySubName identitySubData identitySuper { identityDisplay identityJson }`
 const ACCOUNT_REF = `${IDENTITY_REF} username`
 
-const BLOCK_FIELDS = `id height hash parentHash timestamp finalized extrinsicCount eventCount difficulty reward minerFees treasuryFees nonce workHash specVersion author { ${ACCOUNT_REF} }`
+const BLOCK_FIELDS = `id height hash parentHash timestamp extrinsicCount eventCount difficulty reward minerFees treasuryFees nonce workHash specVersion author { ${ACCOUNT_REF} }`
 const TRANSFER_FIELDS = `id amount timestamp call { pallet method } from { ${ACCOUNT_REF} } to { ${ACCOUNT_REF} } block { height } extrinsic { id }`
 const BASELINE_FIELDS = `difficulty issuanceTotal issuanceInactive treasuryPot`
 const DAILY_FIELDS = `id date blocks extrinsicsSigned transfers transferVolume evmTxs fees tsFirst tsLast issuanceTotal issuanceInactive issuanceTransferable treasuryPot cumExtrinsicsSigned cumTransfers cumTransferVolume difficultyClose accountsTotal referendaTotal minersActive rewards`
@@ -229,7 +227,7 @@ export async function homeData(since24: string | null, since30: string | null, u
     const data = await gql<HomeData>(
         `query ($since24: DateTime, $since30: DateTime, $head: Int!, $until: Int!, $validUntil: Int!) {
             blocks(orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
-            minedObjects(orderBy: id_DESC, limit: 5) { block { height hash timestamp finalized extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
+            minedObjects(orderBy: id_DESC, limit: 5) { block { height hash timestamp extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
             transfers(orderBy: ${TRANSFER_ORDER}, limit: 5) { ${TRANSFER_FIELDS} }
             dailyStats(orderBy: date_DESC, limit: 90) { ${DAILY_FIELDS} }
             accounts: accountsConnection(orderBy: id_ASC) { totalCount }

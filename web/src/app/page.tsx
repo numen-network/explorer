@@ -180,7 +180,6 @@ export default async function Home({searchParams}: PageProps<'/'>) {
         height: o.block.height,
         hash: o.block.hash,
         timestamp: o.block.timestamp,
-        finalized: o.block.finalized,
         extrinsicCount: o.block.extrinsicCount,
         eventCount: o.block.eventCount,
         workHash: o.block.workHash!,

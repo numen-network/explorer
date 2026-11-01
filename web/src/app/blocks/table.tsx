@@ -2,9 +2,9 @@
 
 import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
+import {FinalityDot} from '@/components/blockStatus'
 import {columnsFor, DataTable} from '@/components/DataTable'
 import {BlockLink} from '@/components/links'
-import {StatusDot} from '@/components/pills'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
 import type {ChainProps} from '@/lib/chain'
@@ -35,9 +35,8 @@ export function BlocksTable({rows, chain}: {rows: BlockRow[]; chain: ChainProps}
                     id: 'status',
                     header: 'Status',
                     cell: ({row}) => (
-                        <span className="flex items-center gap-1.5">
-                            <StatusDot tone={row.original.finalized ? 'pos' : 'warn'} />
-                            <span className="text-xs">{row.original.finalized ? 'Finalized' : 'Confirming'}</span>
+                        <span className="flex items-center gap-1.5 text-xs">
+                            <FinalityDot height={row.original.height} />
                         </span>
                     ),
                 }),

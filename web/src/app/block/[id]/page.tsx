@@ -11,6 +11,7 @@ import {TabNav, panelTabs} from '@/components/Tabs'
 import {TimeCell} from '@/components/TimeCell'
 import {Tip} from '@/components/Tip'
 import AccountLink from '@/components/AccountLink'
+import {FinalityBadge} from '@/components/blockStatus'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious} from '@/components/ui/pagination'
@@ -85,7 +86,7 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
         <div>
             <div className="mt-6 flex items-center gap-3">
                 <h1 className="text-lg font-semibold">Block #{fmtInt(block.height)}</h1>
-                <Badge variant={block.finalized ? 'pos' : 'warn'}>{block.finalized ? 'Finalized' : 'Confirming'}</Badge>
+                <FinalityBadge height={block.height} />
                 <Pagination aria-label="Block" className="mr-0 ml-auto w-auto">
                     <PaginationContent>
                         {block.height > 0 && (

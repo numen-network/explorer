@@ -23,6 +23,15 @@ export const ThousandsOfEvents: StoryObj = {
     play: async ({canvas}) => expect(canvas.getByRole('cell', {name: '3,694'})).toBeVisible(),
 }
 
+// the status column and the height mark read the same heads, whatever the block row itself says
+export const StatusFollowsHeads: StoryObj = {
+    ...list([sealed(HEAD, {finalized: true}), sealed(chainInfo.finalizedHead, {finalized: false})]),
+    play: async ({canvasElement, canvas}) => {
+        await expect(columnTexts(canvasElement, 'Status')).toEqual(['Confirming', 'Finalized'])
+        await expect(canvas.getAllByRole('img').map(icon => icon.getAttribute('aria-label'))).toEqual(['Confirming', 'Finalized'])
+    },
+}
+
 export const MiddlePage = list(chain(10, HEAD - 49_990), {page: '5000', size: '10'})
 
 // the pager stands on the last page with nowhere further to go
