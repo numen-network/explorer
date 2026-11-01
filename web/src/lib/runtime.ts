@@ -15,7 +15,7 @@ export function runtimeAt(specVersion: number | null): Runtime | undefined {
     return specVersion == null ? undefined : runtimes.get(specVersion)
 }
 
-function knownRuntime(specVersion: number): Runtime {
+export function knownRuntime(specVersion: number): Runtime {
     const rt = runtimeAt(specVersion)
     if (!rt) throw new Error(`no metadata for spec ${specVersion}`)
     return rt

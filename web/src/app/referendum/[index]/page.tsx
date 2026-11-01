@@ -41,6 +41,7 @@ import {ss58Encode} from '@/lib/ss58'
 import {voteHref, WALLET_URL} from '@/lib/wallet'
 import {actionsPanel, votersOnCurves} from './actions'
 import {statsPanel} from './stats'
+import {upgradePanel} from './upgrade'
 import {votesPanel} from './votes'
 
 export const dynamic = 'force-dynamic'
@@ -233,7 +234,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const latest = data.dailyStats[0]
     const activePlanck = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
-    const [refs, evs, textEvs, votes, actions, actionRows, stats, spec, bounties, titles] = await Promise.all([
+    const enactedAt = trail.find(s => s.name.startsWith('Scheduler.'))?.block ?? null
+    const [refs, evs, textEvs, votes, actions, actionRows, stats, upgrade, spec, bounties, titles] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.revisions.map(a => a.id)),
@@ -241,6 +243,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
         tab === 'curves' ? votersOnCurves(r.index, chain.ss58) : [],
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
+        tab === 'upgrade' && r.proposalRuntime ? upgradePanel({index: r.index, enactedAt, headSpec: head.specVersion, chain}) : null,
         specVersionAt(r.submittedAt),
         bountyIds.length > 0 ? bountiesByIndex(bountyIds) : {bounties: []},
         titled.length > 0 ? indexTitles({referenda: titled, bounties: [], spends: [], registrars: []}) : {referendums: []},
@@ -345,7 +348,6 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                   tip: `${fmtSpan(r.track.decisionPeriod * chain.blockTime)} decision period ${head.height < decisionDue! ? 'ends' : 'ended'} at #${fmtInt(decisionDue!)}, max decision time is ${fmtSpan(decisionRun * chain.blockTime)}`,
               }
             : null
-    const enactedAt = trail.find(s => s.name.startsWith('Scheduler.'))?.block ?? null
     const enactClose = enactedAt ?? r.enactsAt
     const enactAt = approvedAt !== null && enactClose !== null ? phaseFraction(approvedAt, enactClose - approvedAt, head.height) : null
     // a phase not yet started is only expected, a confirmation can still be
@@ -691,6 +693,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
 
     const tabs = panelTabs([
         {slug: 'call', label: 'Call', body: () => call},
+        ...(r.proposalRuntime ? [{slug: 'upgrade', label: 'Upgrade', body: () => upgrade}] : []),
         {slug: 'metadata', label: 'Metadata', body: () => metadata},
         {slug: 'text', label: 'Text history', count: data.metadataCount.totalCount, body: () => texts},
         {slug: 'timeline', label: 'Timeline', count: trail.length, body: () => timeline},

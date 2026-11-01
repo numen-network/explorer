@@ -1,5 +1,6 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, JSONColumn as JSONColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_, BooleanColumn as BooleanColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Track} from "./track.model"
+import {RuntimeCode} from "./runtimeCode.model"
 import {Preimage} from "./preimage.model"
 import {Account} from "./account.model"
 import {ReferendumStatus} from "./_referendumStatus"
@@ -62,6 +63,13 @@ export class Referendum {
      */
     @BigIntColumn_({nullable: true})
     proposalAmount!: bigint | undefined | null
+
+    /**
+     * the runtime the proposal installs, read from the wasm it carries
+     */
+    @Index_("idx_referendum_proposal_runtime_e0ceaedc")
+    @ManyToOne_(() => RuntimeCode, {nullable: true})
+    proposalRuntime!: Relation_<RuntimeCode> | undefined | null
 
     /**
      * how many spends the proposal holds, more than one makes it staged

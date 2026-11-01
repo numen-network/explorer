@@ -1876,6 +1876,7 @@ export interface ReferendumDetailRow extends ReferendumRow {
     enactment: EnactmentMoment
     enactsAt: number | null
     proposalCalls: ProposalNode[] | null
+    proposalRuntime: {id: string} | null
     deposits: ReferendumDepositRow[]
 }
 
@@ -2188,6 +2189,28 @@ export function referendumVotes(list: VoteList, {where, vars, values}: VoteSearc
     ).then(r => r.votes)
 }
 
+export interface RuntimeCodeRow {
+    id: string
+    specName: string | null
+    specVersion: number | null
+    implVersion: number | null
+    transactionVersion: number | null
+    metadata: string | null
+}
+
+/** The runtime a referendum proposes, and the approved referendum that installed the spec it replaces. */
+export async function referendumRuntime(index: number, replaced: number) {
+    const {proposed, installers} = await gql<{proposed: {proposalRuntime: RuntimeCodeRow}[]; installers: {index: number; proposalRuntime: {id: string}}[]}>(
+        `query ($index: Int!, $replaced: Int!) {
+            proposed: referendums(where: {index_eq: $index}, limit: 1) { proposalRuntime { id specName specVersion implVersion transactionVersion metadata } }
+            installers: referendums(where: {proposalRuntime: {specVersion_eq: $replaced}, status_eq: Approved}, orderBy: index_DESC, limit: 1) { index proposalRuntime { id } }
+        }`,
+        {index, replaced}
+    )
+    const installer = installers[0]
+    return {code: proposed[0].proposalRuntime, before: installer ? {index: installer.index, hash: installer.proposalRuntime.id} : null}
+}
+
 export function referendumDetail(index: number, page: Slice) {
     const tally = (list: VoteList) => `votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false, ${VOTE_LISTS[list].where}}, orderBy: id_ASC) { totalCount }`
     return gql<{
@@ -2204,7 +2227,7 @@ export function referendumDetail(index: number, page: Slice) {
         splitCount: {totalCount: number}
     }>(
         `query ($index: Int!, $limit: Int!, $offset: Int!) {
-            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} enactment enactsAt proposalCalls deposits(orderBy: id_ASC) { kind who { ${ACCOUNT_REF} } amount state endedAt } }
+            referendums(where: {index_eq: $index}, limit: 1) { ${REFERENDUM_FIELDS} enactment enactsAt proposalCalls proposalRuntime { id } deposits(orderBy: id_ASC) { kind who { ${ACCOUNT_REF} } amount state endedAt } }
             spends: treasurySpends(where: {referendum: {index_eq: $index}}, orderBy: [block_ASC, indexInBlock_ASC], limit: 500) { id kind status validFrom expireAt paidAt proposalCall }
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }

@@ -730,6 +730,7 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert(batch.tokenTransferPairs)
     await ctx.store.upsert([...batch.evmAddresses.values()])
     await ctx.store.upsert([...batch.preimages.values()])
+    await ctx.store.upsert([...batch.runtimeCodes.values()])
     await ctx.store.upsert([...batch.referenda.values()])
     await ctx.store.upsert([...batch.deposits.values()])
     await ctx.store.upsert([...batch.votes.values()])

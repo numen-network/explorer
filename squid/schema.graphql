@@ -424,6 +424,18 @@ enum ReferendumStatus {
   Killed
 }
 
+"a runtime wasm a referendum proposes, every field but the id null when it doesn't run as one"
+type RuntimeCode @entity {
+  "blake2_256 of the wasm"
+  id: ID!
+  specName: String
+  specVersion: Int @index
+  implVersion: Int
+  transactionVersion: Int
+  metadata: Bytes @byteWeight(value: 1000.0)
+  referenda: [Referendum!]! @derivedFrom(field: "proposalRuntime")
+}
+
 type Referendum @entity {
   id: ID!
   index: Int! @index @unique
@@ -441,6 +453,8 @@ type Referendum @entity {
   proposalCalls: JSON
   "what the proposal asks the treasury for, summed over its spends"
   proposalAmount: BigInt
+  "the runtime the proposal installs, read from the wasm it carries"
+  proposalRuntime: RuntimeCode
   "how many spends the proposal holds, more than one makes it staged"
   proposalPayouts: Int
   "set when every spend pays one account"

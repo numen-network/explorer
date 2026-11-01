@@ -124,7 +124,7 @@ const preview: Preview = {
                             'Charts',
                         ],
                         'Referendum',
-                        ['Overview', 'Request', 'Status', 'Tally', 'Tabs', 'Call', 'Metadata', 'Text history', 'Timeline', 'Votes', 'Curves', 'Statistics'],
+                        ['Overview', 'Request', 'Status', 'Tally', 'Tabs', 'Call', 'Upgrade', 'Metadata', 'Text history', 'Timeline', 'Votes', 'Curves', 'Statistics'],
                         'Bounties',
                         'Bounty',
                         ['Overview', 'Tabs', 'Timeline', 'Child bounties'],

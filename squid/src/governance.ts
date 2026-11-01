@@ -6,8 +6,9 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In, IsNull, Not} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, Delegate, DelegateTrack, DelegatedVote, Delegation, DelegationAction, Extrinsic, MetadataAction, Preimage, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
+import {Account, Delegate, DelegateTrack, DelegatedVote, Delegation, DelegationAction, Extrinsic, MetadataAction, Preimage, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, RuntimeCode, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
 import {convictionVotes, lockPeriods, ownVotes} from './conviction'
+import {readRuntime} from './runtimeCode'
 import {decodeUtf8} from './utf8'
 import {constants, storage} from './types'
 import type {AccountVote, DispatchTime, RequestStatus} from './types/v100'
@@ -703,6 +704,7 @@ async function applyProposals(batch: BatchData, rpc: RpcClient): Promise<void> {
         r.proposalPallet = nodes[0].pallet
         r.proposalMethod = nodes[0].method
         r.proposalCalls = nodes
+        r.proposalRuntime = await proposedRuntime(batch, nodes)
 
         const bounty = nodes.find(node => node.bounty != null)
         if (bounty != null) r.proposalBountyIndex = bounty.bounty
@@ -718,6 +720,28 @@ async function applyProposals(batch: BatchData, rpc: RpcClient): Promise<void> {
 
 // an inline proposal carries its bytes, a lookup leaves them in the preimage
 // store where anybody may unnote them once the referendum is over
+const CODE_CALLS = new Set(['Prime.upgrade', 'System.set_code', 'System.set_code_without_checks'])
+
+async function proposedRuntime(batch: BatchData, nodes: ProposalNode[]): Promise<RuntimeCode | null> {
+    const node = nodes.find(n => CODE_CALLS.has(`${n.pallet}.${n.method}`))
+    if (node == null) return null
+    const wasm = (node.args as {code: string}).code
+    const id = '0x' + bytesToHex(blake2b(hexToBytes(wasm.slice(2)), {dkLen: 32}))
+    const known = batch.runtimeCodes.get(id)
+    if (known != null) return known
+    const found = await readRuntime(wasm)
+    const code = new RuntimeCode({
+        id,
+        specName: found?.specName ?? null,
+        specVersion: found?.specVersion ?? null,
+        implVersion: found?.implVersion ?? null,
+        transactionVersion: found?.transactionVersion ?? null,
+        metadata: found && hexToBytes(found.metadata.slice(2)),
+    })
+    batch.runtimeCodes.set(id, code)
+    return code
+}
+
 async function proposalCall(rpc: RpcClient, proposal: any, height: number, runtime: Runtime): Promise<Call | undefined> {
     if (proposal?.__kind === 'Inline') return decodeCall(proposal.value, runtime)
     if (proposal?.__kind !== 'Lookup') return undefined

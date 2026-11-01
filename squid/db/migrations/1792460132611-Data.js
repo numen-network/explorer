@@ -320,9 +320,19 @@ module.exports = class Data1792460132611 {
         await db.query(`ALTER TABLE "preimage" ADD CONSTRAINT "FK_1775b2e6610201f786c0798a8d3" FOREIGN KEY ("depositor_id") REFERENCES "account"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "preimage" ADD CONSTRAINT "FK_734560d972e6d3660acec2b484c" FOREIGN KEY ("extrinsic_id") REFERENCES "extrinsic"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
         await db.query(`ALTER TABLE "referendum" ADD CONSTRAINT "FK_74bba4dda8afefaeeb62ec3e301" FOREIGN KEY ("proposal_preimage_id") REFERENCES "preimage"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`CREATE TABLE "runtime_code" ("id" character varying NOT NULL, "spec_name" text, "spec_version" integer, "impl_version" integer, "transaction_version" integer, "metadata" bytea, CONSTRAINT "PK_7113752f3833fb1323644402b51" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE INDEX "idx_runtime_code_spec_version_284df73b" ON "runtime_code" ("spec_version") `)
+        await db.query(`ALTER TABLE "referendum" ADD "proposal_runtime_id" character varying`)
+        await db.query(`CREATE INDEX "idx_referendum_proposal_runtime_e0ceaedc" ON "referendum" ("proposal_runtime_id") `)
+        await db.query(`ALTER TABLE "referendum" ADD CONSTRAINT "FK_abb035f88f5da80f69ca2893604" FOREIGN KEY ("proposal_runtime_id") REFERENCES "runtime_code"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
     }
 
     async down(db) {
+        await db.query(`ALTER TABLE "referendum" DROP CONSTRAINT "FK_abb035f88f5da80f69ca2893604"`)
+        await db.query(`DROP INDEX "public"."idx_referendum_proposal_runtime_e0ceaedc"`)
+        await db.query(`ALTER TABLE "referendum" DROP COLUMN "proposal_runtime_id"`)
+        await db.query(`DROP INDEX "public"."idx_runtime_code_spec_version_284df73b"`)
+        await db.query(`DROP TABLE "runtime_code"`)
         await db.query(`ALTER TABLE "referendum" DROP CONSTRAINT "FK_74bba4dda8afefaeeb62ec3e301"`)
         await db.query(`ALTER TABLE "preimage" DROP CONSTRAINT "FK_734560d972e6d3660acec2b484c"`)
         await db.query(`ALTER TABLE "preimage" DROP CONSTRAINT "FK_1775b2e6610201f786c0798a8d3"`)

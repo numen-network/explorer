@@ -27,6 +27,7 @@ import {
     Judgement,
     ProxyRelation,
     Referendum,
+    RuntimeCode,
     ReferendumDeposit,
     ReferendumTallySnapshot,
     Registrar,
@@ -142,6 +143,7 @@ export class BatchData {
     metadataActions: MetadataAction[] = []
     tallySnapshots = new Map<string, ReferendumTallySnapshot>()
     preimages = new Map<string, Preimage>()
+    runtimeCodes = new Map<string, RuntimeCode>()
     // the preimage row open when a referendum event named its hash, by event id
     preimageAt = new Map<string, Preimage>()
     spends = new Map<string, TreasurySpend>()

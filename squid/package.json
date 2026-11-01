@@ -12,6 +12,7 @@
     "graphql": "squid-graphql-server"
   },
   "dependencies": {
+    "@acala-network/chopsticks-executor": "1.5.2",
     "@noble/hashes": "^2.3.0",
     "@subsquid/graphql-server": "^4.12.1",
     "@subsquid/rpc-client": "^4.16.0",
