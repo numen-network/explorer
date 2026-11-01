@@ -2,6 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect, waitFor} from 'storybook/test'
 import {AVATAR_HOST, avatars} from '../../.storybook/avatar'
 import {expectFits} from '../../.storybook/fit'
+import {ss58Encode} from '../lib/ss58'
 import Markdown from './Markdown'
 import {Card} from './ui/card'
 
@@ -137,4 +138,60 @@ export const UnbrokenRunsStayInCard: Story = {
 export const RightToLeft: Story = {
     args: {text: '## نشغّل مدقق الشبكة الرئيسية\n\nونصوّت على **كل** استفتاء للخزينة.'},
     play: async ({canvasElement}) => expect(canvasElement.querySelector('.prose')!.matches(':dir(rtl)')).toBe(true),
+}
+
+const SS58 = 14240
+const NAMED = `0x${'11'.repeat(32)}`
+const UNNAMED = `0x${'22'.repeat(32)}`
+const named = ss58Encode(NAMED, SS58)
+const unnamed = ss58Encode(UNNAMED, SS58)
+const foreign = ss58Encode(NAMED, 42)
+const refs = {ss58: SS58, accounts: new Map([[NAMED, {id: NAMED, identityDisplay: 'Orbit Labs'}]]), titles: new Map([[12, 'Fund the medium spender pilot']])}
+
+// a chain address links to its account, named or not
+export const ChainAddresses: Story = {
+    args: {text: `Proposer ${named}\n\nMultisig ${unnamed} holds the payout.`, refs},
+    play: async ({canvas}) => {
+        expect(canvas.getByRole('link', {name: /Orbit Labs/})).toHaveAttribute('href', `/account/${named}`)
+        const short = canvas.getByRole('link', {name: /^nu/})
+        expect(short).toHaveAttribute('href', `/account/${unnamed}`)
+        expect(short).not.toHaveAttribute('target')
+    },
+}
+
+// the word in front is what makes a number a referendum, the author's casing stays
+export const ReferendumMentions: Story = {
+    args: {text: 'Follows Referendum #12 and referendum #3, ranked #1 globally, see issue #7.', refs},
+    play: async ({canvas, canvasElement}) => {
+        await expect([...canvasElement.querySelectorAll('a')].map(a => [a.textContent, a.getAttribute('href'), a.target])).toEqual([
+            ['Referendum #12', '/referendum/12', ''],
+            ['referendum #3', '/referendum/3', ''],
+        ])
+        expect(canvas.getByText(/ranked #1 globally/)).toBeInTheDocument()
+    },
+}
+
+// code, an existing link, another chain's address and a broken checksum all stay as written
+export const TextLeftAsWritten: Story = {
+    args: {
+        text: `\`${named}\`\n\n[Referendum #5](https://forum.example.com/t/5)\n\n${foreign}\n\n${named.slice(0, -1)}${named.endsWith('1') ? '2' : '1'}`,
+        refs,
+    },
+    play: async ({canvas, canvasElement}) => {
+        expect(canvasElement.querySelector('code')).toHaveTextContent(named)
+        await expect([...canvasElement.querySelectorAll('a')].map(a => a.getAttribute('href'))).toEqual(['https://forum.example.com/t/5'])
+        expect(canvas.getByText(foreign)).toBeInTheDocument()
+    },
+}
+
+// no refs passed, like a bio, keeps addresses and mentions plain
+export const WithoutRefs: Story = {
+    args: {text: `${named} and Referendum #12`},
+    play: async ({canvasElement}) => expect(canvasElement.querySelector('a')).toBeNull(),
+}
+
+// several addresses in a row stay inside the card
+export const ChainAddressStaysInCard: Story = {
+    args: {text: `${unnamed} ${named} ${unnamed}`, refs},
+    play: async ({canvasElement}) => expectFits(canvasElement.querySelector('[data-slot=card]')!, ...canvasElement.querySelectorAll('.prose > p')),
 }

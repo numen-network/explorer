@@ -7,6 +7,7 @@ import CopyBtn from '@/components/CopyBtn'
 import EditedHistory from '@/components/EditedHistory'
 import Foldable from '@/components/Foldable'
 import Markdown from '@/components/Markdown'
+import {addressesIn, referendaIn} from '@/lib/chainRefs'
 import {DetailCard, DetailRow} from '@/components/Detail'
 import Pager from '@/components/Pager'
 import {TabNav, panelTabs} from '@/components/Tabs'
@@ -227,7 +228,8 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const submission = r.deposits.find(d => d.kind === 'Submission')
     const partyIds = [...new Set(requestAccounts(nodes))]
     const bountyIds = nodes.flatMap(node => (node.bounty != null ? [node.bounty] : []))
-    const enactors = [...new Set(trail.flatMap(s => (s.byReferendum != null ? [s.byReferendum] : [])))]
+    const enactors = trail.flatMap(s => (s.byReferendum != null ? [s.byReferendum] : []))
+    const titled = [...new Set([...enactors, ...referendaIn(r.description ?? '')])]
     const latest = data.dailyStats[0]
     const activePlanck = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
@@ -241,7 +243,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
         specVersionAt(r.submittedAt),
         bountyIds.length > 0 ? bountiesByIndex(bountyIds) : {bounties: []},
-        enactors.length > 0 ? indexTitles({referenda: enactors, bounties: [], spends: [], registrars: []}) : {referendums: []},
+        titled.length > 0 ? indexTitles({referenda: titled, bounties: [], spends: [], registrars: []}) : {referendums: []},
     ])
     const callRows = withProposalViews(nodes, spec, r.index)
     await markArgs(callRows.map(c => c.view))
@@ -263,7 +265,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const titleOf = new Map(titles.referendums.map(t => [t.index, t.title]))
     const party = new Map(refs.accounts.map(a => [a.id, a]))
 
-    const whoRefsRes = await accountRefs([...new Set(evWhos)])
+    const whoRefsRes = await accountRefs([...new Set([...evWhos, ...addressesIn(r.description ?? '', chain.ss58)])])
     const whoRefs = new Map(whoRefsRes.accounts.map(a => [a.id, a]))
 
     const approvalNow = approvalOf(r)
@@ -711,7 +713,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
                     <Separator className="my-4" />
                     {r.description ? (
                         <Foldable>
-                            <Markdown text={r.description} />
+                            <Markdown text={r.description} refs={{ss58: chain.ss58, accounts: whoRefs, titles: titleOf}} />
                         </Foldable>
                     ) : (
                         <p className="py-4 text-center text-sm text-dim">No description provided.</p>

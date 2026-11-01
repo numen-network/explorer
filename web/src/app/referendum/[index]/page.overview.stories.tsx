@@ -3,6 +3,7 @@ import {PEOPLE} from '../../../../../mock/fixtures.js'
 import {metadataAction} from '../../../../../mock/fixtures/governance.js'
 import {expectFits, expectNoHangingDots, expectTimesFit} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
+import {ss58Encode} from '@/lib/ss58'
 import ReferendumPage from './page'
 import {curated, story, curatedCase, withPlay, markdownPitch, refundTitle, refundPitch} from './page.stories.helpers'
 
@@ -19,6 +20,14 @@ export const DescriptionMarkdown = withPlay(story({...curated(6), description: m
     expect(await overview.findAllByRole('heading', {name: 'Budget'})).toHaveLength(1)
     expect(overview.getAllByRole('table')).toHaveLength(1)
     expect(overview.getAllByRole('link', {name: 'forum thread'})).toHaveLength(1)
+})
+
+// the description links an address to its identity, a referendum to its page
+const mentioned = PEOPLE[1]
+export const DescriptionChainRefs = withPlay(story({...curated(6), description: `Paid to ${ss58Encode(mentioned.id, 14240)} after Referendum #2.`}, 'call', {accounts: () => [mentioned]}), async ({canvasElement}) => {
+    const overview = overviewOf(canvasElement, curated(6).title as string)
+    expect((await overview.findByRole('link', {name: /Orbit Labs/})).getAttribute('href')).toBe(`/account/${ss58Encode(mentioned.id, 14240)}`)
+    expect(overview.getByRole('link', {name: 'Referendum #2'})).toHaveAttribute('href', '/referendum/2')
 })
 
 // a title and a description that each carry a 66 character hash break inside the card

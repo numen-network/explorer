@@ -29,6 +29,7 @@
     "echarts": "^6.1.0",
     "jdenticon": "3.2.0",
     "lucide-react": "1.41.0",
+    "mdast-util-find-and-replace": "3.0.3",
     "next": "16.3.0",
     "nuqs": "2.10.1",
     "qr": "0.6.0",
