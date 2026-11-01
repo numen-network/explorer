@@ -178,4 +178,22 @@ export class Account {
      */
     @BigIntColumn_({nullable: false})
     curatorFeesReceived!: bigint
+
+    /**
+     * the conviction weighted votes of its standing vote on every referendum, whatever the outcome
+     */
+    @BigIntColumn_({nullable: false})
+    ownVotes!: bigint
+
+    /**
+     * the conviction weighted votes others delegated through its standing votes, referendum by referendum
+     */
+    @BigIntColumn_({nullable: false})
+    receivedVotes!: bigint
+
+    /**
+     * the conviction weighted votes it delegated through others' standing votes, referendum by referendum
+     */
+    @BigIntColumn_({nullable: false})
+    delegatedVotes!: bigint
 }

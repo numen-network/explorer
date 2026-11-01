@@ -24,7 +24,7 @@ import {parseEvmBlockHash, parsePowDigest} from './digest'
 import {Deposit, feeShares} from './fees'
 import {fetchObj, parseMesh} from './objects'
 import {ZERO_ADDRESS, asErc20Transfer, asSync, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply, fetchPair, fetchProxy} from './evm'
-import {collectGovEvent, finalizeGovernance, movedDelegates, refreshDelegates} from './governance'
+import {collectGovEvent, finalizeGovernance, movedDelegates, refreshDelegates, totalAccountVotes} from './governance'
 import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from './validators'
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
 import {collectMultisigCall, collectMultisigEvent, finalizeMultisig, refreshMultisigs} from './multisig'
@@ -88,6 +88,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     await refreshPrime(batch, lastHeader, ctx.store)
     await finalizeAccounts(ctx, batch, lastHeader)
     accruePayouts(batch)
+    await totalAccountVotes(ctx, batch)
     await finalizeTransferPairs(ctx, batch)
     await finalizeStats(ctx, batch)
     await finalizeAccountDays(ctx, batch)

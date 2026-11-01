@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, BooleanColumn as BooleanColumn_, IntColumn as IntColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, BooleanColumn as BooleanColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_} from "@subsquid/typeorm-store"
 import {Referendum} from "./referendum.model"
 import {Account} from "./account.model"
 
@@ -32,6 +32,12 @@ export class DelegatedVote {
     @Index_("idx_delegated_vote_delegator_183883b0")
     @ManyToOne_(() => Account, {nullable: true})
     delegator!: Relation_<Account>
+
+    /**
+     * the side of the standard vote that carries it
+     */
+    @BooleanColumn_({nullable: false})
+    aye!: boolean
 
     /**
      * the Conviction variant name

@@ -129,6 +129,12 @@ type Account @entity {
   childBountiesReceived: BigInt!
   "curator fees from bounties and child bounties"
   curatorFeesReceived: BigInt!
+  "the conviction weighted votes of its standing vote on every referendum, whatever the outcome"
+  ownVotes: BigInt!
+  "the conviction weighted votes others delegated through its standing votes, referendum by referendum"
+  receivedVotes: BigInt!
+  "the conviction weighted votes it delegated through others' standing votes, referendum by referendum"
+  delegatedVotes: BigInt!
 }
 
 type Extrinsic @entity {
@@ -577,6 +583,8 @@ type DelegatedVote @entity {
   "the delegation target, whose standard vote carries the delegation"
   voter: Account!
   delegator: Account!
+  "the side of the standard vote that carries it"
+  aye: Boolean!
   "the Conviction variant name"
   conviction: String!
   balance: BigInt!

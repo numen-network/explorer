@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {accountTransfers, delegatedFrom, delegatingTo, delegationAction, delegationActionRows, delegationActionsOf, EVERY_PAYOUT, EVERY_REFUND, HOLDING, identitySet, JJFU_OFFLINE, membership, MULTISIG_ENDS, multisigOp, NOT_HELD, subject, subRows, subUnder, TRACKS, tokenTransferRows, validatorLifecycle, validatorRow, vote, voteActionRows} from '../../../../../mock/fixtures/accounts.js'
+import {accountTransfers, delegatedFrom, delegatedVoteOut, delegatingTo, delegationAction, delegationActionRows, delegationActionsOf, EVERY_PAYOUT, EVERY_REFUND, HOLDING, identitySet, JJFU_OFFLINE, membership, MULTISIG_ENDS, multisigOp, NOT_HELD, subject, subRows, subUnder, TRACKS, tokenTransferRows, validatorLifecycle, validatorRow, vote, voteActionRows} from '../../../../../mock/fixtures/accounts.js'
 import {HEAD, identity, numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {tabCount} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
@@ -121,18 +121,18 @@ export const MultisigLinkOpensSignatory: StoryObj = {
     play: async ({canvasElement}) => expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([['multisig-signatory', '1', 'page']]),
 }
 
-// the eight governance lists share one group
+// the nine governance lists share one group
 export const EveryGovernanceTab: StoryObj = {
     ...story(
-        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND, payouts: EVERY_PAYOUT},
+        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegatedVotesOut: [delegatedVoteOut(0, 'Approved'), delegatedVoteOut(1, 'Ongoing')], delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND, payouts: EVERY_PAYOUT},
         {tab: 'vote-history'}
     ),
     play: async ({canvas}) => {
         expect(within(canvas.getByRole('navigation', {name: 'Account'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Governance/)
         const nav = canvas.getByRole('navigation', {name: 'Governance'})
         const slugs = within(nav).getAllByRole('link').map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!)
-        expect(slugs).toEqual(['votes', 'vote-history', 'proposed', 'treasury', 'received', 'received-history', 'delegations', 'delegations-history'])
-        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '10', '5', '7', '2', '3', '3', '3'])
+        expect(slugs).toEqual(['votes', 'vote-history', 'delegated-votes', 'proposed', 'treasury', 'received', 'received-history', 'delegations', 'delegations-history'])
+        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '10', '2', '5', '7', '2', '3', '3', '3'])
     },
 }
 

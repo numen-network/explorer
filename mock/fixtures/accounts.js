@@ -361,6 +361,10 @@ export const voteRows = () => VOTE_CASES.map((c, i) => vote(i, c))
 // a delegation a referendum counts through the account's standard vote there
 export const delegatedVote = (index, conviction, units, from = person(1)) => weighed({conviction, balance: numn(units), voter: {id: SUBJECT}, delegator: {id: from.id}, referendum: {index}})
 
+// a vote the account's delegation rode, the target's standard vote carrying it
+export const delegatedVoteOut = (i, status, traits = {}) =>
+    weighed({id: `delegated-${i}`, aye: true, conviction: 'Locked3x', balance: numn(5_000), removed: false, block: HEAD - 500 * (i + 1), voter: person(2), delegator: {id: SUBJECT}, referendum: poll(i, status, status === 'Ongoing' ? null : HEAD - 1_000), ...traits})
+
 // a vote the account cast or took off, newest first. delegatedVotes is what its
 // casting record held as the block ended
 export const voteAction = (i, traits = {}) => {
@@ -843,6 +847,7 @@ export function accountPage({
     votes = [],
     voteActions = [],
     delegatedVotes = [],
+    delegatedVotesOut = [],
     referenda = null,
     delegationActions = [],
     govDeposits = [],
@@ -887,6 +892,11 @@ export function accountPage({
     const pairCount = {rows: 'pairs', ins: 'pairsIn', outs: 'pairsOut'}
     const pairs = ({where}) => counterparties[pairWay(where)]
     const pairsConnection = ({where}) => count(counts[pairCount[pairWay(where)]] ?? counterparties[pairWay(where)].length)
+    const voteTotals = {
+        ownVotes: sum(standing.map(v => v.votes)),
+        receivedVotes: sum(delegatedVotes.map(d => d.votes)),
+        delegatedVotes: sum(delegatedVotesOut.filter(d => !d.removed).map(d => d.votes)),
+    }
     const volumes = {transferInVolume: counterparties.volumeIn, transferOutVolume: counterparties.volumeOut}
     const mining = {
         minedBlocks: counts.mined ?? minerDays.reduce((n, d) => n + d.blocks, 0),
@@ -901,7 +911,7 @@ export function accountPage({
         curatorFeesReceived: paid(p => p.role === 'Curator'),
     }
     return {
-        accountById: {...volumes, ...mining, ...received, ...account},
+        accountById: {...volumes, ...mining, ...received, ...voteTotals, ...account},
         validators: validator ? [validator] : [],
         validatorOffences: paged(offences),
         // the two windowed counts take counts.Offline and counts.Equivocation when set
@@ -956,7 +966,12 @@ export function accountPage({
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
         votesConnection: ({where}) => count(where.removed_eq === false ? (where.referendum ? standing.filter(v => v.referendum.status === 'Ongoing') : standing).length : where.kind_eq ? ofType(where).length : votes.length),
-        delegatedVotes,
+        delegatedVotes: ({where}) => (where.delegator ? delegatedVotesOut : delegatedVotes),
+        delegatedVotesConnection: ({where}) => {
+            const side = where.aye_eq == null ? delegatedVotesOut : delegatedVotesOut.filter(d => d.aye === where.aye_eq)
+            const standing = where.removed_eq === false ? side.filter(d => !d.removed) : side
+            return count(where.referendum ? standing.filter(d => d.referendum.status === 'Ongoing').length : standing.length)
+        },
         referendumsConnection: ({where}) => count(where?.deposits_some ? proposed.length : (counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size)),
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,
         votes: args => (args.where?.removed_eq === false ? standing : paged(votes)(args)),

@@ -12,6 +12,7 @@ import BalanceBar from '@/components/account/BalanceBar'
 import Charts from '@/components/account/Charts'
 import Counterparties from '@/components/account/Counterparties'
 import Delegations from '@/components/account/Delegations'
+import DelegatedVotes from '@/components/account/DelegatedVotes'
 import DelegationHistory from '@/components/account/DelegationHistory'
 import Extrinsics from '@/components/account/Extrinsics'
 import Header from '@/components/account/Header'
@@ -163,9 +164,10 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (msig) tabs.push({slug: 'multisig', label: 'As a multisig address', group: 'Multisig', count: msig.operations, body: () => <MultisigAddress {...ctx} set={msig} />})
     if (s.nMultisigSigner.totalCount > 0)
         tabs.push({slug: 'multisig-signatory', label: 'As a multisig signatory', group: 'Multisig', count: s.nMultisigSigner.totalCount, body: () => <MultisigSignatory {...ctx} operations={s.nMultisigSigner.totalCount} memberships={s.nMemberships.totalCount} />})
-    if (s.nVotes.totalCount > 0) tabs.push({slug: 'votes', label: 'Votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} firstSeenBlock={a.firstSeenBlock} locked={a.locksJson?.find(l => l.id === 'pyconvot')?.amount ?? '0'} />})
+    if (s.nVotes.totalCount > 0) tabs.push({slug: 'votes', label: 'Votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} firstSeenBlock={a.firstSeenBlock} ownVotes={a.ownVotes} receivedVotes={a.receivedVotes} />})
     if (s.nVoteHistory.totalCount > 0)
         tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
+    if (s.nDelegatedVotes.totalCount > 0) tabs.push({slug: 'delegated-votes', label: 'Delegated votes', group: 'Governance', count: s.nDelegatedVotes.totalCount, body: () => <DelegatedVotes {...ctx} delegatedVotes={a.delegatedVotes} />})
     if (s.nProposed.totalCount > 0) tabs.push({slug: 'proposed', label: 'Proposed', group: 'Governance', count: s.nProposed.totalCount, body: () => <Proposed {...ctx} />})
     if (s.nTreasury.totalCount > 0) tabs.push({slug: 'treasury', label: 'Treasury', group: 'Governance', count: s.nTreasury.totalCount, body: () => <Treasury {...ctx} received={a} />})
     if (s.nDelegIn.totalCount > 0)

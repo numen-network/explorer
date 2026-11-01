@@ -119,6 +119,7 @@ const preview: Preview = {
                             'Multisig | As a multisig signatory',
                             'Governance | Votes',
                             'Governance | Vote history',
+                            'Governance | Delegated votes',
                             'Governance | Proposed',
                             'Governance | Treasury',
                             'Governance | Received',

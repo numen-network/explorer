@@ -240,7 +240,7 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<Ma
             const standard = method === 'Voted' && decoded.kind === 'Standard'
             // a standard vote carries every delegation its voter holds on the
             // track, taking the vote off or splitting it drops them
-            if (standard || prior?.vote.kind === 'Standard') for (const [d, delegated] of delegationsOn(delegations, who, cast.track)) countDelegation(batch, ev, pollIndex, who, d, delegated, !standard)
+            if (standard || prior?.vote.kind === 'Standard') for (const [d, delegated] of delegationsOn(delegations, who, cast.track)) countDelegation(batch, ev, pollIndex, who, d, delegated, (standard ? decoded : prior!.vote).aye!, !standard)
             if (method === 'Voted') held.set(pollIndex, cast)
             else held.delete(pollIndex)
             // a vote taken off a closed referendum is the only one with nothing standing behind it
@@ -274,7 +274,7 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<Ma
                 if (held.track !== track || held.vote.kind !== 'Standard') continue
                 const moved = delegated == null ? null : sideOf(held.vote.aye!, delegationsOf(delegated))
                 await log(ev, index, target, who, held, method === 'Undelegated' && moved != null ? subTally(EMPTY_TALLY, moved) : moved)
-                if (delegated != null) countDelegation(batch, ev, index, target, who, delegated, method === 'Undelegated')
+                if (delegated != null) countDelegation(batch, ev, index, target, who, delegated, held.vote.aye!, method === 'Undelegated')
             }
         }
     }
@@ -283,15 +283,16 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<Ma
 
 // a referendum counts a delegation while its target holds a standard vote
 // there, so the row follows both the vote and the delegation
-function countDelegation(batch: BatchData, ev: GovEvent, index: number, voter: string, delegator: string, {conviction, balance}: Delegated, removed: boolean): void {
+function countDelegation(batch: BatchData, ev: GovEvent, index: number, voter: string, delegator: string, {conviction, balance}: Delegated, aye: boolean, removed: boolean): void {
     const id = `${index}-${delegator}`
     batch.delegatedVotes.set(
         id,
         new DelegatedVote({
             id,
             referendum: new Referendum({id: String(index)}),
-            voter: new Account({id: voter}),
-            delegator: new Account({id: delegator}),
+            voter: batch.touch(voter, ev.height),
+            delegator: batch.touch(delegator, ev.height),
+            aye,
             conviction,
             balance,
             votes: convictionVotes(conviction, balance),
@@ -316,6 +317,31 @@ async function delegationsTo(ctx: {store: any}, accounts: Set<string>): Promise<
     const rows: Delegation[] = await ctx.store.find(Delegation, {where: {target: {id: In([...accounts])}}, relations: {who: true, target: true, track: true}})
     for (const d of rows) delegationsOn(out, d.target.id, d.track.id).set(d.who.id, {conviction: d.conviction, balance: d.balance})
     return out
+}
+
+// runs after the account merge, which swaps the drafts for the stored rows
+export async function totalAccountVotes(ctx: {store: any}, batch: BatchData): Promise<void> {
+    const moved = new Set([...batch.votes.values()].map(v => v.voter.id))
+    for (const d of batch.delegatedVotes.values()) moved.add(d.voter.id).add(d.delegator.id)
+    const accounts = new Map([...moved].flatMap(id => (batch.accounts.has(id) ? [[id, batch.accounts.get(id)!] as const] : [])))
+    if (accounts.size === 0) return
+    const ids = [...accounts.keys()]
+    const [votes, delegated]: [Vote[], DelegatedVote[]] = await Promise.all([
+        ctx.store.find(Vote, {where: {voter: {id: In(ids)}}, relations: {voter: true}}),
+        ctx.store.find(DelegatedVote, {where: [{voter: {id: In(ids)}}, {delegator: {id: In(ids)}}], relations: {voter: true, delegator: true}}),
+    ])
+    const standing = <T extends {id: string; removed: boolean}>(stored: T[], latest: Map<string, T>) => [...new Map([...stored.map(r => [r.id, r] as const), ...latest]).values()].filter(r => !r.removed)
+    for (const a of accounts.values()) a.ownVotes = a.receivedVotes = a.delegatedVotes = 0n
+    for (const v of standing(votes, batch.votes)) {
+        const a = accounts.get(v.voter.id)
+        if (a != null) a.ownVotes += v.votes
+    }
+    for (const d of standing(delegated, batch.delegatedVotes)) {
+        const to = accounts.get(d.voter.id)
+        if (to != null) to.receivedVotes += d.votes
+        const from = accounts.get(d.delegator.id)
+        if (from != null) from.delegatedVotes += d.votes
+    }
 }
 
 // a delegation that moves leaves its old target and joins its new one, so the

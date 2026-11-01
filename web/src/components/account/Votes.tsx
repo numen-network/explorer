@@ -14,7 +14,7 @@ import {VotesTable} from './VotesTable'
 
 const TYPES: VoteList[] = ['aye', 'nay', 'split', 'abstain']
 
-export default async function Votes({hex, addr, chain, sp, firstSeenBlock, locked}: TabCtx & {firstSeenBlock: number; locked: string}) {
+export default async function Votes({hex, addr, chain, sp, firstSeenBlock, ownVotes, receivedVotes}: TabCtx & {firstSeenBlock: number; ownVotes: string; receivedVotes: string}) {
     const pg = paging(sp)
     const type = VOTE_LIST_KEYS.find(l => l === sp.type) ?? ''
     const [page, sum, head] = await Promise.all([votesFor(hex, type, pg.size, pg.offset), votesSummary(hex, firstSeenBlock), chainDbHead()])
@@ -29,7 +29,9 @@ export default async function Votes({hex, addr, chain, sp, firstSeenBlock, locke
                 beside={[
                     {label: 'Active', value: fmtInt(sum.active.totalCount)},
                     {label: 'Participation rate', tip: 'Counts only referenda still open after the account first appeared', value: sum.open.totalCount > 0 ? fmtPct(sum.all.totalCount, sum.open.totalCount) : '—'},
-                    {label: 'Total locked', value: <Approx planck={locked} decimals={chain.decimals} symbol={chain.symbol} breakable />},
+                    {label: 'Total votes', value: <Approx planck={BigInt(ownVotes) + BigInt(receivedVotes)} decimals={chain.decimals} symbol={chain.symbol} breakable />},
+                    {label: 'Own votes', value: <Approx planck={ownVotes} decimals={chain.decimals} symbol={chain.symbol} breakable />},
+                    {label: 'Received votes', value: <Approx planck={receivedVotes} decimals={chain.decimals} symbol={chain.symbol} breakable />},
                 ]}
                 pairs
                 className="mb-3"
