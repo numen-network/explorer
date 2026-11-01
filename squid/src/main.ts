@@ -484,7 +484,7 @@ function mapCalls(batch: BatchData, block: Block, calls: CallData<Fields>[], eve
     const added = batch.calls.slice(first)
     for (const c of added) if (c.address.length > 0) c.parent = batch.callById.get(c.id.slice(0, c.id.lastIndexOf('-')))
     const trees = new Map<Extrinsic, Call[]>()
-    for (const c of added) trees.set(c.extrinsic, [...(trees.get(c.extrinsic) ?? []), c])
+    for (const c of added) trees.set(c.extrinsic!, [...(trees.get(c.extrinsic!) ?? []), c])
     for (const [extrinsic, tree] of trees) extrinsic.leafCalls = leafCalls(tree)
 }
 
@@ -734,6 +734,8 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert([...batch.preimages.values()])
     await ctx.store.upsert([...batch.runtimeCodes.values()])
     await ctx.store.upsert([...batch.referenda.values()])
+    batch.enactedCalls.sort((a, b) => a.address.length - b.address.length)
+    await ctx.store.insert(batch.enactedCalls)
     await ctx.store.upsert([...batch.deposits.values()])
     await ctx.store.upsert([...batch.votes.values()])
     await ctx.store.upsert([...batch.delegatedVotes.values()])

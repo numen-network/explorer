@@ -4,7 +4,7 @@ import {useMemo} from 'react'
 import AccountLink from '@/components/AccountLink'
 import {CallCell, ResultBadge} from '@/components/calls'
 import {columnsFor, DataTable} from '@/components/DataTable'
-import {BlockLink, ExtrinsicLink} from '@/components/links'
+import {BlockLink, ExtrinsicLink, ReferendumLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance} from '@/lib/format'
@@ -26,14 +26,14 @@ const VIEW: Record<ExtrinsicsView, string[]> = {
 export function ExtrinsicsTable({rows, chain, view, empty}: {rows: ExtrinsicRow[]; chain: ChainProps; view: ExtrinsicsView; empty?: string}) {
     const columns = useMemo(() => {
         const all = {
-            extrinsic: col.display({id: 'extrinsic', header: 'Extrinsic', cell: ({row}) => <ExtrinsicLink id={row.original.id} />}),
+            extrinsic: col.display({id: 'extrinsic', header: 'Extrinsic', cell: ({row}) => (row.original.call?.referendum != null ? <ReferendumLink index={row.original.call.referendum} /> : <ExtrinsicLink id={row.original.id} />)}),
             block: col.display({id: 'block', header: 'Block', cell: ({row}) => <BlockLink height={row.original.block.height} />}),
             time: col.display({id: 'time', header: () => <TimeModeButton />, meta: {cellClassName: 'text-muted-foreground'}, cell: ({row}) => <TimeCell iso={row.original.block.timestamp} />}),
-            call: col.display({id: 'call', header: 'Call', meta: view === 'account' ? {className: 'w-full'} : undefined, cell: ({row}) => <CallCell call={row.original} leaves={row.original.leafCalls} within={row.original.call?.within} />}),
+            call: col.display({id: 'call', header: 'Call', meta: view === 'account' ? {className: 'w-full'} : undefined, cell: ({row}) => <CallCell call={row.original} leaves={row.original.leafCalls} within={row.original.call?.within} referendum={row.original.call?.referendum} />}),
             signer: col.display({
                 id: 'signer',
                 header: 'Signer', meta: {className: 'w-full'},
-                cell: ({row}) => (row.original.signer ? <AccountLink addr={ss58Encode(row.original.signer.id, chain.ss58)} acc={row.original.signer} /> : <span className="text-dim">unsigned</span>),
+                cell: ({row}) => (row.original.signer ? <AccountLink addr={ss58Encode(row.original.signer.id, chain.ss58)} acc={row.original.signer} /> : <span className="text-dim">{row.original.call?.referendum != null ? '—' : 'unsigned'}</span>),
             }),
             result: col.display({
                 id: 'result',

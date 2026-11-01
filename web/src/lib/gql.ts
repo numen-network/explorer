@@ -329,8 +329,9 @@ export interface ExtrinsicRow {
     signer: AccountRef | null
     block: {height: number; timestamp: string; specVersion: number}
     // set when the row stands for one call of the extrinsic, whose name,
-    // result and leaves then fill the fields above
-    call?: {id: string; within: CallRef | null}
+    // result and leaves then fill the fields above, or for a call a referendum
+    // enacted, which has no extrinsic behind the rest
+    call?: {id: string; within: CallRef | null; referendum?: number}
 }
 
 export interface CallRow {
@@ -1435,32 +1436,40 @@ interface CallHit {
     pallet: string
     method: string
     success: boolean | null
-    extrinsic: ExtrinsicRow
+    block: ExtrinsicRow['block']
+    extrinsic: ExtrinsicRow | null
+    referendum: {index: number} | null
 }
 
-// a call under the root stands on its own row, naming the root it sits in
-const callRow = ({id, address, pallet, method, success, extrinsic: x}: CallHit): ExtrinsicRow => ({
-    ...x,
-    pallet,
-    method,
-    success,
-    leafCalls: address.length === 0 ? x.leafCalls : null,
-    call: {id, within: address.length === 0 ? null : {pallet: x.pallet, method: x.method}},
-})
+// a call under the root stands on its own row, naming the root it sits in, and
+// a call a referendum enacted names that referendum
+const callRow = ({id, address, pallet, method, success, block, extrinsic: x, referendum}: CallHit): ExtrinsicRow =>
+    x == null
+        ? {id, indexInBlock: 0, hash: '', pallet, method, leafCalls: null, success, error: null, fee: null, tip: null, minerFee: '0', treasuryFee: '0', signer: null, block, call: {id, within: null, referendum: referendum!.index}}
+        : {
+              ...x,
+              pallet,
+              method,
+              success,
+              leafCalls: address.length === 0 ? x.leafCalls : null,
+              call: {id, within: address.length === 0 ? null : {pallet: x.pallet, method: x.method}},
+          }
 
 // a pallet or method filter lists the calls it matches at any depth, a batch
 // spread over one row per call, and so does asking for calls that never took
-// effect, which only sit under a root; otherwise the list stays one row per extrinsic
+// effect, which only sit under a root. Otherwise the list stays one row per root,
+// an extrinsic or an enactment, and a signer rules out every enactment
 export async function extrinsicsPage(limit: number, offset: number, f: ExtrinsicFilter, pallets: string[]) {
-    const byCall = !!(f.pallet || f.method || f.result === 'unapplied')
-    const w = clause(filterParts(f, byCall ? 'call' : 'extrinsic'))
+    const anyDepth = !!(f.pallet || f.method || f.result === 'unapplied')
+    const byCall = anyDepth || !f.signer
+    const w = clause([...filterParts(f, byCall ? 'call' : 'extrinsic'), ...(anyDepth || !byCall ? [] : ['parent_isNull: true'])])
     // each pallet option counts the calls it would show, with the other filters still on
     const others = filterParts(f, 'call', true)
     const tallies = pallets.map(
         (p, i) => `p${i}: callsConnection(${clause([...others, `pallet_eq: "${p}"`])}orderBy: id_ASC) { totalCount }`
     )
     const rows = byCall
-        ? `rows: calls(${w}orderBy: [block_height_DESC, extrinsic_indexInBlock_DESC, id_ASC], limit: $limit, offset: $offset) { id address pallet method success extrinsic { ${EXTRINSIC_FIELDS} } }
+        ? `rows: calls(${w}orderBy: [block_height_DESC, extrinsic_indexInBlock_DESC_NULLS_LAST, id_ASC], limit: $limit, offset: $offset) { id address pallet method success block { height timestamp specVersion } extrinsic { ${EXTRINSIC_FIELDS} } referendum { index } }
             conn: callsConnection(${w}orderBy: id_ASC) { totalCount }`
         : `rows: extrinsics(${w}orderBy: ${TIMELINE_ORDER}, limit: $limit, offset: $offset) { ${EXTRINSIC_FIELDS} }
             conn: extrinsicsConnection(${w}orderBy: id_ASC) { totalCount }`

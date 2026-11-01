@@ -1,5 +1,6 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, Relation as Relation_, IntColumn as IntColumn_, OneToMany as OneToMany_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, BooleanColumn as BooleanColumn_} from "@subsquid/typeorm-store"
 import {Extrinsic} from "./extrinsic.model"
+import {Referendum} from "./referendum.model"
 import {Block} from "./block.model"
 import {Account} from "./account.model"
 import {Event} from "./event.model"
@@ -16,9 +17,19 @@ export class Call {
     @PrimaryColumn_()
     id!: string
 
+    /**
+     * null when an enacted referendum ran it, which no extrinsic did
+     */
     @Index_("idx_call_extrinsic_83bd0b4e")
     @ManyToOne_(() => Extrinsic, {nullable: true})
-    extrinsic!: Relation_<Extrinsic>
+    extrinsic!: Relation_<Extrinsic> | undefined | null
+
+    /**
+     * the referendum whose enactment ran it, null for a call an extrinsic carried
+     */
+    @Index_("idx_call_referendum_2838103f")
+    @ManyToOne_(() => Referendum, {nullable: true})
+    referendum!: Relation_<Referendum> | undefined | null
 
     @Index_("idx_call_block_8f3ca806")
     @ManyToOne_(() => Block, {nullable: true})
@@ -49,7 +60,7 @@ export class Call {
     args!: unknown | undefined | null
 
     /**
-     * null when the chain records no outcome for it, which only happens where nothing it did took effect, under a call that failed or past where its wrapper stopped
+     * null when the chain records no outcome for it, which only happens where nothing it did took effect, under a call that failed or past where its wrapper stopped, every call of an enactment carries the result of its Scheduler.Dispatched
      */
     @BooleanColumn_({nullable: true})
     success!: boolean | undefined | null

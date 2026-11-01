@@ -152,9 +152,11 @@ export class BatchData {
     // the dispatch event that names their referendum
     enactments = new Map<string, number>()
     spendsAtHeight = new Map<number, string[]>()
-    // spends an enactment created, matched to their calls once the proposal
-    // trees of the batch are read
-    enacted: {index: number; height: number; spends: TreasurySpend[]}[] = []
+    // what an enactment ran and the spends it created, matched to their calls
+    // once the proposal trees of the batch are read
+    enacted: {index: number; height: number; header: any; success: boolean; spends: TreasurySpend[]}[] = []
+    // they point at their referendum, so they land after it
+    enactedCalls: Call[] = []
     // the referendum the latest kill named, per block and extrinsic, since the
     // slashes that follow it name only the depositor
     kills = new Map<string, number>()

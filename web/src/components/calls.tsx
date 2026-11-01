@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import {Tip} from '@/components/Tip'
 import {Badge} from '@/components/ui/badge'
 import {fmtInt} from '@/lib/format'
@@ -40,13 +41,21 @@ function fit(parts: string[]): string {
     return line(kept)
 }
 
-/** A list row for a call, with what it ran underneath when it wraps anything, or the root it sits in. */
-export function CallCell({call, leaves, within}: {call: CallRef; leaves: CallCount[] | null; within?: CallRef | null}) {
+/** A list row for a call, with what it ran underneath when it wraps anything, or the root or referendum it sits in. */
+export function CallCell({call, leaves, within, referendum}: {call: CallRef; leaves: CallCount[] | null; within?: CallRef | null; referendum?: number}) {
     const parts = leaves?.map(c => counted(qualified(c), c.count))
     return (
         <div className="font-mono text-[13px]">
             <div>{qualified(call)}</div>
             {within && <div className="mt-0.5 text-[11px] text-dim">in {qualified(within)}</div>}
+            {referendum != null && (
+                <div className="mt-0.5 text-[11px] text-dim">
+                    in{' '}
+                    <Link href={`/referendum/${referendum}`} className="hover:underline">
+                        Referendum #{referendum}
+                    </Link>
+                </div>
+            )}
             {parts && (
                 <Tip text={parts.join(SEP)}>
                     <div className="mt-0.5 text-[11px] text-dim">{fit(parts)}</div>

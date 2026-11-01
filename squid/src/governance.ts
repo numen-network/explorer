@@ -6,7 +6,7 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In, IsNull, Not} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, Delegate, DelegateTrack, DelegatedVote, Delegation, DelegationAction, Extrinsic, MetadataAction, Preimage, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, RuntimeCode, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
+import {Account, Block, Call as CallRow, CallKind, Delegate, DelegateTrack, DelegatedVote, Delegation, DelegationAction, Extrinsic, MetadataAction, Preimage, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, RuntimeCode, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
 import {convictionVotes, lockPeriods, ownVotes} from './conviction'
 import {readRuntime} from './runtimeCode'
 import {decodeUtf8} from './utf8'
@@ -48,6 +48,7 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         const stray = batch.revocations[0]
         if (stray) throw new Error(`${stray.step.name} at block ${stray.height} matches no enactment`)
         await applyProposals(batch, rpc)
+        await recordEnactedCalls(batch, rpc)
         matchEnactedSpends(batch)
         await applyMetadata(batch, rpc)
         const folded = await logVotingActions(ctx, batch)
@@ -697,25 +698,59 @@ async function applyProposals(batch: BatchData, rpc: RpcClient): Promise<void> {
         // the call was encoded against the runtime of the block that took it
         const runtime: Runtime = ev.header._runtime
         const call = await proposalCall(rpc, ev.args.proposal, ev.height, runtime)
-        if (call == null) continue
-
-        const nodes: ProposalNode[] = []
-        walkProposal(call, runtime, nodes, [])
-        r.proposalPallet = nodes[0].pallet
-        r.proposalMethod = nodes[0].method
-        r.proposalCalls = nodes
-        r.proposalRuntime = await proposedRuntime(batch, nodes)
-
-        const bounty = nodes.find(node => node.bounty != null)
-        if (bounty != null) r.proposalBountyIndex = bounty.bounty
-
-        const spends = nodes.filter(node => node.amount != null)
-        r.proposalPayouts = spends.length
-        if (spends.length === 0) continue
-        r.proposalAmount = spends.reduce((sum, spend) => sum + BigInt(spend.amount!), 0n)
-        const payees = new Set(spends.map(spend => spend.beneficiary))
-        if (payees.size === 1) r.proposalBeneficiary = spends[0].beneficiary
+        if (call != null) await setProposal(batch, r, call, runtime)
     }
+}
+
+async function setProposal(batch: BatchData, r: Referendum, call: Call, runtime: Runtime): Promise<void> {
+    const nodes: ProposalNode[] = []
+    walkProposal(call, runtime, nodes, [])
+    r.proposalPallet = nodes[0].pallet
+    r.proposalMethod = nodes[0].method
+    r.proposalCalls = nodes
+    r.proposalRuntime = await proposedRuntime(batch, nodes)
+
+    const bounty = nodes.find(node => node.bounty != null)
+    if (bounty != null) r.proposalBountyIndex = bounty.bounty
+
+    const spends = nodes.filter(node => node.amount != null)
+    r.proposalPayouts = spends.length
+    if (spends.length === 0) return
+    r.proposalAmount = spends.reduce((sum, spend) => sum + BigInt(spend.amount!), 0n)
+    const payees = new Set(spends.map(spend => spend.beneficiary))
+    if (payees.size === 1) r.proposalBeneficiary = spends[0].beneficiary
+}
+
+// a preimage noted after the submit is read at the block before the dispatch
+async function recordEnactedCalls(batch: BatchData, rpc: RpcClient): Promise<void> {
+    for (const {index, height, header, success} of batch.enacted) {
+        const r = batch.referenda.get(index)
+        if (r == null) continue
+        if (r.proposalCalls == null) {
+            const call = await proposalCall(rpc, {__kind: 'Lookup', hash: r.proposalHash}, height - 1, header._runtime)
+            if (call != null) await setProposal(batch, r, call, header._runtime)
+        }
+        for (const node of (r.proposalCalls as ProposalNode[] | null) ?? []) addEnactedCall(batch, r, header, node, success)
+    }
+}
+
+function addEnactedCall(batch: BatchData, r: Referendum, header: any, node: ProposalNode, success: boolean): void {
+    const id = (address: number[]) => [`referendum-${r.index}`, ...address.map(i => String(i).padStart(6, '0'))].join('-')
+    batch.enactedCalls.push(
+        new CallRow({
+            id: id(node.address),
+            block: new Block({id: header.id}),
+            referendum: new Referendum({id: r.id}),
+            address: node.address,
+            parent: node.address.length === 0 ? undefined : new CallRow({id: id(node.address.slice(0, -1))}),
+            pallet: node.pallet,
+            method: node.method,
+            args: node.args,
+            success,
+        })
+    )
+    const kind = `${node.pallet}.${node.method}`
+    if (!batch.callKinds.has(kind)) batch.callKinds.set(kind, new CallKind({id: kind, pallet: node.pallet, method: node.method}))
 }
 
 // an inline proposal carries its bytes, a lookup leaves them in the preimage
@@ -1182,7 +1217,7 @@ function applyDispatch(batch: BatchData, ev: GovEvent): void {
     if (r != null) pushTimeline(r, ev, {error: result.__kind === 'Err' ? dispatchErrorName(result.value, ev.header._runtime) : null})
     const spends = pending.map(spendId => batch.spends.get(spendId)).filter(s => s != null)
     for (const s of spends) s.referendum = new Referendum({id: String(index)})
-    batch.enacted.push({index, height: ev.height, spends})
+    batch.enacted.push({index, height: ev.height, header: ev.header, success: result.__kind === 'Ok', spends})
 }
 
 // the call never ran, the event name says why

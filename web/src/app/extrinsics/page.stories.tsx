@@ -58,7 +58,10 @@ const hits = (blocks: Mined[], keep: (c: Call) => boolean) =>
         .filter(keep)
         .slice(0, 20)
 
-const list = (extrinsics: Row[], searchParams: Record<string, string> = {}, kinds = KINDS, calls: ReturnType<typeof hits> = []) =>
+// the unfiltered list reads the root calls, one for each extrinsic
+const roots = (rows: Row[]) => rows.map((x: Row) => ({id: x.id, address: [], pallet: x.pallet, method: x.method, success: x.success, block: x.block, extrinsic: x, referendum: null}))
+
+const list = (extrinsics: Row[], searchParams: Record<string, string> = {}, kinds = KINDS, calls: unknown[] = roots(extrinsics)) =>
     pageStory({callKinds, extrinsics, calls, extrinsicsConnection: counting(kinds), callsConnection: counting(kinds)}, {searchParams})
 
 const RECENT = [
@@ -91,10 +94,31 @@ const inSeptember = (b: Mined, i: number) => {
 }
 const SEPTEMBER = Array.from({length: 10}, (_, i) => inSeptember(mined(HEAD - 30_000 - i * 1_200, [timestampSet, heartbeat]), i))
 
-export const Many = list(take(RECENT))
+// the runtime upgrade referendum 2 enacted on testnet
+const enacted = (id: string, address: number[], name: string, success = true) => {
+    const [pallet, method] = name.split('.')
+    return {id, address, pallet, method, success, block: {height: 382_603, timestamp: '2026-10-29T23:19:41.404Z', specVersion: 10_100}, extrinsic: null, referendum: {index: 2}}
+}
+
+// every form a row takes. The live list only shows calls under a root when filtered
+export const Many: StoryObj = {
+    ...list(take(RECENT), {}, KINDS, [
+        ...roots(take(RECENT)),
+        enacted('referendum-2', [], 'Prime.upgrade'),
+        enacted('referendum-3', [], 'Prime.upgrade', false),
+        enacted('referendum-2-000000', [0], 'Treasury.spend'),
+        ...hits([mined(HEAD - 12, [timestampSet, referendumSubmission])], c => c.method === 'submit'),
+        ...hits([mined(HEAD - 30, [timestampSet, failedReferendumSubmission])], c => c.method === 'note_preimage'),
+    ]),
+    play: async ({canvas}) => {
+        await expect(canvas.getAllByRole('link', {name: 'Referendum #2'})).toHaveLength(3)
+        await expect(canvas.getAllByText('in Utility.batch_all')).toHaveLength(2)
+        await expect(canvas.getByText('Not applied', {selector: '[data-slot=badge]'})).toBeInTheDocument()
+    },
+}
 
 export const EmptyChain: StoryObj = {
-    ...pageStory({extrinsicsConnection: {totalCount: 0}}),
+    ...pageStory({calls: [], extrinsicsConnection: {totalCount: 0}, callsConnection: {totalCount: 0}}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No extrinsics yet.')).toBeInTheDocument()
         expect(await filterOptions(canvasElement, 'Pallet')).toEqual(['[All]'])
@@ -169,7 +193,7 @@ const badDay = (after: string): StoryObj => {
         ...pageStory(
             {
                 callKinds,
-                extrinsics: ({where}: {where?: Where}) => (where?.block ? [] : extrinsics),
+                calls: ({where}: {where?: Where}) => (where?.block ? [] : roots(extrinsics)),
                 extrinsicsConnection: ({where}: {where?: Where}) => (where?.block ? {totalCount: 0} : counting(KINDS)({where})),
                 callsConnection: ({where}: {where?: Where}) => (where?.block ? {totalCount: 0} : counting(KINDS)({where})),
             },
