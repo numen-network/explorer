@@ -853,6 +853,8 @@ export async function voteGrid(idHex: string) {
     return {referenda, votes}
 }
 
+const OPEN_REFERENDA = 'open: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: $from}]}, orderBy: index_ASC) { totalCount }'
+
 // open counts the referenda still taking votes at the window's start, voted
 // those the account cast a standing vote on since
 export function votesSummary(idHex: string, from: number) {
@@ -860,7 +862,18 @@ export function votesSummary(idHex: string, from: number) {
         `query ($id: String!, $from: Int!) {
             all: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { totalCount }
             voted: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false, block_gte: $from}, orderBy: id_ASC) { totalCount }
-            open: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: $from}]}, orderBy: index_ASC) { totalCount }
+            ${OPEN_REFERENDA}
+        }`,
+        {id: idHex, from}
+    )
+}
+
+// voted counts the referenda the account's delegations reached since the window's start
+export function delegatedVotesSummary(idHex: string, from: number) {
+    return gql<Record<'voted' | 'open', {totalCount: number}>>(
+        `query ($id: String!, $from: Int!) {
+            voted: delegatedVotesConnection(where: {delegator: {id_eq: $id}, removed_eq: false, block_gte: $from}, orderBy: id_ASC) { totalCount }
+            ${OPEN_REFERENDA}
         }`,
         {id: idHex, from}
     )

@@ -3,22 +3,25 @@ import Pager from '@/components/Pager'
 import {FilterRow} from '@/components/pills'
 import StatTile from '@/components/StatTile'
 import {Card} from '@/components/ui/card'
+import {chainDbHead} from '@/lib/chain'
 import {fmtInt, sentenceCase} from '@/lib/format'
-import {DELEGATED_VOTE_LISTS, delegatedVotesFor} from '@/lib/gql'
+import {DELEGATED_VOTE_LISTS, delegatedVotesFor, delegatedVotesSummary} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {DelegatedVotesTable} from './DelegatedVotesTable'
-import {tabHref, type TabCtx} from './shared'
+import {participationFrom, participationStat, tabHref, type TabCtx} from './shared'
 
-export default async function DelegatedVotes({hex, addr, chain, sp, delegatedVotes}: TabCtx & {delegatedVotes: string}) {
+export default async function DelegatedVotes({hex, addr, chain, sp, firstSeenBlock, delegatedVotes}: TabCtx & {firstSeenBlock: number; delegatedVotes: string}) {
     const pg = paging(sp)
     const type = DELEGATED_VOTE_LISTS.find(l => l === sp.type) ?? ''
-    const page = await delegatedVotesFor(hex, type, pg.size, pg.offset)
+    const head = await chainDbHead()
+    const [page, sum] = await Promise.all([delegatedVotesFor(hex, type, pg.size, pg.offset), delegatedVotesSummary(hex, participationFrom(firstSeenBlock, head.height, chain.blockTime))])
     return (
         <>
             <StatTile
                 label="All votes"
                 value={fmtInt(page.standing)}
                 beside={[
+                    participationStat(sum),
                     {label: 'Delegated votes', value: <Approx planck={delegatedVotes} decimals={chain.decimals} symbol={chain.symbol} breakable />},
                 ]}
                 pairs

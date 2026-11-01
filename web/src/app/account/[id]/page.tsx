@@ -167,7 +167,7 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (s.nVotes.totalCount > 0) tabs.push({slug: 'votes', label: 'Votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} firstSeenBlock={a.firstSeenBlock} ownVotes={a.ownVotes} receivedVotes={a.receivedVotes} />})
     if (s.nVoteHistory.totalCount > 0)
         tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
-    if (s.nDelegatedVotes.totalCount > 0) tabs.push({slug: 'delegated-votes', label: 'Delegated votes', group: 'Governance', count: s.nDelegatedVotes.totalCount, body: () => <DelegatedVotes {...ctx} delegatedVotes={a.delegatedVotes} />})
+    if (s.nDelegatedVotes.totalCount > 0) tabs.push({slug: 'delegated-votes', label: 'Delegated votes', group: 'Governance', count: s.nDelegatedVotes.totalCount, body: () => <DelegatedVotes {...ctx} firstSeenBlock={a.firstSeenBlock} delegatedVotes={a.delegatedVotes} />})
     if (s.nProposed.totalCount > 0) tabs.push({slug: 'proposed', label: 'Proposed', group: 'Governance', count: s.nProposed.totalCount, body: () => <Proposed {...ctx} />})
     if (s.nTreasury.totalCount > 0) tabs.push({slug: 'treasury', label: 'Treasury', group: 'Governance', count: s.nTreasury.totalCount, body: () => <Treasury {...ctx} received={a} />})
     if (s.nDelegIn.totalCount > 0)

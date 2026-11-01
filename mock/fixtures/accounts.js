@@ -969,7 +969,7 @@ export function accountPage({
         delegatedVotes: ({where}) => (where.delegator ? delegatedVotesOut : delegatedVotes),
         delegatedVotesConnection: ({where}) => {
             const side = where.aye_eq == null ? delegatedVotesOut : delegatedVotesOut.filter(d => d.aye === where.aye_eq)
-            return count((where.removed_eq === false ? side.filter(d => !d.removed) : side).length)
+            return count((where.removed_eq === false ? side.filter(d => !d.removed && d.block >= (where.block_gte ?? 0)) : side).length)
         },
         referendumsConnection: ({where}) => count(where?.deposits_some ? proposed.length : (counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size)),
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,

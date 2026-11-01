@@ -1,11 +1,11 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
-import {delegatedVoteOut} from '../../../../../mock/fixtures/accounts.js'
-import {numn, person} from '../../../../../mock/fixtures.js'
+import {delegatedVoteOut, poll, SUBJECT, vote} from '../../../../../mock/fixtures/accounts.js'
+import {chainInfo, HEAD, numn, person} from '../../../../../mock/fixtures.js'
 import {columnTexts, filterChips} from '../../../../.storybook/fit'
-import {lastPage, pageMeta} from '../../../../.storybook/page'
+import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {wellKnown, story, summaries, voting} from './page.stories.helpers'
+import {build, wellKnown, story, summaries, voting} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Governance | Delegated votes', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
@@ -23,8 +23,30 @@ export const LastPage = story({account: voting(numn(5_000)), delegatedVotesOut: 
 
 // every outcome counts, the row taken off the tally stays listed and leaves the figures
 export const Summary: StoryObj = {
-    ...story({account: voting(numn(5_000)), delegatedVotesOut: [...rows(), delegatedVoteOut(6, 'Ongoing', {removed: true})]}, {tab: 'delegated-votes'}),
-    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '6', 'Delegated votes': '80K NUMN'}]),
+    ...story({account: voting(numn(5_000)), delegatedVotesOut: [...rows(), delegatedVoteOut(6, 'Ongoing', {removed: true})], counts: {referenda: 10}}, {tab: 'delegated-votes'}),
+    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '6', 'Participation rate (180d)': '60.00%', 'Delegated votes': '80K NUMN'}]),
+}
+
+// with 180 days of blocks past the first seen block, the delegated vote before
+// the window stays in All votes and leaves the rate
+export const SummaryWindowFromHead: StoryObj = {
+    ...pageStory(
+        {...build({account: voting(numn(5_000)), delegatedVotesOut: [delegatedVoteOut(0, 'Ongoing'), delegatedVoteOut(1, 'Approved', {block: 700_000, referendum: poll(1, 'Approved', 720_000)})], counts: {referenda: 4}}), chainInfos: [{...chainInfo, blockTime: 60}]},
+        {params: {id: SUBJECT}, searchParams: {tab: 'delegated-votes'}}
+    ),
+    play: async ({canvasElement}) => expect(summaries(canvasElement)[0]).toMatchObject({'All votes': '2', 'Participation rate (180d)': '25.00%'}),
+}
+
+// every delegated vote taken off and no referendum open since, so there is no rate to give
+export const SummaryNoOpenReferenda: StoryObj = {
+    ...story({account: voting('0'), delegatedVotesOut: [delegatedVoteOut(0, 'Rejected', {removed: true, referendum: poll(0, 'Rejected', HEAD - 100)})], counts: {referenda: 0}}, {tab: 'delegated-votes'}),
+    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', 'Participation rate (180d)': '—', 'Delegated votes': '0 NUMN'}]),
+}
+
+// the account's own vote stays out of this tab's rate
+export const SummaryAlsoVoting: StoryObj = {
+    ...story({account: voting(numn(5_000)), votes: [vote(0)], delegatedVotesOut: [delegatedVoteOut(1, 'Ongoing')], counts: {referenda: 2}}, {tab: 'delegated-votes'}),
+    play: async ({canvasElement}) => expect(summaries(canvasElement)[0]).toMatchObject({'All votes': '1', 'Participation rate (180d)': '50.00%'}),
 }
 
 export const EverySide: StoryObj = {
