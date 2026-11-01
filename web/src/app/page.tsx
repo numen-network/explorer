@@ -397,7 +397,7 @@ export default async function Home({searchParams}: PageProps<'/'>) {
 
     return (
         <div>
-            <Refresh ms={10000} />
+            <Refresh />
 
             <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 <Card className="gap-2 py-4 [--card-spacing:--spacing(5)]">

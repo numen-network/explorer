@@ -1,14 +1,15 @@
 'use client'
 import {useRouter} from 'next/navigation'
-import {useEffect} from 'react'
+import {useEffect, useState} from 'react'
+import {usePolledAhead} from '@/components/blockStatus'
 
-export default function Refresh({ms = 12000}: {ms?: number}) {
+export default function Refresh() {
     const router = useRouter()
+    const ahead = usePolledAhead()
+    // the page just rendered, so a height already ahead on arrival is nothing new
+    const [onArrival] = useState(ahead)
     useEffect(() => {
-        const t = setInterval(() => {
-            if (!document.hidden) router.refresh()
-        }, ms)
-        return () => clearInterval(t)
-    }, [router, ms])
+        if (ahead !== null && ahead !== onArrival) router.refresh()
+    }, [router, ahead, onArrival])
     return null
 }

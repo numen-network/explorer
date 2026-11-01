@@ -8,6 +8,10 @@ import {Badge} from '@/components/ui/badge'
 import type {Heads} from '@/lib/chain'
 
 const Ctx = createContext<Heads | null>(null)
+const AheadCtx = createContext<number | null>(null)
+
+// the newest indexed height a poll has seen past the last render, null when there is none
+export const usePolledAhead = () => useContext(AheadCtx)
 
 export function HeadsProvider({heads, children}: {heads: Heads; children: ReactNode}) {
     return <Ctx value={heads}>{children}</Ctx>
@@ -36,7 +40,12 @@ export function LiveHeads({rendered, ms, children}: {rendered: Heads; ms: number
         }, ms)
         return () => clearInterval(t)
     }, [ms])
-    return <HeadsProvider heads={polled.indexed > rendered.indexed ? polled : rendered}>{children}</HeadsProvider>
+    const ahead = polled.indexed > rendered.indexed
+    return (
+        <AheadCtx value={ahead ? polled.indexed : null}>
+            <HeadsProvider heads={ahead ? polled : rendered}>{children}</HeadsProvider>
+        </AheadCtx>
+    )
 }
 
 // a height past both heads isn't indexed yet and gets no mark
