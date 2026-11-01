@@ -13,7 +13,7 @@ export type ArgNode =
     | {kind: 'none'}
     | {kind: 'plain'; text: string}
     | {kind: 'text'; text: string; bytes: number; hash?: string; full?: string}
-    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string; call?: ArgNode; noted?: NotedPreimage}
+    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string; calls?: CallNode[]; noted?: NotedPreimage}
     | {kind: 'account'; id: string; acc?: IdentityRef}
     | {kind: 'amount'; planck: string}
     | {kind: 'gasPrice'; wei: string}
@@ -28,8 +28,11 @@ export type ArgNode =
     | {kind: 'variant'; name: string; inner: ArgNode | null}
     | {kind: 'fields'; fields: [name: string, value: ArgNode][]}
     | {kind: 'list'; columns: string[]; rows: ArgNode[][]}
-    | {kind: 'call'; name: string; args: ArgNode}
+    | {kind: 'calls'; calls: CallNode[]}
     | {kind: 'listed'; label: string}
+
+/** A call held in another call's args or bytes, in the preorder rows the call tree draws. */
+export type CallNode = {address: number[]; pallet: string; method: string; args: unknown; view: ArgNode | null}
 
 /** The referendum a hash serves and the extrinsic that noted it for that use, either can stand alone. */
 export type NotedLine = {referendum?: {kind: 'text' | 'call'; index: number; title: string | null}; extrinsic?: string}
@@ -38,7 +41,7 @@ export type NotedLine = {referendum?: {kind: 'text' | 'call'; index: number; tit
 export type NotedPreimage = {lines: NotedLine[]; content: ArgNode | null}
 
 /** What a hash in the args stands for, when the index knows it as a preimage. */
-export type Preimage = {referendum: number; title: string | null} & ({kind: 'text'; text: string} | {kind: 'proposal'; call: ArgNode | null})
+export type Preimage = {referendum: number; title: string | null} & ({kind: 'text'; text: string} | {kind: 'proposal'; calls: CallNode[]})
 
 // metadata keeps the source type name of every field, the typings leave it out
 declare module '@subsquid/substrate-runtime/lib/metadata/types' {
@@ -103,10 +106,24 @@ class Walker {
         return {kind: 'fields', fields: fields.map(f => [f.name!, this.field(f, value?.[f.name!])])}
     }
 
-    call(value: any): ArgNode {
+    // a call the tree already lists under this one is only named, its own row shows what it was given
+    callArgs(pallet: string, method: string, args: Record<string, any>, nested: boolean): ArgNode {
+        return {
+            kind: 'fields',
+            fields: this.callFields(pallet, method).map(f => {
+                const value = args[f.name!]
+                if (!nested || !isCalls(this, f.type)) return [f.name!, this.arg(pallet, method, f, value)]
+                return [f.name!, {kind: 'listed', label: Array.isArray(value) ? fmtCount(value.length, 'call') : `${value.__kind}.${value.value.__kind}`}]
+            }),
+        }
+    }
+
+    callRows(value: any, address: number[] = []): CallNode[] {
         const pallet = value.__kind
-        const method = value.value.__kind
-        return {kind: 'call', name: `${pallet}.${method}`, args: {kind: 'fields', fields: this.callFields(pallet, method).map(f => [f.name!, this.arg(pallet, method, f, value.value?.[f.name!])])}}
+        const {__kind: method, ...args} = value.value
+        const subcalls = this.callFields(pallet, method).flatMap(f => (isCalls(this, f.type) ? [args[f.name!]].flat() : []))
+        const row = {address, pallet, method, args: briefArgs(briefCall({pallet, method, args: withoutBigInts(args)})), view: this.callArgs(pallet, method, args, subcalls.length > 0)}
+        return [row, ...subcalls.flatMap((c, i) => this.callRows(c, [...address, i]))]
     }
 
     arg(pallet: string, method: string, f: Field, value: any): ArgNode {
@@ -116,16 +133,16 @@ class Walker {
         const summarized = f.name === SUMMARIZED_FIELDS[name]
         if (node.kind === 'none' || !(summarized || f.name === TEXT_OR_SUMMARY_FIELDS[name])) return node
         const hash = blake2_256(hexToBytes(value.slice(2)))
-        const call = name === NOTE_PREIMAGE ? this.decoded(value) : null
-        if (node.kind === 'text' && !summarized && !call) return {...node, hash}
-        return {kind: 'hex', hex: summarizeHex(value), hash, ...(call && {call})}
+        const calls = name === NOTE_PREIMAGE ? this.decoded(value) : null
+        if (node.kind === 'text' && !summarized && !calls) return {...node, hash}
+        return {kind: 'hex', hex: summarizeHex(value), hash, ...(calls && {calls})}
     }
 
     node(ti: number, value: any, typeName = ''): ArgNode {
         if (value === null || value === undefined) return NONE
         const t = this.types[ti]
         const path = this.path(ti)
-        if (path === CALL) return this.call(value)
+        if (path === CALL) return {kind: 'calls', calls: this.callRows(value)}
         if (path === 'pallet_conviction_voting::vote::Vote') return {kind: 'vote', aye: (value & 0x80) !== 0, conviction: value & 0x7f}
         if (path === 'sp_runtime::ModuleError') return {kind: 'plain', text: this.moduleError(value)}
         if (path && path in PER_THINGS) return {kind: 'plain', text: fmtPct(value, PER_THINGS[path])}
@@ -214,23 +231,25 @@ class Walker {
 
     // a proposal small enough to ride along with its referendum, still encoded
     inline(hex: string): ArgNode {
-        return this.decoded(hex) ?? {kind: 'hex', hex}
+        const calls = this.decoded(hex)
+        return calls ? {kind: 'calls', calls} : {kind: 'hex', hex}
     }
 
-    decoded(hex: string): ArgNode | null {
+    decoded(hex: string): CallNode[] | null {
         let call
         try {
             call = this.rt.decodeCall(hex)
         } catch {
             return null
         }
-        const node = this.call(call)
-        for (const nested of nodesOf([node], 'hex')) nested.hex = briefHex(nested.hex)
-        return node
+        const calls = this.callRows(call)
+        for (const nested of nodesOf(calls.map(c => c.view), 'hex')) nested.hex = briefHex(nested.hex)
+        return calls
     }
 
     list(ti: number, value: any[]): ArgNode {
         if (value.length === 0) return NONE
+        if (this.path(ti) === CALL) return {kind: 'calls', calls: value.flatMap((c, i) => this.callRows(c, [i]))}
         const t = this.types[ti]
         if (t.kind === TypeKind.Composite && t.fields.every(f => f.name)) {
             return {kind: 'list', columns: t.fields.map(f => f.name!), rows: value.map(v => t.fields.map(f => this.node(f.type, v[f.name!], f.typeName)))}
@@ -261,23 +280,12 @@ function bytes(hex: string): ArgNode {
 
 /**
  * The arguments of a call laid out by their runtime types, null when the
- * runtime it ran under is not among the known ones. A call the tree already
- * lists under this one is only named, its own row shows what it was given.
+ * runtime it ran under is not among the known ones.
  */
 export function describeArgs(call: {pallet: string; method: string; args: unknown; specVersion: number | null; nested: boolean}): ArgNode | null {
     const rt = call.args == null ? undefined : runtimeAt(call.specVersion)
     if (!rt) return null
-    const w = new Walker(rt)
-    const fields = w.callFields(call.pallet, call.method)
-    const args = call.args as Record<string, any>
-    return {
-        kind: 'fields',
-        fields: fields.map(f => {
-            const value = args[f.name!]
-            if (!call.nested || !isCalls(w, f.type)) return [f.name!, w.arg(call.pallet, call.method, f, value)]
-            return [f.name!, {kind: 'listed', label: Array.isArray(value) ? fmtCount(value.length, 'call') : `${value.__kind}.${value.value.__kind}`}]
-        }),
-    }
+    return new Walker(rt).callArgs(call.pallet, call.method, call.args as Record<string, any>, call.nested)
 }
 
 /** What an event carried, laid out the same way as call arguments. */
@@ -310,8 +318,8 @@ export function nodesOf<K extends ArgNode['kind']>(nodes: (ArgNode | null)[], ki
         if (node.kind === 'variant') walk(node.inner)
         if (node.kind === 'fields') node.fields.forEach(([, v]) => walk(v))
         if (node.kind === 'list') node.rows.forEach(row => row.forEach(walk))
-        if (node.kind === 'call') walk(node.args)
-        if (node.kind === 'hex') walk(node.call ?? null)
+        if (node.kind === 'calls') node.calls.forEach(c => walk(c.view))
+        if (node.kind === 'hex') node.calls?.forEach(c => walk(c.view))
     }
     nodes.forEach(walk)
     return found
@@ -354,6 +362,8 @@ function briefCall({pallet, method, args}: {pallet: string; method: string; args
     const field = briefField(pallet, method)
     return field ? summarizeField(args as Record<string, string>, field) : briefNestedCalls(args)
 }
+
+const withoutBigInts = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (_, v) => (typeof v === 'bigint' ? String(v) : v)))
 
 function briefArgs(value: unknown): unknown {
     if (typeof value === 'string') return value.startsWith('0x') ? briefHex(value) : value

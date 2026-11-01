@@ -3,6 +3,7 @@ import {ChevronRight} from 'lucide-react'
 import Link from 'next/link'
 import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
+import {CallTree} from '@/components/CallTree'
 import ClampedText from '@/components/ClampedText'
 import CopyBtn from '@/components/CopyBtn'
 import {JsonBlock, NONE} from '@/components/Detail'
@@ -35,15 +36,16 @@ function split(node: ArgNode): {lead: string[]; tail: ArgNode | string} {
     return rest ? {lead, tail: rest} : {lead: lead.slice(0, -1), tail: lead.at(-1)!}
 }
 
-const isBlock = (tail: ArgNode | string) => typeof tail !== 'string' && (tail.kind === 'fields' || tail.kind === 'list' || tail.kind === 'call')
+const isBlock = (tail: ArgNode | string) => typeof tail !== 'string' && (tail.kind === 'fields' || tail.kind === 'list' || tail.kind === 'calls')
 
-// a table of fields, bare or under a call, lays out on the columns of the one holding it
-const isSubtable = (tail: ArgNode | string) => typeof tail !== 'string' && (tail.kind === 'fields' || tail.kind === 'call')
+const takesFullWidth = (tail: ArgNode | string) => isBlock(tail) || (typeof tail !== 'string' && tail.kind === 'hex' && tail.calls != null)
+
+// a table of fields lays out on the columns of the one holding it
+const isSubtable = (tail: ArgNode | string) => typeof tail !== 'string' && tail.kind === 'fields'
 
 // the columns a node takes from where it starts, a key column, one per
 // variant depth and whatever a table nested in a row takes in turn
 function span(node: ArgNode): number {
-    if (node.kind === 'call') return span(node.args)
     if (node.kind !== 'fields') return 1
     const rows = node.fields.map(([, n]) => {
         const {lead, tail} = split(n)
@@ -67,9 +69,9 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
                     {node.noted && <CopyBtn text={node.hex} />}
                     {node.download && <DownloadBtn href={node.download} />}
                     {node.hash && <HashLine hash={node.hash} />}
-                    {node.call && (
+                    {node.calls && (
                         <div className="mt-2">
-                            <ArgsTable node={node.call} chain={ctx.chain} />
+                            <CallTree calls={node.calls} chain={ctx.chain} />
                         </div>
                     )}
                     {node.noted && <NotedDetail noted={node.noted} ctx={ctx} />}
@@ -202,8 +204,8 @@ function PreimageFold({preimage, ctx}: {preimage: Preimage; ctx: Ctx}) {
             <CollapsibleContent className="mt-2">
                 {preimage.kind === 'text' ? (
                     <div className={TEXT_BOX}>{preimage.text}</div>
-                ) : preimage.call ? (
-                    <ArgsTable node={preimage.call} chain={ctx.chain} />
+                ) : preimage.calls.length > 0 ? (
+                    <CallTree calls={preimage.calls} chain={ctx.chain} />
                 ) : (
                     NONE
                 )}
@@ -249,12 +251,11 @@ function Cells({node, ctx, depth, sub = false}: {node: ArgNode; ctx: Ctx; depth:
 function Body({node, ctx, depth, sub = false}: {node: ArgNode; ctx: Ctx; depth: number; sub?: boolean}) {
     if (node.kind === 'fields') return <Fields node={node} ctx={ctx} depth={depth} sub={sub} />
     if (node.kind === 'list') return <List node={node} ctx={ctx} depth={depth} />
-    if (node.kind === 'call')
+    if (node.kind === 'calls')
         return (
-            <>
-                <div className={cn(CELL, 'border-b font-mono', sub && 'col-span-full')}>{node.name}</div>
-                <Body node={node.args} ctx={ctx} depth={depth} sub={sub} />
-            </>
+            <div className={CELL}>
+                <CallTree calls={node.calls} chain={ctx.chain} />
+            </div>
         )
     return (
         <div className="flex">
@@ -275,7 +276,7 @@ function Fields({node, ctx, depth, sub}: {node: Extract<ArgNode, {kind: 'fields'
             {node.fields.map(([key, value]) => {
                 const {lead, tail} = split(value)
                 const tagged = lead.length > 0
-                const nested = isBlock(tail)
+                const nested = takesFullWidth(tail)
                 return (
                     <div key={key} className={cn('col-span-full grid grid-cols-subgrid border-t [--at:2] first:border-t-0 @max-[12rem]:[--at:1]', tagged && '@max-xs:[--at:1]', nested && '@max-lg:[--at:1]')}>
                         <div className={cn(CELL, 'border-r text-muted-foreground @max-[12rem]:col-span-full @max-[12rem]:border-r-0 @max-[12rem]:border-b', depth === 0 && 'bg-background', tagged && '@max-xs:col-span-full @max-xs:border-r-0 @max-xs:border-b', nested && '@max-lg:col-span-full @max-lg:border-r-0 @max-lg:border-b')}>

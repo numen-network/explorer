@@ -1,5 +1,5 @@
 import {hexToBytes} from '@noble/hashes/utils.js'
-import {describeNotedBytes, describeReferendumArgs, nodesOf, type ArgNode, type NotedLine, type Preimage} from '@/lib/args'
+import {describeNotedBytes, nodesOf, withProposalViews, type ArgNode, type NotedLine, type Preimage} from '@/lib/args'
 import {accountRefs, indexTitles, preimageNoteCalls, preimageNotes, preimagesByHash, specVersionAt, type PreimageHit} from '@/lib/gql'
 import {blake2_256} from '@/lib/hash'
 
@@ -15,8 +15,7 @@ async function markPreimages(nodes: (ArgNode | null)[]): Promise<void> {
     }
     for (const r of proposals) {
         const spec = await specVersionAt(r.submittedAt)
-        const call = r.proposalPallet && r.proposalMethod ? describeReferendumArgs({pallet: r.proposalPallet, method: r.proposalMethod, args: r.proposalCalls?.[0]?.args, specVersion: spec, nested: false}, r.index) : null
-        known.set(r.proposalHash, {kind: 'proposal', referendum: r.index, title: r.title, call: call && {kind: 'call', name: `${r.proposalPallet}.${r.proposalMethod}`, args: call}})
+        known.set(r.proposalHash, {kind: 'proposal', referendum: r.index, title: r.title, calls: withProposalViews(r.proposalCalls ?? [], spec, r.index)})
     }
     for (const node of found) node.preimage = known.get(node.hex)
 }

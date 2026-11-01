@@ -141,7 +141,7 @@ export const BatchCallsInline = story(
             {__kind: 'Balances', value: {__kind: 'transfer_keep_alive', dest: ID(BOB), value: '2000000000000000000'}},
         ],
     },
-    ['RuntimeCall', 'Balances.transfer_keep_alive']
+    ['Balances.transfer_keep_alive']
 )
 
 export const ProxyListedBelow = story('Proxy', 'proxy', {real: ID(BOB), forceProxyType: null, call: {__kind: 'Balances', value: {__kind: 'transfer_keep_alive', dest: ID(ALICE), value: '1'}}}, ['Balances.transfer_keep_alive', 'listed below', 'forceProxyType'], true)
@@ -212,7 +212,7 @@ export const CallViewsLeaveNotedCodeOut: Story = {
         const noted = encodedCall({__kind: 'System', value: {__kind: 'set_code', code: BIG_CODE}})
         const sent = JSON.stringify(withCallViews([callRow('Preimage', 'note_preimage', {bytes: noted})]))
         await expect(sent).not.toContain('cd'.repeat(100))
-        await expect(sent).toContain('System.set_code')
+        await expect(sent).toContain('"method":"set_code"')
         await expect(sent).toContain('(20,000 bytes)')
         const codeHash = blake2_256(new Uint8Array(20_000).fill(0xcd))
         await expect(sent).toContain(`/api/bytes?call=call&hash=${codeHash}`)
@@ -231,9 +231,9 @@ export const BlockSpanAndHeight: Story = {
         </div>
     ),
     play: async ({canvasElement}) => {
-        const [span, height] = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=args-table]')].map(table => within(table))
+        const [span, height] = [...canvasElement.querySelectorAll<HTMLElement>('[data-slot=args-table]')].filter(table => !table.parentElement!.closest('[data-slot=args-table]')).map(table => within(table))
         await expect(span.getByText('100 blocks')).toBeVisible()
-        expect(span.queryByRole('link')).toBeNull()
+        expect(span.queryByRole('link', {name: '#100'})).toBeNull()
         await expect(height.getByRole('link', {name: '#100'})).toHaveAttribute('href', '/block/100')
         expect(height.queryByText('100 blocks')).toBeNull()
         expectFits(...canvasElement.querySelectorAll('[data-slot=args-table]'))
@@ -338,7 +338,7 @@ export const HashOfProposalOpened = marked(
     'Referenda',
     'submit',
     LOOKUP,
-    {kind: 'proposal', referendum: 3, title: 'Fund the DEX', call: {kind: 'call', name: 'Treasury.spend', args: GRANT}},
+    {kind: 'proposal', referendum: 3, title: 'Fund the DEX', calls: [{address: [], pallet: 'Treasury', method: 'spend', args: {}, view: GRANT}]},
     ['proposal of', 'Treasury.spend', '10,000,000'],
     true
 )
@@ -389,6 +389,7 @@ function expectColumnsAligned(canvasElement: HTMLElement) {
     let at = grid.getBoundingClientRect().left
     const lines = [at, ...getComputedStyle(grid).gridTemplateColumns.split(' ').map(w => (at += parseFloat(w)))]
     for (const cell of grid.querySelectorAll<HTMLElement>('.px-3')) {
+        if (cell.closest('[data-slot=args-table]') !== grid.parentElement) continue
         const left = cell.getBoundingClientRect().left
         expect(lines.some(line => Math.abs(line - left) < 0.5), `${cell.textContent} starts at ${left}, off the lines ${lines.join(', ')}`).toBe(true)
     }
