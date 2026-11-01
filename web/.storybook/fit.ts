@@ -24,7 +24,7 @@ export function expectPagersFit(root: Element) {
     expect(pagers.length).toBeGreaterThan(0)
     for (const pager of pagers) {
         const box = pager.getBoundingClientRect()
-        for (const item of pager.children) {
+        for (const item of pager.querySelectorAll(':scope > :not(input[aria-hidden=true])')) {
             const edges = item.getBoundingClientRect()
             expect(Math.round(edges.left - box.left)).toBeGreaterThanOrEqual(0)
             expect(Math.round(box.right - parseFloat(getComputedStyle(item).marginRight) - edges.right)).toBeGreaterThanOrEqual(0)

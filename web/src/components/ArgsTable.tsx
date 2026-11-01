@@ -198,7 +198,7 @@ function PreimageFold({preimage, ctx}: {preimage: Preimage; ctx: Ctx}) {
         <Collapsible className="group/preimage mt-1 text-xs text-muted-foreground">
             <div className="wrap-break-word">
                 <CollapsibleTrigger className="inline cursor-pointer">
-                    <ChevronRight className="mr-1.5 inline size-3.5 align-[-0.2em] text-dim transition-transform group-data-[state=open]/preimage:rotate-90" />
+                    <ChevronRight className="mr-1.5 inline size-3.5 align-[-0.2em] text-dim transition-transform group-data-open/preimage:rotate-90" />
                     {preimage.kind} of
                 </CollapsibleTrigger>{' '}
                 <Link href={`/referendum/${preimage.referendum}?tab=${tab}`} className="font-mono whitespace-nowrap text-primary hover:underline">

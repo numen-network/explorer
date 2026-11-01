@@ -84,7 +84,7 @@ export const RuntimeUpgradePreimage: StoryObj = {
         await expect(canvas.getByText(summary)).toBeVisible()
         await expect(canvasElement.textContent).not.toContain(wasm.slice(0, 64))
         await openJson(canvas)
-        await expect(canvas.getByText(new RegExp(summary.replace(/[()]/g, '\\$&')))).toBeVisible()
+        await waitFor(() => expect(canvas.getByText(new RegExp(summary.replace(/[()]/g, '\\$&')))).toBeVisible())
         await expect(canvasElement.textContent).not.toContain(wasm.slice(0, 64))
     },
 }
@@ -265,7 +265,7 @@ export const RemarkLongMarkdown: StoryObj = {
         })
         await userEvent.click(panel.getByRole('tab', {name: 'Markdown'}))
         await waitFor(() => expect(panel.getByRole('heading', {level: 1, name: 'Marketing budget'})).toBeVisible())
-        await expect(dialog.textContent).not.toContain('**')
+        await waitFor(() => expect(dialog.textContent).not.toContain('**'))
     },
 }
 

@@ -240,10 +240,8 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
                     )}
                     {a.evmAddress && (
                         <DetailRow label="EVM origin">
-                            <AddrMark asChild addr={a.evmAddress}>
-                                <Link href={`/address/${a.evmAddress}`} className="text-primary hover:underline">
-                                    {a.evmAddress}
-                                </Link>
+                            <AddrMark addr={a.evmAddress} render={<Link href={`/address/${a.evmAddress}`} className="text-primary hover:underline" />}>
+                                {a.evmAddress}
                             </AddrMark>{' '}
                             <span className="ml-1 text-xs text-dim">mapped account of this H160</span>
                         </DetailRow>

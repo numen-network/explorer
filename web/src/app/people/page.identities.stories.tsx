@@ -60,7 +60,7 @@ const openSubs: StoryObj['play'] = async ({canvas, userEvent}) => {
 function expectSubsFit(dialog: HTMLElement, count: number) {
     const names = [...dialog.querySelectorAll<HTMLElement>('a[href^="/account/"] .truncate')]
     expect(names).toHaveLength(count)
-    const room = Math.min(32 * parseFloat(getComputedStyle(document.documentElement).fontSize), parseFloat(getComputedStyle(dialog).getPropertyValue('--radix-popover-content-available-width')))
+    const room = Math.min(32 * parseFloat(getComputedStyle(document.documentElement).fontSize), parseFloat(getComputedStyle(dialog).getPropertyValue('--available-width')))
     const full = dialog.offsetWidth >= room - 1
     expect(full || names.every(n => n.scrollWidth <= n.clientWidth)).toBe(true)
 }

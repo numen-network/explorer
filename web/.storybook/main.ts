@@ -20,6 +20,19 @@ const config: StorybookConfig = {
             // bundled up front, a dependency found halfway through a test run reloads every test file
             optimizeDeps: {
                 include: [
+                    '@base-ui/react/button',
+                    '@base-ui/react/collapsible',
+                    '@base-ui/react/dialog',
+                    '@base-ui/react/input',
+                    '@base-ui/react/merge-props',
+                    '@base-ui/react/popover',
+                    '@base-ui/react/select',
+                    '@base-ui/react/separator',
+                    '@base-ui/react/switch',
+                    '@base-ui/react/tabs',
+                    '@base-ui/react/toggle',
+                    '@base-ui/react/tooltip',
+                    '@base-ui/react/use-render',
                     '@icons-pack/react-simple-icons',
                     '@noble/hashes/blake2.js',
                     '@noble/hashes/utils.js',
@@ -40,7 +53,6 @@ const config: StorybookConfig = {
                     'nuqs/adapters/testing',
                     'nuqs/server',
                     'qr',
-                    'radix-ui',
                     'react-day-picker',
                     'shiki/core',
                     'shiki/engine/javascript',

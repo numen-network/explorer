@@ -7,11 +7,9 @@ import {fmtInt} from '@/lib/format'
 
 export function FilterChip({label, count, href, active}: {label: string; count?: number; href: string; active: boolean}) {
     return (
-        <Badge asChild variant={active ? 'solid' : 'idle'} className={cn('rounded-full px-3 py-1 text-xs', active ? 'font-medium' : 'bg-card hover:text-foreground')}>
-            <Link href={href} scroll={false}>
-                {label}
-                {count != null && <span className={cn('ml-1.5', active ? 'text-primary-foreground/70' : 'text-dim')}>{fmtInt(count)}</span>}
-            </Link>
+        <Badge variant={active ? 'solid' : 'idle'} className={cn('rounded-full px-3 py-1 text-xs', active ? 'font-medium' : 'bg-card hover:text-foreground')} render={<Link href={href} scroll={false} />}>
+            {label}
+            {count != null && <span className={cn('ml-1.5', active ? 'text-primary-foreground/70' : 'text-dim')}>{fmtInt(count)}</span>}
         </Badge>
     )
 }

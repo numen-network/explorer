@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import {Button} from '@/components/ui/button'
+import {cn} from 'cn'
+import {buttonVariants} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle} from '@/components/ui/empty'
 
@@ -12,9 +13,9 @@ export default function NotFound() {
                     <EmptyDescription className="text-sm">Nothing lives at this address, or it is not indexed yet.</EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
-                    <Button asChild className="h-auto border-0 px-4 py-2 hover:bg-primary-hover">
-                        <Link href="/">Back home</Link>
-                    </Button>
+                    <Link href="/" className={cn(buttonVariants(), 'h-auto border-0 px-4 py-2 hover:bg-primary-hover')}>
+                        Back home
+                    </Link>
                 </EmptyContent>
             </Empty>
         </Card>

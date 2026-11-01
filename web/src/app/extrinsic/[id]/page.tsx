@@ -38,18 +38,16 @@ function Ambiguous({hash, hits, total, pg}: {hash: string; hits: ExtrinsicHit[];
             <p className="mt-1.5 text-sm text-muted-foreground">{fmtCount(total, 'extrinsic')} share this hash, pick the block you meant.</p>
             <Card size="flush" className="mt-3 divide-y">
                 {hits.map(h => (
-                    <Item key={h.id} asChild className="justify-between gap-4 rounded-none border-0 px-5 py-3 [a]:hover:bg-background/60">
-                        <Link href={`/extrinsic/${h.block.height}-${h.indexInBlock}`}>
-                            <span className="font-mono text-sm text-primary">
-                                {h.block.height}-{h.indexInBlock}
-                            </span>
-                            <span className="text-sm text-muted-foreground">
-                                {h.pallet}.{h.method}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                                <TimeCell iso={h.block.timestamp} />
-                            </span>
-                        </Link>
+                    <Item key={h.id} className="justify-between gap-4 rounded-none border-0 px-5 py-3 [a]:hover:bg-background/60" render={<Link href={`/extrinsic/${h.block.height}-${h.indexInBlock}`} />}>
+                        <span className="font-mono text-sm text-primary">
+                            {h.block.height}-{h.indexInBlock}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                            {h.pallet}.{h.method}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                            <TimeCell iso={h.block.timestamp} />
+                        </span>
                     </Item>
                 ))}
             </Card>

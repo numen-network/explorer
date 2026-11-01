@@ -1,5 +1,5 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {expect, within} from 'storybook/test'
+import {expect, within, waitFor} from 'storybook/test'
 import {Tabs, TabsContent} from '@/components/ui/tabs'
 import {all, linksByKeyboard, linkStrip} from '../../.storybook/fit'
 import SegmentedControl, {type SegmentLink} from './SegmentedControl'
@@ -63,7 +63,7 @@ export const Panels: Story = {
         await expect(canvas.getByText('table view')).toBeVisible()
         await userEvent.click(canvas.getByRole('tab', {name: 'JSON'}))
         await expect(canvas.getByText('json view')).toBeVisible()
-        await expect(canvas.queryByText('table view')).toBeNull()
+        await waitFor(() => expect(canvas.queryByText('table view')).toBeNull())
     }),
 }
 

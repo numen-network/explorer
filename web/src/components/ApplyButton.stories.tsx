@@ -28,7 +28,7 @@ export const MatchesFilterControlHeight: Story = {
         </form>
     ),
     play: async ({canvas, canvasElement}) => {
-        const controls = [...canvasElement.querySelectorAll('button, input:not([type=hidden])')]
+        const controls = [...canvasElement.querySelectorAll('button, input:not([type=hidden], [aria-hidden=true])')]
         await expect(controls).toHaveLength(4)
         const height = (el: Element) => el.getBoundingClientRect().height
         const apply = height(canvas.getByRole('button', {name: 'Apply'}))

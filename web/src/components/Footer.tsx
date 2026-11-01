@@ -1,6 +1,7 @@
 import type {IconType} from '@icons-pack/react-simple-icons'
+import {cn} from 'cn'
 import {SiBitcoin, SiDiscord, SiGithub, SiTelegram, SiX, SiYoutube} from '@icons-pack/react-simple-icons'
-import {Button} from '@/components/ui/button'
+import {buttonVariants} from '@/components/ui/button'
 import {CONFIG} from '@/lib/config'
 
 type Social = keyof typeof CONFIG.socials
@@ -23,11 +24,9 @@ export default function Footer() {
                     {(Object.keys(CONFIG.socials) as Social[]).map(key => {
                         const [label, Mark] = MARK[key]
                         return (
-                            <Button key={key} asChild variant="ghost" size="icon" className="text-dim hover:bg-transparent hover:text-foreground">
-                                <a href={CONFIG.socials[key]} target="_blank" rel="noopener" aria-label={label}>
-                                    <Mark size={16} title="" />
-                                </a>
-                            </Button>
+                            <a key={key} href={CONFIG.socials[key]} target="_blank" rel="noopener" aria-label={label} className={cn(buttonVariants({variant: 'ghost', size: 'icon'}), 'text-dim hover:bg-transparent hover:text-foreground')}>
+                                <Mark size={16} title="" />
+                            </a>
                         )
                     })}
                 </div>

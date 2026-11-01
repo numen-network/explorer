@@ -18,8 +18,7 @@ const hovered: Story = {
     },
 }
 
-// opens the tip, then reads the lines its text takes and whether it stays on
-// screen, leaving out the copy Radix keeps for screen readers
+// opens the tip, then reads its line count and whether it stays on screen
 async function openTip({canvas, userEvent}: Parameters<NonNullable<Story['play']>>[0]) {
     await userEvent.hover(canvas.getByText('hover me'))
     await screen.findByRole('tooltip')

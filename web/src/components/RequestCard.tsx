@@ -213,11 +213,9 @@ function Spends({items, spends, enacted, ctx}: {items: [number, ProposalNode][];
             {items.length > PAYOUTS_SHOWN && (
                 <Collapsible className="group">
                     <CollapsibleContent>{items.slice(PAYOUTS_SHOWN).map(payout)}</CollapsibleContent>
-                    <div className="border-t pt-2.5 group-data-[state=open]:hidden">
-                        <CollapsibleTrigger asChild>
-                            <Button variant="outline" size="sm" className="w-full bg-background text-muted-foreground">
-                                Show all {items.length}
-                            </Button>
+                    <div className="border-t pt-2.5 group-data-open:hidden">
+                        <CollapsibleTrigger render={<Button variant="outline" size="sm" className="w-full bg-background text-muted-foreground" />}>
+                            Show all {items.length}
                         </CollapsibleTrigger>
                     </div>
                 </Collapsible>

@@ -36,10 +36,8 @@ export default function QrButton({text, label}: {text: string; label?: string | 
     const path = useMemo(() => matrix.flatMap((row, y) => row.map((on, x) => (on ? `M${x} ${y}h1v1h-1z` : ''))).join(''), [matrix])
     return (
         <Popover>
-            <PopoverTrigger asChild>
-                <Button variant="outline" size="icon-xs" aria-label="QR code" className={cn(INLINE_ICON_BUTTON, 'ml-1 data-[state=open]:text-primary')}>
-                    <QrCode className="size-2.5" />
-                </Button>
+            <PopoverTrigger render={<Button variant="outline" size="icon-xs" aria-label="QR code" className={cn(INLINE_ICON_BUTTON, 'ml-1 data-popup-open:text-primary')} />}>
+                <QrCode className="size-2.5" />
             </PopoverTrigger>
             <PopoverContent collisionPadding={16} className="w-53 items-center gap-2.5 p-4">
                 <div className="rounded-lg border bg-white p-1.5">

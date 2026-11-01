@@ -78,6 +78,6 @@ const VISIBLE = 5
 // hides a referendum row side by side once a strip above needs its slot
 export function rowHidden(i: number, n: number): string {
     if (i >= VISIBLE - closedSlots(n)) return 'lg:hidden'
-    if (i >= VISIBLE - openSlots(n)) return 'lg:group-data-[state=open]/upcoming:hidden'
+    if (i >= VISIBLE - openSlots(n)) return 'lg:group-data-open/upcoming:hidden'
     return ''
 }

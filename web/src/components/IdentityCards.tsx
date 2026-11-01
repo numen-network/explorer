@@ -10,7 +10,7 @@ import BioDialog from '@/components/BioDialog'
 import CopyBtn from '@/components/CopyBtn'
 import {emptyText} from '@/components/EmptyList'
 import Socials from '@/components/Socials'
-import {Button} from '@/components/ui/button'
+import {buttonVariants} from '@/components/ui/button'
 import {Card} from '@/components/ui/card'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import type {ChainProps} from '@/lib/chain'
@@ -26,9 +26,9 @@ function Subs({row, ss58}: {row: IdentityRow; ss58: number}) {
         <Popover>
             <PopoverTrigger aria-label={`${fmtInt(row.subs.length)} sub identities`} className="inline-flex items-center gap-0.5 text-primary hover:text-primary-hover">
                 {fmtInt(row.subs.length)}
-                <ChevronDown className="size-3.5 transition-transform in-data-[state=open]:rotate-180" />
+                <ChevronDown className="size-3.5 transition-transform in-data-popup-open:rotate-180" />
             </PopoverTrigger>
-            <PopoverContent align="end" className="max-h-72 w-max max-w-[min(32rem,var(--radix-popover-content-available-width))] gap-1.5 overflow-y-auto font-normal">
+            <PopoverContent align="end" className="max-h-72 w-max max-w-[min(32rem,var(--available-width))] gap-1.5 overflow-y-auto font-normal">
                 {row.subs.map(s => (
                     <AccountLink key={s.id} addr={ss58Encode(s.id, ss58)} acc={s} className="min-w-0" />
                 ))}
@@ -60,12 +60,10 @@ function IdentityCard({row, chain, wallet}: {row: IdentityRow; chain: ChainProps
                     </div>
                 </div>
                 <div className="ml-auto flex shrink-0 gap-2">
-                    <Button asChild variant="outline" className="bg-card">
-                        <a href={delegateHref(wallet, addr, chain.genesis)} target="_blank" rel="noopener noreferrer">
-                            <Plus />
-                            Delegate
-                        </a>
-                    </Button>
+                    <a href={delegateHref(wallet, addr, chain.genesis)} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({variant: 'outline'}), 'bg-card')}>
+                        <Plus />
+                        Delegate
+                    </a>
                     <BioDialog acc={row} addr={addr} />
                 </div>
             </div>

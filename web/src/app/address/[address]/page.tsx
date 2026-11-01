@@ -83,10 +83,8 @@ export default async function EvmAddressPage(props: PageProps<'/address/[address
                 </div>
                 <div className="mt-1 text-[13px] text-muted-foreground">
                     <span className="mr-2">Mapped substrate account</span>
-                    <AddrMark asChild addr={mapped}>
-                        <Link href={`/account/${mapped}`} className="font-mono break-all text-primary hover:underline">
-                            {mapped}
-                        </Link>
+                    <AddrMark addr={mapped} render={<Link href={`/account/${mapped}`} className="font-mono break-all text-primary hover:underline" />}>
+                        {mapped}
                     </AddrMark>
                     <span className="ml-2 text-xs text-dim">one way, balances live there</span>
                 </div>

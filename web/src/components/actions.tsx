@@ -34,8 +34,6 @@ export type ActionRow =
     | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; change?: VoteChange; kind: 'vote' | 'remove'; decision: string}
     | {id: string; block: number; iso: string; actor: ActionActor; own: string; delegated: string; impact?: ActionImpact; change?: VoteChange; kind: 'delegate' | 'undelegate'; by: ActionActor}
 
-// radix reserves the empty item value for its placeholder, the catch-all
-// entries carry their own sentinels instead
 const KINDS: {value: ActionKind | 'all'; label: string}[] = [
     {value: 'all', label: 'All actions'},
     {value: 'vote', label: 'Vote'},

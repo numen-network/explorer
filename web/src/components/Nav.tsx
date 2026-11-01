@@ -35,10 +35,8 @@ export default function Nav({chain, api}: {chain: string; api?: string}) {
             <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-7 px-6">
                 <div className="flex shrink-0 items-center gap-1">
                     <Sheet open={open} onOpenChange={setOpen}>
-                        <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label="Menu" className="-ml-2 size-9 hover:bg-transparent xl:hidden">
-                                <Menu className="size-5" />
-                            </Button>
+                        <SheetTrigger render={<Button variant="ghost" size="icon" aria-label="Menu" className="-ml-2 size-9 hover:bg-transparent xl:hidden" />}>
+                            <Menu className="size-5" />
                         </SheetTrigger>
                         <SheetContent side="left" aria-describedby={undefined} className="gap-0 overflow-y-auto bg-card p-6 data-[side=left]:w-72">
                             <SheetTitle className="sr-only">Menu</SheetTitle>

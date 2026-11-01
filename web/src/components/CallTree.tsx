@@ -34,44 +34,42 @@ export function CallTree({calls, chain, signer = null, bare = false}: {calls: Tr
                 const dispatched = c.origin && c.origin.id !== signer?.id ? c.origin : null
                 const view = c.view
                 return (
-                    <Collapsible key={c.address.join('.')} defaultOpen={c.address.length === 0} className={cn('group py-2.5', bare ? 'first:pt-0 last:pb-0' : 'pr-5')} asChild>
-                        <Tabs defaultValue={view ? 'table' : 'json'} className="gap-0">
-                            <div className="flex flex-wrap items-start gap-x-3 gap-y-1" style={{paddingLeft: `${(bare ? 0 : 20) + c.address.length * 22}px`}}>
-                                <CollapsibleTrigger className="flex min-h-6 min-w-0 grow cursor-pointer flex-wrap items-center gap-x-3 text-left text-sm">
-                                    <span className="font-mono text-[13px] wrap-anywhere">{qualified(c)}</span>
-                                    {c.success !== undefined && c.success !== true && <ResultBadge success={c.success} />}
-                                    {events.length > 0 && <span className="text-[11px] whitespace-nowrap text-dim">{fmtCount(events.length, 'event')}</span>}
-                                </CollapsibleTrigger>
-                                {view && <ArgsToggle className="ml-auto group-data-[state=closed]:hidden" />}
-                            </div>
-                            <CollapsibleContent className="mt-2 space-y-2" style={{paddingLeft: `${(bare ? 0 : 36) + c.address.length * 22}px`}}>
-                                {dispatched && (
-                                    <div className="flex gap-3 text-sm">
-                                        <span className="text-muted-foreground">Dispatched as</span>
-                                        <AccountLink full addr={ss58Encode(dispatched.id, chain.ss58)} acc={dispatched} />
-                                    </div>
-                                )}
-                                {view && (
-                                    <TabsContent value="table">
-                                        <ArgsTable node={view} chain={chain} />
-                                    </TabsContent>
-                                )}
-                                <TabsContent value="json">
-                                    <JsonBlock value={c.args} />
+                    <Collapsible key={c.address.join('.')} defaultOpen={c.address.length === 0} className={cn('group py-2.5', bare ? 'first:pt-0 last:pb-0' : 'pr-5')} render={<Tabs defaultValue={view ? 'table' : 'json'} className="gap-0" />}>
+                        <div className="flex flex-wrap items-start gap-x-3 gap-y-1" style={{paddingLeft: `${(bare ? 0 : 20) + c.address.length * 22}px`}}>
+                            <CollapsibleTrigger className="flex min-h-6 min-w-0 grow cursor-pointer flex-wrap items-center gap-x-3 text-left text-sm">
+                                <span className="font-mono text-[13px] wrap-anywhere">{qualified(c)}</span>
+                                {c.success !== undefined && c.success !== true && <ResultBadge success={c.success} />}
+                                {events.length > 0 && <span className="text-[11px] whitespace-nowrap text-dim">{fmtCount(events.length, 'event')}</span>}
+                            </CollapsibleTrigger>
+                            {view && <ArgsToggle className="ml-auto group-data-closed:hidden" />}
+                        </div>
+                        <CollapsibleContent className="mt-2 space-y-2" style={{paddingLeft: `${(bare ? 0 : 36) + c.address.length * 22}px`}}>
+                            {dispatched && (
+                                <div className="flex gap-3 text-sm">
+                                    <span className="text-muted-foreground">Dispatched as</span>
+                                    <AccountLink full addr={ss58Encode(dispatched.id, chain.ss58)} acc={dispatched} />
+                                </div>
+                            )}
+                            {view && (
+                                <TabsContent value="table">
+                                    <ArgsTable node={view} chain={chain} />
                                 </TabsContent>
-                                {raised.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {raised.map(name => (
-                                            <Tip key={name} text={name}>
-                                                <Badge variant="outline" className="min-w-0 shrink truncate bg-background font-mono text-muted-foreground">
-                                                    {name}
-                                                </Badge>
-                                            </Tip>
-                                        ))}
-                                    </div>
-                                )}
-                            </CollapsibleContent>
-                        </Tabs>
+                            )}
+                            <TabsContent value="json">
+                                <JsonBlock value={c.args} />
+                            </TabsContent>
+                            {raised.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {raised.map(name => (
+                                        <Tip key={name} text={name}>
+                                            <Badge variant="outline" className="min-w-0 shrink truncate bg-background font-mono text-muted-foreground">
+                                                {name}
+                                            </Badge>
+                                        </Tip>
+                                    ))}
+                                </div>
+                            )}
+                        </CollapsibleContent>
                     </Collapsible>
                 )
             })}

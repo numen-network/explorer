@@ -1,6 +1,6 @@
 'use client'
 
-import {type ReactNode, useEffect, useState} from 'react'
+import {type ReactElement, useEffect, useState} from 'react'
 import {XIcon} from 'lucide-react'
 import Markdown from '@/components/Markdown'
 import SegmentedControl from '@/components/SegmentedControl'
@@ -43,10 +43,8 @@ function TextViews({text, href}: {text: string; href?: string}) {
                     size="sm"
                     className="ml-auto"
                 />
-                <DialogClose asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label="Close" className="-my-1 -mr-1.5">
-                        <XIcon />
-                    </Button>
+                <DialogClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-my-1 -mr-1.5" />}>
+                    <XIcon />
                 </DialogClose>
             </div>
             <TabsContent value="raw" className={BODY}>
@@ -58,10 +56,10 @@ function TextViews({text, href}: {text: string; href?: string}) {
 }
 
 /** A larger view of text in a dialog, fetched from `full` when the page holds only a preview. */
-export function TextDialog({text, full, trigger}: {text: string; full?: string; trigger: ReactNode}) {
+export function TextDialog({text, full, trigger}: {text: string; full?: string; trigger: ReactElement}) {
     return (
         <Dialog>
-            <DialogTrigger asChild>{trigger}</DialogTrigger>
+            <DialogTrigger render={trigger} />
             <DialogContent aria-describedby={undefined} showCloseButton={false} className="max-h-[85dvh] overflow-y-auto border p-6 shadow-lg ring-0 sm:max-w-[800px]">
                 <TextViews text={text} href={full} />
             </DialogContent>

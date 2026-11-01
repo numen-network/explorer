@@ -124,10 +124,8 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
                     )}
                 </h1>
                 <div className="mt-1 font-mono text-[13px] break-all text-muted-foreground">
-                    <AddrMark asChild addr={token.id}>
-                        <Link href={`/address/${token.id}`} className="text-primary hover:underline">
-                            {token.id}
-                        </Link>
+                    <AddrMark addr={token.id} render={<Link href={`/address/${token.id}`} className="text-primary hover:underline" />}>
+                        {token.id}
                     </AddrMark>
                     <CopyBtn text={token.id} />
                 </div>

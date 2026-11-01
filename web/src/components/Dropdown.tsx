@@ -72,7 +72,7 @@ export default function Dropdown<V extends string>({value, options, onChange, la
                 {options.map(o => {
                     const tail = tailOf(o)
                     return (
-                        <SelectItem key={o.value} value={o.value} textValue={o.label} className="gap-3 py-1.5 pl-3 *:[span]:last:grow *:[span]:last:gap-1.5 [&_svg]:text-primary">
+                        <SelectItem key={o.value} value={o.value} label={o.label} className="gap-3 py-1.5 pl-3 *:[span]:last:grow *:[span]:last:gap-1.5 [&_svg]:text-primary">
                             {iconed && <IconSlot icon={o.icon} />}
                             <span className="flex grow items-center">
                                 {o.label}

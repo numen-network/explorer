@@ -91,30 +91,26 @@ export default async function SearchPage(props: PageProps<'/search'>) {
     const accountRows = accounts.map(a => {
         const addr = ss58Encode(a.id, chain.ss58)
         return (
-            <Item key={a.id} asChild className={ROW}>
-                <Link href={`/account/${addr}`}>
-                    <AccountNames a={a} />
-                    <span className="ml-auto font-mono text-xs text-muted-foreground">
-                        <AddressText addr={addr} />
-                    </span>
-                </Link>
+            <Item key={a.id} className={ROW} render={<Link href={`/account/${addr}`} />}>
+                <AccountNames a={a} />
+                <span className="ml-auto font-mono text-xs text-muted-foreground">
+                    <AddressText addr={addr} />
+                </span>
             </Item>
         )
     })
 
     const tokenRows = tokens.map(t => (
-        <Item key={t.id} asChild className={ROW}>
-            <Link href={`/token/${t.id}`}>
-                <span className="font-medium">
-                    <TokenIcon addr={t.id} />
-                    {t.name ?? 'Unknown'}
-                </span>
-                {t.symbol && <span className="text-xs text-muted-foreground">{t.symbol}</span>}
-                <PairBadge token={t} />
-                <span className="ml-auto font-mono text-xs text-muted-foreground">
-                    <HashText hash={t.id} />
-                </span>
-            </Link>
+        <Item key={t.id} className={ROW} render={<Link href={`/token/${t.id}`} />}>
+            <span className="font-medium">
+                <TokenIcon addr={t.id} />
+                {t.name ?? 'Unknown'}
+            </span>
+            {t.symbol && <span className="text-xs text-muted-foreground">{t.symbol}</span>}
+            <PairBadge token={t} />
+            <span className="ml-auto font-mono text-xs text-muted-foreground">
+                <HashText hash={t.id} />
+            </span>
         </Item>
     ))
 

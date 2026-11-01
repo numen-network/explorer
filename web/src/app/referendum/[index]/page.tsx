@@ -1,3 +1,4 @@
+import {cn} from 'cn'
 import {Fragment, type ReactNode} from 'react'
 import {Vote, type LucideIcon} from 'lucide-react'
 import {SiDiscord} from '@icons-pack/react-simple-icons'
@@ -21,7 +22,7 @@ import {DepositState, Gauge, ReferendumByline} from '@/components/referenda'
 import {RequestCard, requestAccounts} from '@/components/RequestCard'
 import {CROSS, RING, StepLinks, TICK, TimelineItem, TimelineList, TimelineRows, rawSteps} from '@/components/timeline'
 import {Badge} from '@/components/ui/badge'
-import {Button} from '@/components/ui/button'
+import {buttonVariants} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
@@ -494,19 +495,15 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const links = (
         <div className="flex gap-2">
             {r.status === 'Ongoing' && (
-                <Button asChild size="lg" className="flex-1 hover:bg-primary-hover">
-                    <a href={voteHref(WALLET_URL, r.index, chain.genesis)} target="_blank" rel="noopener noreferrer">
-                        <Vote />
-                        Vote
-                    </a>
-                </Button>
-            )}
-            <Button asChild variant="outline" size="lg" className="flex-1 bg-card">
-                <a href={thread ?? CONFIG.socials.discord} target="_blank" rel="noopener">
-                    <SiDiscord title="" />
-                    Discuss
+                <a href={voteHref(WALLET_URL, r.index, chain.genesis)} target="_blank" rel="noopener noreferrer" className={cn(buttonVariants({size: 'lg'}), 'flex-1 hover:bg-primary-hover')}>
+                    <Vote />
+                    Vote
                 </a>
-            </Button>
+            )}
+            <a href={thread ?? CONFIG.socials.discord} target="_blank" rel="noopener" className={cn(buttonVariants({variant: 'outline', size: 'lg'}), 'flex-1 bg-card')}>
+                <SiDiscord title="" />
+                Discuss
+            </a>
         </div>
     )
 

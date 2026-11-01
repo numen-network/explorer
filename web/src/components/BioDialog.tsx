@@ -16,18 +16,14 @@ export default function BioDialog({acc, addr, size = 'icon', className}: {acc: I
     const {short, full} = splitBio(acc.identityJson)
     return (
         <Dialog>
-            <DialogTrigger asChild>
-                <Button variant="outline" size={size} aria-label="Bio" className={cn('bg-card', className)}>
-                    <Menu />
-                </Button>
+            <DialogTrigger render={<Button variant="outline" size={size} aria-label="Bio" className={cn('bg-card', className)} />}>
+                <Menu />
             </DialogTrigger>
             <DialogContent aria-describedby={undefined} showCloseButton={false} className="max-h-[85dvh] gap-4 overflow-y-auto border p-6 shadow-lg ring-0 sm:max-w-[800px]">
                 <div className="flex items-center justify-between gap-4">
                     <DialogTitle className="text-base font-semibold">Detail</DialogTitle>
-                    <DialogClose asChild>
-                        <Button variant="ghost" size="icon-sm" aria-label="Close" className="-my-1 -mr-1.5">
-                            <XIcon />
-                        </Button>
+                    <DialogClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-my-1 -mr-1.5" />}>
+                        <XIcon />
                     </DialogClose>
                 </div>
                 <div className="flex min-w-0 flex-col items-start gap-2.5 [&>span:empty]:hidden">

@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import {useState} from 'react'
 import {cn} from 'cn'
-import {Button} from '@/components/ui/button'
+import {buttonVariants} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {CHARTS, GROUPS} from '@/lib/charts'
 
@@ -22,9 +22,9 @@ export default function ChartList({active, className = ''}: {active: string; cla
                             {hits
                                 .filter(c => c.group === g)
                                 .map(c => (
-                                    <Button key={c.slug} asChild variant="ghost" size="sm" className={cn('h-auto w-full justify-start rounded-lg border-0 px-3 py-1.5 text-[13px] leading-snug font-normal whitespace-normal', c.slug === active && 'bg-primary/8 font-medium text-primary hover:bg-primary/8 hover:text-primary')}>
-                                        <Link href={`/charts/${c.slug}`} aria-current={c.slug === active ? 'page' : undefined}>{c.title}</Link>
-                                    </Button>
+                                    <Link key={c.slug} href={`/charts/${c.slug}`} aria-current={c.slug === active ? 'page' : undefined} className={cn(buttonVariants({variant: 'ghost', size: 'sm'}), cn('h-auto w-full justify-start rounded-lg border-0 px-3 py-1.5 text-[13px] leading-snug font-normal whitespace-normal', c.slug === active && 'bg-primary/8 font-medium text-primary hover:bg-primary/8 hover:text-primary'))}>
+                                        {c.title}
+                                    </Link>
                                 ))}
                         </div>
                     </div>

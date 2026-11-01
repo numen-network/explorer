@@ -35,21 +35,15 @@ export default function DateRange({after, before, lastDay, active = false}: {aft
             <input type="hidden" name="after" value={from} />
             <input type="hidden" name="before" value={to} />
             <Popover>
-                <PopoverTrigger asChild>
-                    <Button
-                        variant="outline"
-                        data-active={active}
-                        className="w-56 justify-between gap-2 rounded-lg bg-card px-3 font-normal hover:bg-card hover:text-primary aria-expanded:bg-card aria-expanded:text-foreground data-active:bg-background data-active:font-medium data-active:hover:bg-background data-active:aria-expanded:bg-background"
-                    >
-                        {from || to ? (
-                            <span>
-                                {from || '…'} <span className="text-dim">to</span> {to || '…'}
-                            </span>
-                        ) : (
-                            <span className="text-muted-foreground">Any date</span>
-                        )}
-                        <CalendarIcon className="size-3.5 text-muted-foreground" />
-                    </Button>
+                <PopoverTrigger render={<Button variant="outline" data-active={active} className="w-56 justify-between gap-2 rounded-lg bg-card px-3 font-normal hover:bg-card hover:text-primary aria-expanded:bg-card aria-expanded:text-foreground data-active:bg-background data-active:font-medium data-active:hover:bg-background data-active:aria-expanded:bg-background" />}>
+                    {from || to ? (
+                        <span>
+                            {from || '…'} <span className="text-dim">to</span> {to || '…'}
+                        </span>
+                    ) : (
+                        <span className="text-muted-foreground">Any date</span>
+                    )}
+                    <CalendarIcon className="size-3.5 text-muted-foreground" />
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto border p-0 leading-normal shadow-lg ring-0">
                     <Calendar

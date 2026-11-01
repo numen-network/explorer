@@ -52,9 +52,9 @@ function VersionSelect({label, versions, value, excluded, onChange, none}: {labe
             </Label>
             <Select value={value === null ? NONE : String(value)} onValueChange={v => onChange(v === NONE ? null : Number(v))}>
                 <SelectTrigger id={id} className="w-full text-left text-xs whitespace-normal data-[size=default]:h-auto *:data-[slot=select-value]:line-clamp-none">
-                    <SelectValue />
+                    <SelectValue>{value === null ? 'None' : <VersionName versions={versions} index={value} />}</SelectValue>
                 </SelectTrigger>
-                <SelectContent position="popper">
+                <SelectContent alignItemWithTrigger={false}>
                     {none && (
                         <SelectItem value={NONE} className="text-xs">
                             None
@@ -89,10 +89,8 @@ function Revision({versions, start}: {versions: Version[]; start: number}) {
         <DialogContent aria-describedby={undefined} showCloseButton={false} className="max-h-[85dvh] gap-4 overflow-y-auto border p-6 shadow-lg ring-0 sm:max-w-[800px]">
             <div className="flex items-center justify-between gap-4">
                 <DialogTitle className="text-base font-semibold">Proposal Revision</DialogTitle>
-                <DialogClose asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label="Close" className="-my-1 -mr-1.5">
-                        <XIcon />
-                    </Button>
+                <DialogClose render={<Button variant="ghost" size="icon-sm" aria-label="Close" className="-my-1 -mr-1.5" />}>
+                    <XIcon />
                 </DialogClose>
             </div>
             <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
@@ -125,9 +123,9 @@ export default function EditedHistory({versions, className}: {versions: Version[
             <Popover open={listed} onOpenChange={setListed}>
                 <PopoverTrigger className="group inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
                     Edited
-                    <ChevronDown className="size-3.5 transition-transform group-data-[state=open]:rotate-180" />
+                    <ChevronDown className="size-3.5 transition-transform group-data-popup-open:rotate-180" />
                 </PopoverTrigger>
-                <PopoverContent align="start" collisionPadding={16} className="max-h-[50vh] w-max max-w-(--radix-popover-content-available-width) gap-0 overflow-y-auto p-2">
+                <PopoverContent align="start" collisionPadding={16} className="max-h-[50vh] w-max max-w-(--available-width) gap-0 overflow-y-auto p-2">
                     <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
                         Edited {edits} {edits > 1 ? 'times' : 'time'}
                     </p>

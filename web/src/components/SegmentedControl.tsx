@@ -35,7 +35,7 @@ export default function SegmentedControl(props: Props) {
         )
     }
     return (
-        <TabsList className={strip}>
+        <TabsList activateOnFocus className={strip}>
             {props.options.map(([value, label]) => (
                 <TabsTrigger key={value} value={value} data-label={label} className={cn(item, 'border-0 group-data-[variant=default]/tabs-list:data-active:shadow-none')}>
                     {label}

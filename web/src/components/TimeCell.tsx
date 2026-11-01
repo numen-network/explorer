@@ -31,7 +31,7 @@ const loadPref = () => {
     } catch {}
 }
 
-const QUIET = "h-auto min-w-0 gap-1 rounded-none p-0 text-[length:inherit] hover:bg-transparent aria-pressed:bg-transparent data-[state=on]:bg-transparent [&_svg:not([class*='size-'])]:size-[1em]"
+const QUIET = "h-auto min-w-0 gap-1 rounded-none p-0 text-[length:inherit] hover:bg-transparent aria-pressed:bg-transparent data-pressed:bg-transparent [&_svg:not([class*='size-'])]:size-[1em]"
 
 export function TimeModeButton() {
     const m = useTimeMode(s => s.mode)
@@ -39,7 +39,7 @@ export function TimeModeButton() {
     useEffect(loadPref, [])
     return (
         <Tip text="Switch timezone">
-            <Toggle size="sm" pressed={m === 'local'} onPressedChange={setMode} aria-label="Switch timezone" className={`${QUIET} font-medium text-primary hover:text-primary hover:underline data-[state=on]:text-primary`}>
+            <Toggle size="sm" pressed={m === 'local'} onPressedChange={setMode} aria-label="Switch timezone" className={`${QUIET} font-medium text-primary hover:text-primary hover:underline data-pressed:text-primary`}>
                 {LABEL[m]}
                 <ArrowLeftRight />
             </Toggle>
@@ -68,7 +68,7 @@ export function TimeCell({iso, cycle = false}: {iso: string | null; cycle?: bool
                         <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                             <span suppressHydrationWarning>({m === 'utc' ? 'UTC' : 'Local'})</span>
                             <Tip text="Switch timezone">
-                                <Toggle size="sm" pressed={m === 'local'} onPressedChange={setMode} aria-label="Switch timezone" className={`${QUIET} text-dim hover:text-primary data-[state=on]:text-dim`}>
+                                <Toggle size="sm" pressed={m === 'local'} onPressedChange={setMode} aria-label="Switch timezone" className={`${QUIET} text-dim hover:text-primary data-pressed:text-dim`}>
                                     <ArrowLeftRight />
                                 </Toggle>
                             </Tip>

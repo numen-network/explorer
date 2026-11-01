@@ -11,7 +11,7 @@ import {SHOWN, closedSlots, type Deadline} from '@/lib/upcoming'
 
 // the strips fill whole referendum slots, so the card stays level with its neighbour
 const CLOSED_H = ['', 'lg:h-[66px]', 'lg:h-[132px]', 'lg:h-[198px]']
-const OPEN_H = 'lg:group-data-[state=open]/upcoming:h-[264px]'
+const OPEN_H = 'lg:group-data-open/upcoming:h-[264px]'
 
 function Strip({d, blockTime}: {d: Deadline; blockTime: number}) {
     return (
@@ -40,27 +40,25 @@ export default function Upcoming({items, blockTime, className, children}: {items
             </Card>
         )
     return (
-        <Collapsible open={open} onOpenChange={setOpen} asChild>
-            <Card size="flush" className={cn('group/upcoming', className)}>
-                <div className={cn('flex shrink-0 flex-col gap-1 p-3', CLOSED_H[closedSlots(n)], n > SHOWN && OPEN_H)}>
-                    <div className="flex min-h-0 flex-col gap-1 lg:overflow-y-auto">
-                        {items.slice(0, SHOWN).map(d => (
+        <Collapsible open={open} onOpenChange={setOpen} render={<Card size="flush" className={cn('group/upcoming', className)} />}>
+            <div className={cn('flex shrink-0 flex-col gap-1 p-3', CLOSED_H[closedSlots(n)], n > SHOWN && OPEN_H)}>
+                <div className="flex min-h-0 flex-col gap-1 lg:overflow-y-auto">
+                    {items.slice(0, SHOWN).map(d => (
+                        <Strip key={d.id} d={d} blockTime={blockTime} />
+                    ))}
+                    <CollapsibleContent className="flex flex-col gap-1">
+                        {items.slice(SHOWN).map(d => (
                             <Strip key={d.id} d={d} blockTime={blockTime} />
                         ))}
-                        <CollapsibleContent className="flex flex-col gap-1">
-                            {items.slice(SHOWN).map(d => (
-                                <Strip key={d.id} d={d} blockTime={blockTime} />
-                            ))}
-                        </CollapsibleContent>
-                    </div>
-                    {n > SHOWN && (
-                        <CollapsibleTrigger className="self-start px-1 text-[13px] text-primary hover:underline">
-                            {open ? 'Show less' : `Show ${n - SHOWN} more`}
-                        </CollapsibleTrigger>
-                    )}
+                    </CollapsibleContent>
                 </div>
-                {children}
-            </Card>
+                {n > SHOWN && (
+                    <CollapsibleTrigger className="self-start px-1 text-[13px] text-primary hover:underline">
+                        {open ? 'Show less' : `Show ${n - SHOWN} more`}
+                    </CollapsibleTrigger>
+                )}
+            </div>
+            {children}
         </Collapsible>
     )
 }
