@@ -1,7 +1,7 @@
 import {expect, within} from 'storybook/test'
 import {block, HEAD} from '../../../../../mock/fixtures.js'
 import {pageMeta} from '../../../../.storybook/page'
-import {specVersionsJsonl} from '@/lib/specVersions'
+import {specVersions} from '../../../../.storybook/specVersions'
 import ReferendumPage from './page'
 import {curated, story, withPlay, type Referendum} from './page.stories.helpers'
 
@@ -11,11 +11,7 @@ const CODE_HASH = '0x4b2de8bf7b0bcaf5f7602da227f713c225a173a6e8ea67dab35ece191a7
 const INSTALLED_HASH = '0x9a1c6be0d74f3e2215ac08b7f6d1e3a94c2b7d605e18fa3c7b90d2164e8a5f31'
 
 const runtimeCode = (specVersion: number) => {
-    const {specName, metadata} = specVersionsJsonl()
-        .split('\n')
-        .filter(Boolean)
-        .map(line => JSON.parse(line))
-        .find(v => v.specVersion === specVersion)
+    const {specName, metadata} = specVersions().find(v => v.specVersion === specVersion)!
     return {id: CODE_HASH, specName, specVersion, implVersion: 1, transactionVersion: 1, metadata}
 }
 

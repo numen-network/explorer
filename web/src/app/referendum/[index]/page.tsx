@@ -34,7 +34,7 @@ import {curveVoters} from '@/lib/curveVoters'
 import {curveAt, type Curve} from '@/lib/curves'
 import {approxParts, camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {approvalOf, confirmEstimate, isLive, originName, phaseFraction, phaseOf, tallyTargets} from '@/lib/referendum'
-import {blocksConstant} from '@/lib/runtime'
+import {blocksConstant, loadRuntimes} from '@/lib/runtime'
 import {accountRefs, bountiesByIndex, eventsByIds, indexTitles, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
@@ -210,6 +210,7 @@ function Deposit({d, chain}: {d: ReferendumDepositRow | undefined; chain: ChainP
 }
 
 export default async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
+    await loadRuntimes()
     const {index: rawIndex} = await props.params
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')

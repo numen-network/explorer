@@ -325,12 +325,16 @@ module.exports = class Data1792460132611 {
         await db.query(`ALTER TABLE "referendum" ADD "proposal_runtime_id" character varying`)
         await db.query(`CREATE INDEX "idx_referendum_proposal_runtime_e0ceaedc" ON "referendum" ("proposal_runtime_id") `)
         await db.query(`ALTER TABLE "referendum" ADD CONSTRAINT "FK_abb035f88f5da80f69ca2893604" FOREIGN KEY ("proposal_runtime_id") REFERENCES "runtime_code"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`)
+        await db.query(`CREATE TABLE "runtime_version" ("id" character varying NOT NULL, "spec_version" integer NOT NULL, "spec_name" text NOT NULL, "impl_name" text NOT NULL, "impl_version" integer NOT NULL, "transaction_version" integer NOT NULL, "first_block" integer NOT NULL, "metadata" bytea NOT NULL, CONSTRAINT "PK_22d250b0d7733ed68a3700308a5" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE UNIQUE INDEX "idx_runtime_version_spec_version_ea73cc82" ON "runtime_version" ("spec_version") `)
     }
 
     async down(db) {
         await db.query(`ALTER TABLE "referendum" DROP CONSTRAINT "FK_abb035f88f5da80f69ca2893604"`)
         await db.query(`DROP INDEX "public"."idx_referendum_proposal_runtime_e0ceaedc"`)
         await db.query(`ALTER TABLE "referendum" DROP COLUMN "proposal_runtime_id"`)
+        await db.query(`DROP INDEX "public"."idx_runtime_version_spec_version_ea73cc82"`)
+        await db.query(`DROP TABLE "runtime_version"`)
         await db.query(`DROP INDEX "public"."idx_runtime_code_spec_version_284df73b"`)
         await db.query(`DROP TABLE "runtime_code"`)
         await db.query(`ALTER TABLE "referendum" DROP CONSTRAINT "FK_74bba4dda8afefaeeb62ec3e301"`)

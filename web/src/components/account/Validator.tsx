@@ -8,6 +8,7 @@ import {fmtInt} from '@/lib/format'
 import {validatorOffenceCounts, validatorOffences, type ValidatorRow} from '@/lib/gql'
 import {OFFENCE_DAYS, OFFENCE_LABEL} from '@/lib/offences'
 import {paging} from '@/lib/paging'
+import {loadRuntimes} from '@/lib/runtime'
 import {validatorRules} from '@/lib/validatorRules'
 import {ValidatorOffencesTable} from './ValidatorOffencesTable'
 import {tabHref, type TabCtx} from './shared'
@@ -27,6 +28,7 @@ export default async function Validator({hex, addr, sp}: TabCtx) {
 
 // the tile the whole Validator group shares, above its tab strip
 export async function ValidatorHead({hex, chain, v}: {hex: string; chain: ChainProps; v: ValidatorRow}) {
+    await loadRuntimes()
     const head = await chainDbHead()
     const counts = await validatorOffenceCounts(hex, windowStart(head, OFFENCE_DAYS))
     return <ValidatorTile v={v} offline={counts.offline.totalCount} equivocations={counts.equivocations.totalCount} chain={chain} head={head.height} renewEvery={validatorRules(head, chain).renewEvery} className="mt-4" />

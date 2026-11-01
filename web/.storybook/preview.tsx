@@ -8,10 +8,14 @@ import {HeadsProvider} from '../src/components/blockStatus'
 import {useCurveToggles} from '../src/components/charts'
 import {TooltipProvider} from '../src/components/ui/tooltip'
 import {WellKnownProvider} from '../src/components/wellKnown'
+import {addRuntimes} from '../src/lib/runtime'
 import {ss58Encode} from '../src/lib/ss58'
 import {HEAD, chainInfo} from '../../mock/fixtures.js'
+import {specVersions} from './specVersions'
 import {urlUpdates} from './url'
 import '../src/app/globals.css'
+
+addRuntimes(specVersions())
 
 const inter = Inter({subsets: ['latin'], variable: '--font-inter'})
 document.documentElement.classList.add(inter.variable)

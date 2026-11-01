@@ -409,6 +409,24 @@ export function preimagesByHash(hashes: string[]) {
     )
 }
 
+export interface RuntimeVersionRow {
+    specName: string
+    specVersion: number
+    implName: string
+    implVersion: number
+    metadata: string
+}
+
+export async function runtimeSpecVersions(): Promise<number[]> {
+    const {runtimeVersions} = await gql<{runtimeVersions: {specVersion: number}[]}>(`{ runtimeVersions(orderBy: specVersion_ASC) { specVersion } }`)
+    return runtimeVersions.map(r => r.specVersion)
+}
+
+export async function runtimeVersions(specVersions: number[]): Promise<RuntimeVersionRow[]> {
+    const data = await gql<{runtimeVersions: RuntimeVersionRow[]}>(`query ($specVersions: [Int!]) { runtimeVersions(where: {specVersion_in: $specVersions}) { specName specVersion implName implVersion metadata } }`, {specVersions})
+    return data.runtimeVersions
+}
+
 /** The runtime a block ran under, which says how to read what it recorded. */
 export async function specVersionAt(height: number): Promise<number | null> {
     const {blocks} = await gql<{blocks: {specVersion: number}[]}>(`query ($height: Int!) { blocks(where: {height_eq: $height}, limit: 1) { specVersion } }`, {height})

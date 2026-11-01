@@ -32,6 +32,7 @@ import {collectBountyCall, collectBountyEvent, finalizeBounties} from './bountie
 import {accountDay, accumulateDay, finalizeAccountDays, finalizeStats, transferable, treasuryAccount} from './stats'
 import {bookPair, finalizeTokenTransferPairs, finalizeTransferPairs} from './pairs'
 import {readBatchTracks} from './tracks'
+import {readNewRuntimeVersions} from './runtimeVersions'
 import {collectUsernameEvent, finalizeUsernames, persistUsernames} from './usernames'
 
 const RPC_ENDPOINT = process.env.RPC_ENDPOINT
@@ -63,6 +64,7 @@ let chainProps: {name: string; symbol: string; decimals: number; ss58: number} |
 processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     if (ctx.blocks.length === 0) return
     await ctx.store.upsert(readBatchTracks(ctx.blocks.map(b => b.header)))
+    await ctx.store.upsert(await readNewRuntimeVersions(ctx.store, ctx.blocks.map(b => b.header), rpc))
     const finalizedHeight = await fetchFinalizedHeight()
     const batch = new BatchData()
     const lastHeader = ctx.blocks[ctx.blocks.length - 1].header

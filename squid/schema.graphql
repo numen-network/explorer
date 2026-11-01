@@ -436,6 +436,19 @@ type RuntimeCode @entity {
   referenda: [Referendum!]! @derivedFrom(field: "proposalRuntime")
 }
 
+type RuntimeVersion @entity {
+  "the spec version"
+  id: ID!
+  specVersion: Int! @unique
+  specName: String!
+  implName: String!
+  implVersion: Int!
+  transactionVersion: Int!
+  "the first block that ran on this version"
+  firstBlock: Int!
+  metadata: Bytes! @byteWeight(value: 1000.0)
+}
+
 type Referendum @entity {
   id: ID!
   index: Int! @index @unique

@@ -7,6 +7,7 @@ import {describeEvent} from '@/lib/args'
 import {chainProps} from '@/lib/chain'
 import {eventDetail} from '@/lib/gql'
 import {markArgs} from '@/lib/argMarks'
+import {loadRuntimes} from '@/lib/runtime'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +19,7 @@ export async function generateMetadata(props: PageProps<'/event/[id]'>) {
 const CANONICAL = /^(\d+)-(\d+)$/
 
 export default async function EventPage(props: PageProps<'/event/[id]'>) {
+    await loadRuntimes()
     const {id} = await props.params
     const canonical = CANONICAL.exec(id)
     if (!canonical) notFound()

@@ -30,7 +30,7 @@ import {camelLabel, fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctM
 import {evmMappedAccount} from '@/lib/evm'
 import {homeData, type HomeEvmTxRow, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {halvingAt} from '@/lib/halving'
-import {blocksConstant} from '@/lib/runtime'
+import {blocksConstant, loadRuntimes} from '@/lib/runtime'
 import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
 import {deadlines, rowHidden, upcomingWindow} from '@/lib/upcoming'
@@ -161,6 +161,7 @@ function Bar({ratio}: {ratio: number}) {
 }
 
 export default async function Home({searchParams}: PageProps<'/'>) {
+    await loadRuntimes()
     const [sp, props, heads, head] = await Promise.all([searchParams, chainProps(), chainHeads(), chainDbHead()])
     const cut = upcomingWindow(head.height, props.blockTime)
     const data = await homeData(windowStart(head, 1), windowStart(head, 30), cut)

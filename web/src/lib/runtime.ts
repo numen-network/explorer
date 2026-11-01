@@ -1,17 +1,20 @@
 import {TypeKind} from '@subsquid/scale-codec'
 import {Runtime} from '@subsquid/substrate-runtime'
-import {specVersionsJsonl} from '@/lib/specVersions'
+import {runtimeSpecVersions, runtimeVersions, type RuntimeVersionRow} from '@/lib/gql'
 
-let runtimes: Map<number, Runtime> | undefined
+const runtimes = new Map<number, Runtime>()
+
+export function addRuntimes(rows: RuntimeVersionRow[]): void {
+    for (const row of rows) runtimes.set(row.specVersion, new Runtime(row, row.metadata))
+}
+
+// the sync readers below only see what this has loaded, every page awaits it first
+export async function loadRuntimes(): Promise<void> {
+    const missing = (await runtimeSpecVersions()).filter(spec => !runtimes.has(spec))
+    if (missing.length > 0) addRuntimes(await runtimeVersions(missing))
+}
 
 export function runtimeAt(specVersion: number | null): Runtime | undefined {
-    runtimes ??= new Map(
-        specVersionsJsonl()
-            .split('\n')
-            .filter(Boolean)
-            .map(line => JSON.parse(line))
-            .map(v => [v.specVersion, new Runtime(v, v.metadata)])
-    )
     return specVersion == null ? undefined : runtimes.get(specVersion)
 }
 

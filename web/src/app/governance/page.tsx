@@ -20,6 +20,7 @@ import type {Curve} from '@/lib/curves'
 import {needsNow} from '@/lib/referendum'
 import {delegatesPage, governanceSummary, preimagesPage, referendaPage, specVersionAt, tracksPage, treasurySpendsPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
+import {loadRuntimes} from '@/lib/runtime'
 import {SPEND_KIND_LABEL} from '@/lib/spends'
 import {DelegatesTable, PreimagesTable, TracksTable, TreasuryTable} from './tables'
 
@@ -47,6 +48,7 @@ async function preimageViews(limit: number, offset: number) {
 }
 
 export default async function GovernancePage(props: PageProps<'/governance'>) {
+    await loadRuntimes()
     const sp = await props.searchParams
     const tab = (TABS as readonly string[]).includes(String(sp.tab)) ? (String(sp.tab) as Tab) : 'referenda'
     const pg = paging(sp)

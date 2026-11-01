@@ -2,10 +2,12 @@ import {hexToBytes} from '@noble/hashes/utils.js'
 import {findBytes} from '@/lib/args'
 import {isH256} from '@/lib/evm'
 import {callArgs, preimageArgs, proposalArgs} from '@/lib/gql'
+import {loadRuntimes} from '@/lib/runtime'
 
 const notFound = () => new Response('not found', {status: 404})
 
 export async function GET(request: Request) {
+    await loadRuntimes()
     const params = new URL(request.url).searchParams
     const hash = params.get('hash') ?? ''
     const call = params.get('call')

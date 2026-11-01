@@ -23,6 +23,7 @@ import {fmtBalance, fmtCount, fmtInt, shortHash} from '@/lib/format'
 import {blockDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
+import {loadRuntimes} from '@/lib/runtime'
 import {ss58Encode} from '@/lib/ss58'
 import {DigestTable} from './tables'
 
@@ -34,6 +35,7 @@ export async function generateMetadata(props: PageProps<'/block/[id]'>) {
 }
 
 export default async function BlockPage(props: PageProps<'/block/[id]'>) {
+    await loadRuntimes()
     const {id} = await props.params
     if (!/^\d+$/.test(id) && !isH256(id)) notFound()
     const sp = await props.searchParams

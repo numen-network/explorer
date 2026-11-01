@@ -15,8 +15,6 @@ const config: StorybookConfig = {
             // Next polyfills these node modules for the browser bundle, Vite leaves them out
             plugins: [nodePolyfills({include: ['assert', 'buffer'], globals: {Buffer: true, global: false, process: false}})],
             define: {MOCK_SDL: JSON.stringify(sdl), 'process.env.DISCUSSIONS_URL': JSON.stringify(DISCUSSIONS_URL)},
-            // the browser has no file system, so the metadata comes in with the bundle
-            resolve: {alias: [{find: /^@\/lib\/specVersions$/, replacement: fileURLToPath(new URL('./specVersions.ts', import.meta.url))}]},
             // bundled up front, a dependency found halfway through a test run reloads every test file
             optimizeDeps: {
                 include: [

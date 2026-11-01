@@ -7,6 +7,7 @@ import {markArgs} from '@/lib/argMarks'
 import {withCallViews} from '@/lib/args'
 import {accountRefs, membershipsFor, multisigCalls, multisigOpsFor, signatoriesOf, type MultisigOpRow, type MultisigSet} from '@/lib/gql'
 import {paging} from '@/lib/paging'
+import {loadRuntimes} from '@/lib/runtime'
 import {MembershipTable} from './MembershipTable'
 import type {MultisigCall} from './MultisigDetail'
 import {MultisigTable} from './MultisigTable'
@@ -34,6 +35,7 @@ export async function MultisigAddress({hex, addr, chain, sp, set}: TabCtx & {set
 
 // what the expanded rows of a page show, loaded with the page
 async function details(ops: MultisigOpRow[]) {
+    await loadRuntimes()
     const ids = ops.flatMap(op => (op.call ? [op.call.id] : []))
     const people = [...new Set(ops.flatMap(op => [...op.signatories, ...op.timeline.map(s => s.account)]))]
     const [trees, refs] = await Promise.all([multisigCalls(ids), accountRefs(people)])

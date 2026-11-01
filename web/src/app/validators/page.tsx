@@ -11,6 +11,7 @@ import {camelLabel, fmtInt} from '@/lib/format'
 import {accountSearch, validatorsLocked, validatorsPage, validatorsSummary} from '@/lib/gql'
 import {OFFENCE_DAYS} from '@/lib/offences'
 import {paging} from '@/lib/paging'
+import {loadRuntimes} from '@/lib/runtime'
 import {validatorRules, type ValidatorRules} from '@/lib/validatorRules'
 import ValidatorHistory from './history'
 import ValidatorSessions from './sessions'
@@ -48,6 +49,7 @@ async function ValidatorList({sp, chain, head, rules}: {sp: SearchParams; chain:
 }
 
 export default async function ValidatorsPage(props: PageProps<'/validators'>) {
+    await loadRuntimes()
     const sp = await props.searchParams
     const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
     const [sum, locked] = await Promise.all([validatorsSummary(), validatorsLocked()])
