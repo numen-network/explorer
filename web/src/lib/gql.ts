@@ -799,7 +799,7 @@ export interface DelegatedVoteRow {
 export async function delegatedVotesFor(idHex: string, list: DelegatedVoteList | '', limit: number, offset: number) {
     const own = 'delegator: {id_eq: $id}'
     const where = list ? `{${own}, aye_eq: ${list === 'aye'}}` : `{${own}}`
-    const raw = await gql<{rows: DelegatedVoteRow[]; conn: {totalCount: number}; all: {totalCount: number}; aye: {totalCount: number}; nay: {totalCount: number}; standing: {totalCount: number}; active: {totalCount: number}}>(
+    const raw = await gql<{rows: DelegatedVoteRow[]; conn: {totalCount: number}; all: {totalCount: number}; aye: {totalCount: number}; nay: {totalCount: number}; standing: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
             rows: delegatedVotes(where: ${where}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { id aye conviction balance votes removed block voter { ${ACCOUNT_REF} } referendum { index title status decidingSince confirmingSince inQueue timeline } }
             conn: delegatedVotesConnection(where: ${where}, orderBy: id_ASC) { totalCount }
@@ -807,11 +807,10 @@ export async function delegatedVotesFor(idHex: string, list: DelegatedVoteList |
             aye: delegatedVotesConnection(where: {${own}, aye_eq: true}, orderBy: id_ASC) { totalCount }
             nay: delegatedVotesConnection(where: {${own}, aye_eq: false}, orderBy: id_ASC) { totalCount }
             standing: delegatedVotesConnection(where: {${own}, removed_eq: false}, orderBy: id_ASC) { totalCount }
-            active: delegatedVotesConnection(where: {${own}, removed_eq: false, referendum: {status_eq: Ongoing}}, orderBy: id_ASC) { totalCount }
         }`,
         {id: idHex, limit, offset}
     )
-    return {rows: raw.rows, total: raw.conn.totalCount, all: raw.all.totalCount, counts: {aye: raw.aye.totalCount, nay: raw.nay.totalCount}, standing: raw.standing.totalCount, active: raw.active.totalCount}
+    return {rows: raw.rows, total: raw.conn.totalCount, all: raw.all.totalCount, counts: {aye: raw.aye.totalCount, nay: raw.nay.totalCount}, standing: raw.standing.totalCount}
 }
 
 // the delegations each referendum counts through the account's standard vote
@@ -856,10 +855,9 @@ export async function voteGrid(idHex: string) {
 
 // open counts the referenda still taking votes once the account showed up
 export function votesSummary(idHex: string, firstSeenBlock: number) {
-    return gql<Record<'all' | 'active' | 'open', {totalCount: number}>>(
+    return gql<Record<'all' | 'open', {totalCount: number}>>(
         `query ($id: String!, $from: Int!) {
             all: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { totalCount }
-            active: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false, referendum: {status_eq: Ongoing}}, orderBy: id_ASC) { totalCount }
             open: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: $from}]}, orderBy: index_ASC) { totalCount }
         }`,
         {id: idHex, from: firstSeenBlock}

@@ -24,7 +24,7 @@ export const LastPage = story({account: voting(numn(5_000)), delegatedVotesOut: 
 // every outcome counts, the row taken off the tally stays listed and leaves the figures
 export const Summary: StoryObj = {
     ...story({account: voting(numn(5_000)), delegatedVotesOut: [...rows(), delegatedVoteOut(6, 'Ongoing', {removed: true})]}, {tab: 'delegated-votes'}),
-    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '6', Active: '1', 'Delegated votes': '80K NUMN'}]),
+    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '6', 'Delegated votes': '80K NUMN'}]),
 }
 
 export const EverySide: StoryObj = {

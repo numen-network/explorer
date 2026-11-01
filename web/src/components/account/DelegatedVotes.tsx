@@ -19,7 +19,6 @@ export default async function DelegatedVotes({hex, addr, chain, sp, delegatedVot
                 label="All votes"
                 value={fmtInt(page.standing)}
                 beside={[
-                    {label: 'Active', value: fmtInt(page.active)},
                     {label: 'Delegated votes', value: <Approx planck={delegatedVotes} decimals={chain.decimals} symbol={chain.symbol} breakable />},
                 ]}
                 pairs

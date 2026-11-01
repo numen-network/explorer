@@ -29,7 +29,7 @@ export const InOneBlock: StoryObj = {
 export const Summary: StoryObj = {
     ...story({account: voting(numn(250_000)), votes: voteRows(), counts: {referenda: 14}}, {tab: 'votes'}),
     play: async ({canvas, canvasElement}) => {
-        expect(summaries(canvasElement)).toEqual([{'All votes': '9', Active: '2', 'Participation rate': '64.28%', 'Total votes': '≈1.53M NUMN', 'Own votes': '≈1.53M NUMN', 'Received votes': '0 NUMN'}])
+        expect(summaries(canvasElement)).toEqual([{'All votes': '9', 'Participation rate': '64.28%', 'Total votes': '≈1.53M NUMN', 'Own votes': '≈1.53M NUMN', 'Received votes': '0 NUMN'}])
         await expect(canvas.getByLabelText('Counts only referenda still open after the account first appeared')).toBeInTheDocument()
     },
 }
@@ -37,7 +37,7 @@ export const Summary: StoryObj = {
 // the total adds what the account cast itself to what others delegated through it
 export const SummaryWithReceivedVotes: StoryObj = {
     ...story({account: voting(numn(1_000)), votes: [vote(0)], delegatedVotes: [delegatedVote(6, 'Locked3x', 1_500, PEOPLE[1])], refs: [PEOPLE[1]]}, {tab: 'votes'}),
-    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '1', Active: '1', 'Participation rate': '100.00%', 'Total votes': '5,500 NUMN', 'Own votes': '1,000 NUMN', 'Received votes': '4,500 NUMN'}]),
+    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '1', 'Participation rate': '100.00%', 'Total votes': '5,500 NUMN', 'Own votes': '1,000 NUMN', 'Received votes': '4,500 NUMN'}]),
 }
 
 // the delegated votes a referendum counts reach the account's standard vote
@@ -78,5 +78,5 @@ export const TypeSplit: StoryObj = {
 // every vote taken off and no referendum open since, so there is no rate to give
 export const SummaryNoOpenReferenda: StoryObj = {
     ...story({account: voting('0'), votes: [vote(0, {removed: true, referendum: poll(6, 'Rejected', HEAD - 100)})], counts: {referenda: 0}}, {tab: 'votes'}),
-    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', Active: '0', 'Participation rate': '—', 'Total votes': '0 NUMN', 'Own votes': '0 NUMN', 'Received votes': '0 NUMN'}]),
+    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', 'Participation rate': '—', 'Total votes': '0 NUMN', 'Own votes': '0 NUMN', 'Received votes': '0 NUMN'}]),
 }

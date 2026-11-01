@@ -965,12 +965,11 @@ export function accountPage({
         treasuryPayouts: args => paged(payouts.filter(p => (args.where.source_eq ?? p.source) === p.source))(args),
         bounties: bountyDeposits,
         childBounties: childBountyDeposits,
-        votesConnection: ({where}) => count(where.removed_eq === false ? (where.referendum ? standing.filter(v => v.referendum.status === 'Ongoing') : standing).length : where.kind_eq ? ofType(where).length : votes.length),
+        votesConnection: ({where}) => count(where.removed_eq === false ? standing.length : where.kind_eq ? ofType(where).length : votes.length),
         delegatedVotes: ({where}) => (where.delegator ? delegatedVotesOut : delegatedVotes),
         delegatedVotesConnection: ({where}) => {
             const side = where.aye_eq == null ? delegatedVotesOut : delegatedVotesOut.filter(d => d.aye === where.aye_eq)
-            const standing = where.removed_eq === false ? side.filter(d => !d.removed) : side
-            return count(where.referendum ? standing.filter(d => d.referendum.status === 'Ongoing').length : standing.length)
+            return count((where.removed_eq === false ? side.filter(d => !d.removed) : side).length)
         },
         referendumsConnection: ({where}) => count(where?.deposits_some ? proposed.length : (counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size)),
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,
