@@ -97,7 +97,7 @@ export const NotePreimageText: StoryObj = {
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('A short preimage')).toBeVisible()
         await expect(canvas.getByText(hexHash(SHORT_TEXT))).toBeVisible()
-        await expect(canvas.queryByRole('link', {name: 'download'})).toBeNull()
+        await expect(canvas.getByRole('link', {name: 'download'})).toBeVisible()
         await openJson(canvas)
         await expect(canvasElement.textContent).toContain('(16 bytes)')
         await expect(canvasElement.textContent).not.toContain(SHORT_TEXT)

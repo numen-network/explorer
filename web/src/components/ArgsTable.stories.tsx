@@ -120,12 +120,33 @@ export const ReferendumSubmit = story(
 
 export const UndecodableInlineProposal = story('Referenda', 'submit', {proposal: {value: '0xdeadbeef', __kind: 'Inline'}, proposalOrigin: {value: {__kind: 'SmallSpender'}, __kind: 'Origins'}, enactmentMoment: {value: 100, __kind: 'At'}}, ['0xdeadbeef', 'At', '#100'])
 
-export const PreimageText = story('Preimage', 'note_preimage', {bytes: PROPOSAL_TEXT}, ['UTF-8', 'Creation of the first DEX liquidity pool', 'hash'])
+export const PreimageText = story('Preimage', 'note_preimage', {bytes: PROPOSAL_TEXT}, ['0x43726561…554d4e2e (102 bytes)', 'UTF-8', 'Creation of the first DEX liquidity pool', 'hash'])
+
+const textHex = (text: string) => `0x${Buffer.from(text).toString('hex')}`
 
 const encodedCall = (call: unknown) => `0x${Buffer.from(runtimeAt(block(0).specVersion)!.encodeCall(call as never)).toString('hex')}`
 
 // a noted call opens onto its own table
 export const PreimageCall = story('Preimage', 'note_preimage', {bytes: encodedCall({__kind: 'Prime', value: {__kind: 'upgrade', code: `0x${'cd'.repeat(32)}`}})}, ['Prime.upgrade', '0xcdcdcdcd…cdcdcdcd (32 bytes)', 'hash'])
+
+// a noted batch keeps a line between its calls, with nothing around them
+export const PreimageBatch = story(
+    'Preimage',
+    'note_preimage',
+    {
+        bytes: encodedCall({
+            __kind: 'Utility',
+            value: {
+                __kind: 'batch_all',
+                calls: [
+                    {__kind: 'System', value: {__kind: 'remark', remark: textHex('first')}},
+                    {__kind: 'System', value: {__kind: 'remark', remark: textHex('second')}},
+                ],
+            },
+        }),
+    },
+    ['Utility.batch_all', 'System.remark', 'hash']
+)
 
 export const PreimageBinary = story('Preimage', 'note_preimage', {bytes: '0x00ff10'}, ['0x00ff10'])
 
@@ -181,8 +202,6 @@ export const FindsBytesInArgs: Story = {
 const LONG_REMARK_TEXT = `${'a'.repeat(4096)} and the rest`
 
 const callRow = (pallet: string, method: string, args: unknown, subcalls: unknown[] = []) => ({id: 'call', pallet, method, args, block: {specVersion: block(0).specVersion}, subcalls})
-
-const textHex = (text: string) => `0x${Buffer.from(text).toString('hex')}`
 
 // what a page hands to the browser holds previews and links, however long the remark
 export const CallViewsLeaveRemarksOut: Story = {

@@ -70,13 +70,13 @@ export function TextDialog({text, full, trigger}: {text: string; full?: string; 
 }
 
 /** Text in a scrolling box with a larger view in a dialog, fetched from `full` when the page holds only a preview. */
-export default function ClampedText({text, bytes, full}: {text: string; bytes: number; full?: string}) {
+export default function ClampedText({text, bytes, full}: {text: string; bytes?: number; full?: string}) {
     const preview = textPreview(text)
     const truncated = full != null || preview !== text
     return (
         <>
             <div className="mb-1 text-xs text-muted-foreground">
-                {fmtCount(bytes, 'byte')} · UTF-8{truncated && ' (truncated)'}
+                {bytes != null && `${fmtCount(bytes, 'byte')} · `}UTF-8{truncated && ' (truncated)'}
             </div>
             <div className={TEXT_BOX}>
                 {preview}

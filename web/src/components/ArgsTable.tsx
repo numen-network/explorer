@@ -38,7 +38,7 @@ function split(node: ArgNode): {lead: string[]; tail: ArgNode | string} {
 
 const isBlock = (tail: ArgNode | string) => typeof tail !== 'string' && (tail.kind === 'fields' || tail.kind === 'list' || tail.kind === 'calls')
 
-const takesFullWidth = (tail: ArgNode | string) => isBlock(tail) || (typeof tail !== 'string' && tail.kind === 'hex' && tail.calls != null)
+const takesFullWidth = (tail: ArgNode | string) => isBlock(tail) || (typeof tail !== 'string' && tail.kind === 'hex' && tail.wide === true)
 
 // a table of fields lays out on the columns of the one holding it
 const isSubtable = (tail: ArgNode | string) => typeof tail !== 'string' && tail.kind === 'fields'
@@ -71,7 +71,12 @@ function Inline({node, ctx}: {node: ArgNode; ctx: Ctx}): ReactNode {
                     {node.hash && <HashLine hash={node.hash} />}
                     {node.calls && (
                         <div className="mt-2">
-                            <CallTree calls={node.calls} chain={ctx.chain} />
+                            <CallTree calls={node.calls} chain={ctx.chain} bare />
+                        </div>
+                    )}
+                    {node.text && (
+                        <div className="mt-2">
+                            <Inline node={node.text} ctx={ctx} />
                         </div>
                     )}
                     {node.noted && <NotedDetail noted={node.noted} ctx={ctx} />}

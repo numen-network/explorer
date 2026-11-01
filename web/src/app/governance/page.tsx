@@ -39,7 +39,7 @@ async function preimageViews(limit: number, offset: number) {
         rows.map(async ({bytes, calls, ...p}) => {
             const view = bytes ? describePreimage(p.id, bytes, await specVersionAt(p.notedBlock!)) : null
             const body = view?.kind === 'fields' ? view.fields[0][1] : null
-            return {...p, call: calls?.[0] ? qualified(calls[0]) : null, raw: p.kind === 'Raw' && bytes ? shortHash(bytes) : null, view, text: body?.kind === 'text' ? {text: body.text, full: body.full} : null, download: bytes ? `/api/bytes?preimage=${p.id}&hash=${p.hash}` : null}
+            return {...p, call: calls?.[0] ? qualified(calls[0]) : null, raw: p.kind === 'Raw' && bytes ? shortHash(bytes) : null, view, text: body?.kind === 'hex' && body.text ? {text: body.text.text, full: body.text.full} : null, download: bytes ? `/api/bytes?preimage=${p.id}&hash=${p.hash}` : null}
         })
     )
     await markArgs(views.map(p => p.view))

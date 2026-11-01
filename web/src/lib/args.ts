@@ -8,12 +8,14 @@ import {blake2_256} from '@/lib/hash'
 import type {IdentityRef} from '@/lib/identity'
 import {runtimeAt} from '@/lib/runtime'
 
+type TextNode = {kind: 'text'; text: string; bytes?: number; hash?: string; full?: string}
+
 /** A call argument the way a reader sees it, worked out from the runtime types. */
 export type ArgNode =
     | {kind: 'none'}
     | {kind: 'plain'; text: string}
-    | {kind: 'text'; text: string; bytes: number; hash?: string; full?: string}
-    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string; calls?: CallNode[]; noted?: NotedPreimage}
+    | TextNode
+    | {kind: 'hex'; hex: string; preimage?: Preimage; hash?: string; download?: string; calls?: CallNode[]; text?: TextNode; wide?: boolean; noted?: NotedPreimage}
     | {kind: 'account'; id: string; acc?: IdentityRef}
     | {kind: 'amount'; planck: string}
     | {kind: 'gasPrice'; wei: string}
@@ -133,9 +135,14 @@ class Walker {
         const summarized = f.name === SUMMARIZED_FIELDS[name]
         if (node.kind === 'none' || !(summarized || f.name === TEXT_OR_SUMMARY_FIELDS[name])) return node
         const hash = blake2_256(hexToBytes(value.slice(2)))
-        const calls = name === NOTE_PREIMAGE ? this.decoded(value) : null
-        if (node.kind === 'text' && !summarized && !calls) return {...node, hash}
-        return {kind: 'hex', hex: summarizeHex(value), hash, ...(calls && {calls})}
+        const hex = summarizeHex(value)
+        if (name === NOTE_PREIMAGE) {
+            const calls = this.decoded(value)
+            if (calls) return {kind: 'hex', hex, hash, wide: true, calls}
+            return {kind: 'hex', hex, hash, wide: true, ...(node.kind === 'text' && {text: {kind: 'text', text: node.text}})}
+        }
+        if (node.kind === 'text' && !summarized) return {...node, hash}
+        return {kind: 'hex', hex, hash}
     }
 
     node(ti: number, value: any, typeName = ''): ArgNode {
@@ -319,7 +326,10 @@ export function nodesOf<K extends ArgNode['kind']>(nodes: (ArgNode | null)[], ki
         if (node.kind === 'fields') node.fields.forEach(([, v]) => walk(v))
         if (node.kind === 'list') node.rows.forEach(row => row.forEach(walk))
         if (node.kind === 'calls') node.calls.forEach(c => walk(c.view))
-        if (node.kind === 'hex') node.calls?.forEach(c => walk(c.view))
+        if (node.kind === 'hex') {
+            node.calls?.forEach(c => walk(c.view))
+            walk(node.text ?? null)
+        }
     }
     nodes.forEach(walk)
     return found
@@ -402,7 +412,7 @@ export function describeNotedBytes(call: {id: string; bytes: string; specVersion
     const field = w.callFields('Preimage', 'note_preimage').find(f => f.name === 'bytes')
     if (!field) throw new Error(`no note_preimage bytes in spec ${rt.specVersion}`)
     const node = linkBytes(w.arg('Preimage', 'note_preimage', field, call.bytes), `call=${call.id}`)
-    if (node?.kind === 'hex' || node?.kind === 'text') delete node.hash
+    if (node?.kind === 'hex') delete node.hash
     return node
 }
 

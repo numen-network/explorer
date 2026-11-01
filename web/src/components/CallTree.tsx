@@ -1,3 +1,4 @@
+import {cn} from 'cn'
 import AccountLink from '@/components/AccountLink'
 import {ArgsTable, ArgsToggle} from '@/components/ArgsTable'
 import {counted, qualified, ResultBadge} from '@/components/calls'
@@ -23,9 +24,9 @@ function tally(refs: CallRef[]): string[] {
 export type TreeCall = Pick<CallRow, 'address' | 'pallet' | 'method' | 'args'> & Partial<Pick<CallRow, 'success' | 'origin' | 'events'>> & {view: ArgNode | null}
 
 // calls arrive in preorder, so the length of the address is all the tree there is to draw
-export function CallTree({calls, chain, signer = null}: {calls: TreeCall[]; chain: ChainProps; signer?: AccountRef | null}) {
+export function CallTree({calls, chain, signer = null, bare = false}: {calls: TreeCall[]; chain: ChainProps; signer?: AccountRef | null; bare?: boolean}) {
     return (
-        <Card size="flush" className="divide-y">
+        <Card size="flush" className={cn('divide-y', bare && 'rounded-none border-0 bg-transparent shadow-none')}>
             {calls.length === 0 && <div className="px-5 py-5 text-sm text-muted-foreground">None</div>}
             {calls.map(c => {
                 const events = c.events ?? []
@@ -33,9 +34,9 @@ export function CallTree({calls, chain, signer = null}: {calls: TreeCall[]; chai
                 const dispatched = c.origin && c.origin.id !== signer?.id ? c.origin : null
                 const view = c.view
                 return (
-                    <Collapsible key={c.address.join('.')} defaultOpen={c.address.length === 0} className="group py-2.5 pr-5" asChild>
+                    <Collapsible key={c.address.join('.')} defaultOpen={c.address.length === 0} className={cn('group py-2.5', bare ? 'first:pt-0 last:pb-0' : 'pr-5')} asChild>
                         <Tabs defaultValue={view ? 'table' : 'json'} className="gap-0">
-                            <div className="flex flex-wrap items-start gap-x-3 gap-y-1" style={{paddingLeft: `${20 + c.address.length * 22}px`}}>
+                            <div className="flex flex-wrap items-start gap-x-3 gap-y-1" style={{paddingLeft: `${(bare ? 0 : 20) + c.address.length * 22}px`}}>
                                 <CollapsibleTrigger className="flex min-h-6 min-w-0 grow cursor-pointer flex-wrap items-center gap-x-3 text-left text-sm">
                                     <span className="font-mono text-[13px] wrap-anywhere">{qualified(c)}</span>
                                     {c.success !== undefined && c.success !== true && <ResultBadge success={c.success} />}
@@ -43,7 +44,7 @@ export function CallTree({calls, chain, signer = null}: {calls: TreeCall[]; chai
                                 </CollapsibleTrigger>
                                 {view && <ArgsToggle className="ml-auto group-data-[state=closed]:hidden" />}
                             </div>
-                            <CollapsibleContent className="mt-2 space-y-2" style={{paddingLeft: `${36 + c.address.length * 22}px`}}>
+                            <CollapsibleContent className="mt-2 space-y-2" style={{paddingLeft: `${(bare ? 0 : 36) + c.address.length * 22}px`}}>
                                 {dispatched && (
                                     <div className="flex gap-3 text-sm">
                                         <span className="text-muted-foreground">Dispatched as</span>
