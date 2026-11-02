@@ -16,6 +16,7 @@ import {fmtInt} from '@/lib/format'
 import {eventKinds, eventsPage, type EventFilter} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {loadRuntimes} from '@/lib/runtime'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Events'}
@@ -34,7 +35,7 @@ const Carry = ({keep}: {keep: Record<string, string>}) => (
 
 const LABEL = 'mr-1 w-14 text-xs font-normal text-muted-foreground'
 
-export default async function EventsPage(props: PageProps<'/events'>) {
+async function EventsPage(props: PageProps<'/events'>) {
     await loadRuntimes()
     const sp = await props.searchParams
     const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
@@ -97,3 +98,5 @@ export default async function EventsPage(props: PageProps<'/events'>) {
         </div>
     )
 }
+
+export default withHeads(EventsPage)

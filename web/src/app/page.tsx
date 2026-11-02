@@ -34,6 +34,7 @@ import {blocksConstant, loadRuntimes} from '@/lib/runtime'
 import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
 import {deadlines, rowHidden, upcomingWindow} from '@/lib/upcoming'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -153,7 +154,7 @@ function Bar({ratio}: {ratio: number}) {
     return <Progress value={Math.min(100, ratio * 100)} className="mt-1.5 h-1.5" />
 }
 
-export default async function Home({searchParams}: PageProps<'/'>) {
+async function Home({searchParams}: PageProps<'/'>) {
     await loadRuntimes()
     const [sp, props, heads, head] = await Promise.all([searchParams, chainProps(), chainHeads(), chainDbHead()])
     const cut = upcomingWindow(head.height, props.blockTime)
@@ -402,7 +403,7 @@ export default async function Home({searchParams}: PageProps<'/'>) {
 
     return (
         <div>
-            <Refresh />
+            <Refresh ms={props.blockTime * 1000} />
 
             <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
                 <Card className="gap-2 py-4 [--card-spacing:--spacing(5)]">
@@ -546,3 +547,5 @@ export default async function Home({searchParams}: PageProps<'/'>) {
         </div>
     )
 }
+
+export default withHeads(Home)

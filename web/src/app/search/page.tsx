@@ -17,6 +17,7 @@ import {isTokenAddress, searchLookups, searchNames, type AccountRef} from '@/lib
 import {identityLabel} from '@/lib/identity'
 import {paging, type Paging} from '@/lib/paging'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
+import {withHeads} from '@/components/withHeads'
 
 const ROW = 'gap-3 rounded-none border-0 px-5 py-3 [a]:hover:bg-background/60'
 
@@ -46,7 +47,7 @@ function HitList({rows, total, pg, href}: {rows: ReactNode[]; total: number; pg:
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Search'}
 
-export default async function SearchPage(props: PageProps<'/search'>) {
+async function SearchPage(props: PageProps<'/search'>) {
     const sp = await props.searchParams
     const q = typeof sp.q === 'string' ? sp.q.trim() : ''
     if (!q) {
@@ -139,3 +140,5 @@ export default async function SearchPage(props: PageProps<'/search'>) {
         </div>
     )
 }
+
+export default withHeads(SearchPage)

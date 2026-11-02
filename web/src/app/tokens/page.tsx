@@ -5,13 +5,14 @@ import {chainProps} from '@/lib/chain'
 import {paging} from '@/lib/paging'
 import {tokensPage} from '@/lib/gql'
 import {TokensTable} from './table'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Tokens'}
 
 const href = (slug: string) => `/tokens?tab=${slug}`
 
-export default async function TokensPage(props: PageProps<'/tokens'>) {
+async function TokensPage(props: PageProps<'/tokens'>) {
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')
     const pg = paging(sp)
@@ -43,3 +44,5 @@ export default async function TokensPage(props: PageProps<'/tokens'>) {
         </div>
     )
 }
+
+export default withHeads(TokensPage)

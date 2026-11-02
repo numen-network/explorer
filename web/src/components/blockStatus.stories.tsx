@@ -1,45 +1,29 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
-import {useState} from 'react'
-import {expect, mocked, spyOn, userEvent, waitFor} from 'storybook/test'
-import {BlockStatus, LiveHeads} from './blockStatus'
+import {expect} from 'storybook/test'
+import {BlockStatus, HeadsProvider} from './blockStatus'
 
 const HEIGHT = 1_000
-const heads = (indexed: number, finalized: number) => ({best: indexed, finalized, indexed})
-const mark = (canvas: {queryByRole: (role: 'img') => HTMLElement | null}) => canvas.queryByRole('img')?.getAttribute('aria-label')
 
-function Refreshed({ms}: {ms: number}) {
-    const [rendered, setRendered] = useState(heads(HEIGHT - 1, HEIGHT - 3))
+function Marks() {
     return (
-        <>
-            <button onClick={() => setRendered(heads(HEIGHT, HEIGHT - 2))}>refresh</button>
-            <LiveHeads rendered={rendered} ms={ms}>
-                <BlockStatus height={HEIGHT} />
-            </LiveHeads>
-        </>
+        <HeadsProvider heads={{best: HEIGHT + 5, finalized: HEIGHT - 2, indexed: HEIGHT}}>
+            {[HEIGHT - 2, HEIGHT, HEIGHT + 1].map(height => (
+                <p key={height} data-height={height} className="flex items-center gap-2 text-sm">
+                    #{height} <BlockStatus height={height} />
+                </p>
+            ))}
+        </HeadsProvider>
     )
 }
 
-export default {title: 'Components/BlockStatus', component: Refreshed} satisfies Meta<typeof Refreshed>
+export default {title: 'Components/BlockStatus', component: Marks} satisfies Meta<typeof Marks>
 
-// a block the page just refreshed in is marked by that same render, ahead of the next poll
-export const RenderNewerThanPoll: StoryObj<typeof Refreshed> = {
-    args: {ms: 3_600_000},
-    play: async ({canvas}) => {
-        await expect(mark(canvas)).toBeUndefined()
-        await userEvent.click(canvas.getByRole('button', {name: 'refresh'}))
-        await expect(mark(canvas)).toBe('Confirming')
-    },
-}
-
-// a poll ahead of the page's last render moves the mark without waiting for a refresh
-export const PollNewerThanRender: StoryObj<typeof Refreshed> = {
-    args: {ms: 20},
-    beforeEach: () => {
-        spyOn(globalThis, 'fetch')
-        mocked(globalThis.fetch).mockImplementation(async () => Response.json(heads(HEIGHT + 2, HEIGHT)))
-        return () => mocked(globalThis.fetch).mockRestore()
-    },
-    play: async ({canvas}) => {
-        await waitFor(() => expect(mark(canvas)).toBe('Finalized'))
+// finalized up to the finalized head, confirming up to the indexed head, nothing past it
+export const EveryMark: StoryObj<typeof Marks> = {
+    play: async ({canvasElement}) => {
+        const mark = (height: number) => canvasElement.querySelector(`[data-height="${height}"] [role=img]`)?.getAttribute('aria-label')
+        await expect(mark(HEIGHT - 2)).toBe('Finalized')
+        await expect(mark(HEIGHT)).toBe('Confirming')
+        await expect(mark(HEIGHT + 1)).toBeUndefined()
     },
 }

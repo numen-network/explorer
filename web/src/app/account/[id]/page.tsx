@@ -49,6 +49,7 @@ import {accountRefs, accountSummary, blockTime, evmCounts, seatCounts, type Acco
 import {identityJudgements} from '@/lib/identity'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {CONFIG, datedOrGenesis} from '@/lib/config'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,7 +85,7 @@ interface Tab extends Panel {
     group?: string
 }
 
-export default async function AccountPage(props: PageProps<'/account/[id]'>) {
+async function AccountPage(props: PageProps<'/account/[id]'>) {
     const {id: raw} = await props.params
     const chain = await chainProps()
     const hex = accountHex(raw, chain.ss58)
@@ -286,3 +287,5 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
         </div>
     )
 }
+
+export default withHeads(AccountPage)

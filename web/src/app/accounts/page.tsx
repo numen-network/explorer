@@ -7,12 +7,13 @@ import {paging} from '@/lib/paging'
 import {accountsPage, primeState} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import {AccountsTable} from './table'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Accounts'}
 
 
-export default async function AccountsPage(props: PageProps<'/accounts'>) {
+async function AccountsPage(props: PageProps<'/accounts'>) {
     const sp = await props.searchParams
     const pg = paging(sp)
     const [chain, {accounts, conn, dailyStats}, {primeStates}] = await Promise.all([chainProps(), accountsPage(pg.size, pg.offset), primeState()])
@@ -51,3 +52,5 @@ export default async function AccountsPage(props: PageProps<'/accounts'>) {
         </div>
     )
 }
+
+export default withHeads(AccountsPage)

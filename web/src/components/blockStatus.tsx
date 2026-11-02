@@ -1,6 +1,6 @@
 'use client'
 
-import {createContext, useContext, useEffect, useState, type ReactNode} from 'react'
+import {createContext, useContext, type ReactNode} from 'react'
 import {CircleCheckBig, ClockFading} from 'lucide-react'
 import {StatusDot} from '@/components/pills'
 import {Tip} from '@/components/Tip'
@@ -8,16 +8,12 @@ import {Badge} from '@/components/ui/badge'
 import type {Heads} from '@/lib/chain'
 
 const Ctx = createContext<Heads | null>(null)
-const AheadCtx = createContext<number | null>(null)
-
-// the newest indexed height a poll has seen past the last render, null when there is none
-export const usePolledAhead = () => useContext(AheadCtx)
 
 export function HeadsProvider({heads, children}: {heads: Heads; children: ReactNode}) {
     return <Ctx value={heads}>{children}</Ctx>
 }
 
-function useHeads(): Heads {
+export function useHeads(): Heads {
     const heads = useContext(Ctx)
     if (!heads) throw new Error('block status needs the chain heads')
     return heads
@@ -27,26 +23,6 @@ const FINALIZED = {label: 'Finalized', tone: 'pos', Icon: CircleCheckBig, iconTo
 const CONFIRMING = {label: 'Confirming', tone: 'warn', Icon: ClockFading, iconTone: 'text-warn'} as const
 
 const finality = (height: number, heads: Heads) => (height <= heads.finalized ? FINALIZED : CONFIRMING)
-
-// the root layout only re-renders on router.refresh(), so poll between refreshes.
-// the newer of the two heads wins
-export function LiveHeads({rendered, ms, children}: {rendered: Heads; ms: number; children: ReactNode}) {
-    const [polled, setPolled] = useState(rendered)
-    useEffect(() => {
-        const t = setInterval(async () => {
-            if (document.hidden) return
-            const res = await fetch('/api/heads', {cache: 'no-store'}).catch(() => null)
-            if (res?.ok) setPolled(await res.json())
-        }, ms)
-        return () => clearInterval(t)
-    }, [ms])
-    const ahead = polled.indexed > rendered.indexed
-    return (
-        <AheadCtx value={ahead ? polled.indexed : null}>
-            <HeadsProvider heads={ahead ? polled : rendered}>{children}</HeadsProvider>
-        </AheadCtx>
-    )
-}
 
 // heights past the indexed head get no mark
 export function BlockStatus({height}: {height: number}) {

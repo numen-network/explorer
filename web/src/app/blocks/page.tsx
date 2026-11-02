@@ -6,19 +6,20 @@ import {datedOrGenesis} from '@/lib/config'
 import {paging} from '@/lib/paging'
 import {blocksPage} from '@/lib/gql'
 import {BlocksTable} from './table'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Blocks'}
 
 
-export default async function BlocksPage(props: PageProps<'/blocks'>) {
+async function BlocksPage(props: PageProps<'/blocks'>) {
     const sp = await props.searchParams
     const pg = paging(sp)
     const [chain, {blocks, conn}] = await Promise.all([chainProps(), blocksPage(pg.size, pg.offset)])
 
     return (
         <div>
-            <Refresh />
+            <Refresh ms={chain.blockTime * 1000} />
             <div className="mt-6">
                 <h1 className="text-lg font-semibold">Blocks</h1>
             </div>
@@ -29,3 +30,5 @@ export default async function BlocksPage(props: PageProps<'/blocks'>) {
         </div>
     )
 }
+
+export default withHeads(BlocksPage)

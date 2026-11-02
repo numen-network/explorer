@@ -5,11 +5,12 @@ import {chainProps} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
 import {bountiesPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Bounties'}
 
-export default async function BountiesPage(props: PageProps<'/bounties'>) {
+async function BountiesPage(props: PageProps<'/bounties'>) {
     const pg = paging(await props.searchParams)
     const [chain, data] = await Promise.all([chainProps(), bountiesPage(pg.size, pg.offset, {status: []}, {})])
     return (
@@ -25,3 +26,5 @@ export default async function BountiesPage(props: PageProps<'/bounties'>) {
         </div>
     )
 }
+
+export default withHeads(BountiesPage)

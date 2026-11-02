@@ -27,6 +27,7 @@ import {markArgs} from '@/lib/argMarks'
 import {loadRuntimes} from '@/lib/runtime'
 import {ss58Encode} from '@/lib/ss58'
 import {DigestTable} from './tables'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +36,7 @@ export async function generateMetadata(props: PageProps<'/block/[id]'>) {
     return {title: /^\d+$/.test(id) ? `Block #${fmtInt(id)}` : `Block ${shortHash(id)}`}
 }
 
-export default async function BlockPage(props: PageProps<'/block/[id]'>) {
+async function BlockPage(props: PageProps<'/block/[id]'>) {
     await loadRuntimes()
     const {id} = await props.params
     if (!/^\d+$/.test(id) && !isH256(id)) notFound()
@@ -188,3 +189,5 @@ export default async function BlockPage(props: PageProps<'/block/[id]'>) {
         </div>
     )
 }
+
+export default withHeads(BlockPage)

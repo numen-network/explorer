@@ -19,6 +19,7 @@ import {shortHash} from '@/lib/format'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {EvmTxsTable} from './tables'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,7 +28,7 @@ export async function generateMetadata(props: PageProps<'/address/[address]'>) {
     return {title: `EVM ${shortHash(address)}`}
 }
 
-export default async function EvmAddressPage(props: PageProps<'/address/[address]'>) {
+async function EvmAddressPage(props: PageProps<'/address/[address]'>) {
     const {address: raw} = await props.params
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')
@@ -97,3 +98,5 @@ export default async function EvmAddressPage(props: PageProps<'/address/[address
         </div>
     )
 }
+
+export default withHeads(EvmAddressPage)

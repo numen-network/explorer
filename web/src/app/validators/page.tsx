@@ -16,6 +16,7 @@ import {validatorRules, type ValidatorRules} from '@/lib/validatorRules'
 import ValidatorHistory from './history'
 import ValidatorSessions from './sessions'
 import {ValidatorsTable} from './table'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Validators'}
@@ -48,7 +49,7 @@ async function ValidatorList({sp, chain, head, rules}: {sp: SearchParams; chain:
     )
 }
 
-export default async function ValidatorsPage(props: PageProps<'/validators'>) {
+async function ValidatorsPage(props: PageProps<'/validators'>) {
     await loadRuntimes()
     const sp = await props.searchParams
     const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
@@ -101,3 +102,5 @@ export default async function ValidatorsPage(props: PageProps<'/validators'>) {
         </div>
     )
 }
+
+export default withHeads(ValidatorsPage)

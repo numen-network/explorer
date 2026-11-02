@@ -21,6 +21,7 @@ import {paging, type Paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
 import {loadRuntimes} from '@/lib/runtime'
 import {ss58Encode} from '@/lib/ss58'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,7 +58,7 @@ function Ambiguous({hash, hits, total, pg}: {hash: string; hits: ExtrinsicHit[];
     )
 }
 
-export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>) {
+async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>) {
     await loadRuntimes()
     const [{id}, sp] = await Promise.all([props.params, props.searchParams])
     const raw = decodeURIComponent(id)
@@ -175,3 +176,5 @@ export default async function ExtrinsicPage(props: PageProps<'/extrinsic/[id]'>)
         </div>
     )
 }
+
+export default withHeads(ExtrinsicPage)

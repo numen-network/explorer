@@ -6,19 +6,20 @@ import {fmtInt} from '@/lib/format'
 import {paging} from '@/lib/paging'
 import {transfersPage} from '@/lib/gql'
 import {TransfersTable} from './table'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Transfers'}
 
 
-export default async function TransfersPage(props: PageProps<'/transfers'>) {
+async function TransfersPage(props: PageProps<'/transfers'>) {
     const sp = await props.searchParams
     const pg = paging(sp)
     const [chain, {transfers, conn}] = await Promise.all([chainProps(), transfersPage(pg.size, pg.offset)])
 
     return (
         <div>
-            <Refresh />
+            <Refresh ms={chain.blockTime * 1000} />
             <div className="mt-6 flex items-baseline justify-between">
                 <h1 className="text-lg font-semibold">Transfers</h1>
                 <span className="text-xs text-muted-foreground">{fmtInt(conn.totalCount)} total</span>
@@ -30,3 +31,5 @@ export default async function TransfersPage(props: PageProps<'/transfers'>) {
         </div>
     )
 }
+
+export default withHeads(TransfersPage)

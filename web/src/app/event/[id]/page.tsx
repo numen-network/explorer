@@ -8,6 +8,7 @@ import {chainProps} from '@/lib/chain'
 import {eventDetail} from '@/lib/gql'
 import {markArgs} from '@/lib/argMarks'
 import {loadRuntimes} from '@/lib/runtime'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export async function generateMetadata(props: PageProps<'/event/[id]'>) {
 
 const CANONICAL = /^(\d+)-(\d+)$/
 
-export default async function EventPage(props: PageProps<'/event/[id]'>) {
+async function EventPage(props: PageProps<'/event/[id]'>) {
     await loadRuntimes()
     const {id} = await props.params
     const canonical = CANONICAL.exec(id)
@@ -60,3 +61,5 @@ export default async function EventPage(props: PageProps<'/event/[id]'>) {
         </div>
     )
 }
+
+export default withHeads(EventPage)

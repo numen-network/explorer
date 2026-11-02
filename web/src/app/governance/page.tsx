@@ -24,6 +24,7 @@ import {paging} from '@/lib/paging'
 import {loadRuntimes} from '@/lib/runtime'
 import {SPEND_KIND_LABEL} from '@/lib/spends'
 import {DelegatesTable, PreimagesTable, TracksTable, TreasuryTable, VotersTable} from './tables'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Governance'}
@@ -48,7 +49,7 @@ async function preimageViews(limit: number, offset: number) {
     return views
 }
 
-export default async function GovernancePage(props: PageProps<'/governance'>) {
+async function GovernancePage(props: PageProps<'/governance'>) {
     await loadRuntimes()
     const sp = await props.searchParams
     const tab = (TABS as readonly string[]).includes(String(sp.tab)) ? (String(sp.tab) as Tab) : 'referenda'
@@ -257,3 +258,5 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
         </div>
     )
 }
+
+export default withHeads(GovernancePage)

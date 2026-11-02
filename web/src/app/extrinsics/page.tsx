@@ -16,6 +16,7 @@ import {fmtInt} from '@/lib/format'
 import {callKinds, extrinsicsPage, type ExtrinsicFilter} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Extrinsics'}
@@ -34,7 +35,7 @@ const Carry = ({keep}: {keep: Record<string, string>}) => (
 const LABEL = 'mr-1 w-14 text-xs font-normal text-muted-foreground'
 const RESULT_LABEL: Record<string, string> = {success: 'Success', failed: 'Failed', unapplied: 'Not applied'}
 
-export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
+async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
     const sp = await props.searchParams
     const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
     const {callKinds: kinds} = await callKinds()
@@ -113,3 +114,5 @@ export default async function ExtrinsicsPage(props: PageProps<'/extrinsics'>) {
         </div>
     )
 }
+
+export default withHeads(ExtrinsicsPage)

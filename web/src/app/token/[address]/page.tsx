@@ -23,6 +23,7 @@ import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmActivity, tokenDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {HoldersTable} from './tables'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,7 +45,7 @@ export async function generateMetadata(props: PageProps<'/token/[address]'>) {
     return {title: `Token ${shortHash(address)}`}
 }
 
-export default async function TokenPage(props: PageProps<'/token/[address]'>) {
+async function TokenPage(props: PageProps<'/token/[address]'>) {
     const {address: raw} = await props.params
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')
@@ -165,3 +166,5 @@ export default async function TokenPage(props: PageProps<'/token/[address]'>) {
         </div>
     )
 }
+
+export default withHeads(TokenPage)

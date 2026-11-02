@@ -44,6 +44,7 @@ import {actionsPanel, votersOnCurves} from './actions'
 import {statsPanel} from './stats'
 import {upgradePanel} from './upgrade'
 import {votesPanel} from './votes'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -209,7 +210,7 @@ function Deposit({d, chain}: {d: ReferendumDepositRow | undefined; chain: ChainP
     )
 }
 
-export default async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
+async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
     await loadRuntimes()
     const {index: rawIndex} = await props.params
     const sp = await props.searchParams
@@ -736,3 +737,5 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
         </div>
     )
 }
+
+export default withHeads(ReferendumPage)

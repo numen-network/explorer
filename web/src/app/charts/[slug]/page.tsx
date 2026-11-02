@@ -7,6 +7,7 @@ import {Empty, EmptyDescription} from '@/components/ui/empty'
 import {chainDbHead, chainProps} from '@/lib/chain'
 import {CHARTS, chartBySlug, highlight, type ChartInput} from '@/lib/charts'
 import {chartSeries} from '@/lib/gql'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,7 @@ export function generateStaticParams() {
     return CHARTS.map(c => ({slug: c.slug}))
 }
 
-export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
+async function ChartPage(props: PageProps<'/charts/[slug]'>) {
     const {slug} = await props.params
     const def = chartBySlug(slug)
     if (!def) notFound()
@@ -74,3 +75,5 @@ export default async function ChartPage(props: PageProps<'/charts/[slug]'>) {
         </div>
     )
 }
+
+export default withHeads(ChartPage)

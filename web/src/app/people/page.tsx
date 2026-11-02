@@ -15,13 +15,14 @@ import {paging} from '@/lib/paging'
 import {accountSearch, identitiesPage, peopleCounts, pendingRequestsPage, registrarsPage, usernameAuthoritiesPage, usernamesPage} from '@/lib/gql'
 import {WALLET_URL} from '@/lib/wallet'
 import {RegistrarsTable, UsernameAuthoritiesTable, UsernamesTable} from './tables'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'People'}
 
 const TABS = ['identities', 'pending', 'registrars', 'usernames', 'authorities'] as const
 
-export default async function PeoplePage(props: PageProps<'/people'>) {
+async function PeoplePage(props: PageProps<'/people'>) {
     const sp = await props.searchParams
     const tab = TABS.find(t => t === sp.tab) ?? 'identities'
     const pg = paging(sp)
@@ -132,3 +133,5 @@ export default async function PeoplePage(props: PageProps<'/people'>) {
         </div>
     )
 }
+
+export default withHeads(PeoplePage)

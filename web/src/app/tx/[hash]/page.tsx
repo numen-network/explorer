@@ -20,6 +20,7 @@ import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmTxDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +29,7 @@ export async function generateMetadata(props: PageProps<'/tx/[hash]'>) {
     return {title: `EVM Tx ${shortHash(hash)}`}
 }
 
-export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
+async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
     const {hash} = await props.params
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')
@@ -170,3 +171,5 @@ export default async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
         </div>
     )
 }
+
+export default withHeads(EvmTxPage)

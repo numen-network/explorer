@@ -14,6 +14,7 @@ import {bountyDetail, eventsByIds, type AccountRef} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {ss58Encode} from '@/lib/ss58'
 import {ChildBountiesTable} from './table'
+import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,7 +44,7 @@ export async function generateMetadata(props: PageProps<'/bounty/[id]'>) {
     return {title: `Bounty #${id}`}
 }
 
-export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
+async function BountyPage(props: PageProps<'/bounty/[id]'>) {
     const {id} = await props.params
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')
@@ -132,3 +133,5 @@ export default async function BountyPage(props: PageProps<'/bounty/[id]'>) {
         </div>
     )
 }
+
+export default withHeads(BountyPage)
