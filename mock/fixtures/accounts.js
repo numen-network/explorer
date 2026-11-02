@@ -975,9 +975,12 @@ export function accountPage({
         callsConnection: ({where}) => count(multisigCalls.filter(c => c.id.startsWith(where.id_startsWith)).length),
         multisigsConnection: count(counts.memberships ?? memberships.length),
         multisigs: paged(memberships),
-        // the vote record lists every referendum, one through the highest the account voted on unless set
+        // the vote record lists every referendum, one through the highest the account voted on unless set.
+        // rows default to Ongoing, on a track picked by index
         referendums: ({where}) =>
-            where?.deposits_some ? proposed : (referenda ?? Array.from({length: Math.max(-1, ...votes.map(v => v.referendum.index)) + 1}, (_, index) => ({index, title: `Referendum ${index} title`}))),
+            where?.deposits_some
+                ? proposed
+                : (referenda ?? Array.from({length: Math.max(-1, ...votes.map(v => v.referendum.index)) + 1}, (_, index) => ({index}))).map(r => ({...poll(r.index, 'Ongoing', null), track: TRACKS[r.index % TRACKS.length], ...r})),
         referendumDeposits: govDeposits,
         treasuryPayoutsConnection: ({where}) => count(payouts.filter(p => (where.source_eq ?? p.source) === p.source && (where.role_eq ?? p.role) === p.role).length),
         treasuryPayouts: args => paged(payouts.filter(p => (args.where.source_eq ?? p.source) === p.source))(args),

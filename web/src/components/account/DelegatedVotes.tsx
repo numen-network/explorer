@@ -1,32 +1,21 @@
-import Approx from '@/components/Approx'
 import Pager from '@/components/Pager'
 import {FilterRow} from '@/components/pills'
-import StatTile from '@/components/StatTile'
 import {Card} from '@/components/ui/card'
-import {chainDbHead} from '@/lib/chain'
-import {fmtInt, sentenceCase} from '@/lib/format'
-import {DELEGATED_VOTE_LISTS, delegatedVotesFor, delegatedVotesSummary} from '@/lib/gql'
+import {sentenceCase} from '@/lib/format'
+import {DELEGATED_VOTE_LISTS, delegatedVotesFor} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {DelegatedVotesTable} from './DelegatedVotesTable'
-import {participationFrom, participationStat, tabHref, type TabCtx} from './shared'
+import {tabHref, type TabCtx} from './shared'
+import VotingHead from './VotingHead'
+import type {Voting} from './VotingTile'
 
-export default async function DelegatedVotes({hex, addr, chain, sp, firstSeenBlock, delegatedVotes}: TabCtx & {firstSeenBlock: number; delegatedVotes: string}) {
+export default async function DelegatedVotes({hex, addr, chain, sp, voting}: TabCtx & {voting: Voting}) {
     const pg = paging(sp)
     const type = DELEGATED_VOTE_LISTS.find(l => l === sp.type) ?? ''
-    const head = await chainDbHead()
-    const [page, sum] = await Promise.all([delegatedVotesFor(hex, type, pg.size, pg.offset), delegatedVotesSummary(hex, participationFrom(firstSeenBlock, head.height, chain.blockTime))])
+    const page = await delegatedVotesFor(hex, type, pg.size, pg.offset)
     return (
         <>
-            <StatTile
-                label="All votes"
-                value={fmtInt(page.standing)}
-                beside={[
-                    participationStat(sum),
-                    {label: 'Delegated votes', value: <Approx planck={delegatedVotes} decimals={chain.decimals} symbol={chain.symbol} breakable />},
-                ]}
-                pairs
-                className="mb-3"
-            />
+            <VotingHead hex={hex} chain={chain} voting={voting} />
             <FilterRow
                 label="Type"
                 className="mb-3"

@@ -1,5 +1,6 @@
 import type {Decorator} from '@storybook/nextjs-vite'
-import {expect, within} from 'storybook/test'
+import * as echarts from 'echarts'
+import {expect, waitFor, within} from 'storybook/test'
 import {WellKnownProvider} from '@/components/wellKnown'
 import {ss58Encode} from '@/lib/ss58'
 import {accountPage, funds, ME, MULTISIG_ENDS, multisigOp, PRIME_KEY, SIGNATORIES, subject, SUBJECT, SUBJECT_EVM} from '../../../../../mock/fixtures/accounts.js'
@@ -77,6 +78,44 @@ export const summaries = (root: HTMLElement) =>
     [...root.querySelectorAll('[data-slot=card-header]')]
         .filter(h => h.querySelector('[data-slot=card-description]'))
         .map(h => Object.fromEntries([...h.querySelectorAll('[data-slot=card-description]')].map(d => [d.textContent, d.nextElementSibling!.textContent])))
+
+// each column of the voting tile by label, its total and each row's figures
+export const votingTile = (root: HTMLElement) =>
+    Object.fromEntries(
+        [...within(root).getByRole('region', {name: 'Votes'}).parentElement!.children].map(col => {
+            const [label, total, , rows] = col.children
+            const figures = [...rows.querySelectorAll('dt')].map(dt => [dt.textContent, [...dt.parentElement!.querySelectorAll('dd')].map(dd => dd.textContent)])
+            return [label.textContent, {total: total.textContent, ...Object.fromEntries(figures)}]
+        })
+    )
+
+// each line of the vote record legend as its label and items
+export const recordLegend = (root: HTMLElement) =>
+    within(within(root).getByRole('group', {name: 'Vote record legend'}))
+        .getAllByRole('list')
+        .map(ul => [ul.getAttribute('aria-label'), within(ul).getAllByRole('listitem').map(li => li.textContent)])
+
+// the vote record's tooltip for a square, its heading and each row by name,
+// a titled block's rows nested under its title
+export async function recordTip(root: HTMLElement) {
+    let chart: echarts.ECharts | undefined
+    await waitFor(() => {
+        chart = echarts.getInstanceByDom(root.querySelector('[_echarts_instance_]') as HTMLElement)
+        expect(chart).toBeDefined()
+    })
+    const format = (chart!.getOption() as {tooltip: {formatter: (p: {dataIndex: number}) => HTMLElement}[]}).tooltip[0].formatter
+    const rows = (group: Element) => Object.fromEntries([...group.querySelectorAll('dt')].map(dt => [dt.textContent, dt.nextElementSibling!.textContent]))
+    return (dataIndex: number): Record<string, string | null | Record<string, string | null>> => {
+        const box = format({dataIndex})
+        const [main, ...more] = box.querySelectorAll('section')
+        return {head: box.firstElementChild!.textContent, ...rows(main), ...Object.fromEntries(more.map(g => [g.querySelector('h4')!.textContent, rows(g)]))}
+    }
+}
+
+export const RECORD_LEGEND = [
+    ['Direct', ['Aye', 'Nay', 'Split', 'Abstain', 'No vote']],
+    ['Delegated', ['Aye', 'Nay']],
+]
 
 // each link of a tab strip as its tab or mtab, its count or null for an uncounted tab, and whether it is open
 export const strip = (root: HTMLElement, name: string, param: string) =>

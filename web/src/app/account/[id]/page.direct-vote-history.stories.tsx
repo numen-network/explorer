@@ -5,11 +5,28 @@ import {numn} from '../../../../../mock/fixtures.js'
 import {columnTexts} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {wellKnown, story, voting} from './page.stories.helpers'
+import {wellKnown, story, voting, votingTile, recordLegend, RECORD_LEGEND} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Governance | Direct vote history', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
 export const One = story({account: voting(numn(1_000)), votes: [vote(0)], voteActions: [voteAction(0)]}, {tab: 'direct-vote-history'})
+
+// the tile above the history counts the votes standing now
+export const Summary: StoryObj = {
+    ...story({account: voting(numn(250_000)), votes: voteRows(), voteActions: voteActionRows(), counts: {referenda: 14}}, {tab: 'direct-vote-history'}),
+    play: async ({canvasElement}) =>
+        expect(votingTile(canvasElement)).toEqual({
+            Votes: {total: '≈1.53M NUMN', Direct: ['≈1.53M NUMN', '100.00%'], Received: ['0 NUMN', '0.00%'], Delegated: ['0 NUMN', '0.00%']},
+            Referenda: {total: '9', Direct: ['9', '100.00%'], Delegated: ['0', '0.00%']},
+            'Participation (180d)': {total: '64.28%', Direct: ['64.28%'], Delegated: ['0.00%']},
+        }),
+}
+
+// the vote record above the history, its legend in two lines
+export const Record: StoryObj = {
+    ...story({account: voting(numn(5_000)), votes: voteRows(), voteActions: voteActionRows()}, {tab: 'direct-vote-history'}),
+    play: async ({canvasElement}) => expect(recordLegend(canvasElement)).toEqual(RECORD_LEGEND),
+}
 
 // each decision and conviction label, a removal, and a vote carrying 4,500 NUMN of delegated votes
 export const EveryCase: StoryObj = {

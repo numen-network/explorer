@@ -5,13 +5,16 @@ import {ownVoteHistory, voteHistoryFor} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {tabHref, type TabCtx} from './shared'
 import {VoteHistoryTable} from './VoteHistoryTable'
+import VotingHead from './VotingHead'
+import type {Voting} from './VotingTile'
 
-export default async function VoteHistory({hex, addr, chain, sp}: TabCtx) {
+export default async function VoteHistory({hex, addr, chain, sp, voting}: TabCtx & {voting: Voting}) {
     const pg = paging(sp)
     const {actions, conn} = await voteHistoryFor(hex, pg.size, pg.offset)
     const changes = voteChanges(await ownVoteHistory(actions.map(a => a.referendum.index), [hex]))
     return (
         <>
+            <VotingHead hex={hex} chain={chain} voting={voting} />
             <Card size="flush">
                 <VoteHistoryTable rows={actions.map(a => ({...a, change: changes.get(a.id)}))} chain={chain} />
             </Card>

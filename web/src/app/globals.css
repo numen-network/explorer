@@ -38,6 +38,8 @@
     --good: #4caf50;
     --warn: #ef930b;
     --support: #7c3aed;
+    --delegate: #9cd3e0;
+    --delegated: #d6a77a;
     --primary-soft: #eaf6f9;
     --good-soft: #e8f6ee;
     --warn-soft: #fdf3e2;
@@ -71,6 +73,8 @@
     --color-good: var(--good);
     --color-warn: var(--warn);
     --color-support: var(--support);
+    --color-delegate: var(--delegate);
+    --color-delegated: var(--delegated);
     --color-primary-soft: var(--primary-soft);
     --color-good-soft: var(--good-soft);
     --color-warn-soft: var(--warn-soft);

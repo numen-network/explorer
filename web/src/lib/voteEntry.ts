@@ -25,6 +25,15 @@ export async function inlineRefs(lists: CountedDelegation[][], found: Set<string
     return new Map((await accountRefs(ids)).accounts.map(a => [a.id, a]))
 }
 
+/** What the delegations a standard vote counts add up to. */
+export function delegationTotals(list: CountedDelegation[]) {
+    return {
+        delegatorCount: list.length,
+        delegatedCapital: String(list.reduce((n, d) => n + BigInt(d.balance), 0n)),
+        delegatedVotes: String(list.reduce((n, d) => n + BigInt(d.votes), 0n)),
+    }
+}
+
 /** A standard vote with the delegations it counts, biggest first. */
 export function voteEntry(v: VoteShape & {id: string; block: number}, voter: {id: string; acc?: AccountRef}, list: CountedDelegation[], found: Set<string>, refs: Map<string, AccountRef>, ss58: number): VoteEntry {
     const addr = (id: string) => ss58Encode(id, ss58)
@@ -35,9 +44,7 @@ export function voteEntry(v: VoteShape & {id: string; block: number}, voter: {id
         conviction: convictionLabel(v.conviction),
         capital: String(capitalOf(v)),
         selfVotes: v.votes,
-        delegatorCount: list.length,
-        delegatedCapital: String(list.reduce((n, d) => n + BigInt(d.balance), 0n)),
-        delegatedVotes: String(list.reduce((n, d) => n + BigInt(d.votes), 0n)),
+        ...delegationTotals(list),
         delegators: inline(list, found).map(d => ({
             addr: addr(d.delegator.id),
             acc: refs.get(d.delegator.id),

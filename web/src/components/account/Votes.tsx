@@ -1,42 +1,28 @@
-import Approx from '@/components/Approx'
 import Pager from '@/components/Pager'
 import {FilterRow} from '@/components/pills'
-import StatTile from '@/components/StatTile'
 import {Card} from '@/components/ui/card'
 import {chainDbHead} from '@/lib/chain'
-import {fmtInt, sentenceCase} from '@/lib/format'
-import {VOTE_LIST_KEYS, votesFor, votesSummary, type VoteList} from '@/lib/gql'
+import {sentenceCase} from '@/lib/format'
+import {VOTE_LIST_KEYS, votesFor, type VoteList} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {inlineRefs, voteEntry} from '@/lib/voteEntry'
-import {participationFrom, participationStat, tabHref, type TabCtx} from './shared'
-import VoteRecord from './VoteRecord'
+import {tabHref, type TabCtx} from './shared'
 import {VotesTable} from './VotesTable'
+import VotingHead from './VotingHead'
+import type {Voting} from './VotingTile'
 
 const TYPES: VoteList[] = ['aye', 'nay', 'split', 'abstain']
 
-export default async function Votes({hex, addr, chain, sp, firstSeenBlock, ownVotes, receivedVotes}: TabCtx & {firstSeenBlock: number; ownVotes: string; receivedVotes: string}) {
+export default async function Votes({hex, addr, chain, sp, voting}: TabCtx & {voting: Voting}) {
     const pg = paging(sp)
     const type = VOTE_LIST_KEYS.find(l => l === sp.type) ?? ''
-    const head = await chainDbHead()
-    const [page, sum] = await Promise.all([votesFor(hex, type, pg.size, pg.offset), votesSummary(hex, participationFrom(firstSeenBlock, head.height, chain.blockTime))])
+    const [head, page] = await Promise.all([chainDbHead(), votesFor(hex, type, pg.size, pg.offset)])
     const found = new Set<string>()
     const refs = await inlineRefs([...page.delegations.values()], found)
     const details = new Map(page.votes.filter(v => v.kind === 'Standard').map(v => [v.id, voteEntry(v, {id: hex}, page.delegations.get(v.referendum.index) ?? [], found, refs, chain.ss58)]))
     return (
         <>
-            <StatTile
-                label="All votes"
-                value={fmtInt(sum.all.totalCount)}
-                beside={[
-                    participationStat(sum),
-                    {label: 'Total votes', value: <Approx planck={BigInt(ownVotes) + BigInt(receivedVotes)} decimals={chain.decimals} symbol={chain.symbol} breakable />},
-                    {label: 'Own votes', value: <Approx planck={ownVotes} decimals={chain.decimals} symbol={chain.symbol} breakable />},
-                    {label: 'Received votes', value: <Approx planck={receivedVotes} decimals={chain.decimals} symbol={chain.symbol} breakable />},
-                ]}
-                pairs
-                className="mb-3"
-            />
-            <VoteRecord hex={hex} />
+            <VotingHead hex={hex} chain={chain} voting={voting} />
             <FilterRow
                 label="Type"
                 className="mb-3"

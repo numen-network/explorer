@@ -5,7 +5,7 @@ import {chainInfo, HEAD, numn, person} from '../../../../../mock/fixtures.js'
 import {columnTexts, filterChips} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {build, wellKnown, story, summaries, voting} from './page.stories.helpers'
+import {build, wellKnown, story, voting, votingTile, recordLegend, RECORD_LEGEND} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Governance | Delegated votes', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
@@ -24,29 +24,41 @@ export const LastPage = story({account: voting(numn(5_000)), delegatedVotesOut: 
 // every outcome counts, the row taken off the tally stays listed and leaves the figures
 export const Summary: StoryObj = {
     ...story({account: voting(numn(5_000)), delegatedVotesOut: [...rows(), delegatedVoteOut(6, 'Ongoing', {removed: true})], counts: {referenda: 10}}, {tab: 'delegated-votes'}),
-    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '6', 'Participation rate (180d)': '60.00%', 'Delegated votes': '80K NUMN'}]),
+    play: async ({canvasElement}) =>
+        expect(votingTile(canvasElement)).toEqual({
+            Votes: {total: '80K NUMN', Direct: ['0 NUMN', '0.00%'], Received: ['0 NUMN', '0.00%'], Delegated: ['80K NUMN', '100.00%']},
+            Referenda: {total: '6', Direct: ['0', '0.00%'], Delegated: ['6', '100.00%']},
+            'Participation (180d)': {total: '60.00%', Direct: ['0.00%'], Delegated: ['60.00%']},
+        }),
 }
 
 // with 180 days of blocks past the first seen block, the delegated vote before
-// the window stays in All votes and leaves the rate
+// the window stays in Referenda and leaves the rate
 export const SummaryWindowFromHead: StoryObj = {
     ...pageStory(
         {...build({account: voting(numn(5_000)), delegatedVotesOut: [delegatedVoteOut(0, 'Ongoing'), delegatedVoteOut(1, 'Approved', {block: 700_000, referendum: poll(1, 'Approved', 720_000)})], counts: {referenda: 4}}), chainInfos: [{...chainInfo, blockTime: 60}]},
         {params: {id: SUBJECT}, searchParams: {tab: 'delegated-votes'}}
     ),
-    play: async ({canvasElement}) => expect(summaries(canvasElement)[0]).toMatchObject({'All votes': '2', 'Participation rate (180d)': '25.00%'}),
+    play: async ({canvasElement}) => expect(votingTile(canvasElement)).toMatchObject({Referenda: {total: '2'}, 'Participation (180d)': {total: '25.00%'}}),
 }
 
 // every delegated vote taken off and no referendum open since, so there is no rate to give
 export const SummaryNoOpenReferenda: StoryObj = {
     ...story({account: voting('0'), delegatedVotesOut: [delegatedVoteOut(0, 'Rejected', {removed: true, referendum: poll(0, 'Rejected', HEAD - 100)})], counts: {referenda: 0}}, {tab: 'delegated-votes'}),
-    play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', 'Participation rate (180d)': '—', 'Delegated votes': '0 NUMN'}]),
+    play: async ({canvasElement}) => expect(votingTile(canvasElement)).toMatchObject({Votes: {total: '0 NUMN'}, Referenda: {total: '0'}, 'Participation (180d)': {total: '—', Direct: ['—'], Delegated: ['—']}}),
 }
 
-// the account's own vote stays out of this tab's rate
+// the account's own vote and its delegation's each take their own row
 export const SummaryAlsoVoting: StoryObj = {
     ...story({account: voting(numn(5_000)), votes: [vote(0)], delegatedVotesOut: [delegatedVoteOut(1, 'Ongoing')], counts: {referenda: 2}}, {tab: 'delegated-votes'}),
-    play: async ({canvasElement}) => expect(summaries(canvasElement)[0]).toMatchObject({'All votes': '1', 'Participation rate (180d)': '50.00%'}),
+    play: async ({canvasElement}) =>
+        expect(votingTile(canvasElement)).toMatchObject({Referenda: {total: '2', Direct: ['1', '50.00%'], Delegated: ['1', '50.00%']}, 'Participation (180d)': {total: '100.00%', Direct: ['50.00%'], Delegated: ['50.00%']}}),
+}
+
+// the vote record above the list, its legend in two lines
+export const Record: StoryObj = {
+    ...story({account: voting(numn(5_000)), delegatedVotesOut: rows(), referenda: Array.from({length: 8}, (_, index) => ({index, title: `Referendum ${index} title`})), counts: {referenda: 8}}, {tab: 'delegated-votes'}),
+    play: async ({canvasElement}) => expect(recordLegend(canvasElement)).toEqual(RECORD_LEGEND),
 }
 
 export const EverySide: StoryObj = {

@@ -166,12 +166,12 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (msig) tabs.push({slug: 'multisig', label: 'As a multisig address', group: 'Multisig', count: msig.operations, body: () => <MultisigAddress {...ctx} set={msig} />})
     if (s.nMultisigSigner.totalCount > 0)
         tabs.push({slug: 'multisig-signatory', label: 'As a multisig signatory', group: 'Multisig', count: s.nMultisigSigner.totalCount, body: () => <MultisigSignatory {...ctx} operations={s.nMultisigSigner.totalCount} memberships={s.nMemberships.totalCount} />})
-    if (s.nVotes.totalCount > 0) tabs.push({slug: 'direct-votes', label: 'Direct votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} firstSeenBlock={a.firstSeenBlock} ownVotes={a.ownVotes} receivedVotes={a.receivedVotes} />})
+    if (s.nVotes.totalCount > 0) tabs.push({slug: 'direct-votes', label: 'Direct votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} voting={a} />})
     if (s.nVoteHistory.totalCount > 0)
-        tabs.push({slug: 'direct-vote-history', label: 'Direct vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
-    if (s.nDelegatedVotes.totalCount > 0) tabs.push({slug: 'delegated-votes', label: 'Delegated votes', group: 'Governance', count: s.nDelegatedVotes.totalCount, body: () => <DelegatedVotes {...ctx} firstSeenBlock={a.firstSeenBlock} delegatedVotes={a.delegatedVotes} />})
+        tabs.push({slug: 'direct-vote-history', label: 'Direct vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} voting={a} />})
+    if (s.nDelegatedVotes.totalCount > 0) tabs.push({slug: 'delegated-votes', label: 'Delegated votes', group: 'Governance', count: s.nDelegatedVotes.totalCount, body: () => <DelegatedVotes {...ctx} voting={a} />})
     if (s.nDelegatedVoteHistory.totalCount > 0)
-        tabs.push({slug: 'delegated-vote-history', label: 'Delegated vote history', group: 'Governance', count: s.nDelegatedVoteHistory.totalCount, body: () => <DelegatedVoteHistory {...ctx} />})
+        tabs.push({slug: 'delegated-vote-history', label: 'Delegated vote history', group: 'Governance', count: s.nDelegatedVoteHistory.totalCount, body: () => <DelegatedVoteHistory {...ctx} voting={a} />})
     if (s.delegateById) {
         const delegate = s.delegateById
         tabs.push({slug: 'delegator-tracks', label: 'Delegator tracks', group: 'Governance', count: delegate.trackTotals.length, body: () => <DelegatorTracks {...ctx} delegate={delegate} />})

@@ -14,7 +14,7 @@ import type {CurveVoter} from '@/lib/curveVoters'
 import {curveAt, curveSamples, type Curve} from '@/lib/curves'
 import type {IdentityRef} from '@/lib/identity'
 import {fmtApprox, fmtInt, fmtPct, fmtSpan, fmtTick, pctToNum, type Share} from '@/lib/format'
-import {GRID_LEGEND, type GridCell, type GridVote} from '@/lib/voteGrid'
+import type {GridCell, GridVote} from '@/lib/voteGrid'
 import * as echarts from 'echarts'
 import {toSvg} from 'jdenticon'
 import {useRouter} from 'next/navigation'
@@ -976,19 +976,26 @@ const GRID_ROWS = 5
 const GRID_STEP = 18
 const GRID_PAD = 6
 const HALF = 5
+// the line around a delegated vote's square
+const STROKE = 1.5
 
 /** One square drawn the way a referendum's cell is. */
-export function GridSwatch({vote}: {vote: GridVote}) {
+export function GridSwatch({vote, delegated}: {vote: GridVote; delegated: boolean}) {
     const style =
         vote === 'split'
             ? {background: `linear-gradient(135deg, ${LIGHT_GOOD} 50%, ${LIGHT_BAD} 50%)`}
             : vote === null
               ? {border: `1px solid ${HOLLOW}`, background: '#fff'}
-              : {background: vote === 'aye' ? LIGHT_GOOD : vote === 'nay' ? LIGHT_BAD : EDGE}
+              : delegated
+                ? {border: `${STROKE}px solid ${vote === 'aye' ? GREEN : RED}`, background: '#fff'}
+                : {background: vote === 'aye' ? LIGHT_GOOD : vote === 'nay' ? LIGHT_BAD : EDGE}
     return <span className="block size-2.5 rounded-[2px]" style={style} />
 }
 
-function gridSquare(x: number, y: number, vote: GridVote) {
+// insets a stroked square by half its line to keep the line in the box
+const inset = (box: {x: number; y: number; width: number; height: number; r: number}, line: number) => ({...box, x: box.x + line / 2, y: box.y + line / 2, width: box.width - line, height: box.height - line})
+
+function gridSquare(x: number, y: number, vote: GridVote, delegated: boolean) {
     const box = {x: x - HALF, y: y - HALF, width: HALF * 2, height: HALF * 2, r: 2}
     switch (vote) {
         case 'split':
@@ -1000,9 +1007,11 @@ function gridSquare(x: number, y: number, vote: GridVote) {
                 ],
             }
         case null:
-            return {type: 'rect', shape: {...box, x: box.x + 0.5, y: box.y + 0.5, width: box.width - 1, height: box.height - 1}, style: {fill: '#fff', stroke: HOLLOW, lineWidth: 1}}
+            return {type: 'rect', shape: inset(box, 1), style: {fill: '#fff', stroke: HOLLOW, lineWidth: 1}}
         default:
-            return {type: 'rect', shape: box, style: {fill: vote === 'aye' ? LIGHT_GOOD : vote === 'nay' ? LIGHT_BAD : EDGE}}
+            return delegated
+                ? {type: 'rect', shape: inset(box, STROKE), style: {fill: '#fff', stroke: vote === 'aye' ? GREEN : RED, lineWidth: STROKE}}
+                : {type: 'rect', shape: box, style: {fill: vote === 'aye' ? LIGHT_GOOD : vote === 'nay' ? LIGHT_BAD : EDGE}}
     }
 }
 
@@ -1015,6 +1024,7 @@ export function VoteGrid({cells}: {cells: GridCell[]}) {
     const fit = Math.max(1, Math.floor((width - GRID_PAD * 2) / GRID_STEP))
     const span = Math.max(cols, fit)
     const scrolls = width > 0 && cols > fit
+    const chartTip = useChartTip()
     const ref = useChart(
         {
             animation: false,
@@ -1023,8 +1033,27 @@ export function VoteGrid({cells}: {cells: GridCell[]}) {
                 trigger: 'item',
                 formatter: (params: unknown) => {
                     const c = cells[(params as {dataIndex: number}).dataIndex]
-                    const title = c.title ? ` · ${echarts.format.encodeHTML(c.title)}` : ''
-                    return `#${c.index}${title}<br/>Vote: ${GRID_LEGEND.find(l => l.vote === c.vote)!.label}`
+                    return chartTip(
+                        <>
+                            <div className="mb-1 max-w-72 whitespace-normal">
+                                #{c.index}
+                                {c.title && ` · ${c.title}`}
+                            </div>
+                            {c.facts.map(g => (
+                                <section key={g.label} className="not-first:mt-2">
+                                    {g.label && <h4 className="mb-0.5 font-semibold">{g.label}</h4>}
+                                    <dl className="grid grid-cols-[auto_auto] gap-x-5">
+                                        {g.rows.map(([name, value]) => (
+                                            <div key={name} className="contents">
+                                                <dt className="text-muted-foreground">{name}</dt>
+                                                <dd className="text-right font-semibold">{value}</dd>
+                                            </div>
+                                        ))}
+                                    </dl>
+                                </section>
+                            ))}
+                        </>
+                    )
                 },
             },
             grid: {left: GRID_PAD, right: GRID_PAD, top: GRID_PAD, height: GRID_ROWS * GRID_STEP - GRID_PAD * 2},
@@ -1058,7 +1087,7 @@ export function VoteGrid({cells}: {cells: GridCell[]}) {
                     data: cells.map((c, i) => [Math.floor(i / GRID_ROWS), i % GRID_ROWS]),
                     renderItem: ((params: {dataIndex: number}, api: {value: (dim: number) => number; coord: (v: number[]) => number[]}) => {
                         const [x, y] = api.coord([api.value(0), api.value(1)])
-                        return gridSquare(x, y, cells[params.dataIndex].vote)
+                        return gridSquare(x, y, cells[params.dataIndex].vote, cells[params.dataIndex].delegated)
                     }) as never,
                 },
             ],

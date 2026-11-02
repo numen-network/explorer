@@ -2,7 +2,7 @@ import {shortAddr} from '@/components/AddressText'
 import {FilterRow} from '@/components/pills'
 import type {BadgeVariant} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {fmtCount, fmtInt, fmtPct, fmtSpan} from '@/lib/format'
+import {fmtCount, fmtInt, fmtSpan} from '@/lib/format'
 import type {AccountRef, AccountRow, AccountSummary, BountyDepositRow, ChildBountyDepositRow, GovDepositRow, MultisigSet, ValidatorRow} from '@/lib/gql'
 import {identityLabel} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
@@ -15,14 +15,9 @@ export interface TabCtx {
     sp: Record<string, string | string[] | undefined>
 }
 
-const PARTICIPATION_DAYS = 180
+export const PARTICIPATION_DAYS = 180
 
 export const participationFrom = (firstSeenBlock: number, head: number, blockTime: number) => Math.max(firstSeenBlock, head - Math.floor((PARTICIPATION_DAYS * 86_400) / blockTime))
-
-export const participationStat = ({voted, open}: Record<'voted' | 'open', {totalCount: number}>) => ({
-    label: `Participation rate (${PARTICIPATION_DAYS}d)`,
-    value: open.totalCount > 0 ? fmtPct(voted.totalCount, open.totalCount) : '—',
-})
 
 export const JUDGEMENT_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle'> = {
     KnownGood: 'pos',

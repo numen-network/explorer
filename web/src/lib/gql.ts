@@ -801,18 +801,17 @@ export interface DelegatedVoteRow {
 export async function delegatedVotesFor(idHex: string, list: DelegatedVoteList | '', limit: number, offset: number) {
     const own = 'delegator: {id_eq: $id}'
     const where = list ? `{${own}, aye_eq: ${list === 'aye'}}` : `{${own}}`
-    const raw = await gql<{rows: DelegatedVoteRow[]; conn: {totalCount: number}; all: {totalCount: number}; aye: {totalCount: number}; nay: {totalCount: number}; standing: {totalCount: number}}>(
+    const raw = await gql<{rows: DelegatedVoteRow[]; conn: {totalCount: number}; all: {totalCount: number}; aye: {totalCount: number}; nay: {totalCount: number}}>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
             rows: delegatedVotes(where: ${where}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { id aye conviction balance votes removed block voter { ${ACCOUNT_REF} } referendum { index title status decidingSince confirmingSince inQueue timeline } }
             conn: delegatedVotesConnection(where: ${where}, orderBy: id_ASC) { totalCount }
             all: delegatedVotesConnection(where: {${own}}, orderBy: id_ASC) { totalCount }
             aye: delegatedVotesConnection(where: {${own}, aye_eq: true}, orderBy: id_ASC) { totalCount }
             nay: delegatedVotesConnection(where: {${own}, aye_eq: false}, orderBy: id_ASC) { totalCount }
-            standing: delegatedVotesConnection(where: {${own}, removed_eq: false}, orderBy: id_ASC) { totalCount }
         }`,
         {id: idHex, limit, offset}
     )
-    return {rows: raw.rows, total: raw.conn.totalCount, all: raw.all.totalCount, counts: {aye: raw.aye.totalCount, nay: raw.nay.totalCount}, standing: raw.standing.totalCount}
+    return {rows: raw.rows, total: raw.conn.totalCount, all: raw.all.totalCount, counts: {aye: raw.aye.totalCount, nay: raw.nay.totalCount}}
 }
 
 export interface DelegatedVoteActionRow {
@@ -841,7 +840,7 @@ export function delegatedVoteHistoryFor(idHex: string, limit: number, offset: nu
 
 // the delegations each referendum counts through the account's standard vote
 // there, biggest first
-async function delegationsCountedBy(idHex: string, indexes: number[]): Promise<Map<number, CountedDelegationRow[]>> {
+export async function delegationsCountedBy(idHex: string, indexes: number[]): Promise<Map<number, CountedDelegationRow[]>> {
     const byReferendum = new Map<number, CountedDelegationRow[]>()
     if (indexes.length === 0) return byReferendum
     const rows = await sweep(page =>
@@ -856,50 +855,48 @@ async function delegationsCountedBy(idHex: string, indexes: number[]): Promise<M
     return byReferendum
 }
 
-// every referendum in index order and the account's standing vote on each it voted on
+// every referendum in index order, the account's standing vote on each it
+// voted on and its standing delegated vote on each its delegations reached
 export async function voteGrid(idHex: string) {
-    const [referenda, votes] = await Promise.all([
+    const [referenda, votes, delegated] = await Promise.all([
         sweep(page =>
-            gql<{referendums: {index: number; title: string | null}[]}>(
+            gql<{referendums: (RefPhaseFields & {index: number; title: string | null; track: {name: string}})[]}>(
                 `query ($limit: Int!, $offset: Int!) {
-                    referendums(orderBy: index_ASC, limit: $limit, offset: $offset) { index title }
+                    referendums(orderBy: index_ASC, limit: $limit, offset: $offset) { index title status decidingSince confirmingSince inQueue timeline track { name } }
                 }`,
                 {...page}
             ).then(r => r.referendums)
         ),
         sweep(page =>
-            gql<{votes: {kind: string; aye: boolean | null; referendum: {index: number}}[]}>(
+            gql<{votes: VoteRow[]}>(
                 `query ($id: String!, $limit: Int!, $offset: Int!) {
-                    votes(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { kind aye referendum { index } }
+                    votes(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index } }
                 }`,
                 {id: idHex, ...page}
             ).then(r => r.votes)
         ),
+        sweep(page =>
+            gql<{delegatedVotes: (Omit<DelegatedVoteRow, 'id' | 'removed' | 'referendum'> & {referendum: {index: number}})[]}>(
+                `query ($id: String!, $limit: Int!, $offset: Int!) {
+                    delegatedVotes(where: {delegator: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { aye conviction balance votes block referendum { index } voter { ${ACCOUNT_REF} } }
+                }`,
+                {id: idHex, ...page}
+            ).then(r => r.delegatedVotes)
+        ),
     ])
-    return {referenda, votes}
+    return {referenda, votes, delegated}
 }
 
-const OPEN_REFERENDA = 'open: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: $from}]}, orderBy: index_ASC) { totalCount }'
-
-// open counts the referenda still taking votes at the window's start, voted
-// those the account cast a standing vote on since
-export function votesSummary(idHex: string, from: number) {
-    return gql<Record<'all' | 'voted' | 'open', {totalCount: number}>>(
+// direct and delegated count the account's standing votes, voted those cast
+// since the window's start, open the referenda still taking votes at its start
+export function votingSummary(idHex: string, from: number) {
+    return gql<Record<'direct' | 'directVoted' | 'delegated' | 'delegatedVoted' | 'open', {totalCount: number}>>(
         `query ($id: String!, $from: Int!) {
-            all: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { totalCount }
-            voted: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false, block_gte: $from}, orderBy: id_ASC) { totalCount }
-            ${OPEN_REFERENDA}
-        }`,
-        {id: idHex, from}
-    )
-}
-
-// voted counts the referenda the account's delegations reached since the window's start
-export function delegatedVotesSummary(idHex: string, from: number) {
-    return gql<Record<'voted' | 'open', {totalCount: number}>>(
-        `query ($id: String!, $from: Int!) {
-            voted: delegatedVotesConnection(where: {delegator: {id_eq: $id}, removed_eq: false, block_gte: $from}, orderBy: id_ASC) { totalCount }
-            ${OPEN_REFERENDA}
+            direct: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { totalCount }
+            directVoted: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false, block_gte: $from}, orderBy: id_ASC) { totalCount }
+            delegated: delegatedVotesConnection(where: {delegator: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { totalCount }
+            delegatedVoted: delegatedVotesConnection(where: {delegator: {id_eq: $id}, removed_eq: false, block_gte: $from}, orderBy: id_ASC) { totalCount }
+            open: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: $from}]}, orderBy: index_ASC) { totalCount }
         }`,
         {id: idHex, from}
     )
