@@ -18,7 +18,7 @@ import {Badge} from '@/components/ui/badge'
 import Upcoming from '@/components/Upcoming'
 import {LinesChart} from '@/components/charts'
 import AccountLink from '@/components/AccountLink'
-import {EvmAddrLink, EvmTxLink, ExtrinsicLink, Jump} from '@/components/links'
+import {EvmAddrLink, EvmTxLink, ExtrinsicLink, Jump, ReferendumLink} from '@/components/links'
 import {StatusDot} from '@/components/pills'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
@@ -62,18 +62,11 @@ function InfoCell({label, children}: {label: string; children: React.ReactNode})
 
 // phones stack the title, the facts, then the amount beside the status,
 // wider rows give the amount the title's line and the status the facts' line
-function GovRow({href, index, title, mark, amount, facts, status, className}: {href: string; index: string | number; title: string; mark?: React.ReactNode; amount: React.ReactNode; facts: React.ReactNode[]; status: React.ReactNode; className: string}) {
+function GovRow({head, mark, amount, facts, status, className}: {head: React.ReactNode; mark?: React.ReactNode; amount: React.ReactNode; facts: React.ReactNode[]; status: React.ReactNode; className: string}) {
     return (
         <div className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 px-5 py-3 ${ROW_H} ${className} sm:flex-col sm:flex-nowrap sm:items-stretch sm:justify-center sm:gap-1 sm:py-0`}>
             <div className="contents sm:flex sm:items-baseline sm:gap-3">
-                <div className="flex min-w-0 basis-full items-baseline gap-2 sm:grow sm:basis-0">
-                    <Link href={href} className="shrink-0 font-mono text-primary hover:underline">
-                        #{index}
-                    </Link>
-                    <Tip text={title}>
-                        <span className="truncate text-[13px]">{title}</span>
-                    </Tip>
-                </div>
+                <div className="flex min-w-0 basis-full items-baseline gap-2 sm:grow sm:basis-0">{head}</div>
                 {mark && <div className="order-1 flex self-center">{mark}</div>}
                 <div className="order-1 font-mono text-sm whitespace-nowrap">{amount}</div>
             </div>
@@ -201,9 +194,13 @@ export default async function Home({searchParams}: PageProps<'/'>) {
                 return (
                     <GovRow
                         key={r.id}
-                        href={`/referendum/${r.index}`}
-                        index={r.index}
-                        title={r.title ?? `[${trackLabel(r.track.name)}] Referendum #${r.index}`}
+                        head={
+                            <Tip text={r.title}>
+                                <span className="min-w-0 truncate text-[13px]">
+                                    <ReferendumLink index={r.index} title={r.title} />
+                                </span>
+                            </Tip>
+                        }
                         mark={need && <ThresholdPair ayes={BigInt(r.ayes)} nays={BigInt(r.nays)} support={BigInt(r.support)} issuance={issNow - inactiveNow} need={need} />}
                         amount={r.proposalAmount != null ? coins(r.proposalAmount) : <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>}
                         facts={[
@@ -226,12 +223,20 @@ export default async function Home({searchParams}: PageProps<'/'>) {
             {data.spends.length === 0 && <EmptyList what="spends" />}
             {data.spends.map((s, i) => {
                 const index = s.id.split('-')[1]
+                const title = s.referendum?.title ?? `Treasury spend #${index}`
                 return (
                     <GovRow
                         key={s.id}
-                        href={s.referendum ? `/referendum/${s.referendum.index}` : GOV_MORE.spends}
-                        index={index}
-                        title={s.referendum?.title ?? `Treasury spend #${index}`}
+                        head={
+                            <>
+                                <Link href={s.referendum ? `/referendum/${s.referendum.index}` : GOV_MORE.spends} className="shrink-0 font-mono text-primary hover:underline">
+                                    #{index}
+                                </Link>
+                                <Tip text={title}>
+                                    <span className="truncate text-[13px]">{title}</span>
+                                </Tip>
+                            </>
+                        }
                         amount={coins(s.amount)}
                         facts={[
                             <span key="kind" className="whitespace-nowrap">

@@ -305,7 +305,7 @@ export const NEAREST = [
 ]
 
 export const strips = (root: HTMLElement) => [...listCard(root, 'Governance').querySelectorAll('.bg-muted')].map(s => s.textContent!.replace(/ /g, ' '))
-const shownRows = (root: HTMLElement) => listRows(root, 'Governance').filter(r => r.checkVisibility() && within(r).queryAllByRole('link', {name: /^#\d+$/}).length > 0)
+const shownRows = (root: HTMLElement) => listRows(root, 'Governance').filter(r => r.checkVisibility() && within(r).queryAllByRole('link', {name: /^#\d/}).length > 0)
 const sideBySide = () => matchMedia('(min-width: 64rem)').matches
 
 // side by side the card stays as tall as the activity card, a strip taking one row's place

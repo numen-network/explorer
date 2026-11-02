@@ -15,7 +15,7 @@ export const Empty: StoryObj = {
 
 export const One: StoryObj = {
     ...pageStory(home(firstBlock)),
-    play: async ({canvasElement}) => expect(listRows(canvasElement, 'Governance').map(row => within(row).getByRole('link', {name: /^#\d+$/}).textContent)).toEqual(['#0']),
+    play: async ({canvasElement}) => expect(listRows(canvasElement, 'Governance').map(row => within(row).getByRole('link', {name: /^#\d+/}).getAttribute('href'))).toEqual(['/referendum/0']),
 }
 
 export const Many: StoryObj = {
@@ -30,10 +30,10 @@ export const Many: StoryObj = {
 export const TitleHovered: StoryObj = {
     ...pageStory(home(many)),
     play: async ({canvas, userEvent}) => {
-        const title = canvas.getByText(/deliberately long title/)
+        const title = canvas.getByText(/deliberately long title/).closest<HTMLElement>('.truncate')!
         expect(title.scrollWidth).toBeGreaterThan(title.clientWidth)
         await userEvent.hover(title)
-        await expect(await screen.findByRole('tooltip')).toHaveTextContent(title.textContent!)
+        await expect(await screen.findByRole('tooltip')).toHaveTextContent(/deliberately long title/)
     },
 }
 
@@ -45,14 +45,14 @@ export const Ended: StoryObj = {
 }
 
 // a proposal the index could not decode has no title and no amount, so the row
-// goes by its track and number and shows a dash for the amount
+// goes by its number and shows a dash for the amount
 const undecoded = {...referenda[3], id: '12', index: 12, title: null, proposalPallet: null, proposalMethod: null, proposalPayouts: null, proposalAmount: null, proposalBeneficiary: null}
 
 export const UndecodedProposal: StoryObj = {
     ...pageStory(home({...many, referendums: [undecoded]})),
     play: async ({canvasElement}) => {
         const [row] = listRows(canvasElement, 'Governance')
-        expect(within(row).getByText('[Medium Spender] Referendum #12')).toBeInTheDocument()
+        expect(within(row).getByRole('link', {name: '#12'})).toHaveAttribute('href', '/referendum/12')
         expect(within(row).getByText('—')).toBeInTheDocument()
     },
 }
