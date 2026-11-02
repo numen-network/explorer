@@ -226,15 +226,15 @@ const CLAIMABLE = '["AssetSpendApproved", "PaymentFailed"]'
 export async function homeData(since24: string | null, since30: string | null, upcoming: UpcomingWindow) {
     const data = await gql<HomeData>(
         `query ($since24: DateTime, $since30: DateTime, $head: Int!, $until: Int!, $validUntil: Int!) {
-            blocks(orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
-            minedObjects(orderBy: id_DESC, limit: 5) { block { height hash timestamp extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
-            transfers(orderBy: ${TRANSFER_ORDER}, limit: 5) { ${TRANSFER_FIELDS} }
+            blocks(where: {height_lte: $head}, orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
+            minedObjects(where: {block: {height_lte: $head}}, orderBy: id_DESC, limit: 5) { block { height hash timestamp extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
+            transfers(where: {block: {height_lte: $head}}, orderBy: ${TRANSFER_ORDER}, limit: 5) { ${TRANSFER_FIELDS} }
             dailyStats(orderBy: date_DESC, limit: 90) { ${DAILY_FIELDS} }
             accounts: accountsConnection(orderBy: id_ASC) { totalCount }
             validators: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
-            sessionHead: sessions(orderBy: index_DESC, limit: 1) { index }
+            sessionHead: sessions(where: {startBlock_lte: $head}, orderBy: index_DESC, limit: 1) { index }
             evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
-            evmTxs: evmTransactions(orderBy: [timestamp_DESC, txIndex_DESC], limit: 5) { ${EVM_TX_FIELDS} tokenTransfers(where: {thirdParty_eq: false}, orderBy: logIndex_ASC, limit: 20) { from amount token { id symbol decimals } } extrinsic { transfers(orderBy: id_ASC, limit: 20) { amount from { id } to { id } } } }
+            evmTxs: evmTransactions(where: {block: {height_lte: $head}}, orderBy: [timestamp_DESC, txIndex_DESC], limit: 5) { ${EVM_TX_FIELDS} tokenTransfers(where: {thirdParty_eq: false}, orderBy: logIndex_ASC, limit: 20) { from amount token { id symbol decimals } } extrinsic { transfers(orderBy: id_ASC, limit: 20) { amount from { id } to { id } } } }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
             referendaCount: referendumsConnection(orderBy: id_ASC) { totalCount }
             spends: treasurySpends(orderBy: [block_DESC, indexInBlock_DESC], limit: 5) { id kind status validFrom expireAt paidAt amount beneficiary { ${ACCOUNT_REF} } referendum { index title } }
