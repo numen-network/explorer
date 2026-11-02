@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {ss58Encode} from '@/lib/ss58'
-import {CONVICTIONS, delegatedAt, delegatedFrom, delegatedOnTracks, delegatingTo, SUBJECT, TRACKS} from '../../../../../mock/fixtures/accounts.js'
+import {CONVICTIONS, delegatedAt, delegatedFrom, delegatedOnTracks, delegationActionsOf, SUBJECT, TRACKS} from '../../../../../mock/fixtures/accounts.js'
 import {chainInfo, numn, PEOPLE, person} from '../../../../../mock/fixtures.js'
 import {columnTexts, filterOptions} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
@@ -152,7 +152,7 @@ export const TrackFilterEmpty: StoryObj = {
 
 // Track options go by track id, two-digit ids after the single digits
 export const TrackOptions: StoryObj = {
-    ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(5)}, {tab: 'delegators'}),
+    ...story({account: voting(numn(7_001.5)), delegationActions: delegationActionsOf(7, 'out'), delegationsIn: delegatedFrom(5)}, {tab: 'delegators'}),
     play: async ({canvasElement}) =>
         expect(await filterOptions(canvasElement, 'Track')).toEqual(['[All 5]', 'Root 1', 'Runtime Upgrade 1', 'Wish For Change 1', 'Identity Admin 1', 'Referendum Canceller 1', 'Referendum Killer 0', 'Small Spender 0', 'Medium Spender 0', 'Big Spender 0']),
 }

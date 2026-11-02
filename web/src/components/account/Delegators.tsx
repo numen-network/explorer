@@ -33,7 +33,7 @@ export default async function Delegators({hex, addr, chain, sp, delegate}: TabCt
                 <SearchBox className="w-full sm:w-90" />
             </div>
             <Card size="flush">
-                <DelegationsTable label="Delegated from" rows={dIn.rows} chain={chain} filtered={track !== '' || q !== ''} sort={{by, dir, hrefs}} />
+                <DelegationsTable rows={dIn.rows} chain={chain} filtered={track !== '' || q !== ''} sort={{by, dir, hrefs}} />
             </Card>
             <Pager paging={pg} total={dIn.total} href={href(track)} />
         </>

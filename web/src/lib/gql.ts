@@ -628,7 +628,8 @@ export interface AccountSummary {
     nOffences: {totalCount: number}
     nValidatorSteps: {totalCount: number}
     nSubs: {totalCount: number}
-    nDelegOut: {totalCount: number}
+    /** The account's own Delegated and Undelegated steps, oldest first. */
+    delegationSteps: DelegationStep[]
     nDelegIn: {totalCount: number}
     nProxyOut: {totalCount: number}
     nProxyIn: {totalCount: number}
@@ -699,7 +700,7 @@ export function accountSummary(idHex: string) {
             nOffences: validatorOffencesConnection(orderBy: id_ASC, where: {validator: ${self}}) { totalCount }
             nValidatorSteps: validatorStepsConnection(orderBy: id_ASC, where: {account: ${self}}) { totalCount }
             nSubs: accountsConnection(orderBy: id_ASC, where: {identitySuper: ${self}}) { totalCount }
-            nDelegOut: delegationsConnection(orderBy: id_ASC, where: {who: ${self}}) { totalCount }
+            delegationSteps: delegationActions(where: {who: ${self}}, orderBy: [block_ASC, indexInBlock_ASC, id_ASC]) { id method conviction balance block track { id name } target { ${ACCOUNT_REF} } }
             nDelegIn: delegationsConnection(orderBy: id_ASC, where: {target: ${self}}) { totalCount }
             nProxyOut: proxyRelationsConnection(orderBy: id_ASC, where: {delegator: ${self}}) { totalCount }
             nProxyIn: proxyRelationsConnection(orderBy: id_ASC, where: {delegatee: ${self}}) { totalCount }
@@ -1030,13 +1031,43 @@ export function delegationHistoryFor(idHex: string, dir: 'in' | 'out', limit: nu
     )
 }
 
-export function delegationsOutFor(idHex: string) {
-    return gql<{delegations: DelegationRow[]}>(
-        `query ($id: String!) {
-            delegations(where: {who: {id_eq: $id}}, orderBy: [track_index_ASC, id_ASC], limit: 100) { id conviction balance votes block track { id name } target { ${ACCOUNT_REF} } }
-        }`,
-        {id: idHex}
+export type DelegationStep = Pick<DelegationActionRow, 'id' | 'method' | 'conviction' | 'balance' | 'block' | 'track'> & {target: AccountRef}
+
+export interface DelegationVoteRow {
+    aye: boolean
+    votes: string
+    block: number
+    voter: {id: string}
+    referendum: {index: number; submittedAt: number; endedAt: number | null; track: {id: string}}
+}
+
+/** A stretch of blocks one delegation lasted, end null while it still stands. */
+export interface Span {
+    id: string
+    track: {id: string}
+    block: number
+    end: number | null
+}
+
+// the account's standing delegated votes. per delegation, the referenda its
+// track had open while it lasted
+export async function delegationActivity(idHex: string, spans: Span[]) {
+    const open = spans.map(
+        (d, i) =>
+            `p${i}: referendumsConnection(where: {track: {id_eq: "${d.track.id}"}, ${d.end == null ? '' : `submittedAt_lt: ${d.end}, `}OR: [{endedAt_isNull: true}, {endedAt_gte: ${d.block}}]}, orderBy: index_ASC) { totalCount }`
     )
+    const [votes, counts] = await Promise.all([
+        sweep(page =>
+            gql<{delegatedVotes: DelegationVoteRow[]}>(
+                `query ($id: String!, $limit: Int!, $offset: Int!) {
+                    delegatedVotes(where: {delegator: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { aye votes block voter { id } referendum { index submittedAt endedAt track { id } } }
+                }`,
+                {id: idHex, ...page}
+            ).then(r => r.delegatedVotes)
+        ),
+        gql<Record<string, {totalCount: number}>>(`query { ${open.join('\n')} }`),
+    ])
+    return {votes, open: new Map(spans.map((d, i) => [d.id, counts[`p${i}`].totalCount]))}
 }
 
 export function proxiesFor(idHex: string, limit: number, offset: number) {

@@ -22,7 +22,7 @@ const BY_CAPITAL: Sorting = {
     },
 }
 
-const delegators = (rows: DelegationRow[], filtered?: boolean) => table('Delegated from', rows, filtered, BY_CAPITAL)
+const delegators = (rows: DelegationRow[], filtered = false) => table(rows, filtered, BY_CAPITAL)
 
 export const DelegatorsEmpty: Story = {render: () => delegators([])}
 

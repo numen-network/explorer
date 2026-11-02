@@ -228,8 +228,6 @@ export const payouts = count => Array.from({length: count}, (_, i) => payout(i, 
 
 export const proposals = count => Array.from({length: count}, (_, i) => proposal(count - i, 'Ongoing', [proposalDeposit('Submission')]))
 
-export const delegatingTo = count => Array.from({length: count}, (_, i) => delegation(i, {target: person(i)}))
-
 // the incoming list is ordered by balance, biggest first
 export const delegatedFrom = (count, tracks = TRACKS) =>
     Array.from({length: count}, (_, i) => delegation(i + 100, {who: person(i + 1), track: tracks[i % tracks.length], balance: numn(500 * (count - i) + 0.5)}))
@@ -363,7 +361,7 @@ export const delegatedVote = (index, conviction, units, from = person(1)) => wei
 
 // a vote the account's delegation rode, the target's standard vote carrying it
 export const delegatedVoteOut = (i, status, traits = {}) =>
-    weighed({id: `delegated-${i}`, aye: true, conviction: 'Locked3x', balance: numn(5_000), removed: false, block: HEAD - 500 * (i + 1), voter: person(2), delegator: {id: SUBJECT}, referendum: poll(i, status, status === 'Ongoing' ? null : HEAD - 1_000), ...traits})
+    weighed({id: `delegated-${i}`, aye: true, conviction: 'Locked3x', balance: numn(5_000), removed: false, block: HEAD - 500 * (i + 1), voter: person(2), delegator: {id: SUBJECT}, referendum: poll(i, status, status === 'Ongoing' ? null : HEAD - 1_000, {track: TRACKS[i % TRACKS.length]}), ...traits})
 
 // a change to one of the account's delegated votes, newest first
 export const delegatedVoteAction = (i, traits = {}) => {
@@ -443,7 +441,7 @@ export const delegationAction = (i, traits = {}) => {
 // both directions and both methods, plus on each side a delegation its own block undid, which leaves no amount
 const DELEGATION_ACTION_CASES = [
     {who: person(3), target: ME},
-    {method: 'Undelegated', target: person(5)},
+    {method: 'Undelegated', target: person(5), track: TRACKS[3]},
     {method: 'Undelegated', who: person(4), target: ME},
     {target: person(5)},
     {who: person(4), target: ME, conviction: null, balance: null},
@@ -451,6 +449,9 @@ const DELEGATION_ACTION_CASES = [
 ]
 
 export const delegationActionRows = () => DELEGATION_ACTION_CASES.map((c, i) => delegationAction(i, c))
+
+// one of the account's own delegation steps, Delegated unless traits say otherwise
+export const delegationStep = (block, target, track, traits = {}) => delegationAction(0, {id: squidId(block, 2), block, timestamp: at(block), target, track, ...traits})
 
 export const delegationActionsOf = (count, side) =>
     Array.from({length: count}, (_, i) => delegationAction(i, side === 'out' ? {target: person(i)} : {who: person(i), target: ME}))
@@ -854,7 +855,6 @@ export function accountPage({
     verdicts = [],
     entries = [],
     subs = [],
-    delegationsOut = [],
     delegationsIn = [],
     proxiesOut = [],
     proxiesIn = [],
@@ -961,8 +961,8 @@ export function accountPage({
         identityJudgements: paged(entries),
         accountsConnection: count(counts.subs ?? subs.length),
         accounts: ({where}) => (where?.id_in ? refs : subs),
-        delegationsConnection: ({where}) => count(!where.target ? delegationsOut.length : where.track ? perTrack(where.track.id_eq) : allIn),
-        delegations: ({where}) => (!where.target ? delegationsOut : where.track ? onTrack(where.track.id_eq) : delegationsIn),
+        delegationsConnection: ({where}) => count(where.track ? perTrack(where.track.id_eq) : allIn),
+        delegations: ({where}) => (where.track ? onTrack(where.track.id_eq) : delegationsIn),
         tracks: TRACKS,
         proxyRelationsConnection: ({where}) => count((where.delegator ? proxiesOut : proxiesIn).length),
         proxyRelations: args => (args.where.delegator ? proxiesOut : paged(proxiesIn)(args)),
@@ -992,7 +992,9 @@ export function accountPage({
             const side = where.aye_eq == null ? delegatedVotesOut : delegatedVotesOut.filter(d => d.aye === where.aye_eq)
             return count((where.removed_eq === false ? side.filter(d => !d.removed && d.block >= (where.block_gte ?? 0)) : side).length)
         },
-        referendumsConnection: ({where}) => count(where?.deposits_some ? proposed.length : (counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size)),
+        // the referenda open on a track while a delegation lasted come from counts.open(where)
+        referendumsConnection: ({where}) =>
+            count(where?.deposits_some ? proposed.length : where?.track ? (counts.open?.(where) ?? 0) : (counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size)),
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,
         votes: args => (args.where?.removed_eq === false ? standing : paged(votes)(args)),
         delegatedVoteActionsConnection: count(delegatedVoteActions.length),
@@ -1000,7 +1002,7 @@ export function accountPage({
         votingActionsConnection: count(counts.voteActions ?? voteActions.length),
         votingActions: pagedActions(voteActions),
         delegationActionsConnection: ({where}) => count(delegationsSide(where).length),
-        delegationActions: args => paged(delegationsSide(args.where))(args),
+        delegationActions: args => pagedActions(delegationsSide(args.where))(args),
         evmTransactionsConnection: count(deploys),
         tokensConnection: count(tokens),
         tokenTransfersConnection: count(counts.tokenTransfers ?? tokenTransfers.length),

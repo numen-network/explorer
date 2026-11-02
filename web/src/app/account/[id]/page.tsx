@@ -12,6 +12,7 @@ import BalanceBar from '@/components/account/BalanceBar'
 import Charts from '@/components/account/Charts'
 import Counterparties from '@/components/account/Counterparties'
 import Delegations from '@/components/account/Delegations'
+import {delegationsOf, rowCount} from '@/components/account/delegates'
 import DelegatedVoteHistory from '@/components/account/DelegatedVoteHistory'
 import DelegatedVotes from '@/components/account/DelegatedVotes'
 import DelegationHistory from '@/components/account/DelegationHistory'
@@ -179,7 +180,8 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     }
     if (s.nReceivedHistory.totalCount > 0)
         tabs.push({slug: 'delegator-history', label: 'Delegator history', group: 'Governance', count: s.nReceivedHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="in" slug="delegator-history" />})
-    if (s.nDelegOut.totalCount > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount, body: () => <Delegations {...ctx} />})
+    const delegations = delegationsOf(s.delegationSteps)
+    if (delegations.length > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: rowCount(delegations), body: () => <Delegations {...ctx} delegations={delegations} />})
     if (s.nDelegHistory.totalCount > 0)
         tabs.push({slug: 'delegation-history', label: 'Delegation history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="out" slug="delegation-history" />})
     if (s.nProposed.totalCount > 0) tabs.push({slug: 'proposed', label: 'Proposed', group: 'Governance', count: s.nProposed.totalCount, body: () => <Proposed {...ctx} />})

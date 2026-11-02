@@ -1,26 +1,31 @@
 import Approx from '@/components/Approx'
 import StatTile from '@/components/StatTile'
 import {Card} from '@/components/ui/card'
-import {fmtInt} from '@/lib/format'
-import {delegationsOutFor} from '@/lib/gql'
-import {DelegationsTable} from './DelegationsTable'
+import {fmtInt, fmtPct} from '@/lib/format'
+import {delegationActivity} from '@/lib/gql'
+import {combine, delegatedOf, delegateRows, type Delegation} from './delegates'
+import {DelegatesTable} from './DelegatesTable'
 import type {TabCtx} from './shared'
 
-export default async function Delegations({hex, chain}: TabCtx) {
-    const {delegations} = await delegationsOutFor(hex)
-    // one delegation per track, and the conviction locks overlap, so the largest is what the account has put up
-    const delegated = delegations.reduce((m, d) => (BigInt(d.balance) > m ? BigInt(d.balance) : m), 0n)
+export default async function Delegations({hex, addr, chain, delegations}: TabCtx & {delegations: Delegation[]}) {
+    const {votes, open} = await delegationActivity(hex, delegations)
+    const rows = delegateRows(delegations, votes, open)
+    const all = combine(rows)
     return (
         <>
             <StatTile
-                label="Tracks"
-                value={fmtInt(delegations.length)}
-                beside={[{label: 'Delegated', value: <Approx planck={delegated} decimals={chain.decimals} symbol={chain.symbol} breakable />}]}
+                label="Delegates"
+                value={fmtInt(rows.filter(r => !r.ended).length)}
+                beside={[
+                    {label: 'Tracks', value: fmtInt(delegations.filter(d => d.end == null).length)},
+                    {label: 'Delegated', value: <Approx planck={delegatedOf(delegations)} decimals={chain.decimals} symbol={chain.symbol} breakable />},
+                    {label: 'Participation', value: fmtPct(all.voted, all.open)},
+                ]}
                 pairs
                 className="mb-3"
             />
             <Card size="flush">
-                <DelegationsTable label="Delegating to" rows={delegations} chain={chain} />
+                <DelegatesTable rows={rows} addr={addr} chain={chain} />
             </Card>
         </>
     )
