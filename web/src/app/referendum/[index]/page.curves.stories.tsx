@@ -79,8 +79,8 @@ export const ActionsEveryKind = withPlay(story(everyAction.referendum, 'curves',
     const [action, amount, impact] = [3, 4, 5].map(i => rows.map(row => cellsOf(row)[i]))
     await expect(action[2]).toContain('Delegated by')
     await expect(action[3]).toContain('Undelegated by')
-    await expect(amount[2]).toMatch(/\+ .* delegated$/)
-    await expect(amount[3]).not.toContain('delegated')
+    await expect(amount[2]).toMatch(/\+ .* received$/)
+    await expect(amount[3]).not.toContain('received')
     await expect(impact.every(i => i !== '—')).toBe(true)
 })
 

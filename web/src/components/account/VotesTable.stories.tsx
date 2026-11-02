@@ -72,9 +72,9 @@ export const EveryKind: Story = {
             '3,250 NUMN',
         ])
         expect(columnTexts(canvasElement, 'Votes')).toEqual([
-            '5,500 NUMN1,000 + 4,500 delegated',
+            '5,500 NUMN1,000 + 4,500 received',
             '400 NUMN150 NUMN',
-            '16.5K NUMN4,500 + 12K delegated',
+            '16.5K NUMN4,500 + 12K received',
             '1.5M NUMN',
             '200 NUMN',
             '10 NUMN10 NUMN980 NUMN',
@@ -106,7 +106,7 @@ export const ExpandedWithoutDelegators: Story = {
     render: () => table(voteRows(), EVERY_KIND_DELEGATIONS),
     play: async ctx => {
         await expand(3)(ctx)
-        await expect(within(ctx.canvasElement).getByText('Self votes')).toBeInTheDocument()
+        await expect(within(ctx.canvasElement).getByText('Direct votes')).toBeInTheDocument()
         expect(within(ctx.canvasElement).queryByText('Delegation list')).toBeNull()
     },
 }

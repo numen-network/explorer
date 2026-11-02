@@ -88,7 +88,7 @@ export function DelegatesTable({rows, chain, referenda}: {rows: DelegateRow[]; c
                 dcol.display({id: 'delegate', header: 'Delegate', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={ss58Encode(row.original.id, chain.ss58)} acc={row.original.account} />}),
                 dcol.display({id: 'delegators', header: 'Delegators', meta: num, cell: ({row}) => fmtInt(row.original.delegators)}),
                 dcol.display({id: 'tracks', header: 'Tracks', meta: num, cell: ({row}) => fmtInt(row.original.tracks)}),
-                dcol.display({id: 'delegated', header: 'Delegated', meta: num, cell: ({row}) => fmtBalance(row.original.delegated, chain.decimals, chain.symbol)}),
+                dcol.display({id: 'delegated', header: 'Received', meta: num, cell: ({row}) => fmtBalance(row.original.delegated, chain.decimals, chain.symbol)}),
                 dcol.display({id: 'voted', header: 'Voted', meta: num, cell: ({row}) => `${fmtInt(row.original.voted)} / ${fmtInt(referenda)}`}),
             ]),
         [chain, referenda]

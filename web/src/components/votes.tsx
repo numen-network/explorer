@@ -111,7 +111,7 @@ export function VoteDetail({v, moreHref, decimals, symbol, pivotal = null}: {v: 
         <div className="bg-[#fafaf9] px-5 py-4">
             <div className="grid grid-cols-[minmax(0,1fr)] gap-x-10 gap-y-4 sm:grid-cols-2">
                 <div>
-                    <h3 className="text-[13px] font-semibold">Self votes</h3>
+                    <h3 className="text-[13px] font-semibold">Direct votes</h3>
                     <div className="mt-1 text-sm">
                         <Stat label="Votes" value={<Approx planck={v.selfVotes} decimals={decimals} symbol={symbol} />} />
                         <Stat label="Conviction" value={v.conviction} />
@@ -119,7 +119,7 @@ export function VoteDetail({v, moreHref, decimals, symbol, pivotal = null}: {v: 
                     </div>
                 </div>
                 <div>
-                    <h3 className="text-[13px] font-semibold">Delegated votes</h3>
+                    <h3 className="text-[13px] font-semibold">Received votes</h3>
                     <div className="mt-1 text-sm">
                         <Stat label="Votes" value={<Approx planck={v.delegatedVotes} decimals={decimals} symbol={symbol} />} />
                         <Stat label="Delegators" value={fmtInt(v.delegatorCount)} />
@@ -165,7 +165,7 @@ function StandardTable({rows, whole, decimals, symbol, empty, pivotal}: {rows: V
             col.display({id: 'votes', header: 'Votes', meta: {align: 'right', cellClassName: AUX}, cell: ({row}) => <Approx planck={row.original.selfVotes} decimals={decimals} symbol={symbol} />}),
             col.display({
                 id: 'delegated',
-                header: 'Delegated',
+                header: 'Received',
                 meta: {align: 'right', cellClassName: AUX},
                 cell: ({row}) =>
                     row.original.delegatorCount > 0 ? (

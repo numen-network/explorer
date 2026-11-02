@@ -54,7 +54,7 @@ export const EveryCase: StoryObj = {
     play: async ({canvasElement}) => {
         expect(columnTexts(canvasElement, 'Delegators')).toEqual(['2,147,483,647', '7', '5', '1'])
         expect(columnTexts(canvasElement, 'Tracks')).toEqual(['9', '9', '1', '3'])
-        expect(columnTexts(canvasElement, 'Delegated')).toEqual(EVERY_CASE.map(d => fmtBalance(d.delegated, chainInfo.decimals, chainInfo.symbol)))
+        expect(columnTexts(canvasElement, 'Received')).toEqual(EVERY_CASE.map(d => fmtBalance(d.delegated, chainInfo.decimals, chainInfo.symbol)))
         expect(columnTexts(canvasElement, 'Voted')).toEqual([referenda.length, 4, 1, 0].map(n => `${n} / ${referenda.length}`))
     },
 }

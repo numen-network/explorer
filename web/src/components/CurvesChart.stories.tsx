@@ -568,7 +568,7 @@ export const ChartVoterAmountAndBadge: Story = {
         await waitFor(() => expect(dataOf(canvasElement)).toHaveLength(1))
         const lines = lastTooltipLines(canvasElement, 'Voters')[0].join(' ')
         expect(lines).toContain('Amount2,000 NUMN')
-        expect(lines).toContain('1,500 + 500 delegated')
+        expect(lines).toContain('1,500 + 500 received')
         expect(canvasElement.querySelector('[data-chart-tip] svg.lucide')).not.toBeNull()
     },
 }

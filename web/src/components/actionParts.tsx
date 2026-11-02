@@ -48,7 +48,7 @@ export function VoteWeight({own, delegated, change, decimals, symbol}: {own: big
             <Approx planck={own + delegated} decimals={decimals} symbol={symbol} />
             {delegated !== 0n && (
                 <div className="text-xs text-dim">
-                    <Approx planck={own} decimals={decimals} /> + <Approx planck={delegated} decimals={decimals} /> delegated
+                    <Approx planck={own} decimals={decimals} /> + <Approx planck={delegated} decimals={decimals} /> received
                 </div>
             )}
             {change && <ReplacedVote change={change} decimals={decimals} />}

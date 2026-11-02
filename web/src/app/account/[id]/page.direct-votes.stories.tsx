@@ -129,7 +129,7 @@ export const RecordTooltip: StoryObj = {
 export const Delegated: StoryObj = {
     ...story({account: voting(numn(250_000)), votes: voteRows(), delegatedVotes: [delegatedVote(6, 'Locked3x', 1_500, PEOPLE[1])], refs: [PEOPLE[1]]}, {tab: 'direct-votes'}),
     play: async ({canvasElement, userEvent}) => {
-        expect(columnTexts(canvasElement, 'Votes')[0]).toBe('5,500 NUMN1,000 + 4,500 delegated')
+        expect(columnTexts(canvasElement, 'Votes')[0]).toBe('5,500 NUMN1,000 + 4,500 received')
         const row = within(canvasElement).getByRole('link', {name: /^#6\b/}).closest('tr')!
         await userEvent.click(within(row).getByRole('button', {name: 'expand'}))
         const list = within(canvasElement).getByText('Delegation list').parentElement!

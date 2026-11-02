@@ -91,7 +91,7 @@ export const DelegatorsOneOverInlineLimit = hiddenNote(delegators(PEOPLE[0], ano
 export const DelegatorsThousands = withPlay(withDelegators(delegators(PEOPLE[0], anons(1000, 5000), 1_000)), async context => {
     await expandRow('Polaris Guild')!(context)
     await expect(await context.canvas.findByRole('link', {name: '4,990 more delegators on the account page'})).toBeVisible()
-    const stat = within(context.canvas.getByRole('heading', {name: 'Delegated votes'}).parentElement!)
+    const stat = within(context.canvas.getByRole('heading', {name: 'Received votes'}).parentElement!)
     await expect(stat.getByText('Delegators').nextElementSibling).toHaveTextContent('5,000')
 })
 
@@ -113,7 +113,7 @@ export const DelegatedAfterEnd = withPlay(
         const listed = (who: {id: string}) => context.canvas.queryAllByRole('link').some(link => link.getAttribute('href') === `/account/${ss58Encode(who.id, CHAIN.ss58)}`)
         await waitFor(() => expect(listed(countedDelegation.who)).toBe(true))
         await expect(listed(laterDelegation.who)).toBe(false)
-        const stat = within(context.canvas.getByRole('heading', {name: 'Delegated votes'}).parentElement!)
+        const stat = within(context.canvas.getByRole('heading', {name: 'Received votes'}).parentElement!)
         await expect(stat.getByText('Delegators').nextElementSibling).toHaveTextContent('1')
     }
 )
