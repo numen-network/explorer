@@ -43,7 +43,7 @@ export class Account {
     firstSeenTimestamp!: Date | undefined | null
 
     /**
-     * null for an account that never signed, sealed or dispatched anything
+     * null for an account that never signed or dispatched anything
      */
     @Index_("idx_account_last_active_block_82d33d5a")
     @IntColumn_({nullable: true})

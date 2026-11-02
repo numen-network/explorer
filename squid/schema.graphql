@@ -85,7 +85,7 @@ type Account @entity {
   firstSeenBlock: Int!
   "timestamp of the first seen block, null for an account born at genesis"
   firstSeenTimestamp: DateTime @index
-  "null for an account that never signed, sealed or dispatched anything"
+  "null for an account that never signed or dispatched anything"
   lastActiveBlock: Int @index
   "when this account last sealed a block"
   lastMinedTimestamp: DateTime @index

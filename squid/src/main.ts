@@ -111,7 +111,7 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     const timestamp = h.timestamp ? new Date(h.timestamp) : null
     if (h.height > 0 && !timestamp) throw new Error(`block ${h.height} has no timestamp inherent`)
     const [difficulty, balances] = await Promise.all([currentDifficulty(h), balanceSnapshot(h)])
-    const miner = author ? batch.act(author, h.height) : undefined
+    const miner = author ? batch.touch(author, h.height) : undefined
     if (miner != null) miner.lastMinedTimestamp = timestamp
     const block = new Block({
         id: h.id,

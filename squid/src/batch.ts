@@ -247,8 +247,8 @@ export class BatchData {
         return a
     }
 
-    // signing, sealing a block or dispatching a call as its origin, nothing
-    // that happens to an account
+    // signing or dispatching a call as its origin, nothing that happens to
+    // an account
     act(id: string, height: number): Account {
         const a = this.touch(id, height)
         a.lastActiveBlock = Math.max(a.lastActiveBlock ?? height, height)
