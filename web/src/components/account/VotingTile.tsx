@@ -4,10 +4,10 @@ import Approx from '@/components/Approx'
 import {Card} from '@/components/ui/card'
 import {chainDbHead, type ChainProps} from '@/lib/chain'
 import {fmtInt, fmtPct} from '@/lib/format'
-import {votingSummary, type AccountRow} from '@/lib/gql'
+import {participation, type AccountRow} from '@/lib/gql'
 import {PARTICIPATION_DAYS, participationFrom} from './shared'
 
-export type Voting = Pick<AccountRow, 'firstSeenBlock' | 'ownVotes' | 'receivedVotes' | 'delegatedVotes'>
+export type Voting = Pick<AccountRow, 'firstSeenBlock' | 'ownVotes' | 'receivedVotes' | 'delegatedVotes' | 'directReferenda' | 'delegatedReferenda'>
 
 interface Part {
     label: string
@@ -57,11 +57,12 @@ function Column({label, total, parts, rest = 0n}: {label: string; total: ReactNo
 // and its voting power by role
 export default async function VotingTile({hex, chain, voting}: {hex: string; chain: ChainProps; voting: Voting}) {
     const head = await chainDbHead()
-    const sum = await votingSummary(hex, participationFrom(voting.firstSeenBlock, head.height, chain.blockTime))
+    const sum = await participation(hex, participationFrom(voting.firstSeenBlock, head.height, chain.blockTime))
     const amount = (planck: bigint) => <Approx planck={planck} decimals={chain.decimals} symbol={chain.symbol} breakable />
     const [own, received, delegated] = [voting.ownVotes, voting.receivedVotes, voting.delegatedVotes].map(BigInt)
     const votes = own + received + delegated
-    const [direct, delegatedOn, directVoted, delegatedVoted, open] = [sum.direct, sum.delegated, sum.directVoted, sum.delegatedVoted, sum.open].map(c => c.totalCount)
+    const {directReferenda: direct, delegatedReferenda: delegatedOn} = voting
+    const [directVoted, delegatedVoted, open] = [sum.directVoted, sum.delegatedVoted, sum.open].map(c => c.totalCount)
     const referenda = direct + delegatedOn
     const rate = (voted: number) => (open > 0 ? fmtPct(voted, open) : '—')
     return (

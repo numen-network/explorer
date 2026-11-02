@@ -914,6 +914,8 @@ export function accountPage({
         ownVotes: sum(standing.map(v => v.votes)),
         receivedVotes: sum(delegatedVotes.map(d => d.votes)),
         delegatedVotes: sum(delegatedVotesOut.filter(d => !d.removed).map(d => d.votes)),
+        directReferenda: standing.length,
+        delegatedReferenda: delegatedVotesOut.filter(d => !d.removed).length,
     }
     const volumes = {transferInVolume: counterparties.volumeIn, transferOutVolume: counterparties.volumeOut}
     const mining = {

@@ -542,6 +542,8 @@ export interface AccountRow extends AccountRef {
     ownVotes: string
     receivedVotes: string
     delegatedVotes: string
+    directReferenda: number
+    delegatedReferenda: number
 }
 
 export interface DelegationRow {
@@ -685,7 +687,7 @@ export function accountSummary(idHex: string) {
     const self = `{id_eq: $id}`
     return gql<AccountSummary>(
         `query ($id: String!) {
-            accountById(id: $id) { id free reserved balance frozen transferable nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData username identitySuper { ${ACCOUNT_REF} } evmAddress vestingJson locksJson holdsJson depositsJson minedBlocks minedRewards minedFees spendsReceived bountiesReceived childBountiesReceived curatorFeesReceived ownVotes receivedVotes delegatedVotes }
+            accountById(id: $id) { id free reserved balance frozen transferable nonce firstSeenBlock firstSeenTimestamp lastActiveBlock identityDisplay identityJson identitySubName identitySubData username identitySuper { ${ACCOUNT_REF} } evmAddress vestingJson locksJson holdsJson depositsJson minedBlocks minedRewards minedFees spendsReceived bountiesReceived childBountiesReceived curatorFeesReceived ownVotes receivedVotes delegatedVotes directReferenda delegatedReferenda }
             validators(where: {account: ${self}}, limit: 1) { ${VALIDATOR_FIELDS} }
             registrar: registrars(where: {account: ${self}}, orderBy: index_ASC, limit: 1) { ${REGISTRAR_FIELDS} }
             retiredRegistrars: registrars(where: {retiredAt_isNull: false}) { index }
@@ -901,19 +903,17 @@ export async function voteGrid(idHex: string) {
     return {referenda, votes, delegated}
 }
 
-// direct and delegated count the account's standing votes, voted those cast
-// since the window's start, open the referenda still taking votes at its start
-export function votingSummary(idHex: string, from: number) {
-    return gql<Record<'direct' | 'directVoted' | 'delegated' | 'delegatedVoted' | 'open', {totalCount: number}>>(
-        `query ($id: String!, $from: Int!) {
-            direct: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { totalCount }
-            directVoted: votesConnection(where: {voter: {id_eq: $id}, removed_eq: false, block_gte: $from}, orderBy: id_ASC) { totalCount }
-            delegated: delegatedVotesConnection(where: {delegator: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { totalCount }
-            delegatedVoted: delegatedVotesConnection(where: {delegator: {id_eq: $id}, removed_eq: false, block_gte: $from}, orderBy: id_ASC) { totalCount }
-            open: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: $from}]}, orderBy: index_ASC) { totalCount }
-        }`,
-        {id: idHex, from}
-    )
+type Participation = Record<'directVoted' | 'delegatedVoted' | 'open', {totalCount: number}>
+
+// standing votes cast since the window start, direct and delegated, and the
+// referenda still taking votes at that start
+const participationFields = (id: string, from: string | number, suffix = '') => `
+            directVoted${suffix}: votesConnection(where: {voter: {id_eq: ${id}}, removed_eq: false, block_gte: ${from}}, orderBy: id_ASC) { totalCount }
+            delegatedVoted${suffix}: delegatedVotesConnection(where: {delegator: {id_eq: ${id}}, removed_eq: false, block_gte: ${from}}, orderBy: id_ASC) { totalCount }
+            open${suffix}: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: ${from}}]}, orderBy: index_ASC) { totalCount }`
+
+export function participation(idHex: string, from: number) {
+    return gql<Participation>(`query ($id: String!, $from: Int!) {${participationFields('$id', '$from')}\n        }`, {id: idHex, from})
 }
 
 export interface ProposedRow extends RefPhaseFields {
@@ -1291,19 +1291,8 @@ export async function votersPage(limit: number, offset: number, fromOf: (firstSe
         {limit, offset}
     )
     if (accounts.length === 0) return []
-    const counts = await gql<Record<string, {totalCount: number}>>(
-        `query {
-            ${accounts
-                .map((a, i) => {
-                    const from = fromOf(a.firstSeenBlock)
-                    return `d${i}: votesConnection(where: {voter: {id_eq: "${a.id}"}, removed_eq: false, block_gte: ${from}}, orderBy: id_ASC) { totalCount }
-            g${i}: delegatedVotesConnection(where: {delegator: {id_eq: "${a.id}"}, removed_eq: false, block_gte: ${from}}, orderBy: id_ASC) { totalCount }
-            o${i}: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: ${from}}]}, orderBy: index_ASC) { totalCount }`
-                })
-                .join('\n            ')}
-        }`
-    )
-    return accounts.map((a, i) => ({...a, voted: counts[`d${i}`].totalCount + counts[`g${i}`].totalCount, open: counts[`o${i}`].totalCount}))
+    const counts = await gql<Record<string, {totalCount: number}>>(`query {${accounts.map((a, i) => participationFields(`"${a.id}"`, fromOf(a.firstSeenBlock), String(i))).join('')}\n        }`)
+    return accounts.map((a, i) => ({...a, voted: counts[`directVoted${i}`].totalCount + counts[`delegatedVoted${i}`].totalCount, open: counts[`open${i}`].totalCount}))
 }
 
 export interface PreimageRow {
