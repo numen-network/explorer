@@ -3,6 +3,7 @@
 import {useMemo} from 'react'
 import {FileText} from 'lucide-react'
 import {cn} from 'cn'
+import {PARTICIPATION_DAYS} from '@/components/account/shared'
 import AccountLink from '@/components/AccountLink'
 import Approx from '@/components/Approx'
 import {ArgsTable} from '@/components/ArgsTable'
@@ -21,8 +22,8 @@ import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
 import type {ArgNode} from '@/lib/args'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtBalance, fmtCount, fmtInt, fmtSpan, trackLabel} from '@/lib/format'
-import type {DelegateRow, PreimageRow, TrackRow, TreasurySpendRow} from '@/lib/gql'
+import {camelLabel, fmtBalance, fmtCount, fmtInt, fmtPct, fmtSpan, trackLabel} from '@/lib/format'
+import type {DelegateRow, PreimageRow, TrackRow, TreasurySpendRow, VoterRow} from '@/lib/gql'
 import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
 
@@ -77,6 +78,24 @@ export function TracksTable({rows, chain}: {rows: TrackRow[]; chain: ChainProps}
         ])
     }, [chain])
     return <DataTable columns={columns} rows={rows} getRowId={t => t.id} />
+}
+
+const vcol = columnsFor<VoterRow>()
+
+export function VotersTable({rows, chain}: {rows: VoterRow[]; chain: ChainProps}) {
+    const columns = useMemo(() => {
+        const votes = (planck: string) => <Approx planck={planck} decimals={chain.decimals} symbol={chain.symbol} />
+        return vcol.columns([
+            vcol.display({id: 'voter', header: 'Voter', meta: {className: 'w-full'}, cell: ({row}) => <AccountLink addr={ss58Encode(row.original.id, chain.ss58)} acc={row.original} />}),
+            vcol.display({id: 'last', header: 'Last vote', cell: ({row}) => <RefCell r={row.original.lastVote} />}),
+            vcol.display({id: 'referenda', header: 'Referenda', meta: num, cell: ({row}) => fmtInt(row.original.directReferenda + row.original.delegatedReferenda)}),
+            vcol.display({id: 'participation', header: `Participation (${PARTICIPATION_DAYS}d)`, meta: num, cell: ({row}) => (row.original.open > 0 ? fmtPct(row.original.voted, row.original.open) : '—')}),
+            vcol.display({id: 'direct', header: 'Direct votes', meta: num, cell: ({row}) => votes(row.original.ownVotes)}),
+            vcol.display({id: 'received', header: 'Received votes', meta: num, cell: ({row}) => votes(row.original.receivedVotes)}),
+            vcol.display({id: 'delegated', header: 'Delegated votes', meta: num, cell: ({row}) => votes(row.original.delegatedVotes)}),
+        ])
+    }, [chain])
+    return <DataTable columns={columns} rows={rows} empty={emptyText('voters')} getRowId={v => v.id} />
 }
 
 const dcol = columnsFor<DelegateRow>()

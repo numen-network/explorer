@@ -135,6 +135,14 @@ type Account @entity {
   receivedVotes: BigInt!
   "the conviction weighted votes it delegated through others' standing votes, referendum by referendum"
   delegatedVotes: BigInt!
+  "ownVotes, receivedVotes and delegatedVotes together"
+  totalVotes: BigInt! @index
+  "the referenda it holds a standing vote on"
+  directReferenda: Int!
+  "the referenda that count its delegation through a standing vote of its target"
+  delegatedReferenda: Int!
+  "the referendum of its latest standing vote, direct or delegated. a tie in one block goes to the higher index"
+  lastVote: Referendum
 }
 
 type Extrinsic @entity {

@@ -325,20 +325,40 @@ export async function totalAccountVotes(ctx: {store: any}, batch: BatchData): Pr
     if (accounts.size === 0) return
     const ids = [...accounts.keys()]
     const [votes, delegated]: [Vote[], DelegatedVote[]] = await Promise.all([
-        ctx.store.find(Vote, {where: {voter: {id: In(ids)}}, relations: {voter: true}}),
-        ctx.store.find(DelegatedVote, {where: [{voter: {id: In(ids)}}, {delegator: {id: In(ids)}}], relations: {voter: true, delegator: true}}),
+        ctx.store.find(Vote, {where: {voter: {id: In(ids)}}, relations: {voter: true, referendum: true}}),
+        ctx.store.find(DelegatedVote, {where: [{voter: {id: In(ids)}}, {delegator: {id: In(ids)}}], relations: {voter: true, delegator: true, referendum: true}}),
     ])
     const standing = <T extends {id: string; removed: boolean}>(stored: T[], latest: Map<string, T>) => [...new Map([...stored.map(r => [r.id, r] as const), ...latest]).values()].filter(r => !r.removed)
-    for (const a of accounts.values()) a.ownVotes = a.receivedVotes = a.delegatedVotes = 0n
+    const last = new Map<string, {block: number; index: number}>()
+    const voted = (a: Account, {block, referendum}: {block: number; referendum: Referendum}) => {
+        const index = Number(referendum.id)
+        const seen = last.get(a.id)
+        if (seen == null || block > seen.block || (block === seen.block && index > seen.index)) last.set(a.id, {block, index})
+    }
+    for (const a of accounts.values()) {
+        a.ownVotes = a.receivedVotes = a.delegatedVotes = 0n
+        a.directReferenda = a.delegatedReferenda = 0
+    }
     for (const v of standing(votes, batch.votes)) {
         const a = accounts.get(v.voter.id)
-        if (a != null) a.ownVotes += v.votes
+        if (a == null) continue
+        a.ownVotes += v.votes
+        a.directReferenda += 1
+        voted(a, v)
     }
     for (const d of standing(delegated, batch.delegatedVotes)) {
         const to = accounts.get(d.voter.id)
         if (to != null) to.receivedVotes += d.votes
         const from = accounts.get(d.delegator.id)
-        if (from != null) from.delegatedVotes += d.votes
+        if (from == null) continue
+        from.delegatedVotes += d.votes
+        from.delegatedReferenda += 1
+        voted(from, d)
+    }
+    for (const a of accounts.values()) {
+        a.totalVotes = a.ownVotes + a.receivedVotes + a.delegatedVotes
+        const seen = last.get(a.id)
+        a.lastVote = seen == null ? null : new Referendum({id: String(seen.index)})
     }
 }
 

@@ -1,5 +1,6 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, BigIntColumn as BigIntColumn_, IntColumn as IntColumn_, DateTimeColumn as DateTimeColumn_, Index as Index_, StringColumn as StringColumn_, JSONColumn as JSONColumn_, ManyToOne as ManyToOne_, Relation as Relation_, OneToMany as OneToMany_, OneToOne as OneToOne_} from "@subsquid/typeorm-store"
 import {Delegate} from "./delegate.model"
+import {Referendum} from "./referendum.model"
 
 @Entity_()
 export class Account {
@@ -196,4 +197,30 @@ export class Account {
      */
     @BigIntColumn_({nullable: false})
     delegatedVotes!: bigint
+
+    /**
+     * ownVotes, receivedVotes and delegatedVotes together
+     */
+    @Index_("idx_account_total_votes_30338453")
+    @BigIntColumn_({nullable: false})
+    totalVotes!: bigint
+
+    /**
+     * the referenda it holds a standing vote on
+     */
+    @IntColumn_({nullable: false})
+    directReferenda!: number
+
+    /**
+     * the referenda that count its delegation through a standing vote of its target
+     */
+    @IntColumn_({nullable: false})
+    delegatedReferenda!: number
+
+    /**
+     * the referendum of its latest standing vote, direct or delegated. a tie in one block goes to the higher index
+     */
+    @Index_("idx_account_last_vote_58859857")
+    @ManyToOne_(() => Referendum, {nullable: true})
+    lastVote!: Relation_<Referendum> | undefined | null
 }

@@ -56,7 +56,7 @@ const preview: Preview = {
                         'Tokens',
                         ['Tabs', 'Tokens', 'LP'],
                         'Governance',
-                        ['Overview', 'Tabs', 'Referenda', 'Treasury spends', 'Tracks', 'Delegates', 'Preimages'],
+                        ['Overview', 'Tabs', 'Referenda', 'Treasury spends', 'Tracks', 'Voters', 'Delegates', 'Preimages'],
                         'Validators',
                         ['Overview', 'Tabs', 'Validators', 'History', 'Sessions'],
                         'Miners',

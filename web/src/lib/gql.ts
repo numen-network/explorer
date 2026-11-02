@@ -1264,6 +1264,48 @@ export async function delegatesPage(limit: number, offset: number): Promise<Dele
     return delegates.map((d, i) => ({...d, voted: voted[`v${i}`].totalCount}))
 }
 
+export interface VoterRow extends AccountRef {
+    firstSeenBlock: number
+    ownVotes: string
+    receivedVotes: string
+    delegatedVotes: string
+    directReferenda: number
+    delegatedReferenda: number
+    lastVote: {index: number; status: string} | null
+    /** Standing votes, direct and delegated, cast since the row's window start. */
+    voted: number
+    /** Referenda still taking votes at the row's window start. */
+    open: number
+}
+
+const VOTERS_WHERE = '{OR: [{directReferenda_gt: 0}, {delegatedReferenda_gt: 0}]}'
+
+// account ids are hex and window starts are numbers, safe to splice into the counts
+export async function votersPage(limit: number, offset: number, fromOf: (firstSeenBlock: number) => number): Promise<VoterRow[]> {
+    const {accounts} = await gql<{accounts: Omit<VoterRow, 'voted' | 'open'>[]}>(
+        `query ($limit: Int!, $offset: Int!) {
+            accounts(where: ${VOTERS_WHERE}, orderBy: [totalVotes_DESC, id_ASC], limit: $limit, offset: $offset) {
+                ${ACCOUNT_REF} firstSeenBlock ownVotes receivedVotes delegatedVotes directReferenda delegatedReferenda lastVote { index status }
+            }
+        }`,
+        {limit, offset}
+    )
+    if (accounts.length === 0) return []
+    const counts = await gql<Record<string, {totalCount: number}>>(
+        `query {
+            ${accounts
+                .map((a, i) => {
+                    const from = fromOf(a.firstSeenBlock)
+                    return `d${i}: votesConnection(where: {voter: {id_eq: "${a.id}"}, removed_eq: false, block_gte: ${from}}, orderBy: id_ASC) { totalCount }
+            g${i}: delegatedVotesConnection(where: {delegator: {id_eq: "${a.id}"}, removed_eq: false, block_gte: ${from}}, orderBy: id_ASC) { totalCount }
+            o${i}: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: ${from}}]}, orderBy: index_ASC) { totalCount }`
+                })
+                .join('\n            ')}
+        }`
+    )
+    return accounts.map((a, i) => ({...a, voted: counts[`d${i}`].totalCount + counts[`g${i}`].totalCount, open: counts[`o${i}`].totalCount}))
+}
+
 export interface PreimageRow {
     id: string
     hash: string
@@ -2130,6 +2172,7 @@ export function governanceSummary() {
         ongoing: {totalCount: number}
         spends: {totalCount: number}
         tracks: {totalCount: number}
+        voters: {totalCount: number}
         delegates: {totalCount: number}
         preimages: {totalCount: number}
         trackList: {id: string; name: string}[]
@@ -2140,6 +2183,7 @@ export function governanceSummary() {
             ongoing: referendumsConnection(orderBy: index_ASC, where: {status_eq: Ongoing}) { totalCount }
             spends: treasurySpendsConnection(orderBy: block_DESC) { totalCount }
             tracks: tracksConnection(orderBy: index_ASC) { totalCount }
+            voters: accountsConnection(where: ${VOTERS_WHERE}, orderBy: id_ASC) { totalCount }
             delegates: delegatesConnection(orderBy: id_ASC) { totalCount }
             preimages: preimagesConnection(orderBy: id_ASC) { totalCount }
             trackList: tracks(orderBy: index_ASC) { id name }

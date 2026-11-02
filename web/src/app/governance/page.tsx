@@ -3,6 +3,7 @@ import {FileText} from 'lucide-react'
 import {qualified} from '@/components/calls'
 import {describePreimage} from '@/lib/args'
 import {markArgs} from '@/lib/argMarks'
+import {participationFrom} from '@/components/account/shared'
 import Approx from '@/components/Approx'
 import EmptyList from '@/components/EmptyList'
 import Pager from '@/components/Pager'
@@ -18,16 +19,16 @@ import {chainDbHead, chainProps} from '@/lib/chain'
 import {camelLabel, fmtCount, fmtInt, shortHash, trackLabel, truncFixed} from '@/lib/format'
 import type {Curve} from '@/lib/curves'
 import {needsNow} from '@/lib/referendum'
-import {delegatesPage, governanceSummary, preimagesPage, referendaPage, specVersionAt, tracksPage, treasurySpendsPage} from '@/lib/gql'
+import {delegatesPage, governanceSummary, preimagesPage, referendaPage, specVersionAt, tracksPage, treasurySpendsPage, votersPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {loadRuntimes} from '@/lib/runtime'
 import {SPEND_KIND_LABEL} from '@/lib/spends'
-import {DelegatesTable, PreimagesTable, TracksTable, TreasuryTable} from './tables'
+import {DelegatesTable, PreimagesTable, TracksTable, TreasuryTable, VotersTable} from './tables'
 
 export const dynamic = 'force-dynamic'
 export const metadata = {title: 'Governance'}
 
-const TABS = ['referenda', 'treasury', 'tracks', 'delegates', 'preimages'] as const
+const TABS = ['referenda', 'treasury', 'tracks', 'voters', 'delegates', 'preimages'] as const
 type Tab = (typeof TABS)[number]
 
 // the Treasury call families and the Treasury events a spend can end on
@@ -60,17 +61,18 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
     const status = chosen(sp.status, SPEND_STATUSES)
     const on = {kind, status, track}
 
-    const [refs, spends, tracks, delegates, preimages] = await Promise.all([
+    const [refs, spends, tracks, voters, delegates, preimages] = await Promise.all([
         tab === 'referenda' ? referendaPage(pg.size, pg.offset, track || undefined) : null,
         tab === 'treasury' ? treasurySpendsPage(pg.size, pg.offset, {kind: SPEND_KINDS, status: SPEND_STATUSES, track: trackIds}, on) : null,
         tab === 'tracks' ? tracksPage(pg.size, pg.offset) : null,
+        tab === 'voters' ? votersPage(pg.size, pg.offset, first => participationFrom(first, head.height, chain.blockTime)) : null,
         tab === 'delegates' ? delegatesPage(pg.size, pg.offset) : null,
         tab === 'preimages' ? preimageViews(pg.size, pg.offset) : null,
     ])
 
     const latest = sum.dailyStats[0]
     const activeIssuance = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
-    const pageTotal = {referenda: refs?.conn.totalCount ?? 0, treasury: spends?.total ?? 0, tracks: sum.tracks.totalCount, delegates: sum.delegates.totalCount, preimages: sum.preimages.totalCount}[tab]
+    const pageTotal = {referenda: refs?.conn.totalCount ?? 0, treasury: spends?.total ?? 0, tracks: sum.tracks.totalCount, voters: sum.voters.totalCount, delegates: sum.delegates.totalCount, preimages: sum.preimages.totalCount}[tab]
 
     // a pick keeps the other dimensions and drops paging
     const facetHref = (field: string, value: string) => {
@@ -214,6 +216,7 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                         {label: 'Referenda', count: sum.refs.totalCount, href: '/governance?tab=referenda', active: tab === 'referenda'},
                         {label: 'Treasury spends', count: sum.spends.totalCount, href: '/governance?tab=treasury', active: tab === 'treasury'},
                         {label: 'Tracks', count: sum.tracks.totalCount, href: '/governance?tab=tracks', active: tab === 'tracks'},
+                        {label: 'Voters', count: sum.voters.totalCount, href: '/governance?tab=voters', active: tab === 'voters'},
                         {label: 'Delegates', count: sum.delegates.totalCount, href: '/governance?tab=delegates', active: tab === 'delegates'},
                         {label: 'Preimages', count: sum.preimages.totalCount, href: '/governance?tab=preimages', active: tab === 'preimages'},
                     ]}
@@ -233,6 +236,11 @@ export default async function GovernancePage(props: PageProps<'/governance'>) {
                         </Card>
                     )}
                     {trackCurves}
+                    {voters && (
+                        <Card size="flush">
+                            <VotersTable rows={voters} chain={chain} />
+                        </Card>
+                    )}
                     {delegates && (
                         <Card size="flush">
                             <DelegatesTable rows={delegates} chain={chain} referenda={sum.refs.totalCount} />
