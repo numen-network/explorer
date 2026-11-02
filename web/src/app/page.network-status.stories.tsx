@@ -1,5 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
+import {HEAD} from '../../../mock/fixtures.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {expectFits} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
@@ -36,6 +37,12 @@ export const Indexing: StoryObj = {
         await expect(row(canvasElement, 'Session')).toHaveTextContent(/^#516$/)
         await expect(status.getByText('Block 20 / 60')).toBeVisible()
     },
+}
+
+// twenty blocks behind is past the line the banner draws, so the card reads Indexing too
+export const SlightlyBehind: StoryObj = {
+    ...pageStory(home({...many, best: HEAD + 20})),
+    play: async ({canvasElement}) => expect(within(card(canvasElement)).getByText('Indexing')).toBeVisible(),
 }
 
 // the day's thousand and one blocks came 9.96s apart, which reads cut at the tenth

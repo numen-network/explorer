@@ -31,6 +31,7 @@ import {evmMappedAccount} from '@/lib/evm'
 import {homeData, type HomeEvmTxRow, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {halvingAt} from '@/lib/halving'
 import {blocksConstant, loadRuntimes} from '@/lib/runtime'
+import {isBehind} from '@/lib/indexing'
 import {SPEND_KIND_LABEL, SPEND_STATE_TONE, spendState} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
 import {deadlines, rowHidden, upcomingWindow} from '@/lib/upcoming'
@@ -168,7 +169,7 @@ async function Home({searchParams}: PageProps<'/'>) {
     const period = props.sessionLength
     const inSession = period > 0 ? ((head.height - props.sessionOffset) % period) + 1 : 0
 
-    const indexing = heads.best - head.height > 50
+    const indexing = isBehind(heads)
 
     const cards: BlockCard[] = data.minedObjects.map(o => ({
         height: o.block.height,

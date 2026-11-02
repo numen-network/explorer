@@ -4,10 +4,10 @@ import {useEffect, useState} from 'react'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import type {Heads} from '@/lib/chain'
 import {fmtCount, fmtInt} from '@/lib/format'
+import {isBehind} from '@/lib/indexing'
 
 // the chain head comes from the same row the processor writes, so a dead
 // processor freezes both numbers and only the age of the newest block moves
-const BEHIND_BLOCKS = 10
 const STALL_FACTOR = 10
 const STALL_FLOOR = 120
 const TICK_MS = 5000
@@ -22,8 +22,7 @@ function since(seconds: number): string {
 }
 
 function warning(heads: Heads, blockTime: number, now: number): string | null {
-    const behind = heads.best - heads.indexed
-    if (behind > BEHIND_BLOCKS) return `Indexer is ${fmtCount(behind, 'block')} behind the chain head at #${fmtInt(heads.best)}.`
+    if (isBehind(heads)) return `Indexer is ${fmtCount(heads.best - heads.indexed, 'block')} behind the chain head at #${fmtInt(heads.best)}.`
     if (heads.indexedAt == null) return null
     const age = (now - Date.parse(heads.indexedAt)) / 1000
     const stall = Math.max(STALL_FLOOR, blockTime * STALL_FACTOR)
