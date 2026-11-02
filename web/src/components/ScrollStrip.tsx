@@ -54,7 +54,7 @@ export default function ScrollStrip({children, look, className, stripClassName, 
     }, [])
     const nudge = (dir: 1 | -1) => ref.current?.scrollBy({left: dir * ref.current.clientWidth * 0.6, behavior: 'smooth'})
     const l = LOOKS[look]
-    const arrow = 'absolute inset-y-0 z-10 h-auto w-auto rounded-none from-background to-transparent hover:bg-transparent'
+    const arrow = 'absolute inset-y-0 z-10 h-auto w-auto rounded-none bg-origin-border bg-clip-border from-background to-transparent hover:bg-transparent'
     return (
         <div className={cn('relative', className)}>
             {state.left && (
