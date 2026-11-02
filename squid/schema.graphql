@@ -596,6 +596,34 @@ type DelegatedVote @entity {
 }
 
 """
+one row per event that changed a DelegatedVote, a vote of the target or a
+delegation of the delegator
+"""
+type DelegatedVoteAction @entity @index(fields: ["delegator", "block", "indexInBlock"]) {
+  "the referendum index, the id of the event and the delegator, a vote event moves every delegation its voter holds"
+  id: ID!
+  referendum: Referendum! @index
+  "the delegation target, whose standard vote carries the delegation"
+  voter: Account! @index
+  delegator: Account!
+  "Voted, VoteRemoved, Delegated or Undelegated"
+  method: String!
+  "the side of the standard vote that carries it"
+  aye: Boolean!
+  "the Conviction variant name"
+  conviction: String!
+  balance: BigInt!
+  "the balance weighted by its conviction, a tenth of it for None and N times it for LockedNx"
+  votes: BigInt!
+  "set when the event left the delegation not counting"
+  removed: Boolean!
+  block: Int!
+  "the event's place in its block"
+  indexInBlock: Int!
+  timestamp: DateTime!
+}
+
+"""
 one row per vote cast or removed on a referendum, and one per delegation
 change that moved its tally through the standard vote its target held
 """

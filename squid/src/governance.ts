@@ -6,7 +6,7 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In, IsNull, Not} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, Block, Call as CallRow, CallKind, Delegate, DelegateTrack, DelegatedVote, Delegation, DelegationAction, Extrinsic, MetadataAction, Preimage, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, RuntimeCode, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
+import {Account, Block, Call as CallRow, CallKind, Delegate, DelegateTrack, DelegatedVote, DelegatedVoteAction, Delegation, DelegationAction, Extrinsic, MetadataAction, Preimage, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, RuntimeCode, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
 import {convictionVotes, lockPeriods, ownVotes} from './conviction'
 import {readRuntime} from './runtimeCode'
 import {decodeUtf8} from './utf8'
@@ -285,21 +285,19 @@ async function logVotingActions(ctx: {store: any}, batch: BatchData): Promise<Ma
 // there, so the row follows both the vote and the delegation
 function countDelegation(batch: BatchData, ev: GovEvent, index: number, voter: string, delegator: string, {conviction, balance}: Delegated, aye: boolean, removed: boolean): void {
     const id = `${index}-${delegator}`
-    batch.delegatedVotes.set(
-        id,
-        new DelegatedVote({
-            id,
-            referendum: new Referendum({id: String(index)}),
-            voter: batch.touch(voter, ev.height),
-            delegator: batch.touch(delegator, ev.height),
-            aye,
-            conviction,
-            balance,
-            votes: convictionVotes(conviction, balance),
-            removed,
-            block: ev.height,
-        })
-    )
+    const counted = {
+        referendum: new Referendum({id: String(index)}),
+        voter: batch.touch(voter, ev.height),
+        delegator: batch.touch(delegator, ev.height),
+        aye,
+        conviction,
+        balance,
+        votes: convictionVotes(conviction, balance),
+        removed,
+        block: ev.height,
+    }
+    batch.delegatedVotes.set(id, new DelegatedVote({id, ...counted}))
+    batch.delegatedVoteActions.push(new DelegatedVoteAction({id: `${index}-${ev.id}-${delegator}`, ...counted, method: ev.name.split('.')[1], indexInBlock: ev.indexInBlock, timestamp: stampOf(ev)}))
 }
 
 // the delegations an account has received on a track, by delegator

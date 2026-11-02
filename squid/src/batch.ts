@@ -9,6 +9,7 @@ import {
     ChildBounty,
     DailyStat,
     DelegatedVote,
+    DelegatedVoteAction,
     Delegation,
     DelegationAction,
     Event,
@@ -138,6 +139,7 @@ export class BatchData {
     deposits = new Map<string, ReferendumDeposit>()
     votes = new Map<string, Vote>()
     delegatedVotes = new Map<string, DelegatedVote>()
+    delegatedVoteActions: DelegatedVoteAction[] = []
     votingActions: VotingAction[] = []
     delegationActions: DelegationAction[] = []
     metadataActions: MetadataAction[] = []
