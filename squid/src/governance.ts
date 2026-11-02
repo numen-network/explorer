@@ -57,6 +57,7 @@ export async function finalizeGovernance(ctx: {store: any}, batch: BatchData, la
         await reconcileTallies(ctx, batch, folded)
     }
     await refreshOngoing(ctx, batch, lastHeader)
+    await stampIssuance(batch)
     await refreshPreimages(batch, preimages, lastHeader)
 }
 
@@ -932,11 +933,25 @@ function pushTimeline(r: Referendum, ev: GovEvent, extra: object = {}): any {
     return step
 }
 
-function setTally(r: Referendum, tally: any): void {
+function setTally(batch: BatchData, r: Referendum, tally: any, header: any): void {
     if (tally == null) return
     r.ayes = BigInt(tally.ayes)
     r.nays = BigInt(tally.nays)
     r.support = BigInt(tally.support)
+    batch.tallyAt.set(r.index, header)
+}
+
+// issuance comes from the block the tally came from. the support share then
+// uses the denominator the pallet judged it against
+async function stampIssuance(batch: BatchData): Promise<void> {
+    const byHeight = new Map<number, Promise<{total: bigint; inactive: bigint}>>()
+    for (const [index, header] of batch.tallyAt) {
+        if (!byHeight.has(header.height)) byHeight.set(header.height, issuanceAt(header))
+        const {total, inactive} = await byHeight.get(header.height)!
+        const r = batch.referenda.get(index)!
+        r.totalIssuance = total
+        r.inactiveIssuance = inactive
+    }
 }
 
 // the pallet reads the track afresh at each of these. refunds and metadata
@@ -965,6 +980,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
         })
         pushTimeline(r, ev)
         batch.referenda.set(r.index, r)
+        batch.tallyAt.set(r.index, ev.header)
         placeDeposit(batch, r, ReferendumDepositKind.Submission, ev.origin, submissionDeposit(ev.header), ev.height)
         return
     }
@@ -979,7 +995,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
     switch (method) {
         case 'DecisionStarted':
             r.decidingSince = ev.height
-            setTally(r, args.tally)
+            setTally(batch, r, args.tally, ev.header)
             break
         case 'ConfirmStarted':
             r.confirmingSince = ev.height
@@ -999,17 +1015,17 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
         // the pallet schedules the enactment as it confirms
         case 'Confirmed':
             batch.enactments.set(enactmentId(args.index), args.index)
-            setTally(r, args.tally)
+            setTally(batch, r, args.tally, ev.header)
             break
         // a kill slashes whatever the referendum still holds
         case 'Killed':
             for (const kind of [ReferendumDepositKind.Submission, ReferendumDepositKind.Decision]) endDeposit(batch, r, kind, ReferendumDepositState.Slashed, ev.height)
-            setTally(r, args.tally)
+            setTally(batch, r, args.tally, ev.header)
             break
         case 'Rejected':
         case 'TimedOut':
         case 'Cancelled':
-            setTally(r, args.tally)
+            setTally(batch, r, args.tally, ev.header)
             break
     }
 }
@@ -1418,7 +1434,7 @@ async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: a
         const r = all.get(idx)!
         if (info == null) throw new Error(`referendum ${idx} has no info at block ${lastHeader.height}`)
         if (info.__kind === 'Ongoing') {
-            setTally(r, info.value.tally)
+            setTally(batch, r, info.value.tally, lastHeader)
             r.inQueue = info.value.inQueue
             r.trackParams = new TrackParams({id: trackParamsId(r.track.id, lastHeader)})
         } else {

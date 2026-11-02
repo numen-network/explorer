@@ -33,7 +33,7 @@ import {discussionOf} from '@/lib/discussions'
 import {curveVoters} from '@/lib/curveVoters'
 import {curveAt, type Curve} from '@/lib/curves'
 import {approxParts, camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
-import {approvalOf, confirmEstimate, isLive, originName, phaseFraction, phaseOf, tallyTargets} from '@/lib/referendum'
+import {activeIssuanceOf, approvalOf, confirmEstimate, isLive, originName, phaseFraction, phaseOf, tallyTargets} from '@/lib/referendum'
 import {blocksConstant, loadRuntimes} from '@/lib/runtime'
 import {accountRefs, bountiesByIndex, eventsByIds, indexTitles, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
@@ -233,15 +233,14 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const bountyIds = nodes.flatMap(node => (node.bounty != null ? [node.bounty] : []))
     const enactors = trail.flatMap(s => (s.byReferendum != null ? [s.byReferendum] : []))
     const titled = [...new Set([...enactors, ...referendaIn(r.description ?? '')])]
-    const latest = data.dailyStats[0]
-    const activePlanck = latest ? BigInt(latest.issuanceTotal) - BigInt(latest.issuanceInactive) : 0n
+    const activePlanck = activeIssuanceOf(r)
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
     const enactedAt = trail.find(s => s.name.startsWith('Scheduler.'))?.block ?? null
     const [refs, evs, textEvs, votes, actions, actionRows, stats, upgrade, spec, bounties, titles] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
         eventsByIds(data.revisions.map(a => a.id)),
-        tab === 'votes' ? votesPanel({r, counts, snapshots, live: activePlanck, sp, pg, chain}) : null,
+        tab === 'votes' ? votesPanel({r, counts, snapshots, sp, pg, chain}) : null,
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
         tab === 'curves' ? votersOnCurves(r.index, chain.ss58) : [],
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
@@ -300,7 +299,7 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const currentVotes: VoteStep[] = [[lead.from, 0n, 0n]]
     for (const s of snapshots) {
         currentApproval.push([toX(s.block), approvalOf(s)])
-        currentSupport.push([toX(s.block), [BigInt(s.support), BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance)]])
+        currentSupport.push([toX(s.block), [BigInt(s.support), activeIssuanceOf(s)]])
         currentVotes.push([toX(s.block), BigInt(s.ayes), BigInt(s.nays)])
     }
     if (now) {

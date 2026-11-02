@@ -159,6 +159,9 @@ export interface EnactmentMoment {
     value: number
 }
 
+// the support denominator, total issuance less inactive at the tally's block
+export const activeIssuanceOf = (s: {totalIssuance: string; inactiveIssuance: string}) => BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance)
+
 // approval as a fraction of the votes cast, none cast reading as none approving
 export function approvalOf(s: {ayes: string; nays: string}): [part: bigint, whole: bigint] {
     const ayes = BigInt(s.ayes)

@@ -93,6 +93,8 @@ const REFERENDUM: ReferendumRow = {
     ayes: '0',
     nays: '0',
     support: '0',
+    totalIssuance: referenda[1].totalIssuance,
+    inactiveIssuance: referenda[1].inactiveIssuance,
     timeline: null,
     submitter: person(0),
     track: referenda[1].track,

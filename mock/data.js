@@ -60,6 +60,8 @@ function referendum({index, track, origin, submitter, steps, decidingSince = nul
         ayes: numn(ayes),
         nays: numn(nays),
         support: numn(support),
+        totalIssuance: issuance.issuanceTotal,
+        inactiveIssuance: issuance.issuanceInactive,
         timeline: steps,
         deposits: [
             {kind: 'Submission', who: {id: account(submitter)}, amount: SUBMISSION_DEPOSIT, state: deposits ? 'Held' : rest.status === 'Killed' ? 'Slashed' : 'Refunded', endedAt: deposits ? null : endedAt},

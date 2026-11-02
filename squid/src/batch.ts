@@ -136,6 +136,8 @@ export class BatchData {
     evmAddresses = new Map<string, EvmAddress>()
     govEvents: GovEvent[] = []
     referenda = new Map<number, Referendum>()
+    // the block each referendum's tally was last read at
+    tallyAt = new Map<number, any>()
     deposits = new Map<string, ReferendumDeposit>()
     votes = new Map<string, Vote>()
     delegatedVotes = new Map<string, DelegatedVote>()

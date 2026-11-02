@@ -2,7 +2,7 @@ import type {ActionRow} from '@/components/actions'
 import {curveAt, type Curve} from './curves'
 import {pctToNum} from './format'
 import type {TallySnapshotRow} from './gql'
-import {approvalOf} from './referendum'
+import {activeIssuanceOf, approvalOf} from './referendum'
 
 export interface CurveAction {
     hex: string
@@ -30,7 +30,7 @@ const movesOf = ({impact}: ActionRow): [number, number] => (impact ? [pctToNum(.
 
 function levelsAt(snapshots: TallySnapshotRow[], block: number): [number, number] {
     const s = snapshots.findLast(s => s.block <= block)
-    return s ? [pctToNum(...approvalOf(s)), pctToNum(BigInt(s.support), BigInt(s.totalIssuance) - BigInt(s.inactiveIssuance))] : [0, 0]
+    return s ? [pctToNum(...approvalOf(s)), pctToNum(BigInt(s.support), activeIssuanceOf(s))] : [0, 0]
 }
 
 function crossing(before: number, after: number, need: number): Crossing | null {

@@ -163,6 +163,15 @@ export class Referendum {
     support!: bigint
 
     /**
+     * issuance at the block the tally is from, the support denominator is total less inactive
+     */
+    @BigIntColumn_({nullable: false})
+    totalIssuance!: bigint
+
+    @BigIntColumn_({nullable: false})
+    inactiveIssuance!: bigint
+
+    /**
      * one step per lifecycle event with id, qualified name, block and timestamp, Scheduler.Dispatched steps also carry the dispatch error or null, Cancelled and Killed steps raised by an enactment carry byReferendum, the index of the enacted referendum
      */
     @JSONColumn_({nullable: false})

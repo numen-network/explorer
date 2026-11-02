@@ -2039,6 +2039,8 @@ export interface ReferendumRow {
     ayes: string
     nays: string
     support: string
+    totalIssuance: string
+    inactiveIssuance: string
     timeline: unknown
     submitter: AccountRef | null
     track: {id: string; name: string}
@@ -2074,7 +2076,7 @@ export interface ReferendumSpendRow {
 
 const TRACK_PARAMS_FIELDS = `name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
 const TRACK_FIELDS = `id ${TRACK_PARAMS_FIELDS}`
-const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince inQueue endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } track { id name } trackParams { ${TRACK_PARAMS_FIELDS} }`
+const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince inQueue endedAt ayes nays support totalIssuance inactiveIssuance timeline submitter { ${ACCOUNT_REF} } track { id name } trackParams { ${TRACK_PARAMS_FIELDS} }`
 
 export interface TreasurySpendRow {
     id: string
@@ -2403,7 +2405,6 @@ export function referendumDetail(index: number, page: Slice) {
         metadataActions: MetadataActionRow[]
         metadataCount: {totalCount: number}
         revisions: MetadataActionRow[]
-        dailyStats: {issuanceTotal: string; issuanceInactive: string}[]
         voteCount: {totalCount: number}
         ayeCount: {totalCount: number}
         nayCount: {totalCount: number}
@@ -2416,7 +2417,6 @@ export function referendumDetail(index: number, page: Slice) {
             metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC], limit: $limit, offset: $offset) { id method hash title description block timestamp }
             metadataCount: metadataActionsConnection(where: {referendum: {index_eq: $index}}, orderBy: id_ASC) { totalCount }
             revisions: metadataActions(where: {referendum: {index_eq: $index}}, orderBy: [block_DESC, id_DESC]) { id method hash title description block timestamp }
-            dailyStats(orderBy: date_DESC, limit: 1) { issuanceTotal issuanceInactive }
             voteCount: votesConnection(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC) { totalCount }
             ayeCount: ${tally('aye')}
             nayCount: ${tally('nay')}

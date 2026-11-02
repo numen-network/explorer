@@ -1,5 +1,5 @@
-module.exports = class Data1793642858957 {
-    name = 'Data1793642858957'
+module.exports = class Data1793644230734 {
+    name = 'Data1793644230734'
 
     async up(db) {
         await db.query(`CREATE TABLE "runtime_version" ("id" character varying NOT NULL, "spec_version" integer NOT NULL, "spec_name" text NOT NULL, "impl_name" text NOT NULL, "impl_version" integer NOT NULL, "transaction_version" integer NOT NULL, "first_block" integer NOT NULL, "metadata" bytea NOT NULL, CONSTRAINT "PK_22d250b0d7733ed68a3700308a5" PRIMARY KEY ("id"))`)
@@ -56,7 +56,7 @@ module.exports = class Data1793642858957 {
         await db.query(`CREATE INDEX "idx_referendum_deposit_referendum_315283c8" ON "referendum_deposit" ("referendum_id") `)
         await db.query(`CREATE INDEX "idx_referendum_deposit_who_7b8074ee" ON "referendum_deposit" ("who_id") `)
         await db.query(`CREATE INDEX "idx_referendum_deposit_state_cdd110cb" ON "referendum_deposit" ("state") `)
-        await db.query(`CREATE TABLE "referendum" ("id" character varying NOT NULL, "index" integer NOT NULL, "origin" jsonb, "proposal_hash" text, "title" text, "description" text, "proposal_pallet" text, "proposal_method" text, "proposal_calls" jsonb, "proposal_amount" numeric, "proposal_payouts" integer, "proposal_beneficiary" text, "proposal_bounty_index" integer, "submitted_at" integer NOT NULL, "submitted_timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "status" character varying(9) NOT NULL, "deciding_since" integer, "confirming_since" integer, "in_queue" boolean, "ended_at" integer, "enactment" jsonb NOT NULL, "enacts_at" integer, "ayes" numeric NOT NULL, "nays" numeric NOT NULL, "support" numeric NOT NULL, "timeline" jsonb NOT NULL, "track_id" character varying, "track_params_id" character varying, "proposal_runtime_id" character varying, "proposal_preimage_id" character varying, "submitter_id" character varying, CONSTRAINT "PK_772fc260f18c235a6327252ce00" PRIMARY KEY ("id"))`)
+        await db.query(`CREATE TABLE "referendum" ("id" character varying NOT NULL, "index" integer NOT NULL, "origin" jsonb, "proposal_hash" text, "title" text, "description" text, "proposal_pallet" text, "proposal_method" text, "proposal_calls" jsonb, "proposal_amount" numeric, "proposal_payouts" integer, "proposal_beneficiary" text, "proposal_bounty_index" integer, "submitted_at" integer NOT NULL, "submitted_timestamp" TIMESTAMP WITH TIME ZONE NOT NULL, "status" character varying(9) NOT NULL, "deciding_since" integer, "confirming_since" integer, "in_queue" boolean, "ended_at" integer, "enactment" jsonb NOT NULL, "enacts_at" integer, "ayes" numeric NOT NULL, "nays" numeric NOT NULL, "support" numeric NOT NULL, "total_issuance" numeric NOT NULL, "inactive_issuance" numeric NOT NULL, "timeline" jsonb NOT NULL, "track_id" character varying, "track_params_id" character varying, "proposal_runtime_id" character varying, "proposal_preimage_id" character varying, "submitter_id" character varying, CONSTRAINT "PK_772fc260f18c235a6327252ce00" PRIMARY KEY ("id"))`)
         await db.query(`CREATE UNIQUE INDEX "idx_referendum_index_feec7826" ON "referendum" ("index") `)
         await db.query(`CREATE INDEX "idx_referendum_track_319f8fed" ON "referendum" ("track_id") `)
         await db.query(`CREATE INDEX "idx_referendum_track_params_f249d239" ON "referendum" ("track_params_id") `)

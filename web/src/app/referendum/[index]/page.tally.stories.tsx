@@ -90,6 +90,13 @@ export const TargetsEnded = withPlay(story(curated(0), 'call'), async ({canvasEl
     await expect(card(canvasElement, 'Tally').queryByText(/^Need /)).toBeNull()
 })
 
+// an ended referendum weighs its support against the issuance of its last tally
+export const SupportAtLastTally = withPlay(story({...curated(0), support: numn(250_000), totalIssuance: numn(1_100_000), inactiveIssuance: numn(100_000)}, 'call'), async ({canvasElement}) => {
+    const tally = card(canvasElement, 'Tally')
+    await expect(tally.getByText('25.00%')).toBeInTheDocument()
+    await expect(tally.getByText('Active issuance').nextElementSibling).toHaveTextContent(/^1M NUMN$/)
+})
+
 // the aye and nay rows open their list of votes
 export const AyeNayLinkToVotes = withPlay(curatedCase(5), async ({canvasElement}) => {
     const tally = card(canvasElement, 'Tally')
