@@ -6,7 +6,8 @@ import {toJSON} from '@subsquid/util-internal-json'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {In, IsNull, Not} from 'typeorm'
 import {BatchData, GovEvent} from './batch'
-import {Account, Block, Call as CallRow, CallKind, Delegate, DelegateTrack, DelegatedVote, DelegatedVoteAction, Delegation, DelegationAction, Extrinsic, MetadataAction, Preimage, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, RuntimeCode, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TreasurySpend, Vote, VotingAction} from './model'
+import {trackParamsId} from './tracks'
+import {Account, Block, Call as CallRow, CallKind, Delegate, DelegateTrack, DelegatedVote, DelegatedVoteAction, Delegation, DelegationAction, Extrinsic, MetadataAction, Preimage, Referendum, ReferendumDeposit, ReferendumDepositKind, ReferendumDepositState, ReferendumStatus, ReferendumTallySnapshot, RuntimeCode, Track, TreasuryPayout, TreasuryPayoutRole, TreasuryPayoutSource, TrackParams, TreasurySpend, Vote, VotingAction} from './model'
 import {convictionVotes, lockPeriods, ownVotes} from './conviction'
 import {readRuntime} from './runtimeCode'
 import {decodeUtf8} from './utf8'
@@ -938,6 +939,10 @@ function setTally(r: Referendum, tally: any): void {
     r.support = BigInt(tally.support)
 }
 
+// the pallet reads the track afresh at each of these. refunds and metadata
+// can come after the end, so they keep the track it was judged under
+const RULINGS = new Set(['DecisionDepositPlaced', 'DecisionStarted', 'ConfirmStarted', 'ConfirmAborted', ...END_EVENTS])
+
 function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): void {
     const args = ev.args
     if (method === 'Submitted') {
@@ -945,6 +950,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
             id: String(args.index),
             index: args.index,
             track: new Track({id: String(args.track)}),
+            trackParams: new TrackParams({id: trackParamsId(String(args.track), ev.header)}),
             origin: toJSON(ev.callArgs?.proposalOrigin),
             proposalHash: proposalHash(args.proposal),
             submitter: ev.origin ? batch.touch(ev.origin, ev.height) : undefined,
@@ -966,6 +972,7 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
     if (method === 'Killed') batch.kills.set(kill, args.index)
     const r = batch.referenda.get(method === 'DepositSlashed' ? batch.kills.get(kill) : args.index)
     if (r == null) return
+    if (RULINGS.has(method)) r.trackParams = new TrackParams({id: trackParamsId(r.track.id, ev.header)})
     // the text log keeps the metadata events, the rail is for the lifecycle
     const step = method.startsWith('Metadata') ? null : pushTimeline(r, ev)
     if ((method === 'Cancelled' || method === 'Killed') && ev.origin == null) batch.revocations.push({height: ev.height, step})
@@ -1413,6 +1420,7 @@ async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: a
         if (info.__kind === 'Ongoing') {
             setTally(r, info.value.tally)
             r.inQueue = info.value.inQueue
+            r.trackParams = new TrackParams({id: trackParamsId(r.track.id, lastHeader)})
         } else {
             r.status = ReferendumStatus[info.__kind]
             r.inQueue = null

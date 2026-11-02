@@ -276,16 +276,16 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const approvalNow = approvalOf(r)
     const supportNow: Share = [BigInt(r.support), activePlanck]
 
-    const decisionHours = (r.track.decisionPeriod * chain.blockTime) / 3600
+    const decisionHours = (r.trackParams.decisionPeriod * chain.blockTime) / 3600
     const clockAt = r.endedAt ?? head.height
-    const decisionAt = phaseFraction(r.decidingSince, r.track.decisionPeriod, clockAt)
+    const decisionAt = phaseFraction(r.decidingSince, r.trackParams.decisionPeriod, clockAt)
     const x = isLive(r) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
 
     // hour zero is where the decision clock started, or where it can start
     // soonest, or where a referendum that never got there ended. the lead-in
     // before it keeps its true length
     const clock = {
-        zero: r.decidingSince ?? r.endedAt ?? Math.max(head.height, r.submittedAt + r.track.preparePeriod),
+        zero: r.decidingSince ?? r.endedAt ?? Math.max(head.height, r.submittedAt + r.trackParams.preparePeriod),
         perHour: 3600 / chain.blockTime,
         blockTime: chain.blockTime,
         started: r.decidingSince !== null,
@@ -316,18 +316,18 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     for (const [i, s] of trail.entries()) {
         if (s.name !== 'Referenda.ConfirmStarted') continue
         const close = trail.slice(i + 1).find(t => t.name === 'Referenda.ConfirmAborted' || t.name === 'Referenda.Confirmed')
-        confirmations.push([toX(s.block), toX(close?.block ?? r.endedAt ?? s.block + r.track.confirmPeriod)])
+        confirmations.push([toX(s.block), toX(close?.block ?? r.endedAt ?? s.block + r.trackParams.confirmPeriod)])
     }
     // a tally that holds starts confirming when the pallet's alarm fires
-    if (confirmStart != null) confirmations.push([toX(confirmStart), toX(confirmStart + r.track.confirmPeriod)])
+    if (confirmStart != null) confirmations.push([toX(confirmStart), toX(confirmStart + r.trackParams.confirmPeriod)])
     // only a pass ends a referendum early, one confirming or set to confirm
     // passes where its last window closes
     const end = r.status === 'Approved' ? toX(r.endedAt!) : phaseOf(r) === 'Confirming' || confirmStart != null ? confirmations.at(-1)?.[1] : undefined
     const earlyEnd = end !== undefined && end < decisionHours ? end : null
 
     const ended = r.endedAt !== null
-    const prepareAt = phaseFraction(r.submittedAt, r.track.preparePeriod, clockAt)
-    const confirmAt = phaseFraction(r.confirmingSince, r.track.confirmPeriod, clockAt)
+    const prepareAt = phaseFraction(r.submittedAt, r.trackParams.preparePeriod, clockAt)
+    const confirmAt = phaseFraction(r.confirmingSince, r.trackParams.confirmPeriod, clockAt)
 
     // a phase ends at the step that closed it, or once its due block is indexed
     const phaseEnd = (due: number | null, closed: number | null): PhaseTime | null => {
@@ -337,17 +337,17 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     }
     const expected = (block: number | null): PhaseTime => (block === null ? {kind: 'fail'} : {kind: 'expected', block, secs: (block - head.height) * chain.blockTime})
     const approvedAt = r.status === 'Approved' ? r.endedAt : null
-    const confirmDue = r.confirmingSince !== null ? r.confirmingSince + r.track.confirmPeriod : null
-    const decisionDue = r.decidingSince !== null ? r.decidingSince + r.track.decisionPeriod : null
+    const confirmDue = r.confirmingSince !== null ? r.confirmingSince + r.trackParams.confirmPeriod : null
+    const decisionDue = r.decidingSince !== null ? r.decidingSince + r.trackParams.decisionPeriod : null
     // a confirmation keeps the decision open past its period until it ends
     const decisionClose = approvedAt ?? (phaseOf(r) === 'Confirming' ? confirmDue : null)
     const decisionEnd = decisionDue !== null ? Math.max(decisionDue, decisionClose ?? decisionDue) : null
     const decisionRun = decisionEnd !== null ? decisionEnd - r.decidingSince! : null
     const decisionMark =
-        decisionRun !== null && decisionRun > r.track.decisionPeriod
+        decisionRun !== null && decisionRun > r.trackParams.decisionPeriod
             ? {
-                  at: r.track.decisionPeriod / decisionRun,
-                  tip: `${fmtSpan(r.track.decisionPeriod * chain.blockTime)} decision period ${head.height < decisionDue! ? 'ends' : 'ended'} at #${fmtInt(decisionDue!)}, max decision time is ${fmtSpan(decisionRun * chain.blockTime)}`,
+                  at: r.trackParams.decisionPeriod / decisionRun,
+                  tip: `${fmtSpan(r.trackParams.decisionPeriod * chain.blockTime)} decision period ${head.height < decisionDue! ? 'ends' : 'ended'} at #${fmtInt(decisionDue!)}, max decision time is ${fmtSpan(decisionRun * chain.blockTime)}`,
               }
             : null
     const enactClose = enactedAt ?? r.enactsAt
@@ -357,12 +357,12 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const confirmTime = confirmStart === undefined ? phaseEnd(confirmDue, approvedAt) : expected(confirmStart)
     const enactTime =
         confirmStart !== undefined
-            ? expected(confirmStart === null ? null : confirmStart + r.track.confirmPeriod)
+            ? expected(confirmStart === null ? null : confirmStart + r.trackParams.confirmPeriod)
             : phaseOf(r) === 'Confirming'
               ? expected(confirmDue)
               : phaseEnd(r.enactsAt, enactedAt)
-    const approvalNeed = x !== null ? curveAt(r.track.minApproval as Curve, x / 100) * 100 : null
-    const supportNeed = x !== null ? curveAt(r.track.minSupport as Curve, x / 100) * 100 : null
+    const approvalNeed = x !== null ? curveAt(r.trackParams.minApproval as Curve, x / 100) * 100 : null
+    const supportNeed = x !== null ? curveAt(r.trackParams.minSupport as Curve, x / 100) * 100 : null
     const tallied = BigInt(r.ayes) + BigInt(r.nays)
     const targets = isLive(r) ? tallyTargets({...r, decidingSince: r.decidingSince!}, activePlanck, head.height) : null
     // only a referendum still waiting for its decision deposit runs out of time
@@ -392,26 +392,26 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
             <CardContent className="space-y-4">
                 <PhaseBar
                     label="Prepare"
-                    span={fmtSpan(r.track.preparePeriod * chain.blockTime)}
+                    span={fmtSpan(r.trackParams.preparePeriod * chain.blockTime)}
                     at={prepareAt}
-                    time={phaseEnd(r.submittedAt + r.track.preparePeriod, null)}
+                    time={phaseEnd(r.submittedAt + r.trackParams.preparePeriod, null)}
                 />
                 <PhaseBar
                     label="Decision"
-                    span={fmtSpan(r.track.decisionPeriod * chain.blockTime)}
-                    at={phaseFraction(r.decidingSince, decisionRun ?? r.track.decisionPeriod, clockAt)}
+                    span={fmtSpan(r.trackParams.decisionPeriod * chain.blockTime)}
+                    at={phaseFraction(r.decidingSince, decisionRun ?? r.trackParams.decisionPeriod, clockAt)}
                     time={phaseEnd(decisionEnd, approvedAt)}
                     mark={decisionMark}
                 />
                 <PhaseBar
                     label="Confirmation"
-                    span={fmtSpan(r.track.confirmPeriod * chain.blockTime)}
+                    span={fmtSpan(r.trackParams.confirmPeriod * chain.blockTime)}
                     at={confirmAt}
                     time={confirmTime}
                 />
                 <PhaseBar
                     label="Enactment"
-                    span={fmtSpan(r.track.minEnactmentPeriod * chain.blockTime)}
+                    span={fmtSpan(r.trackParams.minEnactmentPeriod * chain.blockTime)}
                     at={enactAt}
                     time={enactTime}
                 />
@@ -511,15 +511,15 @@ export default async function ReferendumPage(props: PageProps<'/referendum/[inde
     const voters = curveVoters(
         actionRows.filter(a => r.endedAt === null || a.row.block <= r.endedAt),
         snapshots,
-        {approval: r.track.minApproval as Curve, support: r.track.minSupport as Curve, hours: decisionHours, started: r.decidingSince !== null, hourOf: toX}
+        {approval: r.trackParams.minApproval as Curve, support: r.trackParams.minSupport as Curve, hours: decisionHours, started: r.decidingSince !== null, hourOf: toX}
     )
 
     const curves = (
         <div className="space-y-4">
             <Card size="flush" className="px-5 py-4">
                 <CurvesChart
-                    approval={r.track.minApproval as Curve}
-                    support={r.track.minSupport as Curve}
+                    approval={r.trackParams.minApproval as Curve}
+                    support={r.trackParams.minSupport as Curve}
                     currentApproval={currentApproval}
                     currentSupport={currentSupport}
                     currentVotes={currentVotes}

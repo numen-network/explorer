@@ -207,11 +207,11 @@ function stepArgs(r, method, s, slash) {
             return {index, track: Number(r.track.id), proposal, tally: tallyAt(r, s.block)}
         case 'DecisionDepositPlaced':
         case 'DecisionDepositRefunded':
-            return {index, who: decider, amount: r.track.decisionDeposit}
+            return {index, who: decider, amount: r.trackParams.decisionDeposit}
         case 'SubmissionDepositRefunded':
             return {index, who: r.submitter.id, amount: SUBMISSION_DEPOSIT}
         case 'DepositSlashed':
-            return slash === 0 ? {who: r.submitter.id, amount: SUBMISSION_DEPOSIT} : {who: decider, amount: r.track.decisionDeposit}
+            return slash === 0 ? {who: r.submitter.id, amount: SUBMISSION_DEPOSIT} : {who: decider, amount: r.trackParams.decisionDeposit}
         case 'Dispatched':
             return {task: [s.block, 0], id: hashOf('task', index), result: {__kind: 'Ok'}}
         default:

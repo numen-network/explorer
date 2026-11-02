@@ -1,5 +1,9 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, JSONColumn as JSONColumn_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, JSONColumn as JSONColumn_, OneToMany as OneToMany_, Relation as Relation_} from "@subsquid/typeorm-store"
+import {TrackParams} from "./trackParams.model"
 
+/**
+ * a track as the newest indexed runtime defines it
+ */
 @Entity_()
 export class Track {
     constructor(props?: Partial<Track>) {
@@ -51,4 +55,7 @@ export class Track {
 
     @JSONColumn_({nullable: false})
     minSupport!: unknown
+
+    @OneToMany_(() => TrackParams, e => e.track)
+    versions!: Relation_<TrackParams[]>
 }

@@ -198,7 +198,7 @@ export interface UpcomingReferendumRow {
     submittedAt: number
     decidingSince: number | null
     confirmingSince: number | null
-    track: {preparePeriod: number; decisionPeriod: number; confirmPeriod: number}
+    trackParams: {preparePeriod: number; decisionPeriod: number; confirmPeriod: number}
 }
 
 export interface UpcomingSpendRow {
@@ -254,7 +254,7 @@ export async function homeData(since24: string | null, since30: string | null, u
             transfers30: transfersConnection(orderBy: id_ASC, where: {timestamp_gt: $since30}) { totalCount }
             evm24: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since24}) { totalCount }
             evm30: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since30}) { totalCount }
-            ongoing: referendums(where: {status_eq: Ongoing}, orderBy: index_ASC, limit: 500) { index title submittedAt decidingSince confirmingSince track { preparePeriod decisionPeriod confirmPeriod } }
+            ongoing: referendums(where: {status_eq: Ongoing}, orderBy: index_ASC, limit: 500) { index title submittedAt decidingSince confirmingSince trackParams { preparePeriod decisionPeriod confirmPeriod } }
             spendsValid: treasurySpends(where: {kind_eq: "spend", status_in: ${CLAIMABLE}, validFrom_gt: $head, validFrom_lte: $validUntil}, orderBy: validFrom_ASC, limit: 500) { id validFrom expireAt referendum { index title } }
             spendsExpire: treasurySpends(where: {kind_eq: "spend", status_in: ${CLAIMABLE}, validFrom_lte: $head, expireAt_gt: $head, expireAt_lte: $until}, orderBy: expireAt_ASC, limit: 500) { id validFrom expireAt referendum { index title } }
             bountiesDue: bounties(where: {status_eq: "Active", updateDue_gt: $head, updateDue_lte: $until}, orderBy: updateDue_ASC, limit: 500) { index description updateDue }
@@ -1985,8 +1985,11 @@ export async function contractCreation(address: string) {
     return evmTransactions[0] ?? null
 }
 
-export interface TrackRow {
+export interface TrackRow extends TrackParamsRow {
     id: string
+}
+
+export interface TrackParamsRow {
     name: string
     maxDeciding: number
     maxSpend: string | null
@@ -2038,7 +2041,8 @@ export interface ReferendumRow {
     support: string
     timeline: unknown
     submitter: AccountRef | null
-    track: TrackRow
+    track: {id: string; name: string}
+    trackParams: TrackParamsRow
 }
 
 export interface ReferendumDepositRow {
@@ -2068,8 +2072,9 @@ export interface ReferendumSpendRow {
     proposalCall: number | null
 }
 
-const TRACK_FIELDS = `id name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
-const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince inQueue endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } track { ${TRACK_FIELDS} }`
+const TRACK_PARAMS_FIELDS = `name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
+const TRACK_FIELDS = `id ${TRACK_PARAMS_FIELDS}`
+const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince inQueue endedAt ayes nays support timeline submitter { ${ACCOUNT_REF} } track { id name } trackParams { ${TRACK_PARAMS_FIELDS} }`
 
 export interface TreasurySpendRow {
     id: string

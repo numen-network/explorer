@@ -73,7 +73,7 @@ const bothDeposits = (r: Referendum, state: string) => {
     const endedAt = state === 'Held' ? null : (r.endedAt as number)
     return [
         {...submission, state, endedAt},
-        {...submission, kind: 'Decision', amount: (r.track as {decisionDeposit: string}).decisionDeposit, state, endedAt},
+        {...submission, kind: 'Decision', amount: (r.trackParams as {decisionDeposit: string}).decisionDeposit, state, endedAt},
     ]
 }
 

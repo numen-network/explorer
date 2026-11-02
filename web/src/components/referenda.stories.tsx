@@ -96,6 +96,7 @@ const REFERENDUM: ReferendumRow = {
     timeline: null,
     submitter: person(0),
     track: referenda[1].track,
+    trackParams: referenda[1].trackParams,
 }
 
 export const BylineWithSubmitter: Story = {

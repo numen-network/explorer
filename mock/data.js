@@ -44,6 +44,7 @@ function referendum({index, track, origin, submitter, steps, decidingSince = nul
         id: String(index),
         index,
         track: t,
+        trackParams: t,
         origin: {__kind: 'Origins', value: {__kind: origin}},
         proposalHash: hash(index),
         submitter: {id: account(submitter)},

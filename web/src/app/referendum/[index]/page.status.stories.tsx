@@ -21,7 +21,7 @@ export const DecidingIndexBehind: StoryObj = {
 
 // prepare and confirm periods that stop between two whole units of time
 export const UnevenPeriods: StoryObj = {
-    ...story({...deciding(28, 'Prepare and confirm periods that stop between whole units of time'), track: {...(curated(5).track as object), preparePeriod: 540, confirmPeriod: 36_000}}, 'call'),
+    ...story({...deciding(28, 'Prepare and confirm periods that stop between whole units of time'), trackParams: {...(curated(5).trackParams as object), preparePeriod: 540, confirmPeriod: 36_000}}, 'call'),
     play: async ({canvasElement}) => {
         for (const span of ['1h 30m', '28d', '4d 4h', '1d']) await expect(card(canvasElement, 'Status').getByText(span)).toBeInTheDocument()
     },
@@ -63,7 +63,7 @@ export const PhaseTimesExpectedToFail: StoryObj = {
 
 // a confirmation still open past the decision period keeps the decision going
 // to its end, the period end stays on the bar as a mark
-const pastDecision = {...curated(6), track: {...(curated(6).track as object), decisionPeriod: 30_000}}
+const pastDecision = {...curated(6), trackParams: {...(curated(6).trackParams as object), decisionPeriod: 30_000}}
 export const PhaseTimesConfirmingPastDecision: StoryObj = {
     ...story(pastDecision, 'call'),
     play: async ({canvasElement}) => {

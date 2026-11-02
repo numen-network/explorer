@@ -1,5 +1,6 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, IntColumn as IntColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, JSONColumn as JSONColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, DateTimeColumn as DateTimeColumn_, BooleanColumn as BooleanColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Track} from "./track.model"
+import {TrackParams} from "./trackParams.model"
 import {RuntimeCode} from "./runtimeCode.model"
 import {Preimage} from "./preimage.model"
 import {Account} from "./account.model"
@@ -22,6 +23,13 @@ export class Referendum {
     @Index_("idx_referendum_track_319f8fed")
     @ManyToOne_(() => Track, {nullable: true})
     track!: Relation_<Track>
+
+    /**
+     * the track the pallet last judged the referendum under
+     */
+    @Index_("idx_referendum_track_params_f249d239")
+    @ManyToOne_(() => TrackParams, {nullable: true})
+    trackParams!: Relation_<TrackParams>
 
     /**
      * the proposal origin as the submit call carried it, whole

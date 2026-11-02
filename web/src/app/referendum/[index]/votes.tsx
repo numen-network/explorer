@@ -42,7 +42,7 @@ async function pivotalOf(r: ReferendumRow, snapshots: TallySnapshotRow[], live: 
     const active = isLive(r) ? live : BigInt(last.totalIssuance) - BigInt(last.inactiveIssuance)
     const {votes, delegations} = await referendumBallots(r.index)
     const tally = {ayes: BigInt(r.ayes), nays: BigInt(r.nays), support: BigInt(r.support)}
-    const {passing, ids} = pivotalAccounts(tally, votes, delegations, r.track, active)
+    const {passing, ids} = pivotalAccounts(tally, votes, delegations, r.trackParams, active)
     return {addrs: ids.map(id => ss58Encode(id, ss58)), ended: !isLive(r), passing}
 }
 

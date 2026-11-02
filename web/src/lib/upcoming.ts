@@ -26,9 +26,9 @@ function referendumDeadlines(r: UpcomingReferendumRow, w: UpcomingWindow, undeci
         action,
         blocks: target - w.head,
     })
-    if (r.confirmingSince != null) return [at('will end confirming', r.confirmingSince + r.track.confirmPeriod)]
-    if (r.decidingSince != null) return [at('will end deciding', r.decidingSince + r.track.decisionPeriod)]
-    return [at('will end preparing', r.submittedAt + r.track.preparePeriod), at('will time out', r.submittedAt + undecidingTimeout)]
+    if (r.confirmingSince != null) return [at('will end confirming', r.confirmingSince + r.trackParams.confirmPeriod)]
+    if (r.decidingSince != null) return [at('will end deciding', r.decidingSince + r.trackParams.decisionPeriod)]
+    return [at('will end preparing', r.submittedAt + r.trackParams.preparePeriod), at('will time out', r.submittedAt + undecidingTimeout)]
 }
 
 function spendDeadline(s: UpcomingSpendRow, w: UpcomingWindow): Deadline {

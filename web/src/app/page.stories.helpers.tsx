@@ -273,9 +273,9 @@ export function expectBlockCardsFit(root: HTMLElement) {
 
 // one deadline of every kind at a block count that reads cleanly, nearest first, with HEAD at
 // a million and ten-second blocks. the referendum deciding for ten more days is left out
-const track = (preparePeriod: number, decisionPeriod: number, confirmPeriod: number) => ({preparePeriod, decisionPeriod, confirmPeriod})
+const trackParams = (preparePeriod: number, decisionPeriod: number, confirmPeriod: number) => ({preparePeriod, decisionPeriod, confirmPeriod})
 const ongoing = (index: number, title: string | null, submittedAt: number, decidingSince: number | null = null, confirmingSince: number | null = null) => ({
-    index, title, submittedAt, decidingSince, confirmingSince, track: track(1440, 241_920, 8640),
+    index, title, submittedAt, decidingSince, confirmingSince, trackParams: trackParams(1440, 241_920, 8640),
 })
 export const UPCOMING = {
     ongoing: [

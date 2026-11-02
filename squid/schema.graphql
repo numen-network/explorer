@@ -413,10 +413,32 @@ type UsernameAuthority @entity {
   addedAt: DateTime
 }
 
+"a track as the newest indexed runtime defines it"
 type Track @entity {
   id: ID!
   "the TrackId as a number, id holds it as a string"
   index: Int! @index @unique
+  name: String!
+  maxDeciding: Int!
+  "ceiling the track origin can approve, set by pallet_custom_origins, absent on tracks that release no funds"
+  maxSpend: BigInt
+  decisionDeposit: BigInt!
+  preparePeriod: Int!
+  decisionPeriod: Int!
+  confirmPeriod: Int!
+  minEnactmentPeriod: Int!
+  "pallet_referenda Curve as the runtime constant carries it, Perbill and FixedI64 fields count in billionths"
+  minApproval: JSON!
+  minSupport: JSON!
+  versions: [TrackParams!]! @derivedFrom(field: "track")
+}
+
+"a track as one runtime version defines it"
+type TrackParams @entity {
+  "track index and spec version joined by a dash"
+  id: ID!
+  track: Track! @index
+  runtime: RuntimeVersion! @index
   name: String!
   maxDeciding: Int!
   "ceiling the track origin can approve, set by pallet_custom_origins, absent on tracks that release no funds"
@@ -470,6 +492,8 @@ type Referendum @entity {
   id: ID!
   index: Int! @index @unique
   track: Track! @index
+  "the track the pallet last judged the referendum under"
+  trackParams: TrackParams! @index
   "the proposal origin as the submit call carried it, whole"
   origin: JSON
   proposalHash: String

@@ -23,6 +23,7 @@ const SHAPES = {
     Referendum: {timeline: []},
     Bounty: {timeline: []},
     Track: {minApproval: CURVE, minSupport: CURVE},
+    TrackParams: {minApproval: CURVE, minSupport: CURVE},
     EvmTransaction: {exitReason: {__kind: 'Succeed', value: {__kind: 'Stopped'}}},
 }
 

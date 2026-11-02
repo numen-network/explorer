@@ -94,11 +94,11 @@ export const isLive = (r: RefPhaseFields) => r.status === 'Ongoing' && r.decidin
 export const phaseFraction = (since: number | null, period: number, head: number) => (since !== null && period > 0 ? (head - since) / period : null)
 
 // what the two curves demand of a referendum still deciding, in percent, null for one that is not
-export function needsNow(r: RefPhaseFields & {track: {decisionPeriod: number; minApproval: unknown; minSupport: unknown}}, head: number): {approval: number; support: number} | null {
-    const ran = isLive(r) ? phaseFraction(r.decidingSince, r.track.decisionPeriod, head) : null
+export function needsNow(r: RefPhaseFields & {trackParams: {decisionPeriod: number; minApproval: unknown; minSupport: unknown}}, head: number): {approval: number; support: number} | null {
+    const ran = isLive(r) ? phaseFraction(r.decidingSince, r.trackParams.decisionPeriod, head) : null
     if (ran === null) return null
     const at = Math.min(1, Math.max(0, ran))
-    return {approval: curveAt(r.track.minApproval as Curve, at) * 100, support: curveAt(r.track.minSupport as Curve, at) * 100}
+    return {approval: curveAt(r.trackParams.minApproval as Curve, at) * 100, support: curveAt(r.trackParams.minSupport as Curve, at) * 100}
 }
 
 interface Deciding {
@@ -106,12 +106,12 @@ interface Deciding {
     ayes: string
     nays: string
     support: string
-    track: {decisionPeriod: number; minApproval: unknown; minSupport: unknown}
+    trackParams: {decisionPeriod: number; minApproval: unknown; minSupport: unknown}
 }
 
 // how far into its decision period a referendum is, as the pallet's Perbill
 const decisionRan = (r: Deciding, head: number) => {
-    const period = BigInt(r.track.decisionPeriod)
+    const period = BigInt(r.trackParams.decisionPeriod)
     const elapsed = BigInt(head) - BigInt(r.decidingSince)
     return perbill(elapsed < period ? elapsed : period, period)
 }
@@ -123,13 +123,13 @@ const decisionRan = (r: Deciding, head: number) => {
  */
 export function confirmEstimate(r: Deciding, activeIssuance: bigint, head: number): number | null {
     const since = BigInt(r.decidingSince)
-    const period = BigInt(r.track.decisionPeriod)
+    const period = BigInt(r.trackParams.decisionPeriod)
     const x = decisionRan(r, head)
     const ayes = BigInt(r.ayes)
     const cast = ayes + BigInt(r.nays)
     const sides: [Curve, bigint][] = [
-        [r.track.minApproval as Curve, cast === 0n ? 0n : perbill(ayes, cast)],
-        [r.track.minSupport as Curve, perbill(BigInt(r.support), activeIssuance)],
+        [r.trackParams.minApproval as Curve, cast === 0n ? 0n : perbill(ayes, cast)],
+        [r.trackParams.minSupport as Curve, perbill(BigInt(r.support), activeIssuance)],
     ]
     if (sides.some(([c, y]) => y < threshold(c, ONE))) return null
     const offset = sides.map(([c, y]) => (y >= threshold(c, x) ? 0n : delay(c, y))).reduce((a, b) => (a > b ? a : b))
@@ -144,13 +144,13 @@ export function confirmEstimate(r: Deciding, activeIssuance: bigint, head: numbe
  */
 export function tallyTargets(r: Deciding, activeIssuance: bigint, head: number): {ayes: bigint | null; nays: bigint | null; support: bigint} {
     const x = decisionRan(r, head)
-    const approval = threshold(r.track.minApproval as Curve, x)
+    const approval = threshold(r.trackParams.minApproval as Curve, x)
     const ayes = BigInt(r.ayes)
     const nays = BigInt(r.nays)
     return {
         ayes: approval === ONE ? (nays === 0n ? 1n : null) : nays === 0n && approval > 0n ? 1n : (approval * nays + ONE - approval - 1n) / (ONE - approval),
         nays: approval === 0n ? null : (ayes * (ONE - approval)) / approval + 1n,
-        support: (threshold(r.track.minSupport as Curve, x) * activeIssuance + ONE - 1n) / ONE,
+        support: (threshold(r.trackParams.minSupport as Curve, x) * activeIssuance + ONE - 1n) / ONE,
     }
 }
 
