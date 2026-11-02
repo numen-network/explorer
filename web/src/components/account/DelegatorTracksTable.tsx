@@ -6,7 +6,7 @@ import {columnsFor, DataTable} from '@/components/DataTable'
 import type {ChainProps} from '@/lib/chain'
 import {fmtBalance, fmtInt} from '@/lib/format'
 
-export interface ReceivedTrackRow {
+export interface DelegatorTrackRow {
     id: string
     name: string
     delegators: number
@@ -16,9 +16,9 @@ export interface ReceivedTrackRow {
     href: string
 }
 
-const col = columnsFor<ReceivedTrackRow>()
+const col = columnsFor<DelegatorTrackRow>()
 
-export function ReceivedTracksTable({rows, chain}: {rows: ReceivedTrackRow[]; chain: ChainProps}) {
+export function DelegatorTracksTable({rows, chain}: {rows: DelegatorTrackRow[]; chain: ChainProps}) {
     const columns = useMemo(
         () =>
             col.columns([

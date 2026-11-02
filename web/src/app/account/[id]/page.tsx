@@ -12,8 +12,11 @@ import BalanceBar from '@/components/account/BalanceBar'
 import Charts from '@/components/account/Charts'
 import Counterparties from '@/components/account/Counterparties'
 import Delegations from '@/components/account/Delegations'
+import DelegatedVoteHistory from '@/components/account/DelegatedVoteHistory'
 import DelegatedVotes from '@/components/account/DelegatedVotes'
 import DelegationHistory from '@/components/account/DelegationHistory'
+import DelegatorTracks from '@/components/account/DelegatorTracks'
+import Delegators from '@/components/account/Delegators'
 import Extrinsics from '@/components/account/Extrinsics'
 import Header from '@/components/account/Header'
 import Holdings from '@/components/account/Holdings'
@@ -24,7 +27,6 @@ import {MultisigAddress, MultisigSignatory} from '@/components/account/Multisig'
 import Proposed from '@/components/account/Proposed'
 import Proxies from '@/components/account/Proxies'
 import ReceivedJudgements from '@/components/account/ReceivedJudgements'
-import Received from '@/components/account/Received'
 import Registrar, {RegistrarCurrent, RegistrarTile} from '@/components/account/Registrar'
 import Subs from '@/components/account/Subs'
 import Timeline from '@/components/account/Timeline'
@@ -164,19 +166,24 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (msig) tabs.push({slug: 'multisig', label: 'As a multisig address', group: 'Multisig', count: msig.operations, body: () => <MultisigAddress {...ctx} set={msig} />})
     if (s.nMultisigSigner.totalCount > 0)
         tabs.push({slug: 'multisig-signatory', label: 'As a multisig signatory', group: 'Multisig', count: s.nMultisigSigner.totalCount, body: () => <MultisigSignatory {...ctx} operations={s.nMultisigSigner.totalCount} memberships={s.nMemberships.totalCount} />})
-    if (s.nVotes.totalCount > 0) tabs.push({slug: 'votes', label: 'Votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} firstSeenBlock={a.firstSeenBlock} ownVotes={a.ownVotes} receivedVotes={a.receivedVotes} />})
+    if (s.nVotes.totalCount > 0) tabs.push({slug: 'direct-votes', label: 'Direct votes', group: 'Governance', count: s.nVotes.totalCount, body: () => <Votes {...ctx} firstSeenBlock={a.firstSeenBlock} ownVotes={a.ownVotes} receivedVotes={a.receivedVotes} />})
     if (s.nVoteHistory.totalCount > 0)
-        tabs.push({slug: 'vote-history', label: 'Vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
+        tabs.push({slug: 'direct-vote-history', label: 'Direct vote history', group: 'Governance', count: s.nVoteHistory.totalCount, body: () => <VoteHistory {...ctx} />})
     if (s.nDelegatedVotes.totalCount > 0) tabs.push({slug: 'delegated-votes', label: 'Delegated votes', group: 'Governance', count: s.nDelegatedVotes.totalCount, body: () => <DelegatedVotes {...ctx} firstSeenBlock={a.firstSeenBlock} delegatedVotes={a.delegatedVotes} />})
-    if (s.nProposed.totalCount > 0) tabs.push({slug: 'proposed', label: 'Proposed', group: 'Governance', count: s.nProposed.totalCount, body: () => <Proposed {...ctx} />})
-    if (s.nTreasury.totalCount > 0) tabs.push({slug: 'treasury', label: 'Treasury', group: 'Governance', count: s.nTreasury.totalCount, body: () => <Treasury {...ctx} received={a} />})
-    if (s.nDelegIn.totalCount > 0)
-        tabs.push({slug: 'received', label: 'Received', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Received {...ctx} delegate={s.delegateById} total={s.nDelegIn.totalCount} />})
+    if (s.nDelegatedVoteHistory.totalCount > 0)
+        tabs.push({slug: 'delegated-vote-history', label: 'Delegated vote history', group: 'Governance', count: s.nDelegatedVoteHistory.totalCount, body: () => <DelegatedVoteHistory {...ctx} />})
+    if (s.delegateById) {
+        const delegate = s.delegateById
+        tabs.push({slug: 'delegator-tracks', label: 'Delegator tracks', group: 'Governance', count: delegate.trackTotals.length, body: () => <DelegatorTracks {...ctx} delegate={delegate} />})
+        tabs.push({slug: 'delegators', label: 'Delegators', group: 'Governance', count: s.nDelegIn.totalCount, body: () => <Delegators {...ctx} delegate={delegate} />})
+    }
     if (s.nReceivedHistory.totalCount > 0)
-        tabs.push({slug: 'received-history', label: 'Received history', group: 'Governance', count: s.nReceivedHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="in" slug="received-history" />})
+        tabs.push({slug: 'delegator-history', label: 'Delegator history', group: 'Governance', count: s.nReceivedHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="in" slug="delegator-history" />})
     if (s.nDelegOut.totalCount > 0) tabs.push({slug: 'delegations', label: 'Delegations', group: 'Governance', count: s.nDelegOut.totalCount, body: () => <Delegations {...ctx} />})
     if (s.nDelegHistory.totalCount > 0)
-        tabs.push({slug: 'delegations-history', label: 'Delegations history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="out" slug="delegations-history" />})
+        tabs.push({slug: 'delegation-history', label: 'Delegation history', group: 'Governance', count: s.nDelegHistory.totalCount, body: () => <DelegationHistory {...ctx} dir="out" slug="delegation-history" />})
+    if (s.nProposed.totalCount > 0) tabs.push({slug: 'proposed', label: 'Proposed', group: 'Governance', count: s.nProposed.totalCount, body: () => <Proposed {...ctx} />})
+    if (s.nTreasury.totalCount > 0) tabs.push({slug: 'treasury', label: 'Treasury', group: 'Governance', count: s.nTreasury.totalCount, body: () => <Treasury {...ctx} received={a} />})
     if (s.nAccountDays.totalCount > 0) tabs.push({slug: 'charts', label: 'Charts', body: () => <Charts {...ctx} />})
 
     // what a group shows above its tab strip, whichever of its tabs is open
@@ -184,9 +191,8 @@ export default async function AccountPage(props: PageProps<'/account/[id]'>) {
     if (validator) groupHeads.Validator = () => <ValidatorHead hex={hex} chain={chain} v={validator} />
     if (registrar && seat) groupHeads.Registrar = () => <RegistrarTile r={registrar} chain={chain} pending={seat.pending} latestExtrinsic={seat.latestExtrinsic} className="mt-4" />
 
-    // dtrack filters Received, so a delegations link carrying one opens there,
-    // and multisig opens the signatory side of an account that is no multisig
-    const slug = sp.tab === 'delegations' && sp.dtrack != null ? 'received' : sp.tab === 'multisig' && s.multisigById == null ? 'multisig-signatory' : sp.tab
+    // multisig opens the signatory side of an account that is no multisig
+    const slug = sp.tab === 'multisig' && s.multisigById == null ? 'multisig-signatory' : sp.tab
     const active = tabs.find(t => t.slug === slug) ?? tabs[0]
     const groups = [...new Set(tabs.map(t => t.group ?? t.label))]
 

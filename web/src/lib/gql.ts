@@ -641,6 +641,7 @@ export interface AccountSummary {
     childBountyDeposits: ChildBountyDepositRow[]
     nVotes: {totalCount: number}
     nDelegatedVotes: {totalCount: number}
+    nDelegatedVoteHistory: {totalCount: number}
     nProposed: {totalCount: number}
     nTreasury: {totalCount: number}
     nTreasuryBeneficiary: {totalCount: number}
@@ -716,6 +717,7 @@ export function accountSummary(idHex: string) {
             }
             nVotes: votesConnection(orderBy: id_ASC, where: {voter: ${self}}) { totalCount }
             nDelegatedVotes: delegatedVotesConnection(orderBy: id_ASC, where: {delegator: ${self}}) { totalCount }
+            nDelegatedVoteHistory: delegatedVoteActionsConnection(orderBy: id_ASC, where: {delegator: ${self}}) { totalCount }
             nProposed: referendumsConnection(orderBy: index_ASC, where: {deposits_some: {who: ${self}}}) { totalCount }
             nTreasury: treasuryPayoutsConnection(orderBy: id_ASC, where: {account: ${self}}) { totalCount }
             nTreasuryBeneficiary: treasuryPayoutsConnection(orderBy: id_ASC, where: {account: ${self}, role_eq: Beneficiary}) { totalCount }
@@ -811,6 +813,30 @@ export async function delegatedVotesFor(idHex: string, list: DelegatedVoteList |
         {id: idHex, limit, offset}
     )
     return {rows: raw.rows, total: raw.conn.totalCount, all: raw.all.totalCount, counts: {aye: raw.aye.totalCount, nay: raw.nay.totalCount}, standing: raw.standing.totalCount}
+}
+
+export interface DelegatedVoteActionRow {
+    id: string
+    method: string
+    aye: boolean
+    conviction: string
+    balance: string
+    votes: string
+    removed: boolean
+    block: number
+    timestamp: string
+    voter: AccountRef
+    referendum: {index: number; title: string | null}
+}
+
+export function delegatedVoteHistoryFor(idHex: string, limit: number, offset: number) {
+    return gql<{actions: DelegatedVoteActionRow[]; conn: {totalCount: number}}>(
+        `query ($id: String!, $limit: Int!, $offset: Int!) {
+            actions: delegatedVoteActions(where: {delegator: {id_eq: $id}}, orderBy: [block_DESC, indexInBlock_DESC, id_DESC], limit: $limit, offset: $offset) { id method aye conviction balance votes removed block timestamp voter { ${ACCOUNT_REF} } referendum { index title } }
+            conn: delegatedVoteActionsConnection(where: {delegator: {id_eq: $id}}, orderBy: id_ASC) { totalCount }
+        }`,
+        {id: idHex, limit, offset}
+    )
 }
 
 // the delegations each referendum counts through the account's standard vote

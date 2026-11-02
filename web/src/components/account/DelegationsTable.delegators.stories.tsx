@@ -6,7 +6,7 @@ import {columnTexts} from '../../../.storybook/fit'
 import type {Sorting} from './DelegationsTable'
 import {table} from './DelegationsTable.stories.helpers'
 
-const meta = {title: 'Pages/Account/Governance | Received'} satisfies Meta
+const meta = {title: 'Pages/Account/Governance | Delegators'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
@@ -15,10 +15,10 @@ const BY_CAPITAL: Sorting = {
     by: 'capital',
     dir: 'desc',
     hrefs: {
-        conviction: '/account/x?tab=received&rtab=delegators&sort=conviction&order=desc',
-        capital: '/account/x?tab=received&rtab=delegators&sort=capital&order=asc',
-        votes: '/account/x?tab=received&rtab=delegators&sort=votes&order=desc',
-        since: '/account/x?tab=received&rtab=delegators&sort=since&order=desc',
+        conviction: '/account/x?tab=delegators&sort=conviction&order=desc',
+        capital: '/account/x?tab=delegators&sort=capital&order=asc',
+        votes: '/account/x?tab=delegators&sort=votes&order=desc',
+        since: '/account/x?tab=delegators&sort=since&order=desc',
     },
 }
 

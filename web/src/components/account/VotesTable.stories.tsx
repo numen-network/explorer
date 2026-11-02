@@ -8,11 +8,11 @@ import {CHAIN, SUBJECT, vote, voteRows} from '../../../../mock/fixtures/accounts
 import {columnTexts} from '../../../.storybook/fit'
 import {VotesTable} from './VotesTable'
 
-const meta = {title: 'Pages/Account/Governance | Votes'} satisfies Meta
+const meta = {title: 'Pages/Account/Governance | Direct votes'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-const MORE = `/account/${SUBJECT}?tab=received&rtab=delegators`
+const MORE = `/account/${SUBJECT}?tab=delegators`
 
 const counted = (i: number, conviction: string, units: number): CountedDelegation => ({conviction, balance: numn(units), votes: String(weigh(numn(units), conviction)), delegator: {id: person(i).id}})
 
@@ -122,7 +122,7 @@ export const ExpandedWithDelegators: Story = {
     },
 }
 
-// twelve delegations list the biggest ten, the other two wait on the account's Received tab
+// twelve delegations list the biggest ten, the other two wait on the account's Delegators tab
 export const ExpandedOverInlineLimit: Story = {
     render: () => table([vote(0)], {6: Array.from({length: 12}, (_, i) => unnamed(i, 12_000 - i * 500))}),
     play: async ctx => {

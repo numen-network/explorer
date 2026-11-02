@@ -15,7 +15,7 @@ export default async function VoteHistory({hex, addr, chain, sp}: TabCtx) {
             <Card size="flush">
                 <VoteHistoryTable rows={actions.map(a => ({...a, change: changes.get(a.id)}))} chain={chain} />
             </Card>
-            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'vote-history')} />
+            <Pager paging={pg} total={conn.totalCount} href={tabHref(addr, 'direct-vote-history')} />
         </>
     )
 }

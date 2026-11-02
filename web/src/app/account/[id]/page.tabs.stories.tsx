@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {accountTransfers, delegatedFrom, delegatedVoteOut, delegatingTo, delegationAction, delegationActionRows, delegationActionsOf, EVERY_PAYOUT, EVERY_REFUND, HOLDING, identitySet, JJFU_OFFLINE, membership, MULTISIG_ENDS, multisigOp, NOT_HELD, subject, subRows, subUnder, TRACKS, tokenTransferRows, validatorLifecycle, validatorRow, vote, voteActionRows} from '../../../../../mock/fixtures/accounts.js'
+import {accountTransfers, delegatedFrom, delegatedVoteActionRows, delegatedVoteOut, delegatingTo, delegationAction, delegationActionRows, delegationActionsOf, EVERY_PAYOUT, EVERY_REFUND, HOLDING, identitySet, JJFU_OFFLINE, membership, MULTISIG_ENDS, multisigOp, NOT_HELD, subject, subRows, subUnder, TRACKS, tokenTransferRows, validatorLifecycle, validatorRow, vote, voteActionRows} from '../../../../../mock/fixtures/accounts.js'
 import {HEAD, identity, numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {tabCount} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
@@ -12,10 +12,10 @@ export default {title: 'Pages/Account/Tabs', ...pageMeta(AccountPage), decorator
 const accountTabs = (root: HTMLElement) => within(within(root).getByRole('navigation', {name: 'Account'}))
 const openTab = (root: HTMLElement, name: string) => within(within(root).getByRole('navigation', {name})).getByRole('link', {current: 'page'})
 
-// every navigation landmark carries a name of its own, the account strip, a group's strip, the view strip inside a tab and the pager
+// every navigation landmark carries a name of its own, the account strip, a group's strip and the pager
 export const NavsNamed: StoryObj = {
-    ...story({delegationsIn: delegatedFrom(3)}, {tab: 'received', rtab: 'delegators'}),
-    play: async ({canvas}) => expect(canvas.getAllByRole('navigation').map(nav => nav.getAttribute('aria-label'))).toEqual(['Account', 'Governance', 'Received', 'pagination']),
+    ...story({delegationsIn: delegatedFrom(3)}, {tab: 'delegators'}),
+    play: async ({canvas}) => expect(canvas.getAllByRole('navigation').map(nav => nav.getAttribute('aria-label'))).toEqual(['Account', 'Governance', 'pagination']),
 }
 
 // native and token transfers each get a tab with its count, and their counterparties an uncounted third
@@ -121,18 +121,18 @@ export const MultisigLinkOpensSignatory: StoryObj = {
     play: async ({canvasElement}) => expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([['multisig-signatory', '1', 'page']]),
 }
 
-// the nine governance lists share one group
+// the eleven governance lists share one group
 export const EveryGovernanceTab: StoryObj = {
     ...story(
-        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegatedVotesOut: [delegatedVoteOut(0, 'Approved'), delegatedVoteOut(1, 'Ongoing')], delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND, payouts: EVERY_PAYOUT},
-        {tab: 'vote-history'}
+        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegatedVotesOut: [delegatedVoteOut(0, 'Approved'), delegatedVoteOut(1, 'Ongoing')], delegatedVoteActions: delegatedVoteActionRows(), delegationsOut: delegatingTo(3), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND, payouts: EVERY_PAYOUT},
+        {tab: 'direct-vote-history'}
     ),
     play: async ({canvas}) => {
         expect(within(canvas.getByRole('navigation', {name: 'Account'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Governance/)
         const nav = canvas.getByRole('navigation', {name: 'Governance'})
         const slugs = within(nav).getAllByRole('link').map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!)
-        expect(slugs).toEqual(['votes', 'vote-history', 'delegated-votes', 'proposed', 'treasury', 'received', 'received-history', 'delegations', 'delegations-history'])
-        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '10', '2', '5', '7', '2', '3', '3', '3'])
+        expect(slugs).toEqual(['direct-votes', 'direct-vote-history', 'delegated-votes', 'delegated-vote-history', 'delegator-tracks', 'delegators', 'delegator-history', 'delegations', 'delegation-history', 'proposed', 'treasury'])
+        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '10', '2', '6', '2', '2', '3', '3', '3', '5', '7'])
     },
 }
 
@@ -142,26 +142,20 @@ export const GovernanceOpensOnDelegations: StoryObj = {
     play: async ({canvasElement}) => {
         const group = accountTabs(canvasElement).getByRole('link', {name: /^Governance/})
         expect(new URL(group.getAttribute('href')!, 'http://x').searchParams.get('tab')).toBe('delegations')
-        expect(subTabs(canvasElement, 'Governance')).toEqual(['delegations', 'delegations-history'])
+        expect(subTabs(canvasElement, 'Governance')).toEqual(['delegations', 'delegation-history'])
     },
 }
 
-// nobody delegates to this account, so there is no Received tab
-export const NoReceivedTab: StoryObj = {
+// nobody delegates to this account, so there are no Delegator tracks or Delegators tabs
+export const NoDelegatorTabs: StoryObj = {
     ...story({account: voting(numn(3_000.5)), delegationsOut: delegatingTo(3)}, {tab: 'delegations'}),
     play: async ({canvasElement}) => expect(governanceTabs(canvasElement)).toEqual({delegations: true}),
 }
 
-// an account that only ever delegated out has no Received history tab
-export const NoReceivedHistoryTab: StoryObj = {
-    ...story({account: voting(numn(1_000.5)), delegationActions: delegationActionsOf(3, 'out')}, {tab: 'delegations-history'}),
-    play: async ({canvasElement}) => expect(governanceTabs(canvasElement)).toEqual({'delegations-history': true}),
-}
-
-// a delegations link carrying a Track filter opens Received
-export const DelegationsLinkOpensReceived: StoryObj = {
-    ...story({account: voting(numn(7_001.5)), delegationsOut: delegatingTo(7), delegationsIn: delegatedFrom(3, TRACKS.filter(t => t.name === 'small_spender'))}, {tab: 'delegations', dtrack: '30'}),
-    play: async ({canvasElement}) => expect(governanceTabs(canvasElement)).toEqual({delegations: false, received: true}),
+// an account that only ever delegated out has no Delegator history tab
+export const NoDelegatorHistoryTab: StoryObj = {
+    ...story({account: voting(numn(1_000.5)), delegationActions: delegationActionsOf(3, 'out')}, {tab: 'delegation-history'}),
+    play: async ({canvasElement}) => expect(governanceTabs(canvasElement)).toEqual({'delegation-history': true}),
 }
 
 // an account with no day rows has no Charts tab

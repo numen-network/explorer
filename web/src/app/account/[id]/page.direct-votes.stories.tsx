@@ -7,27 +7,27 @@ import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 import {wellKnown, build, story, voting, summaries} from './page.stories.helpers'
 
-export default {title: 'Pages/Account/Governance | Votes', ...pageMeta(AccountPage), decorators: [wellKnown]}
+export default {title: 'Pages/Account/Governance | Direct votes', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
-export const One = story({account: voting(numn(1_000)), votes: [vote(0)]}, {tab: 'votes'})
+export const One = story({account: voting(numn(1_000)), votes: [vote(0)]}, {tab: 'direct-votes'})
 
 const manyVotes = [...voteRows(), ...Array.from({length: 35}, (_, i) => vote(i + 10, {referendum: poll(47 - i, 'Ongoing', null)}))]
 
-export const Many = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'votes'})
+export const Many = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'direct-votes'})
 
-export const Page2 = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'votes', page: '2'})
+export const Page2 = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'direct-votes', page: '2'})
 
-export const LastPage = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'votes', page: lastPage(manyVotes.length)})
+export const LastPage = story({account: voting(numn(250_000)), votes: manyVotes}, {tab: 'direct-votes', page: lastPage(manyVotes.length)})
 
 // votes cast in one block list the newest referendum first, #10 between #11 and #9
 export const InOneBlock: StoryObj = {
-    ...story({account: voting(numn(3_000)), votes: [11, 10, 9].map((index, i) => vote(i, {block: HEAD - 500, referendum: poll(index, 'Ongoing', null)}))}, {tab: 'votes'}),
+    ...story({account: voting(numn(3_000)), votes: [11, 10, 9].map((index, i) => vote(i, {block: HEAD - 500, referendum: poll(index, 'Ongoing', null)}))}, {tab: 'direct-votes'}),
     play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Referendum').map(t => t!.split(' · ')[0])).toEqual(['#11', '#10', '#9']),
 }
 
 // nine standing votes over 14 referenda open in the window, the removed #8 left out
 export const Summary: StoryObj = {
-    ...story({account: voting(numn(250_000)), votes: voteRows(), counts: {referenda: 14}}, {tab: 'votes'}),
+    ...story({account: voting(numn(250_000)), votes: voteRows(), counts: {referenda: 14}}, {tab: 'direct-votes'}),
     play: async ({canvas, canvasElement}) => {
         expect(summaries(canvasElement)).toEqual([{'All votes': '9', 'Participation rate (180d)': '64.28%', 'Total votes': '≈1.53M NUMN', 'Own votes': '≈1.53M NUMN', 'Received votes': '0 NUMN'}])
         await expect(canvas.queryByLabelText(/referenda/)).not.toBeInTheDocument()
@@ -36,14 +36,14 @@ export const Summary: StoryObj = {
 
 // the total adds what the account cast itself to what others delegated through it
 export const SummaryWithReceivedVotes: StoryObj = {
-    ...story({account: voting(numn(1_000)), votes: [vote(0)], delegatedVotes: [delegatedVote(6, 'Locked3x', 1_500, PEOPLE[1])], refs: [PEOPLE[1]]}, {tab: 'votes'}),
+    ...story({account: voting(numn(1_000)), votes: [vote(0)], delegatedVotes: [delegatedVote(6, 'Locked3x', 1_500, PEOPLE[1])], refs: [PEOPLE[1]]}, {tab: 'direct-votes'}),
     play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '1', 'Participation rate (180d)': '100.00%', 'Total votes': '5,500 NUMN', 'Own votes': '1,000 NUMN', 'Received votes': '4,500 NUMN'}]),
 }
 
 // the delegated votes a referendum counts reach the account's standard vote
 // there, and its panel names who delegated
 export const Delegated: StoryObj = {
-    ...story({account: voting(numn(250_000)), votes: voteRows(), delegatedVotes: [delegatedVote(6, 'Locked3x', 1_500, PEOPLE[1])], refs: [PEOPLE[1]]}, {tab: 'votes'}),
+    ...story({account: voting(numn(250_000)), votes: voteRows(), delegatedVotes: [delegatedVote(6, 'Locked3x', 1_500, PEOPLE[1])], refs: [PEOPLE[1]]}, {tab: 'direct-votes'}),
     play: async ({canvasElement, userEvent}) => {
         expect(columnTexts(canvasElement, 'Votes')[0]).toBe('5,500 NUMN1,000 + 4,500 delegated')
         const row = within(canvasElement).getByRole('link', {name: /^#6\b/}).closest('tr')!
@@ -56,7 +56,7 @@ export const Delegated: StoryObj = {
 // the type chips count every vote the account cast, removed ones too, and the
 // legend under the vote record names each kind of square
 export const EveryType: StoryObj = {
-    ...story({account: voting(numn(250_000)), votes: voteRows()}, {tab: 'votes'}),
+    ...story({account: voting(numn(250_000)), votes: voteRows()}, {tab: 'direct-votes'}),
     play: async ({canvas, canvasElement}) => {
         expect(filterChips(canvasElement, 'Type')).toEqual(['[All 10]', 'Aye 4', 'Nay 4', 'Split 1', 'Abstain 1'])
         expect(within(canvas.getByRole('list', {name: 'Vote record legend'})).getAllByRole('listitem').map(li => li.textContent)).toEqual(['Aye', 'Nay', 'Split', 'Abstain', 'No vote'])
@@ -67,7 +67,7 @@ export const EveryType: StoryObj = {
 export const TypeSplit: StoryObj = {
     ...pageStory(
         {...build({account: voting(numn(250_000)), votes: voteRows()}), votes: ({where}: {where: {kind_eq?: string}}) => voteRows().filter(v => v.kind === where.kind_eq)},
-        {params: {id: SUBJECT}, searchParams: {tab: 'votes', type: 'split'}}
+        {params: {id: SUBJECT}, searchParams: {tab: 'direct-votes', type: 'split'}}
     ),
     play: async ({canvasElement}) => {
         expect(filterChips(canvasElement, 'Type')).toEqual(['All 10', 'Aye 4', 'Nay 4', '[Split 1]', 'Abstain 1'])
@@ -80,19 +80,19 @@ export const TypeSplit: StoryObj = {
 export const SummaryWindowFromHead: StoryObj = {
     ...pageStory(
         {...build({account: voting(numn(1_000)), votes: [vote(0), vote(1, {block: 700_000, referendum: poll(1, 'Approved', 720_000)})], counts: {referenda: 4}}), chainInfos: [{...chainInfo, blockTime: 60}]},
-        {params: {id: SUBJECT}, searchParams: {tab: 'votes'}}
+        {params: {id: SUBJECT}, searchParams: {tab: 'direct-votes'}}
     ),
     play: async ({canvasElement}) => expect(summaries(canvasElement)[0]).toMatchObject({'All votes': '2', 'Participation rate (180d)': '25.00%'}),
 }
 
 // the account's first seen block opens the window when it is the later one
 export const SummaryWindowFromFirstSeen: StoryObj = {
-    ...story({account: voting(numn(1_000)), votes: [vote(0), vote(1, {block: 400_000, referendum: poll(1, 'Approved', 450_000)})], counts: {referenda: 2}}, {tab: 'votes'}),
+    ...story({account: voting(numn(1_000)), votes: [vote(0), vote(1, {block: 400_000, referendum: poll(1, 'Approved', 450_000)})], counts: {referenda: 2}}, {tab: 'direct-votes'}),
     play: async ({canvasElement}) => expect(summaries(canvasElement)[0]).toMatchObject({'All votes': '2', 'Participation rate (180d)': '50.00%'}),
 }
 
 // every vote taken off and no referendum open since, so there is no rate to give
 export const SummaryNoOpenReferenda: StoryObj = {
-    ...story({account: voting('0'), votes: [vote(0, {removed: true, referendum: poll(6, 'Rejected', HEAD - 100)})], counts: {referenda: 0}}, {tab: 'votes'}),
+    ...story({account: voting('0'), votes: [vote(0, {removed: true, referendum: poll(6, 'Rejected', HEAD - 100)})], counts: {referenda: 0}}, {tab: 'direct-votes'}),
     play: async ({canvasElement}) => expect(summaries(canvasElement)).toEqual([{'All votes': '0', 'Participation rate (180d)': '—', 'Total votes': '0 NUMN', 'Own votes': '0 NUMN', 'Received votes': '0 NUMN'}]),
 }

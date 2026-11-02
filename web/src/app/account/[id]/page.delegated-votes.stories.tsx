@@ -61,7 +61,7 @@ export const TypeNay = story({account: voting(numn(5_000)), delegatedVotesOut: r
 
 export const Removed = story({account: voting(numn(5_000)), delegatedVotesOut: [delegatedVoteOut(0, 'Ongoing', {removed: true})]}, {tab: 'delegated-votes'})
 
-export const ViaAddressOnly: StoryObj = {
+export const DelegateAddressOnly: StoryObj = {
     ...story({account: voting(numn(5_000)), delegatedVotesOut: [delegatedVoteOut(0, 'Ongoing', {voter: {id: person(3).id}})]}, {tab: 'delegated-votes'}),
-    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Via')[0]).toMatch(/^nu.{5}….{4}$/),
+    play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Delegate')[0]).toMatch(/^nu.{5}….{4}$/),
 }

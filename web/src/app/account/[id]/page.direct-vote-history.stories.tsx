@@ -7,13 +7,13 @@ import {pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
 import {wellKnown, story, voting} from './page.stories.helpers'
 
-export default {title: 'Pages/Account/Governance | Vote history', ...pageMeta(AccountPage), decorators: [wellKnown]}
+export default {title: 'Pages/Account/Governance | Direct vote history', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
-export const One = story({account: voting(numn(1_000)), votes: [vote(0)], voteActions: [voteAction(0)]}, {tab: 'vote-history'})
+export const One = story({account: voting(numn(1_000)), votes: [vote(0)], voteActions: [voteAction(0)]}, {tab: 'direct-vote-history'})
 
 // each decision and conviction label, a removal, and a vote carrying 4,500 NUMN of delegated votes
 export const EveryCase: StoryObj = {
-    ...story({account: voting(numn(250_000)), votes: voteRows(), voteActions: voteActionRows()}, {tab: 'vote-history'}),
+    ...story({account: voting(numn(250_000)), votes: voteRows(), voteActions: voteActionRows()}, {tab: 'direct-vote-history'}),
     play: async ({canvasElement}) => {
         expect(columnTexts(canvasElement, 'Action')).toEqual(['Voted Aye', 'Removed Nay', 'Voted Nay', 'Voted Split', 'Voted Abstain', 'Voted Aye', 'Voted Aye', 'Voted Nay', 'Voted Aye', 'Voted Aye'])
         expect(columnTexts(canvasElement, 'Conviction')).toEqual(['1x', '3x', '3x', '0.1x', '0.1x', '0.1x', '2x', '4x', '5x', '6x'])
@@ -37,7 +37,7 @@ const REVOTES = [
 ]
 
 export const ReplacedVotes: StoryObj = {
-    ...story({account: voting(numn(250_000)), votes: [vote(0)], voteActions: REVOTES}, {tab: 'vote-history'}),
+    ...story({account: voting(numn(250_000)), votes: [vote(0)], voteActions: REVOTES}, {tab: 'direct-vote-history'}),
     play: async ({canvasElement}) => {
         expect(columnTexts(canvasElement, 'Action')).toEqual(['Voted Aye', 'Voted Aye', 'Voted Nay', 'Voted Aye', 'Removed Aye', 'Voted Aye', 'Voted Split', 'Voted Aye', 'Voted Aye', 'Voted Aye'])
         expect(columnTexts(canvasElement, 'Votes')).toEqual([
@@ -57,6 +57,6 @@ export const ReplacedVotes: StoryObj = {
 
 const manyVoteActions = Array.from({length: 45}, (_, i) => voteAction(i, {referendum: {index: 47 - i}}))
 
-export const Many = story({account: voting(numn(250_000)), votes: [vote(0)], voteActions: manyVoteActions}, {tab: 'vote-history'})
+export const Many = story({account: voting(numn(250_000)), votes: [vote(0)], voteActions: manyVoteActions}, {tab: 'direct-vote-history'})
 
-export const Page2 = story({account: voting(numn(250_000)), votes: [vote(0)], voteActions: manyVoteActions}, {tab: 'vote-history', page: '2'})
+export const Page2 = story({account: voting(numn(250_000)), votes: [vote(0)], voteActions: manyVoteActions}, {tab: 'direct-vote-history', page: '2'})

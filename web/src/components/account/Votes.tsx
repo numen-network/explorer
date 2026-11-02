@@ -45,12 +45,12 @@ export default async function Votes({hex, addr, chain, sp, firstSeenBlock, ownVo
                 value={type}
                 counts={page.counts}
                 allCount={page.all}
-                href={t => tabHref(addr, 'votes', {type: t})}
+                href={t => tabHref(addr, 'direct-votes', {type: t})}
             />
             <Card size="flush">
-                <VotesTable rows={page.votes} details={details} moreHref={tabHref(addr, 'received', {rtab: 'delegators'})} head={head.height} chain={chain} />
+                <VotesTable rows={page.votes} details={details} moreHref={tabHref(addr, 'delegators')} head={head.height} chain={chain} />
             </Card>
-            <Pager paging={pg} total={page.total} href={tabHref(addr, 'votes', {type})} />
+            <Pager paging={pg} total={page.total} href={tabHref(addr, 'direct-votes', {type})} />
         </>
     )
 }

@@ -365,6 +365,23 @@ export const delegatedVote = (index, conviction, units, from = person(1)) => wei
 export const delegatedVoteOut = (i, status, traits = {}) =>
     weighed({id: `delegated-${i}`, aye: true, conviction: 'Locked3x', balance: numn(5_000), removed: false, block: HEAD - 500 * (i + 1), voter: person(2), delegator: {id: SUBJECT}, referendum: poll(i, status, status === 'Ongoing' ? null : HEAD - 1_000), ...traits})
 
+// a change to one of the account's delegated votes, newest first
+export const delegatedVoteAction = (i, traits = {}) => {
+    const h = HEAD - 500 * (i + 1)
+    return weighed({id: `${i}-${squidId(h, 4)}-${SUBJECT}`, method: 'Voted', aye: true, conviction: 'Locked3x', balance: numn(5_000), removed: false, block: h, indexInBlock: 4, timestamp: at(h), voter: person(2), delegator: {id: SUBJECT}, referendum: {index: i, title: `Referendum ${i} title`}, ...traits})
+}
+
+const DELEGATED_VOTE_ACTION_CASES = [
+    {method: 'Voted'},
+    {method: 'Voted', aye: false},
+    {method: 'Voted', removed: true},
+    {method: 'VoteRemoved', removed: true},
+    {method: 'Delegated', conviction: 'None'},
+    {method: 'Undelegated', removed: true},
+]
+
+export const delegatedVoteActionRows = () => DELEGATED_VOTE_ACTION_CASES.map((c, i) => delegatedVoteAction(i, c))
+
 // a vote the account cast or took off, newest first. delegatedVotes is what its
 // casting record held as the block ended
 export const voteAction = (i, traits = {}) => {
@@ -848,6 +865,7 @@ export function accountPage({
     voteActions = [],
     delegatedVotes = [],
     delegatedVotesOut = [],
+    delegatedVoteActions = [],
     referenda = null,
     delegationActions = [],
     govDeposits = [],
@@ -974,6 +992,8 @@ export function accountPage({
         referendumsConnection: ({where}) => count(where?.deposits_some ? proposed.length : (counts.referenda ?? new Set(votes.map(v => v.referendum.index)).size)),
         delegateById: delegationsIn.length > 0 ? delegate(delegationsIn) : null,
         votes: args => (args.where?.removed_eq === false ? standing : paged(votes)(args)),
+        delegatedVoteActionsConnection: count(delegatedVoteActions.length),
+        delegatedVoteActions: paged(delegatedVoteActions),
         votingActionsConnection: count(counts.voteActions ?? voteActions.length),
         votingActions: pagedActions(voteActions),
         delegationActionsConnection: ({where}) => count(delegationsSide(where).length),

@@ -40,7 +40,7 @@ export function DelegatedVotesTable({rows, chain}: {rows: DelegatedVoteRow[]; ch
                     },
                 }),
                 col.display({id: 'status', header: 'Status', cell: ({row}) => <StatusTag phase={phaseOf(row.original.referendum)} />}),
-                col.display({id: 'via', header: 'Via', cell: ({row}) => <AccountLink addr={ss58Encode(row.original.voter.id, chain.ss58)} acc={row.original.voter} />}),
+                col.display({id: 'delegate', header: 'Delegate', cell: ({row}) => <AccountLink addr={ss58Encode(row.original.voter.id, chain.ss58)} acc={row.original.voter} />}),
                 col.display({id: 'vote', header: 'Vote', cell: ({row}) => (row.original.aye ? <Badge variant="pos">Aye</Badge> : <Badge variant="neg">Nay</Badge>)}),
                 col.display({id: 'conviction', header: 'Conviction', meta: {cellClassName: 'font-mono'}, cell: ({row}) => convictionLabel(row.original.conviction)}),
                 col.display({id: 'capital', header: 'Capital', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtBalance(row.original.balance, chain.decimals, chain.symbol)}),
