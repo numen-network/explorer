@@ -6,7 +6,7 @@ const HEIGHT = 1_000
 
 function Marks() {
     return (
-        <HeadsProvider heads={{best: HEIGHT + 5, finalized: HEIGHT - 2, indexed: HEIGHT}}>
+        <HeadsProvider heads={{best: HEIGHT + 5, finalized: HEIGHT - 2, indexed: HEIGHT, indexedAt: null}}>
             {[HEIGHT - 2, HEIGHT, HEIGHT + 1].map(height => (
                 <p key={height} data-height={height} className="flex items-center gap-2 text-sm">
                     #{height} <BlockStatus height={height} />

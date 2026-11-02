@@ -2950,15 +2950,3 @@ export function searchNames(q: string, page: Slice) {
         {q, limit: page.limit, offset: page.offset}
     )
 }
-
-export interface IndexerStatus {
-    blocks: {height: number; timestamp: string | null}[]
-    chainInfos: {head: number; blockTime: number}[]
-}
-
-export function indexerStatus() {
-    return gql<IndexerStatus>(`query {
-        blocks(orderBy: height_DESC, limit: 1) { height timestamp }
-        chainInfos(limit: 1) { head blockTime }
-    }`)
-}

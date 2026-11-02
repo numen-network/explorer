@@ -8,7 +8,7 @@ import Nav from '@/components/Nav'
 import SearchBar from '@/components/SearchBar'
 import {TooltipProvider} from '@/components/ui/tooltip'
 import {WellKnownProvider} from '@/components/wellKnown'
-import {chainProps} from '@/lib/chain'
+import {chainHeads, chainProps} from '@/lib/chain'
 import {primeState} from '@/lib/gql'
 import {ss58Encode} from '@/lib/ss58'
 import './globals.css'
@@ -21,9 +21,13 @@ export const metadata: Metadata = {
 }
 
 export default async function RootLayout({children}: {children: ReactNode}) {
-    const [chain, prime] = await Promise.all([
+    const [chain, heads, prime] = await Promise.all([
         chainProps().then(
             p => p,
+            () => null
+        ),
+        chainHeads().then(
+            h => h,
             () => null
         ),
         primeState().then(
@@ -42,7 +46,7 @@ export default async function RootLayout({children}: {children: ReactNode}) {
                             <div className="mt-5">
                                 <SearchBar />
                             </div>
-                            <IndexerBanner />
+                            {chain && heads && <IndexerBanner rendered={heads} renderedAt={Date.now()} blockTime={chain.blockTime} />}
                             <NuqsAdapter>{children}</NuqsAdapter>
                         </div>
                         <Footer />

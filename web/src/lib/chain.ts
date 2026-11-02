@@ -28,6 +28,7 @@ export interface Heads {
     best: number
     finalized: number
     indexed: number
+    indexedAt: string | null
 }
 
 export interface DbHead {
@@ -58,7 +59,7 @@ export async function chainProps(): Promise<ChainProps> {
 
 export async function chainHeads(): Promise<Heads> {
     const {info, dbHead} = await chainInfo()
-    return {best: info.head, finalized: info.finalizedHead, indexed: dbHead.height}
+    return {best: info.head, finalized: info.finalizedHead, indexed: dbHead.height, indexedAt: dbHead.timestamp}
 }
 
 export async function chainDbHead(): Promise<DbHead> {

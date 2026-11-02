@@ -9,7 +9,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 const HEIGHT = 1_000
-const heads = (indexed: number, finalized: number) => ({best: indexed, finalized, indexed})
+const heads = (indexed: number, finalized: number) => ({best: indexed, finalized, indexed, indexedAt: null})
 
 const polls = (...sequence: ReturnType<typeof heads>[]) => {
     spyOn(globalThis, 'fetch')

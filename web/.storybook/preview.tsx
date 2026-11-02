@@ -165,7 +165,7 @@ const preview: Preview = {
         siteGutters,
         Story => (
             <WellKnownProvider treasury={ss58Encode(chainInfo.treasuryAccount, chainInfo.ss58)} prime="" evmChainId={chainInfo.evmChainId}>
-                <HeadsProvider heads={{best: chainInfo.head, finalized: chainInfo.finalizedHead, indexed: HEAD}}>
+                <HeadsProvider heads={{best: chainInfo.head, finalized: chainInfo.finalizedHead, indexed: HEAD, indexedAt: null}}>
                     <TooltipProvider>
                         <Story />
                     </TooltipProvider>
