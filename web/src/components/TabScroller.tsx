@@ -43,7 +43,7 @@ export default function TabScroller({children}: {children: ReactNode}) {
         return () => el.removeEventListener('wheel', onWheel)
     }, [])
     return (
-        <ScrollStrip className="-mb-px w-full" stripClassName="gap-6" stripRef={ref}>
+        <ScrollStrip look="line" className="-mb-px w-full" stripClassName="gap-6" stripRef={ref}>
             {children}
             {/* the server copy runs as the html parses, before first paint. React
                 never runs a script it inserts and warns about one, so client

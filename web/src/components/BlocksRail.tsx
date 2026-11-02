@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Asteroid from './Asteroid'
 import DownloadObj from './DownloadObj'
 import EmptyList from './EmptyList'
+import ScrollStrip from './ScrollStrip'
 import DotRow from './DotRow'
 import TimeAgo from './TimeAgo'
 import AccountLink from './AccountLink'
@@ -34,9 +35,9 @@ export default function BlocksRail({cards}: {cards: BlockCard[]}) {
             </Card>
         )
     return (
-        <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto sm:grid sm:grid-cols-2 lg:grid-cols-5">
+        <ScrollStrip look="disc" stripClassName="grid auto-cols-[min(260px,80%)] grid-flow-col snap-x snap-mandatory gap-4 lg:grid-flow-row lg:grid-cols-5">
             {cards.map(c => (
-                <Card key={c.height} size="flush" className="w-[min(260px,80%)] shrink-0 snap-start px-4 py-3.5 sm:w-auto">
+                <Card key={c.height} size="flush" className="snap-start px-4 py-3.5">
                     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                         <Link href={`/block/${c.height}`} className="font-mono text-[15px] font-semibold text-primary hover:underline">
                             #{fmtInt(c.height)}
@@ -69,6 +70,6 @@ export default function BlocksRail({cards}: {cards: BlockCard[]}) {
                     </div>
                 </Card>
             ))}
-        </div>
+        </ScrollStrip>
     )
 }

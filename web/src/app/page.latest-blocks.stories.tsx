@@ -1,6 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {all, type Play, drawnCanvases, drawnFaces, expectInContentBox, expectOneLine, expectShortHashes} from '../../.storybook/fit'
+import {all, type Play, drawnCanvases, drawnFaces, expectArrowsWalkToEnd, expectInContentBox, expectOneLine, expectShortHashes} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 import {PROTOCOL, V1, V2, expectBlockCardsFit, far, firstBlock, genesisOnly, home, many, mixedProtocols, railOf} from './page.stories.helpers'
@@ -22,12 +22,14 @@ const railHashes: Play = async ({canvasElement}) => {
     expectShortHashes(...[...rail.querySelectorAll('[data-slot=badge]'), ...within(rail).getAllByText(/^OBJ /)].map(el => el.textContent!))
 }
 
-// phones scroll the cards sideways in one row, sm up lays them out in a grid
+const narrow = () => !matchMedia('(width >= 64rem)').matches
+
+// the cards keep to one row at every width, scrolling sideways below lg
 const railScrolls: Play = async ({canvasElement}) => {
     const cards = cardsIn(canvasElement)
     const strip = cards[0].parentElement!
-    const phone = !matchMedia('(width >= 40rem)').matches
-    await expect(new Set(cards.map(card => card.getBoundingClientRect().top)).size === 1 && strip.scrollWidth > strip.clientWidth).toBe(phone)
+    await expect(new Set(cards.map(card => card.getBoundingClientRect().top)).size).toBe(1)
+    await expect(strip.scrollWidth > strip.clientWidth).toBe(narrow())
 }
 
 export const Empty: StoryObj = {
@@ -43,6 +45,17 @@ export const One: StoryObj = {
 export const Many: StoryObj = {
     ...pageStory(home(many)),
     play: all(async ({canvasElement}) => expectBlockCardsFit(canvasElement), railObjectsFit, railHashes, railScrolls),
+}
+
+// below lg the arrows walk the cards to the last one. lg up fits every card,
+// with no arrows
+export const Arrows: StoryObj = {
+    ...pageStory(home(many)),
+    play: async ({canvasElement}) => {
+        const rail = railOf(canvasElement)
+        if (narrow()) return expectArrowsWalkToEnd(rail, cardsIn(canvasElement)[0].parentElement!, 4)
+        await expect(within(rail).queryAllByRole('button', {name: /^Scroll /})).toHaveLength(0)
+    },
 }
 
 export const MixedProtocols: StoryObj = {

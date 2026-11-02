@@ -436,6 +436,22 @@ export function expectArrowsOnLabelLine(root: Element) {
     }
 }
 
+// the right arrow walks a strip to its end in at most `clicks` clicks. each
+// click settles before the next and brings up the left arrow
+export async function expectArrowsWalkToEnd(root: HTMLElement, strip: HTMLElement, clicks: number) {
+    const arrows = within(root)
+    await arrows.findByRole('button', {name: 'Scroll right'})
+    await expect(arrows.queryByRole('button', {name: 'Scroll left'})).toBeNull()
+    for (let n = 0; arrows.queryByRole('button', {name: 'Scroll right'}); n++) {
+        await expect(n).toBeLessThan(clicks)
+        const settled = new Promise(resolve => strip.addEventListener('scrollend', resolve, {once: true}))
+        await userEvent.click(arrows.getByRole('button', {name: 'Scroll right'}))
+        await settled
+        await arrows.findByRole('button', {name: 'Scroll left'})
+    }
+    await expect(strip.scrollLeft).toBeCloseTo(strip.scrollWidth - strip.clientWidth, 0)
+}
+
 // a full address in a table column too narrow for it breaks between its two halves and nowhere else
 export function expectHalves(full: Element) {
     const lines = (node: Node) => {
