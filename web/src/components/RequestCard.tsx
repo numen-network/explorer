@@ -13,6 +13,7 @@ import {fmtBalance, fmtCount, fmtInt, fmtSpan, shortHash, truncFixed} from '@/li
 import type {AccountRef, ProposalNode, ReferendumSpendRow} from '@/lib/gql'
 import {blake2_256} from '@/lib/hash'
 import {ss58Encode} from '@/lib/ss58'
+import {SPEND_STATE_TONE, spendState} from '@/lib/spends'
 
 const BATCHES = new Set(['Utility.batch', 'Utility.batch_all', 'Utility.force_batch'])
 
@@ -136,27 +137,17 @@ function release(node: ProposalNode, head: number, blockTime: number): string {
     return `In ${until(node.validFrom, head, blockTime)}`
 }
 
-// where a payout stands once the enactment ran, Paid and an expiry both end in
-// SpendProcessed and only a Paid before it tells them apart
+// where a payout stands once the enactment ran, with how long its next step is away
 function payoutState(spend: ReferendumSpendRow | undefined, ctx: Ctx): {label: string; tone: Tone; note?: string} {
     if (spend == null) return {label: 'Not created', tone: 'neg'}
+    const label = spendState(spend, ctx.head)
     const left = (block: number) => until(block, ctx.head, ctx.chain.blockTime)
-    switch (spend.status) {
-        case 'SpendApproved':
-            return {label: 'Approved', tone: 'warn', note: 'Next spend period'}
-        case 'Awarded':
-        case 'Paid':
-            return {label: 'Paid', tone: 'pos'}
-        case 'PaymentFailed':
-            return {label: 'Failed', tone: 'neg'}
-        case 'AssetSpendVoided':
-            return {label: 'Voided', tone: 'neg'}
-        case 'SpendProcessed':
-            return spend.paidAt != null ? {label: 'Paid', tone: 'pos'} : {label: 'Expired', tone: 'neg'}
-    }
-    if (spend.expireAt != null && spend.expireAt <= ctx.head) return {label: 'Expired', tone: 'neg'}
-    if (spend.validFrom != null && spend.validFrom > ctx.head) return {label: 'Pending', tone: 'idle', note: `Claimable in ${left(spend.validFrom)}`}
-    return {label: 'Claimable', tone: 'warn', note: spend.expireAt != null ? `Expires in ${left(spend.expireAt)}` : undefined}
+    const note = {
+        Approved: 'Next spend period',
+        Pending: spend.validFrom != null ? `Claimable in ${left(spend.validFrom)}` : undefined,
+        Claimable: spend.expireAt != null ? `Expires in ${left(spend.expireAt)}` : undefined,
+    }[label as string]
+    return {label, tone: SPEND_STATE_TONE[label], note}
 }
 
 function Payout({node, spend, enacted, ctx}: {node: ProposalNode; spend: ReferendumSpendRow | undefined; enacted: boolean; ctx: Ctx}) {

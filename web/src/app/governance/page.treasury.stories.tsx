@@ -2,7 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import data from '../../../../mock/data.js'
 import {HEAD, PEOPLE} from '../../../../mock/fixtures.js'
-import {counted, listed, SPEND_STATUSES, spend, spendsInOneBlock} from '../../../../mock/fixtures/governance.js'
+import {counted, listed, SPEND_STATUSES, spend, spendsInEveryState, spendsInOneBlock} from '../../../../mock/fixtures/governance.js'
 import {columnTexts, filterOptions} from '../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../.storybook/page'
 import GovernancePage from './page'
@@ -25,6 +25,15 @@ export const Empty: StoryObj = {
 export const One = treasuryTab([spend(0, 'Paid')])
 
 export const EveryStatus = treasuryTab(SPEND_STATUSES.map((status, i) => spend(i, status)))
+
+// one row per state, the status filter counting each state's rows at the indexed head
+export const EveryState: StoryObj = {
+    ...treasuryTab(spendsInEveryState()),
+    play: async ({canvasElement}) => {
+        await expect(columnTexts(canvasElement, 'Status')).toEqual(['Approved', 'Pending', 'Claimable', 'Expired', 'Paid', 'Failed', 'Voided'])
+        expect(await filterOptions(canvasElement, 'Status')).toEqual(['[All]', 'Approved 1', 'Pending 1', 'Claimable 1', 'Expired 1', 'Paid 1', 'Failed 1', 'Voided 1'])
+    },
+}
 
 // the longest display name, a spend with no referendum on record and amounts
 // of nothing, one planck and thirty digits
@@ -51,11 +60,11 @@ export const Filtered = treasuryTab(spends, {kind: 'spend', status: 'Paid'})
 
 // no spend went through Root, so with Root picked every kind and status counts 0
 export const FilteredEmpty: StoryObj = {
-    ...treasuryTab(spends, {status: 'PaymentFailed', track: '0'}),
+    ...treasuryTab(spends, {status: 'Failed', track: '0'}),
     play: async ({canvas, canvasElement}) => {
         await expect(canvas.getByText('No matching spends.')).toBeInTheDocument()
         expect(await filterOptions(canvasElement, 'Kind')).toEqual(['[All]', 'Local 0', 'Spend 0'])
-        expect(await filterOptions(canvasElement, 'Status')).toEqual(['All', 'Spend approved 0', 'Awarded 0', 'Asset spend approved 0', 'Paid 0', 'Asset spend voided 0', '[Payment failed 0]', 'Spend processed 0'])
+        expect(await filterOptions(canvasElement, 'Status')).toEqual(['All', 'Approved 0', 'Pending 0', 'Claimable 0', 'Expired 0', 'Paid 0', '[Failed 0]', 'Voided 0'])
         expect(await filterOptions(canvasElement, 'Track')).toEqual(['All', '[Root 0]', 'Runtime Upgrade 0', 'Wish For Change 0', 'Identity Admin 0', 'Referendum Canceller 0', 'Referendum Killer 0', 'Small Spender 2', 'Medium Spender 3', 'Big Spender 2'])
     },
 }

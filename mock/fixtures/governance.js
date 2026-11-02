@@ -15,11 +15,19 @@ export const anon = n => ({id: '0x' + ('b' + n.toString(16).padStart(7, '0')).re
 // an account lookup by id answers with the identity a person carries, any other account comes back bare
 export const accounts = ({where}) => (where?.id_in ?? []).map(id => KNOWN.get(id) ?? {id})
 
-// the facets a governance list filters on, kind and status sit on the row and track on its referendum
+// the facets a governance list filters on, kind and status sit on the row and track on its referendum,
+// a spend state also reads the spend's bounds
 const FACETS = {
     kind_eq: (row, v) => row.kind === v,
     status_eq: (row, v) => row.status === v,
+    status_in: (row, v) => v.includes(row.status),
+    validFrom_gt: (row, v) => row.validFrom != null && row.validFrom > v,
+    validFrom_lte: (row, v) => row.validFrom != null && row.validFrom <= v,
+    expireAt_gt: (row, v) => row.expireAt != null && row.expireAt > v,
+    expireAt_lte: (row, v) => row.expireAt != null && row.expireAt <= v,
+    paidAt_isNull: (row, v) => (row.paidAt == null) === v,
     referendum: (row, v) => row.referendum?.track?.id === v.track.id_eq,
+    OR: (row, v) => v.some(w => matches(row, w)),
 }
 const matches = (row, where = {}) => Object.entries(where).every(([field, v]) => FACETS[field]?.(row, v) ?? true)
 
@@ -49,10 +57,23 @@ export const spend = (n, status, traits = {}) => ({
     status,
     amount: numn(1000 + ((n * 7919) % 90_000)),
     block: HEAD - 600 - n * 1440,
+    ...(SPEND_KIND[status] === 'spend' ? {validFrom: HEAD - 600 - n * 1440, expireAt: HEAD - 600 - n * 1440 + 30 * 8640} : {}),
+    paidAt: status === 'Paid' ? HEAD - 300 - n * 1440 : null,
     beneficiary: person(n),
     referendum: {index: 100 + n, status: 'Approved', track: {id: SPENDER_TRACKS[n % 3]}},
     ...traits,
 })
+
+// one spend in each state the explorer reads at HEAD, in the order it lists them
+export const spendsInEveryState = () => [
+    spend(0, 'SpendApproved'),
+    spend(1, 'AssetSpendApproved', {validFrom: HEAD + 1_000}),
+    spend(2, 'AssetSpendApproved'),
+    spend(3, 'AssetSpendApproved', {expireAt: HEAD}),
+    spend(4, 'Paid'),
+    spend(5, 'PaymentFailed'),
+    spend(6, 'AssetSpendVoided'),
+]
 
 // [index, status] pairs approved in one block, newest approval first like the whole list, each amount its place among the block's approvals so the order shows on screen
 export const spendsInOneBlock = (height, approvals) => approvals.map(([n, status], i) => spend(n, status, {block: height, amount: numn(approvals.length - i)}))

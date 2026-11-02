@@ -15,6 +15,7 @@ import DownloadBtn from '@/components/DownloadBtn'
 import {emptyText} from '@/components/EmptyList'
 import HashText from '@/components/HashText'
 import {INLINE_ICON_BUTTON} from '@/components/inlineIconButton'
+import {useHeads} from '@/components/blockStatus'
 import {BlockLink} from '@/components/links'
 import RefList from '@/components/RefList'
 import {Tip} from '@/components/Tip'
@@ -22,14 +23,15 @@ import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
 import type {ArgNode} from '@/lib/args'
 import type {ChainProps} from '@/lib/chain'
-import {camelLabel, fmtBalance, fmtCount, fmtInt, fmtPct, fmtSpan, trackLabel} from '@/lib/format'
+import {fmtBalance, fmtCount, fmtInt, fmtPct, fmtSpan, trackLabel} from '@/lib/format'
 import type {DelegateRow, PreimageRow, TrackRow, TreasurySpendRow, VoterRow} from '@/lib/gql'
-import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
+import {SPEND_KIND_LABEL, SPEND_STATE_TONE, spendState} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
 
 const scol = columnsFor<TreasurySpendRow>()
 
 export function TreasuryTable({rows, chain, filtered}: {rows: TreasurySpendRow[]; chain: ChainProps; filtered?: boolean}) {
+    const {indexed} = useHeads()
     const columns = useMemo(
         () =>
             scol.columns([
@@ -44,12 +46,15 @@ export function TreasuryTable({rows, chain, filtered}: {rows: TreasurySpendRow[]
                 scol.display({
                     id: 'status',
                     header: 'Status',
-                    cell: ({row}) => <Badge variant={SPEND_TONE[row.original.status] ?? 'idle'}>{camelLabel(row.original.status)}</Badge>,
+                    cell: ({row}) => {
+                        const state = spendState(row.original, indexed)
+                        return <Badge variant={SPEND_STATE_TONE[state]}>{state}</Badge>
+                    },
                 }),
                 scol.display({id: 'amount', header: 'Amount', meta: {align: 'right', cellClassName: 'font-mono'}, cell: ({row}) => fmtBalance(row.original.amount, chain.decimals, chain.symbol)}),
                 scol.display({id: 'block', header: 'Block', meta: {align: 'right'}, cell: ({row}) => <BlockLink height={row.original.block} />}),
             ]),
-        [chain]
+        [chain, indexed]
     )
     return <DataTable columns={columns} rows={rows} empty={emptyText('spends', filtered)} getRowId={s => s.id} />
 }

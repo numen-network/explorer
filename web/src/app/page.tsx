@@ -26,12 +26,12 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge, ThresholdPair} from '@/components/referenda'
 import {needsNow, phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
-import {camelLabel, fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, fmtSpan, planckToNum, shortHash, signOf, trackLabel, truncFixed} from '@/lib/format'
+import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, fmtSpan, planckToNum, shortHash, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {evmMappedAccount} from '@/lib/evm'
 import {homeData, type HomeEvmTxRow, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {halvingAt} from '@/lib/halving'
 import {blocksConstant, loadRuntimes} from '@/lib/runtime'
-import {SPEND_KIND_LABEL, SPEND_TONE} from '@/lib/spends'
+import {SPEND_KIND_LABEL, SPEND_STATE_TONE, spendState} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
 import {deadlines, rowHidden, upcomingWindow} from '@/lib/upcoming'
 import {withHeads} from '@/components/withHeads'
@@ -225,6 +225,7 @@ async function Home({searchParams}: PageProps<'/'>) {
             {data.spends.map((s, i) => {
                 const index = s.id.split('-')[1]
                 const title = s.referendum?.title ?? `Treasury spend #${index}`
+                const state = spendState(s, head.height)
                 return (
                     <GovRow
                         key={s.id}
@@ -253,7 +254,7 @@ async function Home({searchParams}: PageProps<'/'>) {
                                 </span>
                             ),
                         ]}
-                        status={<Badge variant={SPEND_TONE[s.status] ?? 'idle'}>{camelLabel(s.status)}</Badge>}
+                        status={<Badge variant={SPEND_STATE_TONE[state]}>{state}</Badge>}
                         className={rowHidden(i, upcoming.length)}
                     />
                 )

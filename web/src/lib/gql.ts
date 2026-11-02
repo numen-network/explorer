@@ -4,6 +4,7 @@ import type {EnactmentMoment, RefPhaseFields} from './referendum'
 import {isH256} from './evm'
 import {BAD_JUDGEMENTS, GOOD_JUDGEMENTS} from './identity'
 import {ss58TryDecode} from './ss58'
+import {spendStateWhere, type SpendState, type SpendTimes} from './spends'
 
 const GQL = process.env.GQL_HTTP ?? 'http://127.0.0.1:4350/graphql'
 
@@ -183,10 +184,9 @@ export interface HomeData {
     bountiesDue: UpcomingBountyRow[]
 }
 
-export interface HomeSpendRow {
+export interface HomeSpendRow extends SpendTimes {
     id: string
     kind: string
-    status: string
     amount: string
     beneficiary: AccountRef
     referendum: {index: number; title: string | null} | null
@@ -237,7 +237,7 @@ export async function homeData(since24: string | null, since30: string | null, u
             evmTxs: evmTransactions(orderBy: [timestamp_DESC, txIndex_DESC], limit: 5) { ${EVM_TX_FIELDS} tokenTransfers(where: {thirdParty_eq: false}, orderBy: logIndex_ASC, limit: 20) { from amount token { id symbol decimals } } extrinsic { transfers(orderBy: id_ASC, limit: 20) { amount from { id } to { id } } } }
             referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
             referendaCount: referendumsConnection(orderBy: id_ASC) { totalCount }
-            spends: treasurySpends(orderBy: [block_DESC, indexInBlock_DESC], limit: 5) { id kind status amount beneficiary { ${ACCOUNT_REF} } referendum { index title } }
+            spends: treasurySpends(orderBy: [block_DESC, indexInBlock_DESC], limit: 5) { id kind status validFrom expireAt paidAt amount beneficiary { ${ACCOUNT_REF} } referendum { index title } }
             spendsCount: treasurySpendsConnection(orderBy: id_ASC) { totalCount }
             fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since24}) { totalCount }
             fresh30: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since30}) { totalCount }
@@ -2064,13 +2064,9 @@ export interface ReferendumDetailRow extends ReferendumRow {
 }
 
 /** A spend an enactment created, tied back to the proposal call it came from. */
-export interface ReferendumSpendRow {
+export interface ReferendumSpendRow extends SpendTimes {
     id: string
     kind: string
-    status: string
-    validFrom: number | null
-    expireAt: number | null
-    paidAt: number | null
     proposalCall: number | null
 }
 
@@ -2078,12 +2074,11 @@ const TRACK_PARAMS_FIELDS = `name maxDeciding maxSpend decisionDeposit preparePe
 const TRACK_FIELDS = `id ${TRACK_PARAMS_FIELDS}`
 const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince inQueue endedAt ayes nays support totalIssuance inactiveIssuance timeline submitter { ${ACCOUNT_REF} } track { id name } trackParams { ${TRACK_PARAMS_FIELDS} }`
 
-export interface TreasurySpendRow {
+export interface TreasurySpendRow extends SpendTimes {
     id: string
     referendum: {index: number; status: string} | null
     kind: string
     amount: string
-    status: string
     block: number
     beneficiary: AccountRef
 }
@@ -2202,11 +2197,14 @@ export function referendaPage(limit: number, offset: number, track?: string) {
 export type Facets = Record<string, string[]>
 export type Selected = Record<string, string>
 
-// track hangs off the referendum, the other fields sit on the row itself
-const pred = (field: string, value: string) => (field === 'track' ? `referendum: {track: {id_eq: "${value}"}}` : `${field}_eq: "${value}"`)
+export type Preds = Record<string, (value: string) => string>
+
+// track hangs off the referendum, the other fields sit on the row itself unless a list words them its own way
+const fieldPred = (field: string, value: string) => (field === 'track' ? `referendum: {track: {id_eq: "${value}"}}` : `${field}_eq: "${value}"`)
 
 // each chip counts the set it would produce, keeping the other dimensions on
-async function facetPage<T>(entity: string, sel: string, order: string, limit: number, offset: number, facets: Facets, on: Selected) {
+async function facetPage<T>(entity: string, sel: string, order: string, limit: number, offset: number, facets: Facets, on: Selected, preds: Preds = {}) {
+    const pred = (field: string, value: string) => preds[field]?.(value) ?? fieldPred(field, value)
     const active = (skip?: string) =>
         Object.entries(on)
             .filter(([f, v]) => v && f !== skip)
@@ -2231,10 +2229,11 @@ async function facetPage<T>(entity: string, sel: string, order: string, limit: n
     return {rows: box.rows, total: box.conn.totalCount, all: box.all.totalCount, counts}
 }
 
-const SPEND_FIELDS = `id kind amount status block referendum { index status } beneficiary { ${ACCOUNT_REF} }`
+const SPEND_FIELDS = `id kind amount status validFrom expireAt paidAt block referendum { index status } beneficiary { ${ACCOUNT_REF} }`
 
-export function treasurySpendsPage(limit: number, offset: number, facets: Facets, on: Selected) {
-    return facetPage<TreasurySpendRow>('treasurySpends', SPEND_FIELDS, '[block_DESC, indexInBlock_DESC, id_DESC]', limit, offset, facets, on)
+export function treasurySpendsPage(limit: number, offset: number, facets: Facets, on: Selected, head: number) {
+    const status = (state: string) => spendStateWhere(state as SpendState, head)
+    return facetPage<TreasurySpendRow>('treasurySpends', SPEND_FIELDS, '[block_DESC, indexInBlock_DESC, id_DESC]', limit, offset, facets, on, {status})
 }
 
 export function bountiesPage(limit: number, offset: number, facets: Facets, on: Selected) {

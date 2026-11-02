@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {PEOPLE} from '../../../mock/fixtures.js'
-import {SPEND_STATUSES, spend} from '../../../mock/fixtures/governance.js'
+import {SPEND_STATUSES, spend, spendsInEveryState} from '../../../mock/fixtures/governance.js'
 import {expectDotsBetweenFacts} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
@@ -26,7 +26,7 @@ export const One: StoryObj = {
         expect(within(row).getByText('Wallet audit, second stage')).toBeVisible()
         expect(within(row).getByText('Spend')).toBeVisible()
         expect(within(row).getByRole('link', {name: '#104'})).toBeVisible()
-        expect(within(row).getByText('Asset spend approved')).toBeVisible()
+        expect(within(row).getByText('Claimable')).toBeVisible()
         expect(row.querySelector('[data-slot=dot-row]')!.children).toHaveLength(3)
         expectDotsBetweenFacts(row)
     },
@@ -37,10 +37,16 @@ export const Many: StoryObj = {
     play: async ({canvasElement}) => expect(listRows(canvasElement, 'Governance')).toHaveLength(5),
 }
 
-// one row per status a spend can last have raised, spend_local ones read Local
+// one row per status a spend can last have raised, each read as its state at the indexed head
 export const EveryStatus: StoryObj = {
     ...spendsTab(SPEND_STATUSES.map((status, i) => titled(i, status))),
-    play: async ({canvasElement}) => expect(badges(canvasElement)).toEqual(['Spend approved', 'Awarded', 'Asset spend approved', 'Paid', 'Asset spend voided', 'Payment failed', 'Spend processed']),
+    play: async ({canvasElement}) => expect(badges(canvasElement)).toEqual(['Approved', 'Paid', 'Claimable', 'Paid', 'Voided', 'Failed', 'Expired']),
+}
+
+// one row per state, the asset spends told apart by their bounds against the indexed head
+export const EveryState: StoryObj = {
+    ...spendsTab(spendsInEveryState()),
+    play: async ({canvasElement}) => expect(badges(canvasElement)).toEqual(['Approved', 'Pending', 'Claimable', 'Expired', 'Paid', 'Failed', 'Voided']),
 }
 
 // with no referendum on record the row names the spend itself and links to the treasury list

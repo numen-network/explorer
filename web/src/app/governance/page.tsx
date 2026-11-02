@@ -16,13 +16,13 @@ import {ReferendumByline, ThresholdBar} from '@/components/referenda'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {chainDbHead, chainProps} from '@/lib/chain'
-import {camelLabel, fmtCount, fmtInt, shortHash, trackLabel, truncFixed} from '@/lib/format'
+import {fmtCount, fmtInt, shortHash, trackLabel, truncFixed} from '@/lib/format'
 import type {Curve} from '@/lib/curves'
 import {needsNow} from '@/lib/referendum'
 import {delegatesPage, governanceSummary, preimagesPage, referendaPage, specVersionAt, tracksPage, treasurySpendsPage, votersPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {loadRuntimes} from '@/lib/runtime'
-import {SPEND_KIND_LABEL} from '@/lib/spends'
+import {SPEND_KIND_LABEL, SPEND_STATES} from '@/lib/spends'
 import {DelegatesTable, PreimagesTable, TracksTable, TreasuryTable, VotersTable} from './tables'
 import {withHeads} from '@/components/withHeads'
 
@@ -34,7 +34,6 @@ type Tab = (typeof TABS)[number]
 
 // the Treasury call families and the Treasury events a spend can end on
 const SPEND_KINDS = ['spend_local', 'spend']
-const SPEND_STATUSES = ['SpendApproved', 'Awarded', 'AssetSpendApproved', 'Paid', 'AssetSpendVoided', 'PaymentFailed', 'SpendProcessed']
 
 async function preimageViews(limit: number, offset: number) {
     const rows = await preimagesPage(limit, offset)
@@ -59,12 +58,12 @@ async function GovernancePage(props: PageProps<'/governance'>) {
     const chosen = (v: unknown, values: string[]) => (values.includes(String(v)) ? String(v) : '')
     const track = chosen(sp.track, trackIds)
     const kind = chosen(sp.kind, SPEND_KINDS)
-    const status = chosen(sp.status, SPEND_STATUSES)
+    const status = chosen(sp.status, [...SPEND_STATES])
     const on = {kind, status, track}
 
     const [refs, spends, tracks, voters, delegates, preimages] = await Promise.all([
         tab === 'referenda' ? referendaPage(pg.size, pg.offset, track || undefined) : null,
-        tab === 'treasury' ? treasurySpendsPage(pg.size, pg.offset, {kind: SPEND_KINDS, status: SPEND_STATUSES, track: trackIds}, on) : null,
+        tab === 'treasury' ? treasurySpendsPage(pg.size, pg.offset, {kind: SPEND_KINDS, status: [...SPEND_STATES], track: trackIds}, on, head.height) : null,
         tab === 'tracks' ? tracksPage(pg.size, pg.offset) : null,
         tab === 'voters' ? votersPage(pg.size, pg.offset, first => participationFrom(first, head.height, chain.blockTime)) : null,
         tab === 'delegates' ? delegatesPage(pg.size, pg.offset) : null,
@@ -88,7 +87,7 @@ async function GovernancePage(props: PageProps<'/governance'>) {
     const spendFilter = spends && spends.all > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-2">
             <FacetRow label="Kind" field="kind" values={SPEND_KINDS} counts={spends.counts.kind} labelOf={v => SPEND_KIND_LABEL[v]} />
-            <FacetRow label="Status" field="status" values={SPEND_STATUSES} counts={spends.counts.status} labelOf={camelLabel} />
+            <FacetRow label="Status" field="status" values={[...SPEND_STATES]} counts={spends.counts.status} labelOf={v => v} />
             <FacetRow label="Track" field="track" values={trackIds} counts={spends.counts.track} labelOf={trackName} />
         </div>
     )
