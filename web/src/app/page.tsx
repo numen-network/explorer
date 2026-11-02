@@ -447,7 +447,7 @@ export default async function Home({searchParams}: PageProps<'/'>) {
                                 {fmtInt(head.height)}
                             </Link>
                         </StatusRow>
-                        <StatusRow label="Finalized">{fmtInt(Math.min(heads.finalized, head.height))}</StatusRow>
+                        <StatusRow label="Finalized">{fmtInt(heads.finalized)}</StatusRow>
                         <StatusRow label="Avg block time">{blockTime ? `${truncFixed(blockTime, 1)}s` : '—'}</StatusRow>
                         <StatusRow label="Validators">{fmtInt(data.validators.totalCount)}</StatusRow>
                         <StatusRow label="Session">{sessionIdx != null ? `#${fmtInt(sessionIdx)}` : '—'}</StatusRow>

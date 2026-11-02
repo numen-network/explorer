@@ -48,10 +48,10 @@ export function LiveHeads({rendered, ms, children}: {rendered: Heads; ms: number
     )
 }
 
-// a height past both heads isn't indexed yet and gets no mark
+// heights past the indexed head get no mark
 export function BlockStatus({height}: {height: number}) {
     const heads = useContext(Ctx)
-    if (!heads || height > Math.max(heads.finalized, heads.indexed)) return null
+    if (!heads || height > heads.indexed) return null
     const {Icon, label, iconTone} = finality(height, heads)
     return (
         <Tip text={label}>

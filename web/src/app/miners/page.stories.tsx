@@ -86,7 +86,7 @@ const rebuiltRows = REBUILT.map((blocks, i) => ({day: '2026-09-14', blocks, rewa
 export const IndexBehind: StoryObj = {
     ...pageStory(
         {
-            chainInfos: [{...chainInfo, head: 220_095, finalizedHead: 220_090}],
+            chainInfos: [{...chainInfo, head: 220_095, finalizedHead: 5_587}],
             blocks: ({where}: {where?: {timestamp_in?: string[]}} = {}) => (where?.timestamp_in == null ? [{height: 5_589, timestamp: '2026-09-14T11:33:41.000Z'}] : blocksAt({where})),
             minerDayStats: ({where}: {where: {day_gte: string | null}}) => rebuiltRows.filter(row => where.day_gte != null && row.day >= where.day_gte),
         },

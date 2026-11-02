@@ -821,7 +821,7 @@ async function refreshChainInfo(ctx: Ctx, h: BlockHeader<Fields>, finalizedHeigh
             submissionDeposit: submission.get(h),
             treasuryAccount: treasuryAccount(h),
             head: parseInt(head.number, 16),
-            finalizedHead: finalizedHeight,
+            finalizedHead: Math.min(finalizedHeight, h.height),
         })
     )
 }

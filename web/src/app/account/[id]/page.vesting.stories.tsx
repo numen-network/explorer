@@ -11,7 +11,7 @@ export default {title: 'Pages/Account/Vesting', ...pageMeta(AccountPage), decora
 
 // the index stopped at head while the chain ran on to best
 const behind = (spec: Spec, head: {height: number; timestamp: string}, best: number, searchParams: Record<string, string> = {}) =>
-    pageStory({...build(spec), chainInfos: [{...chainInfo, head: best, finalizedHead: best - 2}], blocks: () => [head]}, {params: {id: spec.account?.id ?? SUBJECT}, searchParams})
+    pageStory({...build(spec), chainInfos: [{...chainInfo, head: best, finalizedHead: head.height - 2}], blocks: () => [head]}, {params: {id: spec.account?.id ?? SUBJECT}, searchParams})
 
 export const One = story({account: subject({...funds(numn(1_001_250.5), '0', numn(400_000)), vestingJson: [PARTIAL], locksJson: [lock('vesting', numn(400_000))]})}, {tab: 'vesting'})
 

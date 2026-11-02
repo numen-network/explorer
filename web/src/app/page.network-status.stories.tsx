@@ -25,14 +25,14 @@ export const GenesisOnly: StoryObj = {
 // mainnet rebuilding from genesis, indexed to #30,979 while the chain stood at
 // #220,176, the catch up names both and every other figure counts from #30,979
 export const Indexing: StoryObj = {
-    ...pageStory(home({head: 30_979, best: 220_176, finalized: 220_174, days: chainDays(30_979), objects: minedUpTo(30_979, 5, 220_174)})),
+    ...pageStory(home({head: 30_979, best: 220_176, finalized: 30_977, days: chainDays(30_979), objects: minedUpTo(30_979, 5, 30_977)})),
     play: async ({canvasElement}) => {
         const status = within(card(canvasElement))
         await expect(status.getByText('Indexing')).toBeVisible()
         await expect(status.getByText('Catching up').nextElementSibling).toHaveTextContent(/^30,979 \/ 220,176$/)
         await expect(row(canvasElement, 'Latest block')).toHaveTextContent(/^30,979$/)
         await expect(row(canvasElement, 'Latest block').querySelector('a')).toHaveAttribute('href', '/block/30979')
-        await expect(row(canvasElement, 'Finalized')).toHaveTextContent(/^30,979$/)
+        await expect(row(canvasElement, 'Finalized')).toHaveTextContent(/^30,977$/)
         await expect(row(canvasElement, 'Session')).toHaveTextContent(/^#516$/)
         await expect(status.getByText('Block 20 / 60')).toBeVisible()
     },

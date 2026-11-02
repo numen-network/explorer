@@ -81,7 +81,7 @@ const DECIDING = referenda.find(r => r.index === 5)!
 // chain has run past the whole period, the thresholds read a quarter in
 export const IndexBehind: StoryObj = {
     ...pageStory(
-        {...data, chainInfos: [{...chainInfo, head: HEAD + 300_000, finalizedHead: HEAD + 299_998}], referendums: [{...DECIDING, decidingSince: HEAD - 60_480}], referendumsConnection: referendaCount([DECIDING])},
+        {...data, chainInfos: [{...chainInfo, head: HEAD + 300_000}], referendums: [{...DECIDING, decidingSince: HEAD - 60_480}], referendumsConnection: referendaCount([DECIDING])},
         {searchParams: {tab: 'referenda'}}
     ),
     play: async ({canvasElement}) => {
