@@ -1,5 +1,4 @@
 import Pager from '@/components/Pager'
-import Refresh from '@/components/Refresh'
 import AccountLink from '@/components/AccountLink'
 import {BlockLink} from '@/components/links'
 import {Card} from '@/components/ui/card'
@@ -21,7 +20,6 @@ export default async function AccountsPage(props: PageProps<'/accounts'>) {
 
     return (
         <div>
-            <Refresh />
             <div className="mt-6">
                 <h1 className="text-lg font-semibold">Accounts</h1>
             </div>
