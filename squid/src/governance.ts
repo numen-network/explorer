@@ -550,7 +550,7 @@ async function applyMetadata(batch: BatchData, rpc: RpcClient): Promise<void> {
         const r = batch.referenda.get(ev.args.index)
         if (r == null) continue
         const cleared = ev.name === 'Referenda.MetadataCleared'
-        const bytes = cleared ? undefined : await fetchPreimage(rpc, ev.args.hash, ev.height)
+        const bytes = cleared ? undefined : await fetchPreimage(rpc, ev.args.hash, ev.header.hash)
         const meta = bytes ? readMetadataText(bytes) : {title: null, description: null}
         r.title = meta.title
         r.description = meta.description
@@ -627,7 +627,7 @@ async function notePreimage(batch: BatchData, row: Preimage, ev: GovEvent, rpc: 
     row.extrinsic = ev.extrinsic == null ? null : new Extrinsic({id: ev.extrinsic})
     const status = await requestStatus(ev.header).get(ev.header, row.hash)
     if (status != null) applyRequestStatus(batch, row, status, ev.height)
-    const bytes = await fetchPreimage(rpc, row.hash, ev.height)
+    const bytes = await fetchPreimage(rpc, row.hash, ev.header.hash)
     if (bytes == null) return
     row.bytes = bytes
     Object.assign(row, readPreimage(bytes, ev.header._runtime))
@@ -680,8 +680,7 @@ function readPreimage(bytes: Uint8Array, runtime: Runtime): Pick<Preimage, 'kind
 }
 
 // the full key ends with the encoded (hash, len) pair, prefix scanning recovers len
-async function fetchPreimage(rpc: RpcClient, hash: string, height: number): Promise<Uint8Array | undefined> {
-    const at = await rpc.call('chain_getBlockHash', [height])
+async function fetchPreimage(rpc: RpcClient, hash: string, at: string): Promise<Uint8Array | undefined> {
     const keys: string[] = await rpc.call('state_getKeysPaged', [PREIMAGE_FOR_PREFIX + hash.slice(2), 1, null, at])
     if (keys == null || keys.length === 0) return undefined
     const raw: string | null = await rpc.call('state_getStorage', [keys[0], at])
@@ -743,7 +742,7 @@ async function applyProposals(batch: BatchData, rpc: RpcClient): Promise<void> {
         r.proposalPreimage = batch.preimageAt.get(ev.id) ?? null
         // the call was encoded against the runtime of the block that took it
         const runtime: Runtime = ev.header._runtime
-        const call = await proposalCall(rpc, ev.args.proposal, ev.height, runtime)
+        const call = await proposalCall(rpc, ev.args.proposal, ev.header.hash, runtime)
         if (call != null) await setProposal(batch, r, call, runtime)
     }
 }
@@ -769,11 +768,11 @@ async function setProposal(batch: BatchData, r: Referendum, call: Call, runtime:
 
 // a preimage noted after the submit is read at the block before the dispatch
 async function recordEnactedCalls(batch: BatchData, rpc: RpcClient): Promise<void> {
-    for (const {index, height, header, success} of batch.enacted) {
+    for (const {index, header, success} of batch.enacted) {
         const r = batch.referenda.get(index)
         if (r == null) continue
         if (r.proposalCalls == null) {
-            const call = await proposalCall(rpc, {__kind: 'Lookup', hash: r.proposalHash}, height - 1, header._runtime)
+            const call = await proposalCall(rpc, {__kind: 'Lookup', hash: r.proposalHash}, header.parentHash, header._runtime)
             if (call != null) await setProposal(batch, r, call, header._runtime)
         }
         for (const node of (r.proposalCalls as ProposalNode[] | null) ?? []) addEnactedCall(batch, r, header, node, success)
@@ -823,10 +822,10 @@ async function proposedRuntime(batch: BatchData, nodes: ProposalNode[]): Promise
     return code
 }
 
-async function proposalCall(rpc: RpcClient, proposal: any, height: number, runtime: Runtime): Promise<Call | undefined> {
+async function proposalCall(rpc: RpcClient, proposal: any, at: string, runtime: Runtime): Promise<Call | undefined> {
     if (proposal?.__kind === 'Inline') return decodeCall(proposal.value, runtime)
     if (proposal?.__kind !== 'Lookup') return undefined
-    const bytes = await fetchPreimage(rpc, proposal.hash, height)
+    const bytes = await fetchPreimage(rpc, proposal.hash, at)
     if (bytes == null) return undefined
     return decodeCall(bytes, runtime)
 }

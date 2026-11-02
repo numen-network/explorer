@@ -306,7 +306,7 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
 // head, never a running sum of their logs
 async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fields>): Promise<void> {
     if (batch.erc20Queue.length === 0) return
-    const at = '0x' + header.height.toString(16)
+    const at = {blockHash: batch.blocks.find(b => b.height === header.height)!.evmHash!}
     const tokenIds = [...new Set(batch.erc20Queue.map(q => q.token))]
     const tokens = new Map((await ctx.store.findBy(Token, {id: In(tokenIds)})).map(t => [t.id, t]))
     const created = await createTxs(ctx, batch, tokenIds.filter(id => !tokens.has(id)))

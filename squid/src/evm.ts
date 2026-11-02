@@ -131,7 +131,12 @@ export interface Erc20Metadata {
 }
 
 /** `at` is the block the answers hold for, as an eth block number. */
-export async function fetchErc20Metadata(rpc: RpcClient, token: string, at: string): Promise<Erc20Metadata> {
+// EIP-1898 names the block by its hash, so a hot block's sibling at the same height never answers
+export interface EvmBlock {
+    blockHash: string
+}
+
+export async function fetchErc20Metadata(rpc: RpcClient, token: string, at: EvmBlock): Promise<Erc20Metadata> {
     const [name, symbol, decimals] = await Promise.all([
         ethCall(rpc, token, SELECTORS.name, at).then(abiDecodeString),
         ethCall(rpc, token, SELECTORS.symbol, at).then(abiDecodeString),
@@ -151,7 +156,7 @@ export interface PairMembers {
 
 // a Uniswap V2 style pair answers token0() and token1() with the two tokens it
 // pools, a token that answers anything else to either is no pair
-export async function fetchPair(rpc: RpcClient, token: string, at: string): Promise<PairMembers> {
+export async function fetchPair(rpc: RpcClient, token: string, at: EvmBlock): Promise<PairMembers> {
     const [token0, token1] = await Promise.all([SELECTORS.token0, SELECTORS.token1].map(s => ethCall(rpc, token, s, at).then(abiDecodeAddress)))
     if (token0 == null || token1 == null) return {token0: null, token1: null, token0Symbol: null, token1Symbol: null, token0Decimals: null, token1Decimals: null}
     const [token0Symbol, token1Symbol] = await Promise.all([token0, token1].map(t => ethCall(rpc, t, SELECTORS.symbol, at).then(abiDecodeString)))
@@ -166,7 +171,7 @@ export interface ProxyTarget {
 
 // detectProxy reads any failed request as "not this kind of proxy", so a node
 // failure is raised again rather than passing for a plain contract
-export async function fetchProxy(rpc: RpcClient, token: string, at: string): Promise<ProxyTarget> {
+export async function fetchProxy(rpc: RpcClient, token: string, at: EvmBlock): Promise<ProxyTarget> {
     let failure: unknown
     const request: Parameters<typeof detectProxy>[1] = async ({method, params}) => {
         try {
@@ -176,7 +181,7 @@ export async function fetchProxy(rpc: RpcClient, token: string, at: string): Pro
             throw e
         }
     }
-    // the tag reaches the node untouched, and the node takes the hex form the library's type leaves out
+    // the tag reaches the node untouched, and the node takes the EIP-1898 form the library's type leaves out
     const found = await detectProxy(token as `0x${string}`, request, at as unknown as number)
     if (failure != null) throw failure
     if (found == null) return {proxyType: null, implementations: null}
@@ -184,16 +189,16 @@ export async function fetchProxy(rpc: RpcClient, token: string, at: string): Pro
     return {proxyType: found.type, implementations: targets.map(t => t.toLowerCase())}
 }
 
-export async function fetchErc20Supply(rpc: RpcClient, token: string, at: string): Promise<bigint | null> {
+export async function fetchErc20Supply(rpc: RpcClient, token: string, at: EvmBlock): Promise<bigint | null> {
     return abiDecodeUint(await ethCall(rpc, token, SELECTORS.totalSupply, at))
 }
 
-export async function fetchErc20Balance(rpc: RpcClient, token: string, holder: string, at: string): Promise<bigint | null> {
+export async function fetchErc20Balance(rpc: RpcClient, token: string, holder: string, at: EvmBlock): Promise<bigint | null> {
     return abiDecodeUint(await ethCall(rpc, token, SELECTORS.balanceOf + holder.slice(2).padStart(64, '0'), at))
 }
 
 // a revert is the contract's own answer, anything else is the node failing us
-async function ethCall(rpc: RpcClient, to: string, data: string, at: string): Promise<string | null> {
+async function ethCall(rpc: RpcClient, to: string, data: string, at: EvmBlock): Promise<string | null> {
     try {
         return await rpc.call('eth_call', [{to, data}, at])
     } catch (e) {
