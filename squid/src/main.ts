@@ -67,7 +67,7 @@ processor.run(new TypeormDatabase({supportHotBlocks: true}), async ctx => {
     const {tracks, params} = readBatchTracks(ctx.blocks.map(b => b.header))
     await ctx.store.upsert(tracks)
     await ctx.store.upsert(params)
-    const finalizedHeight = await fetchFinalizedHeight()
+    const finalizedHeight = await settledFinality(ctx, await fetchFinalizedHeight())
     const batch = new BatchData()
     const lastHeader = ctx.blocks[ctx.blocks.length - 1].header
     for (const b of ctx.blocks) await mapBlock(batch, b, finalizedHeight)
@@ -780,6 +780,17 @@ async function markFinalized(ctx: Ctx, finalizedHeight: number): Promise<void> {
     if (stale.length === 0) return
     for (const b of stale) b.finalized = true
     await ctx.store.upsert(stale)
+}
+
+// the stored rows and the batch form one chain. the newest block at or under
+// the node's finalized height settles every block below it. a block off the
+// node's chain is a fork yet to be dropped, so finality stays where it was
+async function settledFinality(ctx: Ctx, nodeFinalized: number): Promise<number> {
+    const top: {height: number; hash: string} | undefined =
+        [...ctx.blocks].reverse().find(b => b.header.height <= nodeFinalized)?.header ??
+        (await ctx.store.findOne(Block, {where: {finalized: false, height: LessThanOrEqual(nodeFinalized)}, order: {height: 'DESC'}}))
+    if (top == null || (await rpc.call('chain_getBlockHash', [top.height])) === top.hash) return nodeFinalized
+    return (await ctx.store.get(ChainInfo, 'chain'))?.finalizedHead ?? 0
 }
 
 async function fetchFinalizedHeight(): Promise<number> {
