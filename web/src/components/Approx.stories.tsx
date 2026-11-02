@@ -56,7 +56,7 @@ const figures =
             // a narrow column wraps the symbol, the gap is read off the figure's first line
             const figure = document.createRange()
             figure.selectNodeContents(mark.nextSibling!)
-            expect({label, font: getComputedStyle(mark).fontFamily, gap: Math.round(figure.getClientRects()[0].left - mark.getBoundingClientRect().right)}).toEqual({label, font: 'sans-serif', gap: 2})
+            expect({label, font: getComputedStyle(mark).fontFamily, gap: Math.round(figure.getClientRects()[0].left - mark.getBoundingClientRect().right)}).toEqual({label, font: 'Arial, sans-serif', gap: 2})
         }
     }
 
