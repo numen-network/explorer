@@ -78,3 +78,8 @@ export const usernameFilters = {
 }
 
 export const loadUsernameFilters = createLoader(usernameFilters)
+
+// the delegate the delegated vote list narrows to, every delegate when unset
+export const delegateFilter = {delegate: parseAsString.withDefault('')}
+
+export const loadDelegateFilter = createLoader(delegateFilter)

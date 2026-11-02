@@ -796,22 +796,35 @@ export interface DelegatedVoteRow {
     referendum: RefPhaseFields & {index: number; title: string | null}
 }
 
-// the votes the account's delegations rode on one page, and the count under
-// each side they can have taken
-export async function delegatedVotesFor(idHex: string, list: DelegatedVoteList | '', limit: number, offset: number) {
-    const own = 'delegator: {id_eq: $id}'
-    const where = list ? `{${own}, aye_eq: ${list === 'aye'}}` : `{${own}}`
-    const raw = await gql<{rows: DelegatedVoteRow[]; conn: {totalCount: number}; all: {totalCount: number}; aye: {totalCount: number}; nay: {totalCount: number}}>(
-        `query ($id: String!, $limit: Int!, $offset: Int!) {
-            rows: delegatedVotes(where: ${where}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { id aye conviction balance votes removed block voter { ${ACCOUNT_REF} } referendum { index title status decidingSince confirmingSince inQueue timeline } }
-            conn: delegatedVotesConnection(where: ${where}, orderBy: id_ASC) { totalCount }
-            all: delegatedVotesConnection(where: {${own}}, orderBy: id_ASC) { totalCount }
-            aye: delegatedVotesConnection(where: {${own}, aye_eq: true}, orderBy: id_ASC) { totalCount }
-            nay: delegatedVotesConnection(where: {${own}, aye_eq: false}, orderBy: id_ASC) { totalCount }
-        }`,
-        {id: idHex, limit, offset}
-    )
-    return {rows: raw.rows, total: raw.conn.totalCount, all: raw.all.totalCount, counts: {aye: raw.aye.totalCount, nay: raw.nay.totalCount}}
+// one page of the votes the account's delegations rode. each side and each
+// delegate gets a count, narrowed by the other filter
+export async function delegatedVotesFor(idHex: string, list: DelegatedVoteList | '', voter: string | null, limit: number, offset: number) {
+    const own = ['delegator: {id_eq: $id}', voter != null && 'voter: {id_eq: $voter}'].filter(Boolean).join(', ')
+    const side = list ? `, aye_eq: ${list === 'aye'}` : ''
+    const vars = voter != null ? {id: idHex, voter} : {id: idHex}
+    const [raw, voters] = await Promise.all([
+        gql<{rows: DelegatedVoteRow[]; conn: {totalCount: number}; all: {totalCount: number}; aye: {totalCount: number}; nay: {totalCount: number}}>(
+            `query ($id: String!, ${voter != null ? '$voter: String!, ' : ''}$limit: Int!, $offset: Int!) {
+                rows: delegatedVotes(where: {${own}${side}}, orderBy: [block_DESC, referendum_index_DESC, id_DESC], limit: $limit, offset: $offset) { id aye conviction balance votes removed block voter { ${ACCOUNT_REF} } referendum { index title status decidingSince confirmingSince inQueue timeline } }
+                conn: delegatedVotesConnection(where: {${own}${side}}, orderBy: id_ASC) { totalCount }
+                all: delegatedVotesConnection(where: {${own}}, orderBy: id_ASC) { totalCount }
+                aye: delegatedVotesConnection(where: {${own}, aye_eq: true}, orderBy: id_ASC) { totalCount }
+                nay: delegatedVotesConnection(where: {${own}, aye_eq: false}, orderBy: id_ASC) { totalCount }
+            }`,
+            {...vars, limit, offset}
+        ),
+        sweep(page =>
+            gql<{delegatedVotes: {voter: AccountRef}[]}>(
+                `query ($id: String!, $limit: Int!, $offset: Int!) {
+                    delegatedVotes(where: {delegator: {id_eq: $id}${side}}, orderBy: [voter_id_ASC, id_ASC], limit: $limit, offset: $offset) { voter { ${ACCOUNT_REF} } }
+                }`,
+                {id: idHex, ...page}
+            ).then(r => r.delegatedVotes)
+        ),
+    ])
+    const delegates = new Map<string, {voter: AccountRef; count: number}>()
+    for (const {voter: v} of voters) delegates.set(v.id, {voter: v, count: (delegates.get(v.id)?.count ?? 0) + 1})
+    return {rows: raw.rows, total: raw.conn.totalCount, all: raw.all.totalCount, counts: {aye: raw.aye.totalCount, nay: raw.nay.totalCount}, delegates: [...delegates.values()]}
 }
 
 export interface DelegatedVoteActionRow {

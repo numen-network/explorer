@@ -247,7 +247,7 @@ export interface Role {
     tip?: string[]
 }
 
-const refName = (id: string, acc: AccountRef | undefined, chain: ChainProps) => identityLabel(acc) ?? shortAddr(ss58Encode(id, chain.ss58))
+export const refName = (id: string, acc: AccountRef | undefined, chain: ChainProps) => identityLabel(acc) ?? shortAddr(ss58Encode(id, chain.ss58))
 
 // one signer alone can act, or one lost key locks the account
 export function multisigRole(set: MultisigSet, refs: Map<string, AccountRef>, chain: ChainProps): Role {

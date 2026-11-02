@@ -1,8 +1,10 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
+import {shortAddr} from '@/components/AddressText'
+import {ss58Encode} from '@/lib/ss58'
 import {delegatedVoteOut, poll, SUBJECT, vote} from '../../../../../mock/fixtures/accounts.js'
 import {chainInfo, HEAD, numn, person} from '../../../../../mock/fixtures.js'
-import {columnTexts, filterChips} from '../../../../.storybook/fit'
+import {columnTexts, filterOptions} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
 import {build, wellKnown, story, voting, votingTile, recordLegend, RECORD_LEGEND} from './page.stories.helpers'
@@ -64,7 +66,7 @@ export const Record: StoryObj = {
 export const EverySide: StoryObj = {
     ...story({account: voting(numn(5_000)), delegatedVotesOut: rows()}, {tab: 'delegated-votes'}),
     play: async ({canvasElement}) => {
-        expect(filterChips(canvasElement, 'Type')).toEqual(['[All 6]', 'Aye 3', 'Nay 3'])
+        expect(await filterOptions(canvasElement, 'Type')).toEqual(['[All 6]', 'Aye 3', 'Nay 3'])
         expect(columnTexts(canvasElement, 'Vote')).toEqual(['Aye', 'Nay', 'Aye', 'Nay', 'Aye', 'Nay'])
     },
 }
@@ -76,4 +78,17 @@ export const Removed = story({account: voting(numn(5_000)), delegatedVotesOut: [
 export const DelegateAddressOnly: StoryObj = {
     ...story({account: voting(numn(5_000)), delegatedVotesOut: [delegatedVoteOut(0, 'Ongoing', {voter: {id: person(3).id}})]}, {tab: 'delegated-votes'}),
     play: async ({canvasElement}) => expect(columnTexts(canvasElement, 'Delegate')[0]).toMatch(/^nu.{5}….{4}$/),
+}
+
+// Orbit Labs cast two of the votes and the address-only delegate one
+const byDelegate = () => [delegatedVoteOut(0, 'Ongoing', {voter: person(1)}), delegatedVoteOut(1, 'Approved', {voter: person(1), aye: false}), delegatedVoteOut(2, 'Ongoing')]
+
+export const EveryDelegate: StoryObj = {
+    ...story({account: voting(numn(5_000)), delegatedVotesOut: byDelegate()}, {tab: 'delegated-votes'}),
+    play: async ({canvasElement}) => expect(await filterOptions(canvasElement, 'Delegate')).toEqual(['[All 3]', 'Orbit Labs 2', `${shortAddr(ss58Encode(person(2).id, chainInfo.ss58))} 1`]),
+}
+
+export const DelegatePicked: StoryObj = {
+    ...story({account: voting(numn(5_000)), delegatedVotesOut: byDelegate()}, {tab: 'delegated-votes', delegate: ss58Encode(person(1).id, chainInfo.ss58)}),
+    play: async ({canvasElement}) => expect((await filterOptions(canvasElement, 'Delegate'))!.filter(o => o.startsWith('['))).toEqual(['[Orbit Labs 2]']),
 }
