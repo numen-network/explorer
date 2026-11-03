@@ -30,7 +30,8 @@ export const EoaNoTokensTab: StoryObj = {
 export const EoaNoContractTab: StoryObj = {
     ...addressPage(alice, {txs: TXS}, {tab: 'contract'}),
     play: async ({canvas}) => {
-        expect(canvas.queryByRole('tab', {name: /^Contract/})).toBeNull()
-        expect(within(canvas.getByRole('navigation', {name: 'Address'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Transactions/)
+        const nav = within(canvas.getByRole('navigation', {name: 'Address'}))
+        expect(nav.queryByRole('link', {name: /^Contract/})).toBeNull()
+        expect(nav.getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Transactions/)
     },
 }
