@@ -34,13 +34,10 @@ export const Summary: StoryObj = {
         }),
 }
 
-// with 180 days of blocks past the first seen block, the delegated vote before
-// the window stays in Referenda and leaves the rate
+// a window opening past the first seen block keeps the delegated vote before it
+// in Referenda and out of the rate
 export const SummaryWindowFromHead: StoryObj = {
-    ...pageStory(
-        {...build({account: voting(numn(5_000)), delegatedVotesOut: [delegatedVoteOut(0, 'Ongoing'), delegatedVoteOut(1, 'Approved', {block: 700_000, referendum: poll(1, 'Approved', 720_000)})], counts: {referenda: 4}}), chainInfos: [{...chainInfo, blockTime: 60}]},
-        {params: {id: SUBJECT}, searchParams: {tab: 'delegated-votes'}}
-    ),
+    ...pageStory(build({account: voting(numn(5_000)), delegatedVotesOut: [delegatedVoteOut(0, 'Ongoing'), delegatedVoteOut(1, 'Approved', {block: 700_000, referendum: poll(1, 'Approved', 720_000)})], counts: {referenda: 4}, windowBlock: 740_800}), {params: {id: SUBJECT}, searchParams: {tab: 'delegated-votes'}}),
     play: async ({canvasElement}) => expect(votingTile(canvasElement)).toMatchObject({Referenda: {total: '2'}, 'Participation (180d)': {total: '25.00%'}}),
 }
 

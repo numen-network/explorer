@@ -1,7 +1,7 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {delegatedVote, delegatedVoteOut, poll, SUBJECT, vote, voteRows} from '../../../../../mock/fixtures/accounts.js'
-import {chainInfo, HEAD, numn, PEOPLE} from '../../../../../mock/fixtures.js'
+import {HEAD, numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {columnTexts, filterChips} from '../../../../.storybook/fit'
 import {lastPage, pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
@@ -160,13 +160,10 @@ export const TypeSplit: StoryObj = {
     },
 }
 
-// with 180 days of blocks past the first seen block, the vote before the window
-// stays in Referenda and leaves the rate
+// a window opening past the first seen block keeps the vote before it in
+// Referenda and out of the rate
 export const SummaryWindowFromHead: StoryObj = {
-    ...pageStory(
-        {...build({account: voting(numn(1_000)), votes: [vote(0), vote(1, {block: 700_000, referendum: poll(1, 'Approved', 720_000)})], counts: {referenda: 4}}), chainInfos: [{...chainInfo, blockTime: 60}]},
-        {params: {id: SUBJECT}, searchParams: {tab: 'direct-votes'}}
-    ),
+    ...pageStory(build({account: voting(numn(1_000)), votes: [vote(0), vote(1, {block: 700_000, referendum: poll(1, 'Approved', 720_000)})], counts: {referenda: 4}, windowBlock: 740_800}), {params: {id: SUBJECT}, searchParams: {tab: 'direct-votes'}}),
     play: async ({canvasElement}) => expect(votingTile(canvasElement)).toMatchObject({Referenda: {total: '2'}, 'Participation (180d)': {total: '25.00%'}}),
 }
 

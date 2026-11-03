@@ -2,9 +2,9 @@ import {cn} from 'cn'
 import type {ReactNode} from 'react'
 import Approx from '@/components/Approx'
 import {Card} from '@/components/ui/card'
-import {chainDbHead, type ChainProps} from '@/lib/chain'
+import {chainDbHead, windowStart, type ChainProps} from '@/lib/chain'
 import {fmtInt, fmtPct} from '@/lib/format'
-import {participation, type AccountRow} from '@/lib/gql'
+import {firstBlockSince, participation, type AccountRow} from '@/lib/gql'
 import {PARTICIPATION_DAYS, participationFrom} from './shared'
 
 export type Voting = Pick<AccountRow, 'firstSeenBlock' | 'ownVotes' | 'receivedVotes' | 'delegatedVotes' | 'directReferenda' | 'delegatedReferenda'>
@@ -57,7 +57,8 @@ function Column({label, total, parts, rest = 0n}: {label: string; total: ReactNo
 // and its voting power by role
 export default async function VotingTile({hex, chain, voting}: {hex: string; chain: ChainProps; voting: Voting}) {
     const head = await chainDbHead()
-    const sum = await participation(hex, participationFrom(voting.firstSeenBlock, head.height, chain.blockTime))
+    const windowBlock = await firstBlockSince(windowStart(head, PARTICIPATION_DAYS))
+    const sum = await participation(hex, participationFrom(voting.firstSeenBlock, windowBlock))
     const amount = (planck: bigint) => <Approx planck={planck} decimals={chain.decimals} symbol={chain.symbol} breakable />
     const [own, received, delegated] = [voting.ownVotes, voting.receivedVotes, voting.delegatedVotes].map(BigInt)
     const votes = own + received + delegated

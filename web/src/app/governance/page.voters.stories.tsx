@@ -45,6 +45,8 @@ const votersTab = (rows: Voter[]): StoryObj =>
         {
             ...data,
             accounts: listed(rows),
+            // the participation window opens at genesis
+            blocks: (args: {where?: {timestamp_gte?: string}}) => (args.where?.timestamp_gte != null ? [{height: 0}] : data.blocks(args)),
             accountsConnection: {totalCount: rows.length},
             votesConnection: ({where}: {where: {voter: {id_eq: string}}}) => ({totalCount: rows.find(v => v.id === where.voter.id_eq)!.directVoted}),
             delegatedVotesConnection: ({where}: {where: {delegator: {id_eq: string}}}) => ({totalCount: rows.find(v => v.id === where.delegator.id_eq)!.delegatedVoted}),

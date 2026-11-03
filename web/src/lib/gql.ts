@@ -916,6 +916,14 @@ export function participation(idHex: string, from: number) {
     return gql<Participation>(`query ($id: String!, $from: Int!) {${participationFields('$id', '$from')}\n        }`, {id: idHex, from})
 }
 
+// the first block stamped at or after a moment. a null moment, a window opening
+// before the chain did, reads from genesis
+export async function firstBlockSince(at: string | null): Promise<number> {
+    if (at == null) return 0
+    const {blocks} = await gql<{blocks: {height: number}[]}>(`query ($at: DateTime!) { blocks(where: {timestamp_gte: $at}, orderBy: height_ASC, limit: 1) { height } }`, {at})
+    return blocks[0]?.height ?? 0
+}
+
 export interface ProposedRow extends RefPhaseFields {
     index: number
     title: string | null

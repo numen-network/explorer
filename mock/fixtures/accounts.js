@@ -836,6 +836,8 @@ const delegate = delegations => {
  */
 export function accountPage({
     account = subject(),
+    // the first block of the participation window
+    windowBlock = 0,
     validator = null,
     offences = [],
     steps = [],
@@ -946,7 +948,7 @@ export function accountPage({
         // the window query and the close before it differ only in day_lt
         accountDays: ({where}) => (where.day_lt != null ? (priorDay ? [priorDay] : []) : accountDays),
         accountDaysConnection: count(counts.accountDays ?? accountDays.length + (priorDay ? 1 : 0)),
-        blocks: args => (args.where?.author ? mined : args.where?.height_eq != null ? [{height: account.lastActiveBlock, timestamp: at(account.lastActiveBlock)}] : base.blocks(args)),
+        blocks: args => (args.where?.author ? mined : args.where?.height_eq != null ? [{height: account.lastActiveBlock, timestamp: at(account.lastActiveBlock)}] : args.where?.timestamp_gte != null ? [{height: windowBlock}] : base.blocks(args)),
         bountiesConnection: count(curated),
         childBountiesConnection: count(childCurated),
         transfersConnection: ({where}) => count(where.OR ? (counts.transfers ?? transfers.length) : (counts[side(where)] ?? sent(where).length)),

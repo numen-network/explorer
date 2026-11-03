@@ -17,7 +17,8 @@ export interface TabCtx {
 
 export const PARTICIPATION_DAYS = 180
 
-export const participationFrom = (firstSeenBlock: number, head: number, blockTime: number) => Math.max(firstSeenBlock, head - Math.floor((PARTICIPATION_DAYS * 86_400) / blockTime))
+// the window opens at its first block, or later for an account seen after that
+export const participationFrom = (firstSeenBlock: number, windowBlock: number) => Math.max(firstSeenBlock, windowBlock)
 
 export const JUDGEMENT_TONE: Record<string, 'pos' | 'warn' | 'neg' | 'idle'> = {
     KnownGood: 'pos',

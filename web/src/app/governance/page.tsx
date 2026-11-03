@@ -3,7 +3,7 @@ import {FileText} from 'lucide-react'
 import {qualified} from '@/components/calls'
 import {describePreimage} from '@/lib/args'
 import {markArgs} from '@/lib/argMarks'
-import {participationFrom} from '@/components/account/shared'
+import {PARTICIPATION_DAYS, participationFrom} from '@/components/account/shared'
 import Approx from '@/components/Approx'
 import EmptyList from '@/components/EmptyList'
 import Pager from '@/components/Pager'
@@ -15,11 +15,11 @@ import {ThresholdChart} from '@/components/charts'
 import {ReferendumByline, ThresholdBar} from '@/components/referenda'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
-import {chainDbHead, chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps, windowStart} from '@/lib/chain'
 import {fmtCount, fmtInt, shortHash, trackLabel, truncFixed} from '@/lib/format'
 import type {Curve} from '@/lib/curves'
 import {activeIssuanceOf, needsNow} from '@/lib/referendum'
-import {delegatesPage, governanceSummary, preimagesPage, referendaPage, specVersionAt, tracksPage, treasurySpendsPage, votersPage} from '@/lib/gql'
+import {delegatesPage, firstBlockSince, governanceSummary, preimagesPage, referendaPage, specVersionAt, tracksPage, treasurySpendsPage, votersPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {loadRuntimes} from '@/lib/runtime'
 import {SPEND_KIND_LABEL, SPEND_STATES} from '@/lib/spends'
@@ -65,7 +65,7 @@ async function GovernancePage(props: PageProps<'/governance'>) {
         tab === 'referenda' ? referendaPage(pg.size, pg.offset, track || undefined) : null,
         tab === 'treasury' ? treasurySpendsPage(pg.size, pg.offset, {kind: SPEND_KINDS, status: [...SPEND_STATES], track: trackIds}, on, head.height) : null,
         tab === 'tracks' ? tracksPage(pg.size, pg.offset) : null,
-        tab === 'voters' ? votersPage(pg.size, pg.offset, first => participationFrom(first, head.height, chain.blockTime)) : null,
+        tab === 'voters' ? firstBlockSince(windowStart(head, PARTICIPATION_DAYS)).then(windowBlock => votersPage(pg.size, pg.offset, first => participationFrom(first, windowBlock))) : null,
         tab === 'delegates' ? delegatesPage(pg.size, pg.offset) : null,
         tab === 'preimages' ? preimageViews(pg.size, pg.offset) : null,
     ])
