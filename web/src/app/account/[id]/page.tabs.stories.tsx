@@ -51,16 +51,6 @@ export const EveryAccountTab: StoryObj = {
         ]),
 }
 
-// an account with no history has only the two tabs every account gets, both at zero
-export const BareAccountTabs: StoryObj = {
-    ...story({}),
-    play: async ({canvasElement}) =>
-        expect(strip(canvasElement, 'Account', 'tab')).toEqual([
-            ['transfers', '0', 'page'],
-            ['extrinsics', '0', null],
-        ]),
-}
-
 // native and token transfers each get a tab with its count, and their counterparties an uncounted third
 export const EveryTransfersTab: StoryObj = {
     ...story({account: mapped(), transfers: accountTransfers(3), tokenTransfers: tokenTransferRows(2)}),
@@ -69,6 +59,73 @@ export const EveryTransfersTab: StoryObj = {
             ['transfers', '3', 'page'],
             ['tokens', '2', null],
             ['counterparties', null, null],
+        ]),
+}
+
+// an identity with subs, a judgement and events of its own shows all four Identity tabs, Direct uncounted
+export const EveryIdentityTab: StoryObj = {
+    ...story({account: named(), subs: subRows(2), timeline: [identitySet(HEAD - 10_000)]}, {tab: 'direct'}),
+    play: async ({canvasElement}) =>
+        expect(strip(canvasElement, 'Identity', 'tab')).toEqual([
+            ['direct', null, 'page'],
+            ['subs', '2', null],
+            ['judgements-received', '1', null],
+            ['timeline', '1', null],
+        ]),
+}
+
+// a registrar's Current and History tabs, each counted
+export const EveryRegistrarTab: StoryObj = {
+    ...story({account: named(), registrar: 2, refs: PEOPLE, seatEvents: seatTimeline(), verdicts: seatVerdicts(), entries: seatEntries()}, {tab: 'registrar-current'}),
+    play: async ({canvasElement}) =>
+        expect(strip(canvasElement, 'Registrar', 'tab')).toEqual([
+            ['registrar-current', '4', 'page'],
+            ['registrar', '7', null],
+        ]),
+}
+
+// a validator's two tabs, each counted
+export const EveryValidatorTab: StoryObj = {
+    ...story({account: staked(), validator: validatorRow({active: false, status: 'Kicked', kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE, steps: validatorLifecycle()}, {tab: 'validator-timeline'}),
+    play: async ({canvasElement}) =>
+        expect(strip(canvasElement, 'Validator', 'tab')).toEqual([
+            ['validator-timeline', '5', 'page'],
+            ['validator', '2', null],
+        ]),
+}
+
+// a multisig that signs for another multisig stands on both sides
+export const EveryMultisigTab: StoryObj = {
+    ...story({multisigOps: [...asAddress(2), multisigOp(10)], memberships: [membership(0)]}, {tab: 'multisig'}),
+    play: async ({canvasElement}) =>
+        expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([
+            ['multisig', '2', 'page'],
+            ['multisig-signatory', '1', null],
+        ]),
+}
+
+// the eleven governance lists share one group. Delegations counts one row, the delegate the account let go of
+export const EveryGovernanceTab: StoryObj = {
+    ...story(
+        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegatedVotesOut: [delegatedVoteOut(0, 'Approved'), delegatedVoteOut(1, 'Ongoing')], delegatedVoteActions: delegatedVoteActionRows(), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND, payouts: EVERY_PAYOUT},
+        {tab: 'direct-vote-history'}
+    ),
+    play: async ({canvas}) => {
+        expect(within(canvas.getByRole('navigation', {name: 'Account'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Governance/)
+        const nav = canvas.getByRole('navigation', {name: 'Governance'})
+        const slugs = within(nav).getAllByRole('link').map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!)
+        expect(slugs).toEqual(['direct-votes', 'direct-vote-history', 'delegated-votes', 'delegated-vote-history', 'delegator-tracks', 'delegators', 'delegator-history', 'delegations', 'delegation-history', 'proposed', 'treasury'])
+        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '10', '2', '6', '2', '2', '3', '1', '3', '5', '7'])
+    },
+}
+
+// an account with no history has only the two tabs every account gets, both at zero
+export const BareAccountTabs: StoryObj = {
+    ...story({}),
+    play: async ({canvasElement}) =>
+        expect(strip(canvasElement, 'Account', 'tab')).toEqual([
+            ['transfers', '0', 'page'],
+            ['extrinsics', '0', null],
         ]),
 }
 
@@ -94,18 +151,6 @@ export const TokensCountHeldOnly: StoryObj = {
     play: async ({canvasElement}) => expect(tabCount(canvasElement, 'holdings')).toBe('1'),
 }
 
-// an identity with subs, a judgement and events of its own shows all four Identity tabs, Direct uncounted
-export const EveryIdentityTab: StoryObj = {
-    ...story({account: named(), subs: subRows(2), timeline: [identitySet(HEAD - 10_000)]}, {tab: 'direct'}),
-    play: async ({canvasElement}) =>
-        expect(strip(canvasElement, 'Identity', 'tab')).toEqual([
-            ['direct', null, 'page'],
-            ['subs', '2', null],
-            ['judgements-received', '1', null],
-            ['timeline', '1', null],
-        ]),
-}
-
 // an identity nobody judged has no Judgements tab
 export const IdentityUnjudged: StoryObj = {
     ...story({account: named(identity('Aurora Labs', {judgements: []})), timeline: [identitySet(HEAD - 10_000)]}, {tab: 'direct'}),
@@ -124,40 +169,10 @@ export const UsernameOnlyNoIdentityTab: StoryObj = {
     play: async ({canvasElement}) => expect(accountTabs(canvasElement).queryByRole('link', {name: /^Identity/})).toBeNull(),
 }
 
-// a registrar's Current and History tabs, each counted
-export const EveryRegistrarTab: StoryObj = {
-    ...story({account: named(), registrar: 2, refs: PEOPLE, seatEvents: seatTimeline(), verdicts: seatVerdicts(), entries: seatEntries()}, {tab: 'registrar-current'}),
-    play: async ({canvasElement}) =>
-        expect(strip(canvasElement, 'Registrar', 'tab')).toEqual([
-            ['registrar-current', '4', 'page'],
-            ['registrar', '7', null],
-        ]),
-}
-
-// a validator's two tabs, each counted
-export const EveryValidatorTab: StoryObj = {
-    ...story({account: staked(), validator: validatorRow({active: false, status: 'Kicked', kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE, steps: validatorLifecycle()}, {tab: 'validator-timeline'}),
-    play: async ({canvasElement}) =>
-        expect(strip(canvasElement, 'Validator', 'tab')).toEqual([
-            ['validator-timeline', '5', 'page'],
-            ['validator', '2', null],
-        ]),
-}
-
 // an exemption alone leaves no Validator row, so the group has its timeline alone
 export const ValidatorExemptOnly: StoryObj = {
     ...story({steps: validatorLifecycle().slice(-1)}, {tab: 'validator-timeline'}),
     play: async ({canvasElement}) => expect(subTabs(canvasElement, 'Validator')).toEqual(['validator-timeline']),
-}
-
-// a multisig that signs for another multisig stands on both sides
-export const EveryMultisigTab: StoryObj = {
-    ...story({multisigOps: [...asAddress(2), multisigOp(10)], memberships: [membership(0)]}, {tab: 'multisig'}),
-    play: async ({canvasElement}) =>
-        expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([
-            ['multisig', '2', 'page'],
-            ['multisig-signatory', '1', null],
-        ]),
 }
 
 // a multisig that signs for no other multisig has its address side alone
@@ -170,21 +185,6 @@ export const MultisigAddressOnly: StoryObj = {
 export const MultisigLinkOpensSignatory: StoryObj = {
     ...story({multisigOps: [multisigOp(0)], memberships: [membership(0)]}, {tab: 'multisig'}),
     play: async ({canvasElement}) => expect(strip(canvasElement, 'Multisig', 'tab')).toEqual([['multisig-signatory', '1', 'page']]),
-}
-
-// the eleven governance lists share one group. Delegations counts one row, the delegate the account let go of
-export const EveryGovernanceTab: StoryObj = {
-    ...story(
-        {account: voting(numn(3_000.5)), votes: [vote(0)], voteActions: voteActionRows(), delegatedVotesOut: [delegatedVoteOut(0, 'Approved'), delegatedVoteOut(1, 'Ongoing')], delegatedVoteActions: delegatedVoteActionRows(), delegationsIn: delegatedFrom(2), delegationActions: delegationActionRows(), proposed: EVERY_REFUND, payouts: EVERY_PAYOUT},
-        {tab: 'direct-vote-history'}
-    ),
-    play: async ({canvas}) => {
-        expect(within(canvas.getByRole('navigation', {name: 'Account'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^Governance/)
-        const nav = canvas.getByRole('navigation', {name: 'Governance'})
-        const slugs = within(nav).getAllByRole('link').map(a => new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab')!)
-        expect(slugs).toEqual(['direct-votes', 'direct-vote-history', 'delegated-votes', 'delegated-vote-history', 'delegator-tracks', 'delegators', 'delegator-history', 'delegations', 'delegation-history', 'proposed', 'treasury'])
-        expect(slugs.map(slug => tabCount(nav, slug))).toEqual(['1', '10', '2', '6', '2', '2', '3', '1', '3', '5', '7'])
-    },
 }
 
 // an account that only ever delegated has no vote tabs, so its Governance group opens on Delegations

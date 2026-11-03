@@ -11,8 +11,19 @@ export default {title: 'Pages/Home/Tabs', ...pageMeta(Home)}
 const scene = home({...many, spends: [spend(0, 'Paid'), spend(1, 'Awarded')], windows: {...many.windows, evm: [3_629, 71, 1_448]}})
 const strip = (root: HTMLElement, name = 'Governance') => within(within(root).getByRole('navigation', {name}))
 
+// Transfers opens first, each tab counting every row the index holds
+export const EveryActivityTab: StoryObj = {
+    ...pageStory(scene),
+    play: async ({canvasElement}) => {
+        const tabs = strip(canvasElement, 'Activity')
+        expect(tabs.getAllByRole('link').map(a => a.textContent)).toEqual([`Transfers${fmtInt(many.days.at(-1)!.cumTransfers)}`, 'EVM txs3,629'])
+        expect(tabs.getByRole('link', {name: /^Transfers/})).toHaveAttribute('aria-current', 'page')
+        expect(tabs.getByRole('link', {name: /^EVM txs/})).toHaveAttribute('href', '/?activity=evm')
+    },
+}
+
 // Referenda opens first, each tab counting every row the index holds
-export const Counts: StoryObj = {
+export const EveryGovernanceTab: StoryObj = {
     ...pageStory(scene),
     play: async ({canvasElement}) => {
         const tabs = strip(canvasElement)
@@ -28,17 +39,6 @@ export const SpendsOpen: StoryObj = {
         const tabs = strip(canvasElement)
         expect(tabs.getByRole('link', {name: /^Spends/})).toHaveAttribute('aria-current', 'page')
         expect(tabs.getByRole('link', {name: /^Referenda/})).toHaveAttribute('href', '/')
-    },
-}
-
-// Transfers opens first, each tab counting every row the index holds
-export const ActivityCounts: StoryObj = {
-    ...pageStory(scene),
-    play: async ({canvasElement}) => {
-        const tabs = strip(canvasElement, 'Activity')
-        expect(tabs.getAllByRole('link').map(a => a.textContent)).toEqual([`Transfers${fmtInt(many.days.at(-1)!.cumTransfers)}`, 'EVM txs3,629'])
-        expect(tabs.getByRole('link', {name: /^Transfers/})).toHaveAttribute('aria-current', 'page')
-        expect(tabs.getByRole('link', {name: /^EVM txs/})).toHaveAttribute('href', '/?activity=evm')
     },
 }
 

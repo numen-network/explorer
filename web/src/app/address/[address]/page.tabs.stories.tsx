@@ -13,7 +13,7 @@ const TXS = [evmTx(999_990, 0, everyTx[0])]
 const nav = (root: HTMLElement) => within(within(root).getByRole('navigation', {name: 'Address'}))
 
 // a contract holding tokens shows every tab and opens on Transactions. Contract has no count
-export const ContractEveryTab: StoryObj = {
+export const EveryTab: StoryObj = {
     ...addressPage(contract, {txs: [deploy], created: [deploy], holdings: [holding(WTMR, units(1_234.5, 1))]}),
     play: async ({canvasElement}) => {
         expect(nav(canvasElement).getAllByRole('link').map(a => [new URL(a.getAttribute('href')!, 'http://x').searchParams.get('tab'), a.querySelector('[data-slot=badge]')?.textContent ?? null, a.getAttribute('aria-current')])).toEqual([

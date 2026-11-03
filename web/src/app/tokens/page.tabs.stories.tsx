@@ -16,7 +16,7 @@ const counts =
     }
 
 // each tab counts its own kind, digits grouped
-export const Counts: StoryObj = {...list([WTMR, ...Array.from({length: 19}, (_, n) => token(n))], 1_234_567, 42), play: counts('1,234,567', '42')}
+export const EveryTab: StoryObj = {...list([WTMR, ...Array.from({length: 19}, (_, n) => token(n))], 1_234_567, 42), play: counts('1,234,567', '42')}
 
 // with no pair indexed the LP tab still shows, counting none
 export const NoPairs: StoryObj = {...list([WTMR], 1, 0), play: counts('1', '0')}
