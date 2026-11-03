@@ -3,7 +3,7 @@ import {expect, within} from 'storybook/test'
 import {expectTimesFit} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
-import {expectActivityFit, far, firstBlock, genesisOnly, home, listCard, listRows, many} from './page.stories.helpers'
+import {expectActivityFit, far, firstBlock, genesisOnly, home, listCard, listRows, many, viewAll} from './page.stories.helpers'
 
 export default {title: 'Pages/Home/Transfers', ...pageMeta(Home)}
 
@@ -27,4 +27,6 @@ export const Many: StoryObj = {
 }
 
 // the largest amounts a row carries, between the accounts with the longest names
+export const ViewAll: StoryObj = {...pageStory(home(many)), play: async ({canvasElement}) => expect(viewAll(canvasElement, 'Activity')).toHaveAttribute('href', '/transfers')}
+
 export const Extremes: StoryObj = {...pageStory(home(far)), play: async ({canvasElement}) => expectActivityFit(canvasElement)}

@@ -239,6 +239,7 @@ export const far = {
 const titleOf = (root: HTMLElement, name: string) => within(root).queryByRole('heading', {name}) ?? within(root).getByRole('navigation', {name})
 export const listCard = (root: HTMLElement, name: string) => titleOf(root, name).parentElement!.nextElementSibling as HTMLElement
 export const listRows = (root: HTMLElement, name: string) => [...listCard(root, name).children] as HTMLElement[]
+export const viewAll = (root: HTMLElement, name: string) => within(within(root).getByRole('navigation', {name}).parentElement!).getByRole('link', {name: /View all/})
 
 // a crowded activity row keeps its amount whole and on one line and cuts its mark short rather than overflowing
 export function expectActivityFit(root: HTMLElement) {

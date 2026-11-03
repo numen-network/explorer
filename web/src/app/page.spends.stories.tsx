@@ -5,7 +5,7 @@ import {SPEND_STATUSES, spend, spendsInEveryState} from '../../../mock/fixtures/
 import {expectDotsBetweenFacts} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
-import {NEAREST, UPCOMING, UPCOMING_SPENDS, expectLevel, home, listCard, listRows, many, strips} from './page.stories.helpers'
+import {NEAREST, UPCOMING, UPCOMING_SPENDS, expectLevel, home, listCard, listRows, many, strips, viewAll} from './page.stories.helpers'
 
 export default {title: 'Pages/Home/Spends', ...pageMeta(Home)}
 
@@ -38,6 +38,8 @@ export const Many: StoryObj = {
 }
 
 // one row per status a spend can last have raised, each read as its state at the indexed head
+export const ViewAll: StoryObj = {...spendsTab([spend(0, 'Paid')]), play: async ({canvasElement}) => expect(viewAll(canvasElement, 'Governance')).toHaveAttribute('href', '/governance?tab=treasury')}
+
 export const EveryStatus: StoryObj = {
     ...spendsTab(SPEND_STATUSES.map((status, i) => titled(i, status))),
     play: async ({canvasElement}) => expect(badges(canvasElement)).toEqual(['Approved', 'Paid', 'Claimable', 'Paid', 'Voided', 'Failed', 'Expired']),

@@ -1,5 +1,5 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect, within} from 'storybook/test'
+import {expect} from 'storybook/test'
 import {shortHash} from '@/lib/format'
 import {NUMN, pair, token} from '../../../../mock/fixtures/evm.js'
 import {pageMeta} from '../../../.storybook/page'
@@ -19,8 +19,7 @@ const NDEX = token(3).id
 // answers no symbol shows by its address
 export const PairBadges: StoryObj = {
     ...list([pair(10, NUMN, {address: TEST, symbol: 'TEST', decimals: 18}), pair(11, {address: NDEX, symbol: 'NDEX', decimals: 18}, {address: TEST, symbol: 'TEST', decimals: 18}), pair(12, NUMN, {address: NDEX, symbol: null, decimals: 18})], 5, 3, 'lp'),
-    play: async ({canvas, canvasElement}) => {
-        await expect(within(canvas.getByRole('navigation', {name: 'Tokens'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^LP/)
+    play: async ({canvasElement}) => {
         await expect(badges(canvasElement)).toEqual(['LP NUMN/TEST', 'LP NDEX/TEST', `LP NUMN/${shortHash(NDEX)}`])
     },
 }

@@ -1,14 +1,20 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {JJFU_OFFLINE, MADE_UP_EQUIVOCATION, validatorRow} from '../../../../../mock/fixtures/accounts.js'
+import {JJFU_OFFLINE, MADE_UP_EQUIVOCATION, validatorLifecycle, validatorRow} from '../../../../../mock/fixtures/accounts.js'
 import {HEAD} from '../../../../../mock/fixtures.js'
 import {columnTexts} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import {fmtInt} from '@/lib/format'
 import AccountPage from './page'
-import {wellKnown, story, staked, figure, offenceCounts} from './page.stories.helpers'
+import {wellKnown, story, staked, figure, offenceCounts, tileAboveStrip} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Validator | Offences', ...pageMeta(AccountPage), decorators: [wellKnown]}
+
+// the tile speaks for the whole validator, so it sits above the Timeline and Offences strip
+export const TileAboveStrip: StoryObj = {
+    ...story({account: staked(), validator: validatorRow(), steps: validatorLifecycle()}, {tab: 'validator'}),
+    play: async ({canvasElement}) => expect(tileAboveStrip(canvasElement, 'Status', 'Validator')).toBe(true),
+}
 
 // an active validator that has never missed a heartbeat or signed twice
 export const ActiveNoOffences: StoryObj = {

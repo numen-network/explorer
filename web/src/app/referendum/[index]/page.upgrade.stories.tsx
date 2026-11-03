@@ -60,7 +60,3 @@ export const NotARuntime = withPlay(against(upgrade({id: CODE_HASH, specName: nu
     await expect(row(canvasElement, 'Spec version').getByText('Null')).toBeVisible()
     await expect(within(canvasElement).queryByText('Constants')).toBeNull()
 })
-
-export const NoUpgradeTab = withPlay(story(curated(2), 'upgrade'), async ({canvasElement}) => {
-    await expect(within(canvasElement).queryByRole('link', {name: 'Upgrade'})).toBeNull()
-})

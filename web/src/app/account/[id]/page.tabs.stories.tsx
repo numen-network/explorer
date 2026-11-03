@@ -1,21 +1,64 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
-import {accountTransfers, delegatedFrom, delegatedVoteActionRows, delegatedVoteOut, delegationAction, delegationActionRows, delegationActionsOf, EVERY_PAYOUT, EVERY_REFUND, HOLDING, identitySet, JJFU_OFFLINE, membership, MULTISIG_ENDS, multisigOp, NOT_HELD, subject, subRows, subUnder, tokenTransferRows, validatorLifecycle, validatorRow, vote, voteActionRows} from '../../../../../mock/fixtures/accounts.js'
+import {accountTransfers, delegatedFrom, delegatedVoteActionRows, delegatedVoteOut, delegationAction, delegationActionRows, delegationActionsOf, EVERY_PAYOUT, EVERY_REFUND, funds, HOLDING, identitySet, JJFU_OFFLINE, membership, MULTISIG_ENDS, multisigOp, NOT_HELD, proxyFor, seatEntries, seatTimeline, seatVerdicts, subject, SUBJECT_EVM, subRows, subUnder, tokenTransferRows, validatorLifecycle, validatorRow, vote, voteActionRows} from '../../../../../mock/fixtures/accounts.js'
 import {HEAD, identity, numn, PEOPLE} from '../../../../../mock/fixtures.js'
 import {tabCount} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {wellKnown, story, voting, named, mapped, staked, subTabs, strip, governanceTabs, tileAboveTabs, asAddress} from './page.stories.helpers'
+import {wellKnown, story, voting, named, mapped, staked, subTabs, strip, governanceTabs, asAddress, lock, PARTIAL} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Tabs', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
 const accountTabs = (root: HTMLElement) => within(within(root).getByRole('navigation', {name: 'Account'}))
 const openTab = (root: HTMLElement, name: string) => within(within(root).getByRole('navigation', {name})).getByRole('link', {current: 'page'})
 
-// every navigation landmark carries a name of its own, the account strip, a group's strip and the pager
-export const NavsNamed: StoryObj = {
-    ...story({delegationsIn: delegatedFrom(3)}, {tab: 'delegators'}),
-    play: async ({canvas}) => expect(canvas.getAllByRole('navigation').map(nav => nav.getAttribute('aria-label'))).toEqual(['Account', 'Governance', 'pagination']),
+// every group links its first tab and sums its tabs' counts.
+// Direct and Charts go uncounted, so Identity and Charts show no count
+export const EveryAccountTab: StoryObj = {
+    ...story({
+        account: subject({...subUnder(PEOPLE[0], 'payouts'), ...funds(numn(1_001_250.5), '0', numn(400_000)), evmAddress: SUBJECT_EVM, vestingJson: [PARTIAL], locksJson: [lock('vesting', numn(400_000))]}),
+        transfers: accountTransfers(3),
+        tokenTransfers: tokenTransferRows(2),
+        holdings: [HOLDING],
+        registrar: 2,
+        seatEvents: seatTimeline(),
+        verdicts: seatVerdicts(),
+        entries: seatEntries(),
+        validator: validatorRow({active: false, status: 'Kicked', kicked: {__kind: 'Offline'}}),
+        offences: JJFU_OFFLINE,
+        steps: validatorLifecycle(),
+        proxiesIn: proxyFor(2),
+        multisigOps: [multisigOp(0)],
+        memberships: [membership(0)],
+        votes: [vote(0)],
+        counts: {extrinsics: 4, mined: 9, accountDays: 3},
+    }),
+    play: async ({canvasElement}) =>
+        expect(strip(canvasElement, 'Account', 'tab')).toEqual([
+            ['transfers', '5', 'page'],
+            ['holdings', '1', null],
+            ['extrinsics', '4', null],
+            ['locks', '1', null],
+            ['vesting', '1', null],
+            ['direct', null, null],
+            ['registrar-current', '11', null],
+            ['validator-timeline', '7', null],
+            ['mining', '9', null],
+            ['proxies', '2', null],
+            ['multisig-signatory', '1', null],
+            ['direct-votes', '1', null],
+            ['charts', null, null],
+        ]),
+}
+
+// an account with no history has only the two tabs every account gets, both at zero
+export const BareAccountTabs: StoryObj = {
+    ...story({}),
+    play: async ({canvasElement}) =>
+        expect(strip(canvasElement, 'Account', 'tab')).toEqual([
+            ['transfers', '0', 'page'],
+            ['extrinsics', '0', null],
+        ]),
 }
 
 // native and token transfers each get a tab with its count, and their counterparties an uncounted third
@@ -81,16 +124,24 @@ export const UsernameOnlyNoIdentityTab: StoryObj = {
     play: async ({canvasElement}) => expect(accountTabs(canvasElement).queryByRole('link', {name: /^Identity/})).toBeNull(),
 }
 
-// a validator's two tabs, counted, under the tile they share
+// a registrar's Current and History tabs, each counted
+export const EveryRegistrarTab: StoryObj = {
+    ...story({account: named(), registrar: 2, refs: PEOPLE, seatEvents: seatTimeline(), verdicts: seatVerdicts(), entries: seatEntries()}, {tab: 'registrar-current'}),
+    play: async ({canvasElement}) =>
+        expect(strip(canvasElement, 'Registrar', 'tab')).toEqual([
+            ['registrar-current', '4', 'page'],
+            ['registrar', '7', null],
+        ]),
+}
+
+// a validator's two tabs, each counted
 export const EveryValidatorTab: StoryObj = {
     ...story({account: staked(), validator: validatorRow({active: false, status: 'Kicked', kicked: {__kind: 'Offline'}}), offences: JJFU_OFFLINE, steps: validatorLifecycle()}, {tab: 'validator-timeline'}),
-    play: async ({canvasElement}) => {
+    play: async ({canvasElement}) =>
         expect(strip(canvasElement, 'Validator', 'tab')).toEqual([
             ['validator-timeline', '5', 'page'],
             ['validator', '2', null],
-        ])
-        expect(tileAboveTabs(canvasElement)).toBe(true)
-    },
+        ]),
 }
 
 // an exemption alone leaves no Validator row, so the group has its timeline alone

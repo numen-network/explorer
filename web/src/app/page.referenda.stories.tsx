@@ -4,7 +4,7 @@ import {referenda} from '../../../mock/data.js'
 import {expectTimesFit} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
-import {NEAREST, UPCOMING, UPCOMING_SPENDS, expectLevel, expectReferendaFit, far, firstBlock, genesisOnly, home, listCard, listRows, many, strips} from './page.stories.helpers'
+import {NEAREST, UPCOMING, UPCOMING_SPENDS, expectLevel, expectReferendaFit, far, firstBlock, genesisOnly, home, listCard, listRows, many, strips, viewAll} from './page.stories.helpers'
 
 export default {title: 'Pages/Home/Referenda', ...pageMeta(Home)}
 
@@ -26,6 +26,8 @@ export const Many: StoryObj = {
         expectTimesFit(listCard(canvasElement, 'Governance'))
     },
 }
+
+export const ViewAll: StoryObj = {...pageStory(home(many)), play: async ({canvasElement}) => expect(viewAll(canvasElement, 'Governance')).toHaveAttribute('href', '/governance')}
 
 export const TitleHovered: StoryObj = {
     ...pageStory(home(many)),

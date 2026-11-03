@@ -38,7 +38,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 type Play = NonNullable<Story['play']>
 
-const pagerIn = (root: HTMLElement) => within(within(root).getByRole('navigation'))
+const pagerIn = (root: HTMLElement) => within(within(root).getByRole('navigation', {name: 'pagination'}))
 
 const padded: Play = async ({canvasElement}) => paddingKept(canvasElement)
 

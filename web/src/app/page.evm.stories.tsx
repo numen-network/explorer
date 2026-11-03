@@ -3,7 +3,7 @@ import {expect, screen, within} from 'storybook/test'
 import {expectTimesFit} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
-import {expectActivityFit, far, firstBlock, genesisOnly, home, listCard, listRows, many} from './page.stories.helpers'
+import {expectActivityFit, far, firstBlock, genesisOnly, home, listCard, listRows, many, viewAll} from './page.stories.helpers'
 
 export default {title: 'Pages/Home/EVM txs', ...pageMeta(Home)}
 
@@ -32,6 +32,8 @@ export const Many: StoryObj = {
 
 // what the sender paid comes first, the rest of its legs behind a count, and a tx that moved
 // nothing for the sender shows the value it carried
+export const ViewAll: StoryObj = {...pageStory(home(many), open), play: async ({canvasElement}) => expect(viewAll(canvasElement, 'Activity')).toHaveAttribute('href', '/extrinsics?pallet=Ethereum&method=transact')}
+
 export const Amounts: StoryObj = {
     ...pageStory(home(many), open),
     play: async ({canvasElement}) => expect(amounts(canvasElement)).toEqual(['≈29.01K NDEX+2', '66.35 NDEX-LP+2', '2,500 NUMN', '0 NUMN', '0 NUMN']),

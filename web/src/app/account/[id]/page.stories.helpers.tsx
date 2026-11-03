@@ -59,9 +59,9 @@ export const offenceCounts = async (root: HTMLElement, offline: string, equivoca
     await expect(figure(root, 'Equivocations (30d)')).toBe(equivocations)
 }
 
-// the tile belongs to the whole group, so it sits above the sub-tab strip
-export const tileAboveTabs = (root: HTMLElement) =>
-    Boolean(figureLabel(root, 'Status').compareDocumentPosition(within(root).getByRole('navigation', {name: 'Validator'})) & Node.DOCUMENT_POSITION_FOLLOWING)
+// the tile belongs to the whole group, so it sits above the group's strip
+export const tileAboveStrip = (root: HTMLElement, label: string, group: string) =>
+    Boolean(figureLabel(root, label).compareDocumentPosition(within(root).getByRole('navigation', {name: group})) & Node.DOCUMENT_POSITION_FOLLOWING)
 const figureLabel = (root: HTMLElement, label: string) => [...root.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === label)!
 
 export const voting = (amount: string) => subject({...funds(numn(1250.5), '0', amount), locksJson: [lock('pyconvot', amount)]})

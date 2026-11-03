@@ -4,7 +4,7 @@ import {seatEntries, seatTimeline, seatVerdicts} from '../../../../../mock/fixtu
 import {PEOPLE} from '../../../../../mock/fixtures.js'
 import {pageMeta} from '../../../../.storybook/page'
 import AccountPage from './page'
-import {figure, named, story, subTabs, wellKnown} from './page.stories.helpers'
+import {figure, named, story, tileAboveStrip, wellKnown} from './page.stories.helpers'
 
 export default {title: 'Pages/Account/Registrar | Current', ...pageMeta(AccountPage), decorators: [wellKnown]}
 
@@ -16,11 +16,7 @@ const cells = (root: HTMLElement, col: number) => within(root).getAllByRole('row
 export const TileAboveStrip: StoryObj = {
     ...seat({entries: seatEntries()}),
     play: async ({canvasElement}) => {
-        const strip = within(canvasElement).getByRole('navigation', {name: 'Registrar'})
-        const label = [...canvasElement.querySelectorAll('[data-slot=card-description]')].find(d => d.textContent === 'Pending')!
-        expect(label.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-        expect(subTabs(canvasElement, 'Registrar')).toEqual(['registrar-current', 'registrar'])
-        expect(within(strip).getAllByRole('link').map(a => a.querySelector('[data-slot=badge]')!.textContent)).toEqual(['4', '7'])
+        expect(tileAboveStrip(canvasElement, 'Pending', 'Registrar')).toBe(true)
         expect(figure(canvasElement, 'Pending')).toBe('1')
     },
 }

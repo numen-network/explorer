@@ -20,3 +20,5 @@ export const Counts: StoryObj = {...list([WTMR, ...Array.from({length: 19}, (_, 
 
 // with no pair indexed the LP tab still shows, counting none
 export const NoPairs: StoryObj = {...list([WTMR], 1, 0), play: counts('1', '0')}
+
+export const LpOpen: StoryObj = {...list([WTMR], 1, 0, 'lp'), play: async ({canvas}) => expect(within(canvas.getByRole('navigation', {name: 'Tokens'})).getByRole('link', {current: 'page'})).toHaveAccessibleName(/^LP/)}
