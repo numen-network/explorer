@@ -98,6 +98,18 @@ export function collectAnnotationEvent(batch: BatchData, id: string, name: strin
             batch.touch(args.account, height)
             batch.vestingRefresh.add(args.account)
             break
+        // a lock change raises a Balances event only when it moves the frozen total
+        case 'ConvictionVoting.Voted':
+        case 'ConvictionVoting.VoteRemoved':
+        case 'ConvictionVoting.VoteUnlocked':
+        case 'Validator.ValidatorLocked':
+        case 'Validator.LockReleased':
+            batch.touch(args.who, height)
+            break
+        case 'ConvictionVoting.Delegated':
+        case 'ConvictionVoting.Undelegated':
+            batch.touch(args[0], height)
+            break
         case 'Prime.KeyChanged':
             batch.touch(args.old, height)
             batch.touch(args.new, height)
