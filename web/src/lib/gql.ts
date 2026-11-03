@@ -816,14 +816,12 @@ export async function delegatedVotesFor(idHex: string, list: DelegatedVoteList |
             }`,
             {...vars, limit, offset}
         ),
-        sweep(page =>
-            gql<{delegatedVotes: {voter: AccountRef}[]}>(
-                `query ($id: String!, $limit: Int!, $offset: Int!) {
-                    delegatedVotes(where: {delegator: {id_eq: $id}${side}}, orderBy: [voter_id_ASC, id_ASC], limit: $limit, offset: $offset) { voter { ${ACCOUNT_REF} } }
-                }`,
-                {id: idHex, ...page}
-            ).then(r => r.delegatedVotes)
-        ),
+        gql<{delegatedVotes: {voter: AccountRef}[]}>(
+            `query ($id: String!) {
+                delegatedVotes(where: {delegator: {id_eq: $id}${side}}, orderBy: [voter_id_ASC, id_ASC]) { voter { ${ACCOUNT_REF} } }
+            }`,
+            {id: idHex}
+        ).then(r => r.delegatedVotes),
     ])
     const delegates = new Map<string, {voter: AccountRef; count: number}>()
     for (const {voter: v} of voters) delegates.set(v.id, {voter: v, count: (delegates.get(v.id)?.count ?? 0) + 1})
@@ -859,14 +857,12 @@ export function delegatedVoteHistoryFor(idHex: string, limit: number, offset: nu
 export async function delegationsCountedBy(idHex: string, indexes: number[]): Promise<Map<number, CountedDelegationRow[]>> {
     const byReferendum = new Map<number, CountedDelegationRow[]>()
     if (indexes.length === 0) return byReferendum
-    const rows = await sweep(page =>
-        gql<{delegatedVotes: (CountedDelegationRow & {referendum: {index: number}})[]}>(
-            `query ($id: String!, $indexes: [Int!], $limit: Int!, $offset: Int!) {
-                delegatedVotes(where: {voter: {id_eq: $id}, referendum: {index_in: $indexes}, removed_eq: false}, orderBy: [balance_DESC, delegator_id_ASC, id_ASC], limit: $limit, offset: $offset) { conviction balance votes voter { id } delegator { id } referendum { index } }
-            }`,
-            {id: idHex, indexes, ...page}
-        ).then(r => r.delegatedVotes)
-    )
+    const rows = await gql<{delegatedVotes: (CountedDelegationRow & {referendum: {index: number}})[]}>(
+        `query ($id: String!, $indexes: [Int!]) {
+            delegatedVotes(where: {voter: {id_eq: $id}, referendum: {index_in: $indexes}, removed_eq: false}, orderBy: [balance_DESC, delegator_id_ASC, id_ASC]) { conviction balance votes voter { id } delegator { id } referendum { index } }
+        }`,
+        {id: idHex, indexes}
+    ).then(r => r.delegatedVotes)
     for (const d of rows) byReferendum.set(d.referendum.index, [...(byReferendum.get(d.referendum.index) ?? []), d])
     return byReferendum
 }
@@ -875,30 +871,23 @@ export async function delegationsCountedBy(idHex: string, indexes: number[]): Pr
 // voted on and its standing delegated vote on each its delegations reached
 export async function voteGrid(idHex: string) {
     const [referenda, votes, delegated] = await Promise.all([
-        sweep(page =>
-            gql<{referendums: (RefPhaseFields & {index: number; title: string | null; track: {name: string}})[]}>(
-                `query ($limit: Int!, $offset: Int!) {
-                    referendums(orderBy: index_ASC, limit: $limit, offset: $offset) { index title status decidingSince confirmingSince inQueue timeline track { name } }
-                }`,
-                {...page}
-            ).then(r => r.referendums)
-        ),
-        sweep(page =>
-            gql<{votes: VoteRow[]}>(
-                `query ($id: String!, $limit: Int!, $offset: Int!) {
-                    votes(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { ${VOTE_FIELDS} referendum { index } }
-                }`,
-                {id: idHex, ...page}
-            ).then(r => r.votes)
-        ),
-        sweep(page =>
-            gql<{delegatedVotes: (Omit<DelegatedVoteRow, 'id' | 'removed' | 'referendum'> & {referendum: {index: number}})[]}>(
-                `query ($id: String!, $limit: Int!, $offset: Int!) {
-                    delegatedVotes(where: {delegator: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { aye conviction balance votes block referendum { index } voter { ${ACCOUNT_REF} } }
-                }`,
-                {id: idHex, ...page}
-            ).then(r => r.delegatedVotes)
-        ),
+        gql<{referendums: (RefPhaseFields & {index: number; title: string | null; track: {name: string}})[]}>(
+            `query {
+                referendums(orderBy: index_ASC) { index title status decidingSince confirmingSince inQueue timeline track { name } }
+            }`
+        ).then(r => r.referendums),
+        gql<{votes: VoteRow[]}>(
+            `query ($id: String!) {
+                votes(where: {voter: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { ${VOTE_FIELDS} referendum { index } }
+            }`,
+            {id: idHex}
+        ).then(r => r.votes),
+        gql<{delegatedVotes: (Omit<DelegatedVoteRow, 'id' | 'removed' | 'referendum'> & {referendum: {index: number}})[]}>(
+            `query ($id: String!) {
+                delegatedVotes(where: {delegator: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { aye conviction balance votes block referendum { index } voter { ${ACCOUNT_REF} } }
+            }`,
+            {id: idHex}
+        ).then(r => r.delegatedVotes),
     ])
     return {referenda, votes, delegated}
 }
@@ -1065,14 +1054,12 @@ export async function delegationActivity(idHex: string, spans: Span[]) {
             `p${i}: referendumsConnection(where: {track: {id_eq: "${d.track.id}"}, ${d.end == null ? '' : `submittedAt_lt: ${d.end}, `}OR: [{endedAt_isNull: true}, {endedAt_gte: ${d.block}}]}, orderBy: index_ASC) { totalCount }`
     )
     const [votes, counts] = await Promise.all([
-        sweep(page =>
-            gql<{delegatedVotes: DelegationVoteRow[]}>(
-                `query ($id: String!, $limit: Int!, $offset: Int!) {
-                    delegatedVotes(where: {delegator: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { aye votes block voter { id } referendum { index submittedAt endedAt track { id } } }
-                }`,
-                {id: idHex, ...page}
-            ).then(r => r.delegatedVotes)
-        ),
+        gql<{delegatedVotes: DelegationVoteRow[]}>(
+            `query ($id: String!) {
+                delegatedVotes(where: {delegator: {id_eq: $id}, removed_eq: false}, orderBy: id_ASC) { aye votes block voter { id } referendum { index submittedAt endedAt track { id } } }
+            }`,
+            {id: idHex}
+        ).then(r => r.delegatedVotes),
         gql<Record<string, {totalCount: number}>>(`query { ${open.join('\n')} }`),
     ])
     return {votes, open: new Map(spans.map((d, i) => [d.id, counts[`p${i}`].totalCount]))}
@@ -2353,14 +2340,12 @@ export async function voteSearch(index: number, {account, name}: AccountSearch):
     if (match === null) return {where: own, vars: '', values: {index}, delegators: new Set()}
     const vars = account != null ? '$account: String!, ' : '$name: String!, '
     const values = {index, ...(account != null ? {account} : {name})}
-    const found = await sweep(page =>
-        gql<{delegatedVotes: {voter: {id: string}; delegator: {id: string}}[]}>(
-            `query ($index: Int!, ${vars}$limit: Int!, $offset: Int!) {
-                delegatedVotes(where: {${own}, delegator: ${match}}, orderBy: id_ASC, limit: $limit, offset: $offset) { voter { id } delegator { id } }
-            }`,
-            {...values, ...page}
-        ).then(r => r.delegatedVotes)
-    )
+    const found = await gql<{delegatedVotes: {voter: {id: string}; delegator: {id: string}}[]}>(
+        `query ($index: Int!, ${vars}) {
+            delegatedVotes(where: {${own}, delegator: ${match}}, orderBy: id_ASC) { voter { id } delegator { id } }
+        }`,
+        values
+    ).then(r => r.delegatedVotes)
     const carriers = [...new Set(found.map(d => d.voter.id))]
     return {where: `${own}, AND: {OR: [{voter: ${match}}, {voter: {id_in: $carriers}}]}`, vars: `${vars}$carriers: [String!], `, values: {...values, carriers}, delegators: new Set(found.map(d => d.delegator.id))}
 }
@@ -2446,36 +2431,28 @@ export interface BallotDelegation {
     delegator: {id: string}
 }
 
-// every standing vote on a referendum and every delegation it counts, each
-// page in one request so a batch landing in between cannot take a vote away
-// from under the delegations it carries
+// every standing vote on a referendum and every delegation it counts, in one
+// request so a batch landing in between cannot take a vote away from under the
+// delegations it carries
 export async function referendumBallots(index: number): Promise<{votes: BallotVote[]; delegations: BallotDelegation[]}> {
-    const votes: BallotVote[] = []
-    const delegations: BallotDelegation[] = []
-    for (let offset = 0; ; offset += SWEEP) {
-        const page = await gql<{votes: BallotVote[]; delegatedVotes: BallotDelegation[]}>(
-            `query ($index: Int!, $limit: Int!, $offset: Int!) {
-                votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { kind aye conviction balance ayeAmount nayAmount abstainAmount votes voter { id } }
-                delegatedVotes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC, limit: $limit, offset: $offset) { conviction balance votes voter { id } delegator { id } }
-            }`,
-            {index, limit: SWEEP, offset}
-        )
-        votes.push(...page.votes)
-        delegations.push(...page.delegatedVotes)
-        if (page.votes.length < SWEEP && page.delegatedVotes.length < SWEEP) return {votes, delegations}
-    }
+    const {votes, delegatedVotes} = await gql<{votes: BallotVote[]; delegatedVotes: BallotDelegation[]}>(
+        `query ($index: Int!) {
+            votes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC) { kind aye conviction balance ayeAmount nayAmount abstainAmount votes voter { id } }
+            delegatedVotes(where: {referendum: {index_eq: $index}, removed_eq: false}, orderBy: id_ASC) { conviction balance votes voter { id } delegator { id } }
+        }`,
+        {index}
+    )
+    return {votes, delegations: delegatedVotes}
 }
 
 // the curves plot every snapshot
 export function tallySnapshots(index: number, head: number) {
-    return sweep(page =>
-        gql<{snapshots: TallySnapshotRow[]}>(
-            `query ($index: Int!, $head: Int!, $limit: Int!, $offset: Int!) {
-                snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}, block_lte: $head}, orderBy: block_ASC, limit: $limit, offset: $offset) { block ayes nays support totalIssuance inactiveIssuance }
-            }`,
-            {index, head, ...page}
-        ).then(r => r.snapshots)
-    )
+    return gql<{snapshots: TallySnapshotRow[]}>(
+        `query ($index: Int!, $head: Int!) {
+            snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}, block_lte: $head}, orderBy: block_ASC) { block ayes nays support totalIssuance inactiveIssuance }
+        }`,
+        {index, head}
+    ).then(r => r.snapshots)
 }
 
 // the methods behind each kind of action, and the impact field and side
@@ -2529,25 +2506,21 @@ export function referendumActions(index: number, {kind, move, account, name}: Ac
 }
 
 export function ownVoteHistory(referenda: number[], voters: string[]) {
-    return sweep(page =>
-        gql<{actions: OwnVoteAction[]}>(
-            `query ($referenda: [Int!], $voters: [String!], $limit: Int!, $offset: Int!) {
-                actions: votingActions(where: {referendum: {index_in: $referenda}, voter: {id_in: $voters}, delegator_isNull: true}, orderBy: [block_ASC, indexInBlock_ASC], limit: $limit, offset: $offset) { id method kind aye votes delegatedVotes voter { id } referendum { index } }
-            }`,
-            {referenda, voters, ...page}
-        ).then(r => r.actions)
-    )
+    return gql<{actions: OwnVoteAction[]}>(
+        `query ($referenda: [Int!], $voters: [String!]) {
+            actions: votingActions(where: {referendum: {index_in: $referenda}, voter: {id_in: $voters}, delegator_isNull: true}, orderBy: [block_ASC, indexInBlock_ASC]) { id method kind aye votes delegatedVotes voter { id } referendum { index } }
+        }`,
+        {referenda, voters}
+    ).then(r => r.actions)
 }
 
 export function referendumVoters(index: number) {
-    return sweep(page =>
-        gql<{actions: VotingActionRow[]}>(
-            `query ($index: Int!, $limit: Int!, $offset: Int!) {
-                actions: votingActions(where: {referendum: {index_eq: $index}}, orderBy: [block_ASC, indexInBlock_ASC], limit: $limit, offset: $offset) { ${VOTING_ACTION_FIELDS} }
-            }`,
-            {index, ...page}
-        ).then(r => r.actions)
-    )
+    return gql<{actions: VotingActionRow[]}>(
+        `query ($index: Int!) {
+            actions: votingActions(where: {referendum: {index_eq: $index}}, orderBy: [block_ASC, indexInBlock_ASC]) { ${VOTING_ACTION_FIELDS} }
+        }`,
+        {index}
+    ).then(r => r.actions)
 }
 
 export interface TimelineEventRow {
@@ -2614,14 +2587,12 @@ export interface CountedDelegationRow {
 // every delegation the referendum counts through the votes on one page,
 // biggest first, identities come later for the few rows on screen
 export function countedDelegations(index: number, voters: string[]) {
-    return sweep(page =>
-        gql<{delegatedVotes: CountedDelegationRow[]}>(
-            `query ($index: Int!, $voters: [String!], $limit: Int!, $offset: Int!) {
-                delegatedVotes(where: {referendum: {index_eq: $index}, voter: {id_in: $voters}, removed_eq: false}, orderBy: [balance_DESC, delegator_id_ASC, id_ASC], limit: $limit, offset: $offset) { conviction balance votes voter { id } delegator { id } }
-            }`,
-            {index, voters, ...page}
-        ).then(r => r.delegatedVotes)
-    )
+    return gql<{delegatedVotes: CountedDelegationRow[]}>(
+        `query ($index: Int!, $voters: [String!]) {
+            delegatedVotes(where: {referendum: {index_eq: $index}, voter: {id_in: $voters}, removed_eq: false}, orderBy: [balance_DESC, delegator_id_ASC, id_ASC]) { conviction balance votes voter { id } delegator { id } }
+        }`,
+        {index, voters}
+    ).then(r => r.delegatedVotes)
 }
 
 export interface ValidatorRow {
@@ -2816,14 +2787,11 @@ export function sessionsPage(limit: number, offset: number, head: number) {
 
 // a lock stays on an exiting or kicked validator until LockReleased zeroes it
 export async function validatorsLocked(): Promise<bigint> {
-    const rows = await sweep(page =>
-        gql<{validators: {lockedAmount: string}[]}>(
-            `query ($limit: Int!, $offset: Int!) {
-                validators(where: {lockedAmount_gt: "0"}, orderBy: id_ASC, limit: $limit, offset: $offset) { lockedAmount }
-            }`,
-            {...page}
-        ).then(r => r.validators)
-    )
+    const rows = await gql<{validators: {lockedAmount: string}[]}>(
+        `query {
+            validators(where: {lockedAmount_gt: "0"}, orderBy: id_ASC) { lockedAmount }
+        }`
+    ).then(r => r.validators)
     return rows.reduce((sum, v) => sum + BigInt(v.lockedAmount), 0n)
 }
 
@@ -2834,31 +2802,16 @@ export interface MinerDayRow {
     account: AccountRef & {lastMinedTimestamp: string}
 }
 
-const SWEEP = 5000
-
-// rows that only make sense whole are read a page at a time until a page comes back short
-async function sweep<T>(read: (page: Slice) => Promise<T[]>): Promise<T[]> {
-    const rows: T[] = []
-    for (let offset = 0; ; offset += SWEEP) {
-        const batch = await read({limit: SWEEP, offset})
-        rows.push(...batch)
-        if (batch.length < SWEEP) return rows
-    }
-}
-
 // a null day_gte matches no row, so the whole history leaves it out
 export type MinerDayWhere = {day_gte?: string | null}
 
-// a long window over many miners runs past any single page
 export function minerDays(where: MinerDayWhere): Promise<MinerDayRow[]> {
-    return sweep(page =>
-        gql<{minerDayStats: MinerDayRow[]}>(
-            `query ($where: MinerDayStatWhereInput, $limit: Int!, $offset: Int!) {
-                minerDayStats(where: $where, orderBy: id_ASC, limit: $limit, offset: $offset) { day blocks rewards account { ${ACCOUNT_REF} lastMinedTimestamp } }
-            }`,
-            {where, ...page}
-        ).then(r => r.minerDayStats)
-    )
+    return gql<{minerDayStats: MinerDayRow[]}>(
+        `query ($where: MinerDayStatWhereInput) {
+            minerDayStats(where: $where, orderBy: id_ASC) { day blocks rewards account { ${ACCOUNT_REF} lastMinedTimestamp } }
+        }`,
+        {where}
+    ).then(r => r.minerDayStats)
 }
 
 // block timestamps rise strictly along the chain, so each one names a single block

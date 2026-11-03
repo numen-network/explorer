@@ -43,7 +43,7 @@ export const ApprovedOnFirstConfirmation = curatedCase(0)
 
 export const TwoConfirmAttempts = story(secondAttempt, 'curves', castFromSnapshots(secondAttempt))
 
-// more snapshots than one read returns, packed early so the second read carries most of the run and a swing in nays
+// six thousand snapshots, the first five thousand packed close together and a swing in nays across the rest
 const longRun = {
     ...curated(5),
     snapshots: snapshots(
@@ -55,7 +55,7 @@ const longRun = {
     ),
 }
 
-export const PastOneRead = story(longRun, 'curves')
+export const LongRun = story(longRun, 'curves')
 
 // the action list as the page shows it, its heading, pickers, search text and rows
 const actionList = async (root: HTMLElement) => {
