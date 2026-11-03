@@ -108,10 +108,10 @@ function versionRows(code: RuntimeCodeRow, previous: Runtime, before: {index: nu
     ]
 }
 
-// the proposed runtime against the one it replaces. that's the runtime
-// before enactment, or the current one until then
-export async function upgradePanel({index, enactedAt, headSpec, chain}: {index: number; enactedAt: number | null; headSpec: number; chain: ChainProps}) {
-    const replaced = enactedAt != null ? await specVersionAt(enactedAt - 1) : headSpec
+// the proposed runtime against the one it replaces, the runtime at replacedAt
+// or the current one while the referendum can still enact
+export async function upgradePanel({index, replacedAt, headSpec, chain}: {index: number; replacedAt: number | null; headSpec: number; chain: ChainProps}) {
+    const replaced = replacedAt != null ? await specVersionAt(replacedAt) : headSpec
     const {code, before} = await referendumRuntime(index, replaced ?? headSpec)
     const previous = knownRuntime(replaced ?? headSpec)
     const next = code.metadata && code.specVersion != null ? new Runtime({specName: code.specName!, specVersion: code.specVersion, implName: code.specName!, implVersion: code.implVersion!}, code.metadata) : null

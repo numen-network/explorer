@@ -17,10 +17,11 @@ const runtimeCode = (specVersion: number) => {
 
 const upgrade = (proposalRuntime: object, title: string): Referendum => ({...curated(2), id: '20', index: 20, title, proposalPallet: 'Prime', proposalMethod: 'upgrade', proposalRuntime})
 
-// the head runs replaced, and an approved referendum installed it when installer is set
-const against = (r: Referendum, replaced: number, installer?: number) =>
+// replaced ran when the referendum ended and head runs at the head. installer,
+// when set, is the referendum that installed replaced
+const against = (r: Referendum, replaced: number, installer?: number, head = replaced) =>
     story(r, 'upgrade', {
-        blocks: (args: {where?: {height_eq?: number}}) => (args.where?.height_eq != null ? [block(args.where.height_eq)] : [{height: HEAD, timestamp: new Date().toISOString(), specVersion: replaced}]),
+        blocks: (args: {where?: {height_eq?: number}}) => (args.where?.height_eq != null ? [{...block(args.where.height_eq), specVersion: replaced}] : [{height: HEAD, timestamp: new Date().toISOString(), specVersion: head}]),
         referendums: (args: {where?: {index_eq?: number}}) => (args.where?.index_eq != null ? [r] : installer != null ? [{index: installer, proposalRuntime: {id: INSTALLED_HASH}}] : []),
     })
 
@@ -48,6 +49,11 @@ export const ConstantsAndCalls = withPlay(against(upgrade(runtimeCode(10000), 'R
 export const InstalledByReferendum = withPlay(against(upgrade(runtimeCode(10100), 'Runtime v10100'), 10000, 7), async ({canvasElement}) => {
     await expect(row(canvasElement, 'Spec version').getByRole('link', {name: /#7/})).toHaveAttribute('href', '/referendum/7')
     await expect(row(canvasElement, 'Code hash').getAllByRole('button')).toHaveLength(2)
+})
+
+export const EndedBeforeLaterUpgrade = withPlay(against(upgrade(runtimeCode(10100), 'Runtime v10100'), 10000, undefined, 10100), async ({canvasElement}) => {
+    await expect(row(canvasElement, 'Spec version').getByText('10000')).toBeVisible()
+    await expect(row(canvasElement, 'GenesisRegistrars').getByText('Added')).toBeVisible()
 })
 
 export const NotARuntime = withPlay(against(upgrade({id: CODE_HASH, specName: null, specVersion: null, implVersion: null, transactionVersion: null, metadata: null}, 'Upgrade with bytes that do not run'), 10000), async ({canvasElement}) => {

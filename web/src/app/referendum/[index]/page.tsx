@@ -237,6 +237,7 @@ async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
     const activePlanck = activeIssuanceOf(r)
     const counts = {aye: data.ayeCount.totalCount, nay: data.nayCount.totalCount, abstain: data.abstainCount.totalCount, split: data.splitCount.totalCount}
     const enactedAt = trail.find(s => s.name.startsWith('Scheduler.'))?.block ?? null
+    const replacedAt = enactedAt != null ? enactedAt - 1 : r.status === 'Ongoing' || r.status === 'Approved' ? null : r.endedAt
     const [refs, evs, textEvs, votes, actions, actionRows, stats, upgrade, spec, bounties, titles] = await Promise.all([
         accountRefs(partyIds),
         eventsByIds(trail.map(s => s.event)),
@@ -245,7 +246,7 @@ async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
         tab === 'curves' ? actionsPanel({index: r.index, sp, pg, chain}) : null,
         tab === 'curves' ? votersOnCurves(r.index, chain.ss58) : [],
         tab === 'statistics' ? statsPanel({index: r.index, chain}) : null,
-        tab === 'upgrade' && r.proposalRuntime ? upgradePanel({index: r.index, enactedAt, headSpec: head.specVersion, chain}) : null,
+        tab === 'upgrade' && r.proposalRuntime ? upgradePanel({index: r.index, replacedAt, headSpec: head.specVersion, chain}) : null,
         specVersionAt(r.submittedAt),
         bountyIds.length > 0 ? bountiesByIndex(bountyIds) : {bounties: []},
         titled.length > 0 ? indexTitles({referenda: titled, bounties: [], spends: [], registrars: []}) : {referendums: []},
