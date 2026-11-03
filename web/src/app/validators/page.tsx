@@ -53,7 +53,7 @@ async function ValidatorsPage(props: PageProps<'/validators'>) {
     await loadRuntimes()
     const sp = await props.searchParams
     const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
-    const [sum, locked] = await Promise.all([validatorsSummary(), validatorsLocked()])
+    const [sum, locked] = await Promise.all([validatorsSummary(head.height), validatorsLocked()])
     const rules = validatorRules(head, chain)
 
     const tabs = panelTabs(

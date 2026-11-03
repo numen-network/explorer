@@ -10,7 +10,7 @@ type SearchParams = Record<string, string | string[] | undefined>
 
 export default async function ValidatorSessions({sp, chain, head, total}: {sp: SearchParams; chain: ChainProps; head: DbHead; total: number}) {
     const pg = paging(sp)
-    const data = await sessionsPage(pg.size, pg.offset)
+    const data = await sessionsPage(pg.size, pg.offset, head.height)
     return (
         <>
             <Card size="flush">

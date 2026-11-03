@@ -223,24 +223,24 @@ export interface UpcomingWindow {
 
 const CLAIMABLE = '["AssetSpendApproved", "PaymentFailed"]'
 
-export async function homeData(since24: string | null, since30: string | null, upcoming: UpcomingWindow) {
+export async function homeData(since24: string | null, since30: string | null, headAt: string | null, upcoming: UpcomingWindow) {
     const data = await gql<HomeData>(
-        `query ($since24: DateTime, $since30: DateTime, $head: Int!, $until: Int!, $validUntil: Int!) {
+        `query ($since24: DateTime, $since30: DateTime, $headAt: DateTime, $head: Int!, $until: Int!, $validUntil: Int!) {
             blocks(where: {height_lte: $head}, orderBy: height_DESC, limit: 1) { ${BLOCK_FIELDS} }
             minedObjects(where: {block: {height_lte: $head}}, orderBy: id_DESC, limit: 5) { block { height hash timestamp extrinsicCount eventCount workHash author { ${ACCOUNT_REF} } } protocol vertices }
             transfers(where: {block: {height_lte: $head}}, orderBy: ${TRANSFER_ORDER}, limit: 5) { ${TRANSFER_FIELDS} }
-            dailyStats(orderBy: date_DESC, limit: 90) { ${DAILY_FIELDS} }
-            accounts: accountsConnection(orderBy: id_ASC) { totalCount }
+            dailyStats(where: {tsFirst_lte: $headAt}, orderBy: date_DESC, limit: 90) { ${DAILY_FIELDS} }
+            accounts: accountsConnection(orderBy: id_ASC, where: {firstSeenBlock_lte: $head}) { totalCount }
             validators: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
             sessionHead: sessions(where: {startBlock_lte: $head}, orderBy: index_DESC, limit: 1) { index }
-            evmTotal: evmTransactionsConnection(orderBy: id_ASC) { totalCount }
+            evmTotal: evmTransactionsConnection(orderBy: id_ASC, where: {block: {height_lte: $head}}) { totalCount }
             evmTxs: evmTransactions(where: {block: {height_lte: $head}}, orderBy: [timestamp_DESC, txIndex_DESC], limit: 5) { ${EVM_TX_FIELDS} tokenTransfers(where: {thirdParty_eq: false}, orderBy: logIndex_ASC, limit: 20) { from amount token { id symbol decimals } } extrinsic { transfers(orderBy: id_ASC, limit: 20) { amount from { id } to { id } } } }
-            referendums(orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
-            referendaCount: referendumsConnection(orderBy: id_ASC) { totalCount }
-            spends: treasurySpends(orderBy: [block_DESC, indexInBlock_DESC], limit: 5) { id kind status validFrom expireAt paidAt amount beneficiary { ${ACCOUNT_REF} } referendum { index title } }
-            spendsCount: treasurySpendsConnection(orderBy: id_ASC) { totalCount }
-            fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since24}) { totalCount }
-            fresh30: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since30}) { totalCount }
+            referendums(where: {submittedAt_lte: $head}, orderBy: index_DESC, limit: 5) { ${REFERENDUM_FIELDS} }
+            referendaCount: referendumsConnection(orderBy: id_ASC, where: {submittedAt_lte: $head}) { totalCount }
+            spends: treasurySpends(where: {block_lte: $head}, orderBy: [block_DESC, indexInBlock_DESC], limit: 5) { id kind status validFrom expireAt paidAt amount beneficiary { ${ACCOUNT_REF} } referendum { index title } }
+            spendsCount: treasurySpendsConnection(orderBy: id_ASC, where: {block_lte: $head}) { totalCount }
+            fresh24: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since24, firstSeenBlock_lte: $head}) { totalCount }
+            fresh30: accountsConnection(orderBy: id_ASC, where: {firstSeenTimestamp_gt: $since30, firstSeenBlock_lte: $head}) { totalCount }
             base24: blocks(orderBy: timestamp_DESC, limit: 1, where: {timestamp_lte: $since24}) { ${BASELINE_FIELDS} }
             base30: blocks(orderBy: timestamp_DESC, limit: 1, where: {timestamp_lte: $since30}) { ${BASELINE_FIELDS} }
             tra24: hourlyStats(orderBy: hour_DESC, limit: 1, where: {block: {timestamp_lte: $since24}}) { issuanceTransferable issuanceInactive }
@@ -248,18 +248,18 @@ export async function homeData(since24: string | null, since30: string | null, u
             miners24: accountsConnection(orderBy: id_ASC, where: {lastMinedTimestamp_gt: $since24}) { totalCount }
             miners30: accountsConnection(orderBy: id_ASC, where: {lastMinedTimestamp_gt: $since30}) { totalCount }
             minersTotal: accountsConnection(orderBy: id_ASC, where: {lastMinedTimestamp_isNull: false}) { totalCount }
-            ext24: extrinsicsConnection(orderBy: id_ASC, where: {signer_isNull: false, block: {timestamp_gt: $since24}}) { totalCount }
-            ext30: extrinsicsConnection(orderBy: id_ASC, where: {signer_isNull: false, block: {timestamp_gt: $since30}}) { totalCount }
-            transfers24: transfersConnection(orderBy: id_ASC, where: {timestamp_gt: $since24}) { totalCount }
-            transfers30: transfersConnection(orderBy: id_ASC, where: {timestamp_gt: $since30}) { totalCount }
-            evm24: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since24}) { totalCount }
-            evm30: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since30}) { totalCount }
-            ongoing: referendums(where: {status_eq: Ongoing}, orderBy: index_ASC, limit: 500) { index title submittedAt decidingSince confirmingSince trackParams { preparePeriod decisionPeriod confirmPeriod } }
+            ext24: extrinsicsConnection(orderBy: id_ASC, where: {signer_isNull: false, block: {timestamp_gt: $since24, height_lte: $head}}) { totalCount }
+            ext30: extrinsicsConnection(orderBy: id_ASC, where: {signer_isNull: false, block: {timestamp_gt: $since30, height_lte: $head}}) { totalCount }
+            transfers24: transfersConnection(orderBy: id_ASC, where: {timestamp_gt: $since24, block: {height_lte: $head}}) { totalCount }
+            transfers30: transfersConnection(orderBy: id_ASC, where: {timestamp_gt: $since30, block: {height_lte: $head}}) { totalCount }
+            evm24: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since24, block: {height_lte: $head}}) { totalCount }
+            evm30: evmTransactionsConnection(orderBy: id_ASC, where: {timestamp_gt: $since30, block: {height_lte: $head}}) { totalCount }
+            ongoing: referendums(where: {status_eq: Ongoing, submittedAt_lte: $head}, orderBy: index_ASC, limit: 500) { index title submittedAt decidingSince confirmingSince trackParams { preparePeriod decisionPeriod confirmPeriod } }
             spendsValid: treasurySpends(where: {kind_eq: "spend", status_in: ${CLAIMABLE}, validFrom_gt: $head, validFrom_lte: $validUntil}, orderBy: validFrom_ASC, limit: 500) { id validFrom expireAt referendum { index title } }
             spendsExpire: treasurySpends(where: {kind_eq: "spend", status_in: ${CLAIMABLE}, validFrom_lte: $head, expireAt_gt: $head, expireAt_lte: $until}, orderBy: expireAt_ASC, limit: 500) { id validFrom expireAt referendum { index title } }
             bountiesDue: bounties(where: {status_eq: "Active", updateDue_gt: $head, updateDue_lte: $until}, orderBy: updateDue_ASC, limit: 500) { index description updateDue }
         }`,
-        {since24, since30, ...upcoming}
+        {since24, since30, headAt, ...upcoming}
     )
     return {...data, minedObjects: await withTopology(data.minedObjects)}
 }
@@ -282,13 +282,13 @@ export function minedBlocks(authorHex: string, limit: number, offset: number) {
     )
 }
 
-export function blocksPage(limit: number, offset: number) {
+export function blocksPage(limit: number, offset: number, head: number) {
     return gql<{blocks: BlockRow[]; conn: {totalCount: number}}>(
-        `query ($limit: Int!, $offset: Int!) {
-            blocks(orderBy: height_DESC, limit: $limit, offset: $offset) { ${BLOCK_FIELDS} }
-            conn: blocksConnection(orderBy: height_DESC) { totalCount }
+        `query ($limit: Int!, $offset: Int!, $head: Int!) {
+            blocks(where: {height_lte: $head}, orderBy: height_DESC, limit: $limit, offset: $offset) { ${BLOCK_FIELDS} }
+            conn: blocksConnection(where: {height_lte: $head}, orderBy: height_DESC) { totalCount }
         }`,
-        {limit, offset}
+        {limit, offset, head}
     )
 }
 
@@ -1152,13 +1152,13 @@ export function membershipsFor(idHex: string, limit: number, offset: number) {
     )
 }
 
-export function transfersPage(limit: number, offset: number) {
+export function transfersPage(limit: number, offset: number, head: number) {
     return gql<{transfers: TransferRow[]; conn: {totalCount: number}}>(
-        `query ($limit: Int!, $offset: Int!) {
-            transfers(orderBy: ${TRANSFER_ORDER}, limit: $limit, offset: $offset) { ${TRANSFER_FIELDS} }
-            conn: transfersConnection(orderBy: timestamp_DESC) { totalCount }
+        `query ($limit: Int!, $offset: Int!, $head: Int!) {
+            transfers(where: {block: {height_lte: $head}}, orderBy: ${TRANSFER_ORDER}, limit: $limit, offset: $offset) { ${TRANSFER_FIELDS} }
+            conn: transfersConnection(where: {block: {height_lte: $head}}, orderBy: timestamp_DESC) { totalCount }
         }`,
-        {limit, offset}
+        {limit, offset, head}
     )
 }
 
@@ -2459,13 +2459,13 @@ export async function referendumBallots(index: number): Promise<{votes: BallotVo
 }
 
 // the curves plot every snapshot
-export function tallySnapshots(index: number) {
+export function tallySnapshots(index: number, head: number) {
     return sweep(page =>
         gql<{snapshots: TallySnapshotRow[]}>(
-            `query ($index: Int!, $limit: Int!, $offset: Int!) {
-                snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}}, orderBy: block_ASC, limit: $limit, offset: $offset) { block ayes nays support totalIssuance inactiveIssuance }
+            `query ($index: Int!, $head: Int!, $limit: Int!, $offset: Int!) {
+                snapshots: referendumTallySnapshots(where: {referendum: {index_eq: $index}, block_lte: $head}, orderBy: block_ASC, limit: $limit, offset: $offset) { block ayes nays support totalIssuance inactiveIssuance }
             }`,
-            {index, ...page}
+            {index, head, ...page}
         ).then(r => r.snapshots)
     )
 }
@@ -2714,15 +2714,16 @@ export interface ValidatorListRow extends ValidatorRow {
 // renewals leave the set unchanged, so the history skips them
 const HISTORY_STEP = 'renewals_eq: 0'
 
-export function validatorsSummary() {
+export function validatorsSummary(head: number) {
     return gql<{all: {totalCount: number}; active: {totalCount: number}; pending: {totalCount: number}; history: {totalCount: number}; sessions: {totalCount: number}}>(
-        `{
+        `query ($head: Int!) {
             all: validatorsConnection(orderBy: id_ASC) { totalCount }
             active: validatorsConnection(orderBy: id_ASC, where: {active_eq: true}) { totalCount }
             pending: validatorsConnection(orderBy: id_ASC, where: {active_eq: false, status_eq: "Active"}) { totalCount }
             history: validatorStepsConnection(orderBy: id_ASC, where: {${HISTORY_STEP}}) { totalCount }
-            sessions: sessionsConnection(orderBy: id_ASC) { totalCount }
-        }`
+            sessions: sessionsConnection(where: {startBlock_lte: $head}, orderBy: id_ASC) { totalCount }
+        }`,
+        {head}
     )
 }
 
@@ -2796,12 +2797,12 @@ export interface SessionRow {
     kicked: number
 }
 
-export function sessionsPage(limit: number, offset: number) {
+export function sessionsPage(limit: number, offset: number, head: number) {
     return gql<{sessions: SessionRow[]}>(
-        `query ($limit: Int!, $offset: Int!) {
-            sessions(orderBy: index_DESC, limit: $limit, offset: $offset) { index startBlock timestamp endBlock validatorCount offline equivocations kicked }
+        `query ($limit: Int!, $offset: Int!, $head: Int!) {
+            sessions(where: {startBlock_lte: $head}, orderBy: index_DESC, limit: $limit, offset: $offset) { index startBlock timestamp endBlock validatorCount offline equivocations kicked }
         }`,
-        {limit, offset}
+        {limit, offset, head}
     )
 }
 

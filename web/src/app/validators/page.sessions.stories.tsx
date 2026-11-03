@@ -20,6 +20,15 @@ export const One: StoryObj = {
     },
 }
 
+// a batch past the head the page renders at already closed the running session,
+// which still shows how far it had got at the head
+export const EndPastHead: StoryObj = {
+    ...sessions([running({endBlock: 1_000_019})]),
+    play: async ({canvasElement}) => {
+        await expect(columnTexts(canvasElement, 'Block End')).toEqual([expect.stringMatching(/41 \/ 60$/)])
+    },
+}
+
 // mainnet around the first kicks, a heartbeat missed in 4875 and two in 4876,
 // each session kicking one validator as it ended
 export const Mainnet: StoryObj = {

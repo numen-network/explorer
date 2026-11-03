@@ -48,10 +48,10 @@ export function ValidatorsTable({rows, chain, head, rules, sorting, filtered}: {
 
 const sessionCol = columnsFor<SessionRow>()
 
-// the running session has no end block yet, so it shows how far it has got,
-// sized to the text when full
+// the session running at the head shows how far it has got, sized to the text
+// when full. an end past the head is one the page hasn't reached yet
 function SessionEnd({s, head, length}: {s: SessionRow; head: number; length: number}) {
-    if (s.endBlock != null) return <BlockLink height={s.endBlock} />
+    if (s.endBlock != null && s.endBlock <= head) return <BlockLink height={s.endBlock} />
     const done = head - s.startBlock + 1
     return (
         <div className="ml-auto grid w-fit whitespace-nowrap">

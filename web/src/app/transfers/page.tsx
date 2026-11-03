@@ -1,7 +1,7 @@
 import Pager from '@/components/Pager'
 import Refresh from '@/components/Refresh'
 import {Card} from '@/components/ui/card'
-import {chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps} from '@/lib/chain'
 import {fmtInt} from '@/lib/format'
 import {paging} from '@/lib/paging'
 import {transfersPage} from '@/lib/gql'
@@ -15,7 +15,8 @@ export const metadata = {title: 'Transfers'}
 async function TransfersPage(props: PageProps<'/transfers'>) {
     const sp = await props.searchParams
     const pg = paging(sp)
-    const [chain, {transfers, conn}] = await Promise.all([chainProps(), transfersPage(pg.size, pg.offset)])
+    const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
+    const {transfers, conn} = await transfersPage(pg.size, pg.offset, head.height)
 
     return (
         <div>

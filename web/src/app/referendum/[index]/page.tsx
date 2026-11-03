@@ -217,11 +217,11 @@ async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
     const tab = String(sp.tab ?? '')
     if (!/^\d+$/.test(rawIndex)) notFound()
     const pg = paging(sp)
-    const [chain, head, data, snapshots, thread] = await Promise.all([
+    const head = await chainDbHead()
+    const [chain, data, snapshots, thread] = await Promise.all([
         chainProps(),
-        chainDbHead(),
         referendumDetail(Number(rawIndex), {limit: pg.size, offset: pg.offset}),
-        tallySnapshots(Number(rawIndex)),
+        tallySnapshots(Number(rawIndex), head.height),
         discussionOf(Number(rawIndex)),
     ])
     const r = data.referendums[0]

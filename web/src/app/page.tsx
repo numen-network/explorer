@@ -159,7 +159,7 @@ async function Home({searchParams}: PageProps<'/'>) {
     await loadRuntimes()
     const [sp, props, heads, head] = await Promise.all([searchParams, chainProps(), chainHeads(), chainDbHead()])
     const cut = upcomingWindow(head.height, props.blockTime)
-    const data = await homeData(windowStart(head, 1), windowStart(head, 30), cut)
+    const data = await homeData(windowStart(head, 1), windowStart(head, 30), head.timestamp, cut)
     const days = data.dailyStats
     const today: DailyRow | undefined = days[0]
 

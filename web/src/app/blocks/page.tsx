@@ -1,7 +1,7 @@
 import Pager from '@/components/Pager'
 import Refresh from '@/components/Refresh'
 import {Card} from '@/components/ui/card'
-import {chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps} from '@/lib/chain'
 import {datedOrGenesis} from '@/lib/config'
 import {paging} from '@/lib/paging'
 import {blocksPage} from '@/lib/gql'
@@ -15,7 +15,8 @@ export const metadata = {title: 'Blocks'}
 async function BlocksPage(props: PageProps<'/blocks'>) {
     const sp = await props.searchParams
     const pg = paging(sp)
-    const [chain, {blocks, conn}] = await Promise.all([chainProps(), blocksPage(pg.size, pg.offset)])
+    const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
+    const {blocks, conn} = await blocksPage(pg.size, pg.offset, head.height)
 
     return (
         <div>
