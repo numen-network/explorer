@@ -18,7 +18,7 @@ import {Separator} from '@/components/ui/separator'
 import {chainDbHead, chainProps} from '@/lib/chain'
 import {fmtCount, fmtInt, shortHash, trackLabel, truncFixed} from '@/lib/format'
 import type {Curve} from '@/lib/curves'
-import {needsNow} from '@/lib/referendum'
+import {activeIssuanceOf, needsNow} from '@/lib/referendum'
 import {delegatesPage, governanceSummary, preimagesPage, referendaPage, specVersionAt, tracksPage, treasurySpendsPage, votersPage} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {loadRuntimes} from '@/lib/runtime'
@@ -160,12 +160,12 @@ async function GovernancePage(props: PageProps<'/governance'>) {
                                     label="Support"
                                     variant="solid"
                                     part={BigInt(r.support)}
-                                    whole={activeIssuance}
+                                    whole={activeIssuanceOf(r)}
                                     need={need.support}
                                     foot={
                                         <>
                                             <span>voted <Approx planck={r.support} decimals={chain.decimals} /></span>
-                                            <span>of <Approx planck={activeIssuance} decimals={chain.decimals} /></span>
+                                            <span>of <Approx planck={activeIssuanceOf(r)} decimals={chain.decimals} /></span>
                                         </>
                                     }
                                 />

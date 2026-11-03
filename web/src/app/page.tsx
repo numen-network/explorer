@@ -24,7 +24,7 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Progress} from '@/components/ui/progress'
 import {CallPill} from '@/components/calls'
 import {StatusBadge, ThresholdPair} from '@/components/referenda'
-import {needsNow, phaseOf} from '@/lib/referendum'
+import {activeIssuanceOf, needsNow, phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
 import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, fmtSpan, planckToNum, shortHash, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {evmMappedAccount} from '@/lib/evm'
@@ -203,7 +203,7 @@ async function Home({searchParams}: PageProps<'/'>) {
                                 </span>
                             </Tip>
                         }
-                        mark={need && <ThresholdPair ayes={BigInt(r.ayes)} nays={BigInt(r.nays)} support={BigInt(r.support)} issuance={issNow - inactiveNow} need={need} />}
+                        mark={need && <ThresholdPair ayes={BigInt(r.ayes)} nays={BigInt(r.nays)} support={BigInt(r.support)} issuance={activeIssuanceOf(r)} need={need} />}
                         amount={r.proposalAmount != null ? coins(r.proposalAmount) : <span className="text-muted-foreground">{r.proposalMethod ?? '—'}</span>}
                         facts={[
                             <span key="track" className="whitespace-nowrap">

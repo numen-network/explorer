@@ -100,6 +100,15 @@ export const TruncationEdges: StoryObj = {
     }, referendumCardsFit),
 }
 
+// the support bar divides by the issuance at the tally's block
+export const SupportAtTallyBlock: StoryObj = {
+    ...referendaTab([{...referenda[6], support: numn(10_000_000), totalIssuance: numn(120_000_000), inactiveIssuance: numn(20_000_000)}]),
+    play: all(async ({canvas}) => {
+        await expect(canvas.getByText('of 100M')).toBeInTheDocument()
+        await expect(canvas.getByText('10.00%')).toBeInTheDocument()
+    }),
+}
+
 // the longest display name and a title short enough to keep its call on the same line
 export const LongNameShortTitle: StoryObj = {
     ...referendaTab([
