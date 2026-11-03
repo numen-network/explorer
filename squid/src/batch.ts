@@ -161,6 +161,9 @@ export class BatchData {
     enacted: {index: number; height: number; header: any; success: boolean; spends: TreasurySpend[]}[] = []
     // they point at their referendum, so they land after it
     enactedCalls: Call[] = []
+    // a voter's latest referendum may be new to this batch, so the link lands
+    // after the referenda
+    lastVotes = new Map<Account, Referendum | null>()
     // the referendum the latest kill named, per block and extrinsic, since the
     // slashes that follow it name only the depositor
     kills = new Map<string, number>()
@@ -242,7 +245,7 @@ export class BatchData {
     touch(id: string, height: number): Account {
         let a = this.accounts.get(id)
         if (a == null) {
-            a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, transferable: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: null, transferInVolume: 0n, transferOutVolume: 0n, minedBlocks: 0, minedRewards: 0n, minedFees: 0n, spendsReceived: 0n, bountiesReceived: 0n, childBountiesReceived: 0n, curatorFeesReceived: 0n, ownVotes: 0n, receivedVotes: 0n, delegatedVotes: 0n, totalVotes: 0n, directReferenda: 0, delegatedReferenda: 0, lastVote: null})
+            a = new Account({id, free: 0n, reserved: 0n, balance: 0n, frozen: 0n, transferable: 0n, nonce: 0, firstSeenBlock: height, lastActiveBlock: null, transferInVolume: 0n, transferOutVolume: 0n, minedBlocks: 0, minedRewards: 0n, minedFees: 0n, spendsReceived: 0n, bountiesReceived: 0n, childBountiesReceived: 0n, curatorFeesReceived: 0n, ownVotes: 0n, receivedVotes: 0n, delegatedVotes: 0n, totalVotes: 0n, directReferenda: 0, delegatedReferenda: 0})
             this.accounts.set(id, a)
         }
         a.firstSeenBlock = Math.min(a.firstSeenBlock, height)

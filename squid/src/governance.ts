@@ -360,7 +360,7 @@ export async function totalAccountVotes(ctx: {store: any}, batch: BatchData): Pr
     for (const a of accounts.values()) {
         a.totalVotes = a.ownVotes + a.receivedVotes + a.delegatedVotes
         const seen = last.get(a.id)
-        a.lastVote = seen == null ? null : new Referendum({id: String(seen.index)})
+        batch.lastVotes.set(a, seen == null ? null : new Referendum({id: String(seen.index)}))
     }
 }
 

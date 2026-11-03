@@ -739,6 +739,8 @@ async function persist(ctx: Ctx, batch: BatchData): Promise<void> {
     await ctx.store.upsert([...batch.preimages.values()])
     await ctx.store.upsert([...batch.runtimeCodes.values()])
     await ctx.store.upsert([...batch.referenda.values()])
+    for (const [a, r] of batch.lastVotes) a.lastVote = r
+    await ctx.store.upsert([...batch.lastVotes.keys()])
     batch.enactedCalls.sort((a, b) => a.address.length - b.address.length)
     await ctx.store.insert(batch.enactedCalls)
     await ctx.store.upsert([...batch.deposits.values()])
