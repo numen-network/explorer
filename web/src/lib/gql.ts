@@ -907,13 +907,13 @@ type Participation = Record<'directVoted' | 'delegatedVoted' | 'open', {totalCou
 
 // standing votes cast since the window start, direct and delegated, and the
 // referenda still taking votes at that start
-const participationFields = (id: string, from: string | number, suffix = '') => `
-            directVoted${suffix}: votesConnection(where: {voter: {id_eq: ${id}}, removed_eq: false, block_gte: ${from}}, orderBy: id_ASC) { totalCount }
-            delegatedVoted${suffix}: delegatedVotesConnection(where: {delegator: {id_eq: ${id}}, removed_eq: false, block_gte: ${from}}, orderBy: id_ASC) { totalCount }
-            open${suffix}: referendumsConnection(where: {OR: [{endedAt_isNull: true}, {endedAt_gte: ${from}}]}, orderBy: index_ASC) { totalCount }`
+const participationFields = (id: string, from: string | number, head: string | number, suffix = '') => `
+            directVoted${suffix}: votesConnection(where: {voter: {id_eq: ${id}}, removed_eq: false, block_gte: ${from}, block_lte: ${head}}, orderBy: id_ASC) { totalCount }
+            delegatedVoted${suffix}: delegatedVotesConnection(where: {delegator: {id_eq: ${id}}, removed_eq: false, block_gte: ${from}, block_lte: ${head}}, orderBy: id_ASC) { totalCount }
+            open${suffix}: referendumsConnection(where: {submittedAt_lte: ${head}, OR: [{endedAt_isNull: true}, {endedAt_gte: ${from}}]}, orderBy: index_ASC) { totalCount }`
 
-export function participation(idHex: string, from: number) {
-    return gql<Participation>(`query ($id: String!, $from: Int!) {${participationFields('$id', '$from')}\n        }`, {id: idHex, from})
+export function participation(idHex: string, from: number, head: number) {
+    return gql<Participation>(`query ($id: String!, $from: Int!, $head: Int!) {${participationFields('$id', '$from', '$head')}\n        }`, {id: idHex, from, head})
 }
 
 // the first block stamped at or after a moment. a null moment, a window opening
@@ -1289,7 +1289,7 @@ export interface VoterRow extends AccountRef {
 const VOTERS_WHERE = '{OR: [{directReferenda_gt: 0}, {delegatedReferenda_gt: 0}]}'
 
 // account ids are hex and window starts are numbers, safe to splice into the counts
-export async function votersPage(limit: number, offset: number, fromOf: (firstSeenBlock: number) => number): Promise<VoterRow[]> {
+export async function votersPage(limit: number, offset: number, head: number, fromOf: (firstSeenBlock: number) => number): Promise<VoterRow[]> {
     const {accounts} = await gql<{accounts: Omit<VoterRow, 'voted' | 'open'>[]}>(
         `query ($limit: Int!, $offset: Int!) {
             accounts(where: ${VOTERS_WHERE}, orderBy: [totalVotes_DESC, id_ASC], limit: $limit, offset: $offset) {
@@ -1299,7 +1299,7 @@ export async function votersPage(limit: number, offset: number, fromOf: (firstSe
         {limit, offset}
     )
     if (accounts.length === 0) return []
-    const counts = await gql<Record<string, {totalCount: number}>>(`query {${accounts.map((a, i) => participationFields(`"${a.id}"`, fromOf(a.firstSeenBlock), String(i))).join('')}\n        }`)
+    const counts = await gql<Record<string, {totalCount: number}>>(`query {${accounts.map((a, i) => participationFields(`"${a.id}"`, fromOf(a.firstSeenBlock), head, String(i))).join('')}\n        }`)
     return accounts.map((a, i) => ({...a, voted: counts[`directVoted${i}`].totalCount + counts[`delegatedVoted${i}`].totalCount, open: counts[`open${i}`].totalCount}))
 }
 

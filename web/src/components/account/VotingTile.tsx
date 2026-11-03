@@ -58,7 +58,7 @@ function Column({label, total, parts, rest = 0n}: {label: string; total: ReactNo
 export default async function VotingTile({hex, chain, voting}: {hex: string; chain: ChainProps; voting: Voting}) {
     const head = await chainDbHead()
     const windowBlock = await firstBlockSince(windowStart(head, PARTICIPATION_DAYS))
-    const sum = await participation(hex, participationFrom(voting.firstSeenBlock, windowBlock))
+    const sum = await participation(hex, participationFrom(voting.firstSeenBlock, windowBlock), head.height)
     const amount = (planck: bigint) => <Approx planck={planck} decimals={chain.decimals} symbol={chain.symbol} breakable />
     const [own, received, delegated] = [voting.ownVotes, voting.receivedVotes, voting.delegatedVotes].map(BigInt)
     const votes = own + received + delegated

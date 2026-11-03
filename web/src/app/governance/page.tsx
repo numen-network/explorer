@@ -65,7 +65,7 @@ async function GovernancePage(props: PageProps<'/governance'>) {
         tab === 'referenda' ? referendaPage(pg.size, pg.offset, track || undefined) : null,
         tab === 'treasury' ? treasurySpendsPage(pg.size, pg.offset, {kind: SPEND_KINDS, status: [...SPEND_STATES], track: trackIds}, on, head.height) : null,
         tab === 'tracks' ? tracksPage(pg.size, pg.offset) : null,
-        tab === 'voters' ? firstBlockSince(windowStart(head, PARTICIPATION_DAYS)).then(windowBlock => votersPage(pg.size, pg.offset, first => participationFrom(first, windowBlock))) : null,
+        tab === 'voters' ? firstBlockSince(windowStart(head, PARTICIPATION_DAYS)).then(windowBlock => votersPage(pg.size, pg.offset, head.height, first => participationFrom(first, windowBlock))) : null,
         tab === 'delegates' ? delegatesPage(pg.size, pg.offset) : null,
         tab === 'preimages' ? preimageViews(pg.size, pg.offset) : null,
     ])
