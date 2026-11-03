@@ -45,6 +45,11 @@ export function blocksConstant(specVersion: number, name: `${string}.${string}`)
     return value
 }
 
+// the seconds a block takes as the runtime at that version targets them
+export function blockTimeAt(specVersion: number): number {
+    return Number(constantAt(specVersion, 'Difficulty.TargetBlockTime'))
+}
+
 // an amount constant such as BlockReward.InitialReward, in planck
 export function balanceConstant(specVersion: number, name: `${string}.${string}`): bigint {
     const value = constantAt(specVersion, name)

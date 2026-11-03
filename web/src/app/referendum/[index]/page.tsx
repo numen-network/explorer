@@ -34,7 +34,7 @@ import {curveVoters} from '@/lib/curveVoters'
 import {curveAt, type Curve} from '@/lib/curves'
 import {approxParts, camelLabel, fmtBalance, fmtInt, fmtPct, fmtSpan, pctToNum, trackLabel, type Share} from '@/lib/format'
 import {activeIssuanceOf, approvalOf, confirmEstimate, isLive, originName, phaseFraction, phaseOf, tallyTargets} from '@/lib/referendum'
-import {blocksConstant, loadRuntimes} from '@/lib/runtime'
+import {blockTimeAt, blocksConstant, loadRuntimes} from '@/lib/runtime'
 import {accountRefs, bountiesByIndex, eventsByIds, indexTitles, referendumDetail, specVersionAt, tallySnapshots, type ReferendumDepositRow, type TimelineEventRow} from '@/lib/gql'
 import {paging} from '@/lib/paging'
 import {markArgs} from '@/lib/argMarks'
@@ -277,7 +277,8 @@ async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
     const approvalNow = approvalOf(r)
     const supportNow: Share = [BigInt(r.support), activePlanck]
 
-    const decisionHours = (r.trackParams.decisionPeriod * chain.blockTime) / 3600
+    const blockTime = blockTimeAt(r.trackParams.runtime.specVersion)
+    const decisionHours = (r.trackParams.decisionPeriod * blockTime) / 3600
     const clockAt = r.endedAt ?? head.height
     const decisionAt = phaseFraction(r.decidingSince, r.trackParams.decisionPeriod, clockAt)
     const x = isLive(r) && decisionAt !== null ? Math.min(100, decisionAt * 100) : null
@@ -287,8 +288,8 @@ async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
     // before it keeps its true length
     const clock = {
         zero: r.decidingSince ?? r.endedAt ?? Math.max(head.height, r.submittedAt + r.trackParams.preparePeriod),
-        perHour: 3600 / chain.blockTime,
-        blockTime: chain.blockTime,
+        perHour: 3600 / blockTime,
+        blockTime,
         started: r.decidingSince !== null,
     }
     const toX = (b: number) => Math.min(decisionHours, (b - clock.zero) / clock.perHour)
@@ -334,9 +335,9 @@ async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
     const phaseEnd = (due: number | null, closed: number | null): PhaseTime | null => {
         if (closed !== null) return {kind: 'ended', block: closed}
         if (due === null) return null
-        return head.height < due ? {kind: 'left', block: due, secs: (due - head.height) * chain.blockTime} : {kind: 'ended', block: due}
+        return head.height < due ? {kind: 'left', block: due, secs: (due - head.height) * blockTime} : {kind: 'ended', block: due}
     }
-    const expected = (block: number | null): PhaseTime => (block === null ? {kind: 'fail'} : {kind: 'expected', block, secs: (block - head.height) * chain.blockTime})
+    const expected = (block: number | null): PhaseTime => (block === null ? {kind: 'fail'} : {kind: 'expected', block, secs: (block - head.height) * blockTime})
     const approvedAt = r.status === 'Approved' ? r.endedAt : null
     const confirmDue = r.confirmingSince !== null ? r.confirmingSince + r.trackParams.confirmPeriod : null
     const decisionDue = r.decidingSince !== null ? r.decidingSince + r.trackParams.decisionPeriod : null
@@ -348,7 +349,7 @@ async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
         decisionRun !== null && decisionRun > r.trackParams.decisionPeriod
             ? {
                   at: r.trackParams.decisionPeriod / decisionRun,
-                  tip: `${fmtSpan(r.trackParams.decisionPeriod * chain.blockTime)} decision period ${head.height < decisionDue! ? 'ends' : 'ended'} at #${fmtInt(decisionDue!)}, max decision time is ${fmtSpan(decisionRun * chain.blockTime)}`,
+                  tip: `${fmtSpan(r.trackParams.decisionPeriod * blockTime)} decision period ${head.height < decisionDue! ? 'ends' : 'ended'} at #${fmtInt(decisionDue!)}, max decision time is ${fmtSpan(decisionRun * blockTime)}`,
               }
             : null
     const enactClose = enactedAt ?? r.enactsAt
@@ -393,26 +394,26 @@ async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
             <CardContent className="space-y-4">
                 <PhaseBar
                     label="Prepare"
-                    span={fmtSpan(r.trackParams.preparePeriod * chain.blockTime)}
+                    span={fmtSpan(r.trackParams.preparePeriod * blockTime)}
                     at={prepareAt}
                     time={phaseEnd(r.submittedAt + r.trackParams.preparePeriod, null)}
                 />
                 <PhaseBar
                     label="Decision"
-                    span={fmtSpan(r.trackParams.decisionPeriod * chain.blockTime)}
+                    span={fmtSpan(r.trackParams.decisionPeriod * blockTime)}
                     at={phaseFraction(r.decidingSince, decisionRun ?? r.trackParams.decisionPeriod, clockAt)}
                     time={phaseEnd(decisionEnd, approvedAt)}
                     mark={decisionMark}
                 />
                 <PhaseBar
                     label="Confirmation"
-                    span={fmtSpan(r.trackParams.confirmPeriod * chain.blockTime)}
+                    span={fmtSpan(r.trackParams.confirmPeriod * blockTime)}
                     at={confirmAt}
                     time={confirmTime}
                 />
                 <PhaseBar
                     label="Enactment"
-                    span={fmtSpan(r.trackParams.minEnactmentPeriod * chain.blockTime)}
+                    span={fmtSpan(r.trackParams.minEnactmentPeriod * blockTime)}
                     at={enactAt}
                     time={enactTime}
                 />
@@ -420,7 +421,7 @@ async function ReferendumPage(props: PageProps<'/referendum/[index]'>) {
                     <div className="flex items-baseline justify-between border-t pt-3 text-sm">
                         <span className="text-muted-foreground">Timeout</span>
                         <span className="font-mono">
-                            in {fmtSpan((timeoutAt - head.height) * chain.blockTime)} <span className="text-dim">·</span> <BlockLink height={timeoutAt} />
+                            in {fmtSpan((timeoutAt - head.height) * blockTime)} <span className="text-dim">·</span> <BlockLink height={timeoutAt} />
                         </span>
                     </div>
                 )}

@@ -2044,7 +2044,7 @@ export interface ReferendumRow {
     timeline: unknown
     submitter: AccountRef | null
     track: {id: string; name: string}
-    trackParams: TrackParamsRow
+    trackParams: TrackParamsRow & {runtime: {specVersion: number}}
 }
 
 export interface ReferendumDepositRow {
@@ -2072,7 +2072,7 @@ export interface ReferendumSpendRow extends SpendTimes {
 
 const TRACK_PARAMS_FIELDS = `name maxDeciding maxSpend decisionDeposit preparePeriod decisionPeriod confirmPeriod minEnactmentPeriod minApproval minSupport`
 const TRACK_FIELDS = `id ${TRACK_PARAMS_FIELDS}`
-const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince inQueue endedAt ayes nays support totalIssuance inactiveIssuance timeline submitter { ${ACCOUNT_REF} } track { id name } trackParams { ${TRACK_PARAMS_FIELDS} }`
+const REFERENDUM_FIELDS = `id index origin proposalHash title description proposalPallet proposalMethod proposalPayouts proposalAmount proposalBeneficiary submittedAt submittedTimestamp status decidingSince confirmingSince inQueue endedAt ayes nays support totalIssuance inactiveIssuance timeline submitter { ${ACCOUNT_REF} } track { id name } trackParams { ${TRACK_PARAMS_FIELDS} runtime { specVersion } }`
 
 export interface TreasurySpendRow extends SpendTimes {
     id: string

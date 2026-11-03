@@ -27,6 +27,15 @@ export const UnevenPeriods: StoryObj = {
     },
 }
 
+// the chain now targets 20 second blocks, the periods read at the 10 seconds
+// of the runtime the referendum was judged under
+export const PeriodsAtJudgedRuntime: StoryObj = {
+    ...story({...deciding(28, 'Periods read at the runtime the referendum was judged under'), trackParams: {...(curated(5).trackParams as object), preparePeriod: 540, confirmPeriod: 36_000}}, 'call', {chainInfos: [{...chainInfo, blockTime: 20}]}),
+    play: async ({canvasElement}) => {
+        for (const span of ['1h 30m', '28d', '4d 4h', '1d']) await expect(card(canvasElement, 'Status').getByText(span)).toBeInTheDocument()
+    },
+}
+
 // no decision deposit yet, so it times out UndecidingTimeout after submission
 export const WaitingForDecisionDeposit: StoryObj = {
     ...story(curated(8), 'call'),
