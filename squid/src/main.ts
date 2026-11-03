@@ -303,12 +303,14 @@ async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: 
 }
 
 // metadata, supply and balances are what the contracts answer at the batch
-// head, never a running sum of their logs
+// head, never a running sum of their logs. a token re-reads whenever it logs
+// or is called, so a proxy upgrade or a new symbol lands without a transfer
 async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fields>): Promise<void> {
-    if (batch.erc20Queue.length === 0) return
-    const at = {blockHash: batch.blocks.find(b => b.height === header.height)!.evmHash!}
     const tokenIds = [...new Set(batch.erc20Queue.map(q => q.token))]
-    const tokens = new Map((await ctx.store.findBy(Token, {id: In(tokenIds)})).map(t => [t.id, t]))
+    const reached = new Set([...tokenIds, ...batch.evmLogs.map(l => l.address), ...batch.evmTxs.flatMap(t => (t.to ? [t.to] : []))])
+    if (reached.size === 0) return
+    const at = {blockHash: batch.blocks.find(b => b.height === header.height)!.evmHash!}
+    const tokens = new Map((await ctx.store.findBy(Token, {id: In([...reached])})).map(t => [t.id, t]))
     const created = await createTxs(ctx, batch, tokenIds.filter(id => !tokens.has(id)))
     const holderIds = new Set<string>()
     for (const q of batch.erc20Queue) {
