@@ -2,3 +2,5 @@
 **/*.stories.tsx
 **/*.stories.helpers.tsx
 vitest.config.ts
+node_modules
+.next
