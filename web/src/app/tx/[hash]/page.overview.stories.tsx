@@ -1,7 +1,8 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {HEAD} from '../../../../../mock/fixtures.js'
-import {bytecode, calldata, erc20Transfer, evmLog, evmTx, exit, EXIT, SELECTOR, token, TOPIC, topicOf, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
+import {bytecode, calldata, erc20Transfer, evmLog, evmTx, exit, EXIT, REVERT, reviveTx, SELECTOR, token, TOPIC, topicOf, UINT256_MAX, units, WTMR, ZERO_ADDRESS} from '../../../../../mock/fixtures/evm.js'
+import {fmtBalance} from '@/lib/format'
 import {expectAddressForm, expectFits, expectTimesFit} from '../../../../.storybook/fit'
 import {pageMeta} from '../../../../.storybook/page'
 import EvmTxPage from './page'
@@ -63,5 +64,32 @@ export const AddressesAndTimeFit: StoryObj = {
         expectAddressForm(card)
         expectFits(...[...card.querySelectorAll('a[href^="/address/"]')].map(link => link.closest('[data-slot=card] > *')!))
         expectTimesFit(card)
+    },
+}
+
+const rowText = (root: HTMLElement, label: string) => (within(root).getByText(label).nextElementSibling as HTMLElement).textContent
+
+// revive charges the fee apart from the storage deposit its gas also pays, so the row reads the extrinsic's fee
+const reviveFee = '92349936800000000'
+export const ReviveCallSucceeded: StoryObj = {
+    ...txPage(reviveTx(HEAD - 8, 0, {from: alice, to: WTMR.id, input: calldata(SELECTOR.transfer, bob, units(1, WTMR.decimals)), gasLimit: '65000', gasUsed: '31462', extrinsic: {fee: reviveFee}})),
+    play: async ({canvas, canvasElement}) => {
+        await expect(canvas.getByText('Success')).toBeVisible()
+        await expect(rowText(canvasElement, 'Fee')).toBe(fmtBalance(reviveFee, 18, 'NUMN'))
+    },
+}
+
+// the module error of EthExtrinsicRevert, named by the runtime that ran the block
+export const ReviveReverted: StoryObj = {
+    ...txPage(reviveTx(HEAD - 9, 0, {dispatchError: REVERT.contractReverted, from: alice, to: WTMR.id, input: calldata(SELECTOR.transfer, bob, units(9_999_999, WTMR.decimals)), gasLimit: '200000', gasUsed: '21787'})),
+    play: async ({canvas}) => expect(canvas.getByText('Revert · Revive.ContractReverted')).toBeVisible(),
+}
+
+// revive names no contract for a creation that failed, the row stays to say none came of it
+export const ReviveCreationFailed: StoryObj = {
+    ...txPage(reviveTx(HEAD - 11, 0, {dispatchError: REVERT.contractReverted, from: alice, to: null, input: '0x60006000fd', gasLimit: '500000', gasUsed: '28984'})),
+    play: async ({canvas, canvasElement}) => {
+        await expect(rowText(canvasElement, 'Contract created')).toBe('—')
+        await expect(canvas.queryByText('To')).toBeNull()
     },
 }

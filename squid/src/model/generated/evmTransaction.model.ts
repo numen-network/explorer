@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, ManyToOne as ManyToOne_, IntColumn as IntColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, BytesColumn as BytesColumn_, JSONColumn as JSONColumn_, DateTimeColumn as DateTimeColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToOne as OneToOne_, Index as Index_, JoinColumn as JoinColumn_, Relation as Relation_, ManyToOne as ManyToOne_, IntColumn as IntColumn_, StringColumn as StringColumn_, BigIntColumn as BigIntColumn_, BytesColumn as BytesColumn_, BooleanColumn as BooleanColumn_, JSONColumn as JSONColumn_, DateTimeColumn as DateTimeColumn_, OneToMany as OneToMany_} from "@subsquid/typeorm-store"
 import {Extrinsic} from "./extrinsic.model"
 import {Block} from "./block.model"
 import {TokenTransfer} from "./tokenTransfer.model"
@@ -21,6 +21,9 @@ export class EvmTransaction {
     @ManyToOne_(() => Block, {nullable: true})
     block!: Relation_<Block>
 
+    /**
+     * the index the eth RPC reports, the position among the block's Ethereum transactions under Frontier and the extrinsic index under revive
+     */
     @IntColumn_({nullable: false})
     txIndex!: number
 
@@ -32,6 +35,9 @@ export class EvmTransaction {
     @StringColumn_({nullable: true})
     to!: string | undefined | null
 
+    /**
+     * the contract a creation made, as Frontier's Executed or revive's Instantiated names it. Revive names none for a creation that failed
+     */
     @Index_("idx_evm_transaction_contract_address_cd30fa26")
     @StringColumn_({nullable: true})
     contractAddress!: string | undefined | null
@@ -52,29 +58,41 @@ export class EvmTransaction {
     @BigIntColumn_({nullable: false})
     gasLimit!: bigint
 
+    /**
+     * Frontier's receipt gas or revive's ReceiptInfoData gas
+     */
     @BigIntColumn_({nullable: false})
     gasUsed!: bigint
 
+    /**
+     * what one gas cost the sender, from the base fee and the transaction's caps under Frontier, from ReceiptInfoData under revive
+     */
     @BigIntColumn_({nullable: false})
     gasPrice!: bigint
 
     /**
-     * TransactionV2 variant name, Legacy, EIP2930, EIP1559 or EIP7702
+     * EIP-2718 type as Frontier's TransactionV2 names it, Legacy, EIP2930, EIP1559 or EIP7702
      */
     @StringColumn_({nullable: false})
     txType!: string
 
     /**
-     * ExitReason variant name
+     * whether it ran to completion, an ExitReason of Succeed under Frontier and no EthExtrinsicRevert under revive
      */
-    @StringColumn_({nullable: false})
-    status!: string
+    @BooleanColumn_({nullable: false})
+    success!: boolean
 
     /**
-     * the ExitReason the runtime reported, whole
+     * the ExitReason Frontier reported, whole, null under revive
      */
-    @JSONColumn_({nullable: false})
-    exitReason!: unknown
+    @JSONColumn_({nullable: true})
+    exitReason!: unknown | undefined | null
+
+    /**
+     * the DispatchError of the EthExtrinsicRevert revive raised for it, null when it succeeded or ran under Frontier
+     */
+    @JSONColumn_({nullable: true})
+    dispatchError!: unknown | undefined | null
 
     @Index_("idx_evm_transaction_timestamp_2aa7be18")
     @DateTimeColumn_({nullable: false})

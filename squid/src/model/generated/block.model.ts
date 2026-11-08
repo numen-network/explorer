@@ -19,7 +19,7 @@ export class Block {
     hash!: string
 
     /**
-     * hash the EVM side knows this block by, null at genesis
+     * hash the EVM side knows this block by, Frontier's post log or revive's BlockHash, null at a Frontier genesis
      */
     @Index_("idx_block_evm_hash_feb31750")
     @StringColumn_({nullable: true})

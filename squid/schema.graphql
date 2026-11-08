@@ -2,7 +2,7 @@ type Block @entity {
   id: ID!
   height: Int! @index
   hash: String! @index @unique
-  "hash the EVM side knows this block by, null at genesis"
+  "hash the EVM side knows this block by, Frontier's post log or revive's BlockHash, null at a Frontier genesis"
   evmHash: String @index
   parentHash: String!
   "set by the timestamp inherent, null at genesis"
@@ -104,6 +104,7 @@ type Account @entity {
   delegate: Delegate @derivedFrom(field: "account")
   "primary username granted through a username authority"
   username: String @index
+  "the H160 that maps to this account under the runtime of the block it was last read at. Frontier hashes one way, so the H160 is known only once it sends a transaction. Revive maps both ways, so every account the mapping leads back to has one"
   evmAddress: String @index
   vestingJson: JSON
   "balance locks with the lock id decoded from its eight bytes"
@@ -208,31 +209,41 @@ type EvmTransaction @entity {
   id: ID!
   extrinsic: Extrinsic! @unique
   block: Block! @index
+  "the index the eth RPC reports, the position among the block's Ethereum transactions under Frontier and the extrinsic index under revive"
   txIndex: Int!
   from: String! @index
   to: String @index
+  "the contract a creation made, as Frontier's Executed or revive's Instantiated names it. Revive names none for a creation that failed"
   contractAddress: String @index
   value: BigInt!
   input: Bytes!
   inputSelector: String @index
   nonce: Int!
   gasLimit: BigInt!
+  "Frontier's receipt gas or revive's ReceiptInfoData gas"
   gasUsed: BigInt!
+  "what one gas cost the sender, from the base fee and the transaction's caps under Frontier, from ReceiptInfoData under revive"
   gasPrice: BigInt!
-  "TransactionV2 variant name, Legacy, EIP2930, EIP1559 or EIP7702"
+  "EIP-2718 type as Frontier's TransactionV2 names it, Legacy, EIP2930, EIP1559 or EIP7702"
   txType: String!
-  "ExitReason variant name"
-  status: String!
-  "the ExitReason the runtime reported, whole"
-  exitReason: JSON!
+  "whether it ran to completion, an ExitReason of Succeed under Frontier and no EthExtrinsicRevert under revive"
+  success: Boolean!
+  "the ExitReason Frontier reported, whole, null under revive"
+  exitReason: JSON
+  "the DispatchError of the EthExtrinsicRevert revive raised for it, null when it succeeded or ran under Frontier"
+  dispatchError: JSON
   timestamp: DateTime! @index
   tokenTransfers: [TokenTransfer!]! @derivedFrom(field: "transaction")
 }
 
 type EvmLog @entity @index(fields: ["address", "logIndex"]) {
   id: ID!
-  transaction: EvmTransaction! @index
+  "null for a log no Ethereum transaction raised, like one from a substrate signed Revive.call"
+  transaction: EvmTransaction @index
+  "the extrinsic that raised it, null when no extrinsic did"
+  extrinsic: Extrinsic
   block: Block!
+  "Frontier counts the block's logs, revive takes the event index"
   logIndex: Int!
   address: String! @index
   topic0: String @index
@@ -282,9 +293,12 @@ type TokenTransfer @entity {
   from: String! @index
   to: String! @index
   amount: BigInt!
-  "the transaction sender is neither from nor to"
+  "neither from nor to set it off, judged by the sender of its Ethereum transaction or else the origin of the call that raised its log"
   thirdParty: Boolean!
-  transaction: EvmTransaction!
+  "null for a transfer no Ethereum transaction made"
+  transaction: EvmTransaction
+  "the extrinsic that made it, null when no extrinsic did"
+  extrinsic: Extrinsic
   block: Block!
   logIndex: Int!
   timestamp: DateTime! @index

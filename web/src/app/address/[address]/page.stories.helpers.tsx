@@ -1,5 +1,5 @@
 import type {RequestHandler} from 'msw'
-import {paged} from '../../../../../mock/fixtures.js'
+import {headUnder, paged} from '../../../../../mock/fixtures.js'
 import {bytecode, calldata, evmAddress, evmTx, exit, EXIT, SELECTOR, token, UINT256_MAX, units, WTMR} from '../../../../../mock/fixtures/evm.js'
 import {pageStory} from '../../../../.storybook/page'
 
@@ -9,13 +9,17 @@ interface AddressData {
     notHeld?: object[]
     created?: object[]
     asToken?: object | null
+    // the account an index row says the H160 maps to
+    mapped?: object[]
+    // the runtime of the newest indexed block
+    specVersion?: number
 }
 
 type HolderArgs = {where: {balance_gt?: number}; limit: number; offset: number}
 
 // the page asks evmTransactions twice, for the address's own list and for the tx that created it.
 // the index keeps rows for tokens the address doesn't hold, only a query asking for a balance above zero leaves them out
-export const addressPage = (address: string, {txs = [], holdings = [], notHeld = [], created = [], asToken = null}: AddressData = {}, searchParams = {}, msw: RequestHandler[] = []) => {
+export const addressPage = (address: string, {txs = [], holdings = [], notHeld = [], created = [], asToken = null, mapped = [], specVersion}: AddressData = {}, searchParams = {}, msw: RequestHandler[] = []) => {
     const holderRows = ({where}: HolderArgs) => (where.balance_gt === 0 ? holdings : [...holdings, ...notHeld])
     return pageStory(
         {
@@ -24,6 +28,8 @@ export const addressPage = (address: string, {txs = [], holdings = [], notHeld =
             tokenHolders: (args: HolderArgs) => paged(holderRows(args))(args),
             tokenHoldersConnection: (args: HolderArgs) => ({totalCount: holderRows(args).length}),
             tokenById: asToken,
+            accounts: mapped,
+            ...headUnder(specVersion),
         },
         {params: {address}, searchParams, msw}
     )

@@ -28,6 +28,9 @@ function constantAt(specVersion: number, name: `${string}.${string}`): unknown {
     return knownRuntime(specVersion).getConstant(name)
 }
 
+// revive keeps the H160 to account mapping in OriginalAccount, a Frontier runtime has no such map
+export const runsRevive = (specVersion: number) => knownRuntime(specVersion).hasStorageItem('Revive.OriginalAccount')
+
 // the events a pallet declares, in the order its metadata lists them
 export function palletEvents(specVersion: number, pallet: string): string[] {
     const {types, event} = knownRuntime(specVersion).description

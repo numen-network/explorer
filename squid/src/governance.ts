@@ -116,7 +116,6 @@ async function snapshotTallies(ctx: {store: any}, batch: BatchData): Promise<voi
         }
     }
 
-    const s = storage.referenda.referendumInfoFor.v100
     const issuanceByHeight = new Map<number, {total: bigint; inactive: bigint}>()
     const issuance = async (height: number, header: any) => {
         let v = issuanceByHeight.get(height)
@@ -145,9 +144,8 @@ async function snapshotTallies(ctx: {store: any}, batch: BatchData): Promise<voi
         const indices = new Set(p.refs)
         for (const t of p.tracks) for (const idx of byTrack.get(t) ?? []) indices.add(idx)
         if (indices.size === 0) continue
-        if (!s.is(p.header)) throw new Error(`unhandled spec version for referendum info at block ${height}`)
         const list = [...indices]
-        const infos = await s.getMany(p.header, list)
+        const infos = await referendumInfoAt(p.header).getMany(p.header, list)
         for (let i = 0; i < list.length; i++) {
             const info = infos[i]
             if (info?.__kind !== 'Ongoing') continue
@@ -1029,15 +1027,21 @@ function applyReferendaEvent(batch: BatchData, method: string, ev: GovEvent): vo
     }
 }
 
+// revive swapped the Ethereum origin for its own, nothing read here depends on the origin
+function referendumInfoAt(h: any) {
+    const {v100, v10200} = storage.referenda.referendumInfoFor
+    if (v100.is(h)) return v100
+    if (v10200.is(h)) return v10200
+    throw new Error(`unhandled Referenda.ReferendumInfoFor shape at block ${h.height}`)
+}
+
 // a submit the scheduler dispatches leaves no call to read, so the requested
 // moment comes from the Ongoing info, and the block follows
 // pallet_referenda::schedule_enactment
 async function scheduleEnactments(batch: BatchData): Promise<void> {
-    const info = storage.referenda.referendumInfoFor.v100
     for (const ev of batch.govEvents) {
         if (ev.name === 'Referenda.Submitted') {
-            if (!info.is(ev.header)) throw new Error('unhandled spec version for referendum info')
-            const at = await info.get(ev.header, ev.args.index)
+            const at = await referendumInfoAt(ev.header).get(ev.header, ev.args.index)
             if (at?.__kind !== 'Ongoing') throw new Error(`referendum ${ev.args.index} is not ongoing at its submission block ${ev.height}`)
             batch.referenda.get(ev.args.index)!.enactment = toJSON(at.value.enactment)
         } else if (ev.name === 'Referenda.Confirmed') {
@@ -1424,10 +1428,8 @@ async function refreshOngoing(ctx: {store: any}, batch: BatchData, lastHeader: a
     for (const r of open) all.set(r.index, r)
     for (const [idx, r] of batch.referenda) all.set(idx, r)
     if (all.size === 0) return
-    const s = storage.referenda.referendumInfoFor.v100
-    if (!s.is(lastHeader)) throw new Error('unhandled spec version for referendum info')
     const indices = [...all.keys()]
-    const infos = await s.getMany(lastHeader, indices)
+    const infos = await referendumInfoAt(lastHeader).getMany(lastHeader, indices)
     indices.forEach((idx, i) => {
         const info = infos[i]
         const r = all.get(idx)!

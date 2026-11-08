@@ -1,6 +1,6 @@
 import type {ReactNode} from 'react'
 import {TriangleAlert} from 'lucide-react'
-import {EvmTxLink} from '@/components/links'
+import {BlockLink, EvmTxLink, ExtrinsicLink} from '@/components/links'
 import {Tip} from '@/components/Tip'
 import type {TokenTransferRow} from '@/lib/gql'
 
@@ -25,10 +25,11 @@ export function PoisoningMark({t, children}: {t: Flags; children: ReactNode}) {
     )
 }
 
-export function TransferTxLink({t}: {t: Flags & Pick<TokenTransferRow, 'transaction'>}) {
+// a transfer no Ethereum transaction made links its extrinsic, or its block when no extrinsic made it either
+export function TransferTxLink({t}: {t: Flags & Pick<TokenTransferRow, 'transaction' | 'extrinsic' | 'block'>}) {
     return (
         <PoisoningMark t={t}>
-            <EvmTxLink hash={t.transaction.id} />
+            {t.transaction ? <EvmTxLink hash={t.transaction.id} /> : t.extrinsic ? <ExtrinsicLink id={t.extrinsic.id} /> : <BlockLink height={t.block.height} />}
         </PoisoningMark>
     )
 }

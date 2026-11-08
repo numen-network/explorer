@@ -5,9 +5,10 @@ export interface ProxyScope {
 }
 
 // mirrors InstanceFilter<RuntimeCall> for ProxyType in numen/runtime/src/configs/mod.rs,
-// which no metadata carries, so a runtime that changes the filter changes this too
-export const PROXY_SCOPE: Record<string, ProxyScope> = {
+// which no metadata carries, so a runtime that changes the filter changes this too.
+// NonTransfer fences off the contract calls of whichever EVM the runtime runs
+export const proxyScopes = (revive: boolean): Record<string, ProxyScope> => ({
     Any: {head: 'Can call anything, transfers included', calls: []},
-    NonTransfer: {head: 'Can call anything except', calls: ['Balances', 'EVM', 'Ethereum', 'Vesting.vested_transfer']},
+    NonTransfer: {head: 'Can call anything except', calls: ['Balances', ...(revive ? ['Revive'] : ['EVM', 'Ethereum']), 'Vesting.vested_transfer']},
     Governance: {head: 'Can only call', calls: ['Treasury', 'Bounties', 'ChildBounties', 'ConvictionVoting', 'Referenda', 'Utility']},
-}
+})

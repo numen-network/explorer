@@ -15,6 +15,8 @@ const PAYMENTS = {
     holds: [
         {reason: {__kind: 'Preimage', value: {__kind: 'Preimage'}}, amount: numn(50.25)},
         {reason: {__kind: 'Session', value: {__kind: 'Keys'}}, amount: numn(1)},
+        {reason: {__kind: 'Revive', value: {__kind: 'CodeUploadDepositReserve'}}, amount: numn(0.307)},
+        {reason: {__kind: 'Revive', value: {__kind: 'StorageDepositReserve'}}, amount: numn(0.167)},
     ],
     deposits: [
         {id: 'subs', amount: numn(4.02)},
@@ -60,6 +62,8 @@ const EVERY_SOURCE = [
     'democrac',
     'Preimage hold',
     'Session hold',
+    'Contract code deposit',
+    'Contract storage deposit',
     'Identity deposit',
     'Registrar #1 judgement fee',
     'Retired registrar #3 judgement fee',

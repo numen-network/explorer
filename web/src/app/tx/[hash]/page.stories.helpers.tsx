@@ -17,7 +17,7 @@ const withNative = (tx: Tx, ...moves: [from: string, to: string, amount: string]
     extrinsic: {
         ...tx.extrinsic,
         transfers: moves.map(([from, to, amount], i) =>
-            transfer(tx.block.height, 2 + i, {from: {id: evmMappedAccount(from)}, to: {id: evmMappedAccount(to)}, amount, call: {pallet: 'Ethereum', method: 'transact'}, extrinsic: {id: tx.extrinsic.id}})
+            transfer(tx.block.height, 2 + i, {from: {id: evmMappedAccount(from, false)}, to: {id: evmMappedAccount(to, false)}, amount, call: {pallet: 'Ethereum', method: 'transact'}, extrinsic: {id: tx.extrinsic.id}})
         ),
     },
 })

@@ -1,5 +1,5 @@
 import data from '../data.js'
-import {account, acct, at, base, block, chainInfo, GENESIS_HASH, HEAD, HEAD_TIME, hashOf, hex, identity, numn, ownVotes, paged, pagedActions, PEOPLE, person, rows, squidId, subData, subOf, transfer, weigh} from '../fixtures.js'
+import {account, acct, at, block, chainInfo, GENESIS_HASH, HEAD, HEAD_TIME, hashOf, headUnder, hex, identity, numn, ownVotes, paged, pagedActions, PEOPLE, person, rows, squidId, subData, subOf, transfer, weigh} from '../fixtures.js'
 import {mined, pick, timestampSet} from './blocks.js'
 import {holding} from './evm.js'
 
@@ -750,6 +750,7 @@ const tokenTransfer = (h, i, traits = {}) => {
         timestamp: at(h),
         token: {id: token.id, symbol: token.symbol, decimals: token.decimals},
         transaction: {id: tx},
+        extrinsic: {id: squidId(h, i + 1)},
         block: {height: h},
         ...traits,
     }
@@ -769,6 +770,10 @@ export const tokenTransferCases = (height = HEAD - 3) => [
     tokenTransfer(height, 0, {token: {id: TOKENS[2].id, symbol: null, decimals: null}, amount: '42'}),
     tokenTransfer(height - 1, 1, {token: {id: TOKENS[3].id, symbol: TOKENS[3].symbol, decimals: 18}, amount: MAX_U128}),
 ]
+
+// an SS58 account's Revive.call makes a transfer no Ethereum transaction carries,
+// and a contract call an enactment dispatched comes with no extrinsic either
+export const tokenTransferSources = (height = HEAD - 3) => [tokenTransfer(height, 0), tokenTransfer(height - 1, 2, {transaction: null}), tokenTransfer(height - 2, 4, {transaction: null, extrinsic: null})]
 
 // a zero transfer is poisoning only when neither side sent it, a third party
 // moving tokens or a side sending nothing stays plain
@@ -836,6 +841,8 @@ const delegate = delegations => {
  */
 export function accountPage({
     account = subject(),
+    // the runtime of the newest indexed block, a revive one from 10200 on
+    specVersion = block(HEAD).specVersion,
     // the first block of the participation window
     windowBlock = 0,
     validator = null,
@@ -948,7 +955,7 @@ export function accountPage({
         // the window query and the close before it differ only in day_lt
         accountDays: ({where}) => (where.day_lt != null ? (priorDay ? [priorDay] : []) : accountDays),
         accountDaysConnection: count(counts.accountDays ?? accountDays.length + (priorDay ? 1 : 0)),
-        blocks: args => (args.where?.author ? mined : args.where?.height_eq != null ? [{height: account.lastActiveBlock, timestamp: at(account.lastActiveBlock)}] : args.where?.timestamp_gte != null ? [{height: windowBlock}] : base.blocks(args)),
+        blocks: args => (args.where?.author ? mined : args.where?.height_eq != null ? [{height: account.lastActiveBlock, timestamp: at(account.lastActiveBlock)}] : args.where?.timestamp_gte != null ? [{height: windowBlock}] : headUnder(specVersion).blocks(args)),
         bountiesConnection: count(curated),
         childBountiesConnection: count(childCurated),
         transfersConnection: ({where}) => count(where.OR ? (counts.transfers ?? transfers.length) : (counts[side(where)] ?? sent(where).length)),

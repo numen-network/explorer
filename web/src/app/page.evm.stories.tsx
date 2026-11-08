@@ -3,7 +3,7 @@ import {expect, screen, within} from 'storybook/test'
 import {expectTimesFit} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
-import {expectActivityFit, far, firstBlock, genesisOnly, home, listCard, listRows, many, viewAll} from './page.stories.helpers'
+import {expectActivityFit, far, firstBlock, genesisOnly, home, listCard, listRows, many, reviveMany, viewAll} from './page.stories.helpers'
 
 export default {title: 'Pages/Home/EVM txs', ...pageMeta(Home)}
 
@@ -61,3 +61,17 @@ export const Reverted: StoryObj = {
 
 // the largest amounts and the longest symbol a row carries, and an exit reason longer than OK
 export const Extremes: StoryObj = {...pageStory(home(far), open), play: async ({canvasElement}) => expectActivityFit(canvasElement)}
+
+// under revive the native leg leaves the sender's padded account, a failure reads Revert and a failed creation names no contract
+export const UnderRevive: StoryObj = {
+    ...pageStory(home(reviveMany), open),
+    play: async ({canvasElement}) => {
+        const rows = listRows(canvasElement, 'Activity')
+        expect(amounts(canvasElement)).toEqual(['2,500 NUMN', '0 NUMN', '0 NUMN'])
+        expect(rows.map(row => within(row).getByText(/^(OK|Revert)$/).textContent)).toEqual(['OK', 'Revert', 'Revert'])
+        expect(within(rows[1]).getByText('create')).toBeVisible()
+        expect(rows[1].textContent).not.toContain('→')
+    },
+}
+
+export const ViewAllUnderRevive: StoryObj = {...pageStory(home(reviveMany), open), play: async ({canvasElement}) => expect(viewAll(canvasElement, 'Activity')).toHaveAttribute('href', '/extrinsics?pallet=Revive&method=eth_transact')}

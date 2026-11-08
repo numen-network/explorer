@@ -104,6 +104,9 @@ export class Account {
     @StringColumn_({nullable: true})
     username!: string | undefined | null
 
+    /**
+     * the H160 that maps to this account under the runtime of the block it was last read at. Frontier hashes one way, so the H160 is known only once it sends a transaction. Revive maps both ways, so every account the mapping leads back to has one
+     */
     @Index_("idx_account_evm_address_66f5172b")
     @StringColumn_({nullable: true})
     evmAddress!: string | undefined | null

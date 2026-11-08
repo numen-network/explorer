@@ -1,7 +1,7 @@
 import {expect, within} from 'storybook/test'
 import {referenda} from '../../../mock/data.js'
 import {minedObject, topology} from '../../../mock/fixtures/blocks.js'
-import {EXIT, ZERO_ADDRESS, evmAddress, evmTx, exit, units} from '../../../mock/fixtures/evm.js'
+import {EXIT, FRONTIER_SPEC, REVERT, REVIVE_SPEC, ZERO_ADDRESS, evmAddress, evmTx, exit, reviveTx, units} from '../../../mock/fixtures/evm.js'
 import {spend} from '../../../mock/fixtures/governance.js'
 import {DAILY, chainDays} from '../../../mock/fixtures/home.js'
 import {HEAD, HEAD_TIME, PEOPLE, block, chainInfo, numn, squidId, transfer} from '../../../mock/fixtures.js'
@@ -40,6 +40,8 @@ interface Scene {
     validators?: number
     windows?: Partial<Windows>
     sessionLength?: number
+    // the runtime of the newest indexed block
+    specVersion?: number
 }
 
 // what the deadline strips read, the ongoing referenda and the spends and bounties already cut to the window
@@ -82,7 +84,7 @@ function windowsOf(days: Day[]): Windows {
 
 const close = (d: Day) => ({difficulty: d.difficultyClose, issuanceTotal: d.issuanceTotal, issuanceInactive: d.issuanceInactive, treasuryPot: d.treasuryPot})
 
-export function home({head, best = head, finalized = Math.max(0, head - 5), days, objects = [], transfers = [], evmTxs = [], referendums = [], spends = [], upcoming = {}, validators = 4, windows = {}, sessionLength = chainInfo.sessionLength}: Scene) {
+export function home({head, best = head, finalized = Math.max(0, head - 5), days, objects = [], transfers = [], evmTxs = [], referendums = [], spends = [], upcoming = {}, validators = 4, windows = {}, sessionLength = chainInfo.sessionLength, specVersion = FRONTIER_SPEC}: Scene) {
     const counts = {...windowsOf(days), ...windows}
     // a baseline exists once the chain is older than its window
     const baseline = (since: string) => {
@@ -98,7 +100,7 @@ export function home({head, best = head, finalized = Math.max(0, head - 5), days
                 const day = where.timestamp_lte != null && baseline(where.timestamp_lte)
                 return day ? [close(day)] : []
             }
-            return [block(head, {timestamp: head > 0 ? new Date().toISOString() : null, difficulty: days.at(-1)?.difficultyClose ?? '3600000000'})]
+            return [block(head, {timestamp: head > 0 ? new Date().toISOString() : null, difficulty: days.at(-1)?.difficultyClose ?? '3600000000', specVersion})]
         },
         hourlyStats: ({where = {}}: {where?: Where}) => {
             const day = where.block?.timestamp_lte ? baseline(where.block.timestamp_lte) : undefined
@@ -148,7 +150,7 @@ const NDEX_LP = {id: evmAddress(1001), symbol: 'NDEX-LP', decimals: 18}
 const SENDER = evmAddress(0)
 const PAIR = evmAddress(30)
 const coin = (token: typeof NDEX, from: string, n: number) => ({from, amount: units(n, token.decimals), token})
-const native = (from: string, to: string, amount: string) => ({amount, from: {id: evmMappedAccount(from)}, to: {id: evmMappedAccount(to)}})
+const native = (from: string, to: string, amount: string, revive = false) => ({amount, from: {id: evmMappedAccount(from, revive)}, to: {id: evmMappedAccount(to, revive)}})
 // the sender's token and native transfers, as the home query asks for them
 const legs = (height: number, index: number, tokens: object[], natives: object[] = []) => ({tokenTransfers: tokens, extrinsic: {id: squidId(height, index + 1), transfers: natives}})
 
@@ -161,7 +163,15 @@ const manyEvm = [
     evmTx(HEAD - 20, 2, {...exit(EXIT.reverted), timestamp: timeAt(HEAD, HEAD - 20), ...legs(HEAD - 20, 2, [])}),
 ]
 
+// under revive a payment leaves the sender's 0xEE padded account, a failed creation names no contract
+const reviveEvm = [
+    reviveTx(HEAD - 2, 0, {from: SENDER, value: numn(2_500), timestamp: timeAt(HEAD, HEAD - 2), ...legs(HEAD - 2, 0, [], [native(SENDER, evmAddress(7), numn(2_500), true)])}),
+    reviveTx(HEAD - 6, 0, {dispatchError: REVERT.contractReverted, to: null, timestamp: timeAt(HEAD, HEAD - 6), ...legs(HEAD - 6, 0, [])}),
+    reviveTx(HEAD - 9, 0, {dispatchError: REVERT.outOfGas, timestamp: timeAt(HEAD, HEAD - 9), ...legs(HEAD - 9, 0, [])}),
+]
+
 export const many = {head: HEAD, finalized: MANY_FINALIZED, days: DAILY, objects: minedUpTo(HEAD, 5, MANY_FINALIZED), transfers: manyTransfers, evmTxs: manyEvm, referendums: referenda.slice(4, 9), windows: {extrinsics: [89_181, 1_139, 33_800] satisfies Window}}
+export const reviveMany = {...many, specVersion: REVIVE_SPEC, evmTxs: reviveEvm}
 
 // only genesis is indexed, with no timestamp and no validator row
 export const genesisOnly = {head: 0, days: [], validators: 0}

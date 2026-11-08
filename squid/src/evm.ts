@@ -1,7 +1,7 @@
-import {blake2b} from '@noble/hashes/blake2.js'
-import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
-import {RpcClient, RpcError} from '@subsquid/rpc-client'
 import detectProxy from 'evm-proxy-detection'
+import type {EvmState} from './evmState'
+import {storage} from './types'
+import type {RuntimeCtx} from './types/support'
 import {decodeUtf8} from './utf8'
 
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
@@ -10,19 +10,13 @@ export const SYNC_TOPIC = '0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062
 
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
-export interface DecodedEvmTx {
-    hash: string
-    from: string
-    to?: string
-    contractAddress?: string
-    value: bigint
-    input: string
-    nonce: number
-    gasLimit: bigint
-    gasPrice: bigint
-    txType: string
-    status: string
-    exitReason: unknown
+export type EvmEra = 'frontier' | 'revive'
+
+// which pallet keeps the block's receipts tells the two eras apart
+export function evmEra(header: RuntimeCtx & {height: number}): EvmEra {
+    if (storage.ethereum.currentReceipts.v100.is(header)) return 'frontier'
+    if (storage.revive.receiptInfoData.v10200.is(header)) return 'revive'
+    throw new Error(`block ${header.height} runs neither Frontier nor revive`)
 }
 
 export interface DecodedErc20Transfer {
@@ -32,68 +26,15 @@ export interface DecodedErc20Transfer {
     amount: bigint
 }
 
-// pallet_evm HashedAddressMapping, AccountId32 = blake2_256("evm:" ++ H160)
-export function evmMappedAccount(h160: string): string {
-    const input = new Uint8Array(24)
-    input.set([0x65, 0x76, 0x6d, 0x3a])
-    input.set(hexToBytes(h160.slice(2)), 4)
-    return '0x' + bytesToHex(blake2b(input, {dkLen: 32}))
-}
-
-function asBigInt(v: unknown): bigint {
-    if (typeof v === 'bigint') return v
-    if (typeof v === 'string' || typeof v === 'number') return BigInt(v)
-    if (Array.isArray(v)) {
-        let out = 0n
-        for (let i = v.length - 1; i >= 0; i--) out = (out << 64n) | asBigInt(v[i])
-        return out
-    }
-    throw new Error(`cannot read ${JSON.stringify(v)} as bigint`)
-}
-
-// Decodes from the generic runtime decoding of Ethereum.transact args plus the
-// Ethereum.Executed event args. The typed frontier helpers reject unknown tx
-// variants like EIP7702, the generic path survives runtime upgrades.
-export function decodeEvmTx(callArgs: any, executedArgs: any, baseFee: bigint): DecodedEvmTx {
-    const txType: string = callArgs.transaction.__kind
-    const t = callArgs.transaction.value
-    const isCreate = t.action.__kind === 'Create'
-    let gasPrice: bigint
-    if (t.maxFeePerGas != null) {
-        const maxFee = asBigInt(t.maxFeePerGas)
-        const capped = baseFee + asBigInt(t.maxPriorityFeePerGas ?? 0)
-        gasPrice = capped < maxFee ? capped : maxFee
-    } else {
-        gasPrice = asBigInt(t.gasPrice)
-    }
-    return {
-        hash: (executedArgs.transactionHash as string).toLowerCase(),
-        from: (executedArgs.from as string).toLowerCase(),
-        to: isCreate ? undefined : (t.action.value as string).toLowerCase(),
-        contractAddress: isCreate ? (executedArgs.to as string).toLowerCase() : undefined,
-        value: asBigInt(t.value),
-        input: t.input as string,
-        nonce: Number(asBigInt(t.nonce)),
-        gasLimit: asBigInt(t.gasLimit),
-        gasPrice,
-        txType,
-        status: executedArgs.exitReason.__kind as string,
-        exitReason: executedArgs.exitReason,
-    }
-}
-
-export function decodeLog(eventArgs: any): {address: string; topics: string[]; data: string} {
-    const log = eventArgs.log ?? eventArgs
-    return {
-        address: (log.address as string).toLowerCase(),
-        topics: (log.topics as string[]).map(t => t.toLowerCase()),
-        data: log.data as string,
-    }
+export interface EvmLogData {
+    address: string
+    topics: string[]
+    data: string
 }
 
 // nativeFacade is the published balances erc20 precompile, recognized as the
 // native asset and never listed as a token
-export function asErc20Transfer(log: {address: string; topics: string[]; data: string}, nativeFacade: string): DecodedErc20Transfer | undefined {
+export function asErc20Transfer(log: EvmLogData, nativeFacade: string): DecodedErc20Transfer | undefined {
     if (log.topics.length !== 3 || log.topics[0] !== TRANSFER_TOPIC) return undefined
     if (log.address === nativeFacade) return undefined
     if (log.data.length !== 66) return undefined
@@ -130,17 +71,11 @@ export interface Erc20Metadata {
     decimals: number | null
 }
 
-/** `at` is the block the answers hold for, as an eth block number. */
-// EIP-1898 names the block by its hash, so a hot block's sibling at the same height never answers
-export interface EvmBlock {
-    blockHash: string
-}
-
-export async function fetchErc20Metadata(rpc: RpcClient, token: string, at: EvmBlock): Promise<Erc20Metadata> {
+export async function fetchErc20Metadata(state: EvmState, token: string): Promise<Erc20Metadata> {
     const [name, symbol, decimals] = await Promise.all([
-        ethCall(rpc, token, SELECTORS.name, at).then(abiDecodeString),
-        ethCall(rpc, token, SELECTORS.symbol, at).then(abiDecodeString),
-        ethCall(rpc, token, SELECTORS.decimals, at).then(abiDecodeUint8),
+        state.call(token, SELECTORS.name).then(abiDecodeString),
+        state.call(token, SELECTORS.symbol).then(abiDecodeString),
+        state.call(token, SELECTORS.decimals).then(abiDecodeUint8),
     ])
     return {name, symbol, decimals}
 }
@@ -156,11 +91,11 @@ export interface PairMembers {
 
 // a Uniswap V2 style pair answers token0() and token1() with the two tokens it
 // pools, a token that answers anything else to either is no pair
-export async function fetchPair(rpc: RpcClient, token: string, at: EvmBlock): Promise<PairMembers> {
-    const [token0, token1] = await Promise.all([SELECTORS.token0, SELECTORS.token1].map(s => ethCall(rpc, token, s, at).then(abiDecodeAddress)))
+export async function fetchPair(state: EvmState, token: string): Promise<PairMembers> {
+    const [token0, token1] = await Promise.all([SELECTORS.token0, SELECTORS.token1].map(s => state.call(token, s).then(abiDecodeAddress)))
     if (token0 == null || token1 == null) return {token0: null, token1: null, token0Symbol: null, token1Symbol: null, token0Decimals: null, token1Decimals: null}
-    const [token0Symbol, token1Symbol] = await Promise.all([token0, token1].map(t => ethCall(rpc, t, SELECTORS.symbol, at).then(abiDecodeString)))
-    const [token0Decimals, token1Decimals] = await Promise.all([token0, token1].map(t => ethCall(rpc, t, SELECTORS.decimals, at).then(abiDecodeUint8)))
+    const [token0Symbol, token1Symbol] = await Promise.all([token0, token1].map(t => state.call(t, SELECTORS.symbol).then(abiDecodeString)))
+    const [token0Decimals, token1Decimals] = await Promise.all([token0, token1].map(t => state.call(t, SELECTORS.decimals).then(abiDecodeUint8)))
     return {token0, token1, token0Symbol, token1Symbol, token0Decimals, token1Decimals}
 }
 
@@ -169,42 +104,41 @@ export interface ProxyTarget {
     implementations: string[] | null
 }
 
+class Reverted extends Error {}
+
 // detectProxy reads any failed request as "not this kind of proxy", so a node
 // failure is raised again rather than passing for a plain contract
-export async function fetchProxy(rpc: RpcClient, token: string, at: EvmBlock): Promise<ProxyTarget> {
+export async function fetchProxy(state: EvmState, token: string): Promise<ProxyTarget> {
     let failure: unknown
+    const answer = async (method: string, params: any[]): Promise<string> => {
+        if (method === 'eth_getCode') return state.code(params[0])
+        if (method === 'eth_getStorageAt') return state.storage(params[0], params[1])
+        if (method !== 'eth_call') throw new Error(`evm-proxy-detection asked for ${method}`)
+        const returned = await state.call(params[0].to, params[0].data)
+        if (returned == null) throw new Reverted()
+        return returned
+    }
     const request: Parameters<typeof detectProxy>[1] = async ({method, params}) => {
         try {
-            return await rpc.call(method, params)
+            return await answer(method, params as any[])
         } catch (e) {
-            if (!(e instanceof RpcError)) failure ??= e
+            if (!(e instanceof Reverted)) failure ??= e
             throw e
         }
     }
-    // the tag reaches the node untouched, and the node takes the EIP-1898 form the library's type leaves out
-    const found = await detectProxy(token as `0x${string}`, request, at as unknown as number)
+    const found = await detectProxy(token as `0x${string}`, request)
     if (failure != null) throw failure
     if (found == null) return {proxyType: null, implementations: null}
     const targets: string[] = Array.isArray(found.target) ? found.target : [found.target]
     return {proxyType: found.type, implementations: targets.map(t => t.toLowerCase())}
 }
 
-export async function fetchErc20Supply(rpc: RpcClient, token: string, at: EvmBlock): Promise<bigint | null> {
-    return abiDecodeUint(await ethCall(rpc, token, SELECTORS.totalSupply, at))
+export async function fetchErc20Supply(state: EvmState, token: string): Promise<bigint | null> {
+    return abiDecodeUint(await state.call(token, SELECTORS.totalSupply))
 }
 
-export async function fetchErc20Balance(rpc: RpcClient, token: string, holder: string, at: EvmBlock): Promise<bigint | null> {
-    return abiDecodeUint(await ethCall(rpc, token, SELECTORS.balanceOf + holder.slice(2).padStart(64, '0'), at))
-}
-
-// a revert is the contract's own answer, anything else is the node failing us
-async function ethCall(rpc: RpcClient, to: string, data: string, at: EvmBlock): Promise<string | null> {
-    try {
-        return await rpc.call('eth_call', [{to, data}, at])
-    } catch (e) {
-        if (e instanceof RpcError) return null
-        throw e
-    }
+export async function fetchErc20Balance(state: EvmState, token: string, holder: string): Promise<bigint | null> {
+    return abiDecodeUint(await state.call(token, SELECTORS.balanceOf + holder.slice(2).padStart(64, '0')))
 }
 
 function abiDecodeString(ret: string | null): string | null {

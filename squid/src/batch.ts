@@ -127,7 +127,7 @@ export class BatchData {
     objects: MinedObject[] = []
     evmTxs: EvmTransaction[] = []
     evmLogs: EvmLog[] = []
-    erc20Queue: Array<DecodedErc20Transfer & {id: string; logIndex: number; tx: EvmTransaction; block: Block; timestamp: Date}> = []
+    erc20Queue: Array<DecodedErc20Transfer & {id: string; logIndex: number; tx: EvmTransaction | null; extrinsic: Extrinsic | null; thirdParty: boolean; block: Block; timestamp: Date}> = []
     tokens: Token[] = []
     // each pair's last Sync in the batch, keyed by the log's address
     reserves = new Map<string, PairReserves>()
@@ -223,6 +223,9 @@ export class BatchData {
     // ids the account merge found missing from the store, so the day they were
     // first touched is the day they were born
     newAccounts = new Set<string>()
+    // the first block a revive runtime ran, which maps every account anew
+    // without an event naming any of them
+    reviveFrom: number | undefined
     dayDeltas = new Map<string, DayDelta>()
     days: DailyStat[] = []
     hourDeltas = new Map<string, HourDelta>()

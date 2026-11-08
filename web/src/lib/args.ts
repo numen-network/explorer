@@ -316,6 +316,14 @@ export function describeError(error: unknown, specVersion: number | null): ArgNo
     return w.node(ti, error)
 }
 
+/** A DispatchError as one name, a module error by the pallet and error its runtime names, null when that runtime is not among the known ones. */
+export function dispatchErrorName(error: unknown, specVersion: number | null): string | null {
+    const node = describeError(error, specVersion)
+    if (node?.kind !== 'variant') return null
+    if (node.inner?.kind === 'plain') return node.inner.text
+    return node.inner?.kind === 'variant' ? `${node.name}.${node.inner.name}` : node.name
+}
+
 /** Every node of one kind in a set of args, for a lookup to mark up in place. */
 export function nodesOf<K extends ArgNode['kind']>(nodes: (ArgNode | null)[], kind: K): Extract<ArgNode, {kind: K}>[] {
     const found: Extract<ArgNode, {kind: K}>[] = []

@@ -8,13 +8,12 @@ import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
 import {fmtCount, fmtSpan} from '@/lib/format'
 import type {ProxyRow} from '@/lib/gql'
-import {PROXY_SCOPE} from '@/lib/proxyTypes'
+import type {ProxyScope} from '@/lib/proxyTypes'
 import {ss58Encode} from '@/lib/ss58'
 
 const col = columnsFor<ProxyRow>()
 
-function scopeTip(proxyType: string) {
-    const scope = PROXY_SCOPE[proxyType]
+function scopeTip(scope: ProxyScope | undefined) {
     return (
         scope && (
             <span className="flex flex-col gap-0.5">
@@ -29,7 +28,7 @@ function scopeTip(proxyType: string) {
     )
 }
 
-export function ProxiesTable({label, rows, chain}: {label: string; rows: ProxyRow[]; chain: ChainProps}) {
+export function ProxiesTable({label, rows, chain, scopes}: {label: string; rows: ProxyRow[]; chain: ChainProps; scopes: Record<string, ProxyScope>}) {
     const columns = useMemo(
         () =>
             col.columns([
@@ -45,7 +44,7 @@ export function ProxiesTable({label, rows, chain}: {label: string; rows: ProxyRo
                     id: 'type',
                     header: 'Type',
                     cell: ({row}) => (
-                        <Tip text={scopeTip(row.original.proxyType)}>
+                        <Tip text={scopeTip(scopes[row.original.proxyType])}>
                             <Badge variant={row.original.proxyType === 'Any' ? 'warn' : 'idle'}>{row.original.proxyType}</Badge>
                         </Tip>
                     ),
@@ -64,7 +63,7 @@ export function ProxiesTable({label, rows, chain}: {label: string; rows: ProxyRo
                         ),
                 }),
             ]),
-        [label, chain]
+        [label, chain, scopes]
     )
     return <DataTable columns={columns} rows={rows} getRowId={p => p.id} />
 }

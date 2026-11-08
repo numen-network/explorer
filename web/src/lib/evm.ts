@@ -16,7 +16,13 @@ export const evmTxTypeLabel = (t: string) => t.replace(/^EIP(\d+)$/, 'EIP-$1')
 /** What a failed call reported below its ExitReason variant, the ExitError or ExitFatal name. */
 export const exitDetail = (reason: unknown) => variantName(variantValue(reason))
 
-export function evmMappedAccount(h160: string): string {
+/** The name a failed transaction goes by, its ExitReason variant under Frontier and Revert under revive, which reports EthExtrinsicRevert alone. */
+export const evmFailure = (tx: {exitReason: unknown}) => (tx.exitReason == null ? 'Revert' : variantName(tx.exitReason))
+
+// Frontier hashes an H160 into its account one way. revive pads it with 0xEE
+// unless OriginalAccount maps it back to an SS58 account, which only the index knows
+export function evmMappedAccount(h160: string, revive: boolean): string {
+    if (revive) return h160 + 'ee'.repeat(12)
     const prefix = new TextEncoder().encode('evm:')
     const addr = hexToBytes(h160.slice(2))
     const data = new Uint8Array(prefix.length + addr.length)

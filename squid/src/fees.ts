@@ -17,3 +17,18 @@ export function feeShares(extrinsicId: string, tip: bigint, deposits: Deposit[],
     }
     return {miner: miner.amount, treasury: pot.amount}
 }
+
+/**
+ * Revive rounds the gas of an Ethereum transaction up to whole units. Once the
+ * call goes through it burns what the rounding adds from the sender, and the
+ * fee split takes it as a miner share and a treasury share. Only the sender's
+ * refund, absent when nothing is due back, sits between those two deposits
+ * and the settlement.
+ */
+export function gasRoundUp(deposits: Deposit[], payer: string, author: string | undefined, treasury: string): {miner: bigint; treasury: bigint} {
+    const before = deposits.slice(0, -3)
+    if (before[before.length - 1]?.who === payer) before.pop()
+    const [miner, pot] = before.slice(-2)
+    if (before.length < 2 || miner.who !== author || pot.who !== treasury) return {miner: 0n, treasury: 0n}
+    return {miner: miner.amount, treasury: pot.amount}
+}

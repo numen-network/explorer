@@ -1,8 +1,9 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
-import {expect} from 'storybook/test'
-import {rows} from '../../../../../mock/fixtures.js'
-import {bytecode, calldata, evmAddress, evmTx, exit, EXIT, NUMN, pair, SELECTOR, units, WTMR} from '../../../../../mock/fixtures/evm.js'
+import {expect, within} from 'storybook/test'
+import {account, chainInfo, rows} from '../../../../../mock/fixtures.js'
+import {bytecode, calldata, evmAddress, evmTx, exit, EXIT, NUMN, pair, REVIVE_SPEC, SELECTOR, units, WTMR} from '../../../../../mock/fixtures/evm.js'
 import {pageMeta} from '../../../../.storybook/page'
+import {ss58Encode} from '@/lib/ss58'
 import EvmAddressPage from './page'
 import {addressPage, alice, bob, contract, deploy, factoryBuilt} from './page.stories.helpers'
 
@@ -37,3 +38,24 @@ export const TokenContractNoMetadata = addressPage(factoryBuilt.id, {
     txs: rows(2, (h: number, i: number) => evmTx(h, i, {from: evmAddress(i), to: factoryBuilt.id, input: calldata(SELECTOR.transfer, bob, units(5, 12)), gasLimit: '65000', gasUsed: '48000', ...exit(EXIT.returned)})),
     asToken: factoryBuilt,
 })
+
+const mapping = (root: HTMLElement) => within(root).getByText('Mapped substrate account').parentElement!.textContent
+
+// Frontier hashes the H160 into an account nothing leads back from
+export const MappedOneWay: StoryObj = {
+    ...addressPage(alice),
+    play: async ({canvasElement}) => expect(mapping(canvasElement)).toContain('one way, balances live there'),
+}
+
+// under revive an SS58 account whose H160 this is takes the place of the padded account
+const SS58_OWNER = account(3)
+export const MappedToAnAccountUnderRevive: StoryObj = {
+    ...addressPage(alice, {mapped: [{id: SS58_OWNER}], specVersion: REVIVE_SPEC}),
+    play: async ({canvasElement}) => expect(mapping(canvasElement)).toBe(`Mapped substrate account${ss58Encode(SS58_OWNER, chainInfo.ss58)}both ways, balances live there`),
+}
+
+// an H160 no SS58 account owns maps to itself padded with 0xEE
+export const PaddedUnderRevive: StoryObj = {
+    ...addressPage(alice, {specVersion: REVIVE_SPEC}),
+    play: async ({canvasElement}) => expect(mapping(canvasElement)).toBe(`Mapped substrate account${ss58Encode(alice + 'ee'.repeat(12), chainInfo.ss58)}both ways, balances live there`),
+}

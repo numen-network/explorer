@@ -11,12 +11,13 @@ import TokenIcon from '@/components/TokenIcon'
 import {Jump} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
-import {chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps} from '@/lib/chain'
 import {contractData} from '@/lib/contract'
 import {evmMappedAccount, isH160} from '@/lib/evm'
 import {evmAddressData} from '@/lib/gql'
 import {shortHash} from '@/lib/format'
 import {paging} from '@/lib/paging'
+import {loadRuntimes, runsRevive} from '@/lib/runtime'
 import {ss58Encode} from '@/lib/ss58'
 import {EvmTxsTable} from './tables'
 import {withHeads} from '@/components/withHeads'
@@ -35,8 +36,9 @@ async function EvmAddressPage(props: PageProps<'/address/[address]'>) {
     if (!isH160(raw)) notFound()
     const address = raw.toLowerCase()
     const pg = paging(sp)
-    const [chain, data] = await Promise.all([chainProps(), evmAddressData(address, {limit: pg.size, offset: pg.offset})])
-    const mapped = ss58Encode(evmMappedAccount(address), chain.ss58)
+    const [chain, head, data] = await Promise.all([chainProps(), chainDbHead(), evmAddressData(address, {limit: pg.size, offset: pg.offset}), loadRuntimes()])
+    const revive = runsRevive(head.specVersion)
+    const mapped = ss58Encode(revive ? (data.mapped[0]?.id ?? evmMappedAccount(address, true)) : evmMappedAccount(address, false), chain.ss58)
     const isContract = data.created.length > 0 || data.asToken !== null
     const contract = isContract && tab === 'contract' ? await contractData(address) : null
 
@@ -87,7 +89,7 @@ async function EvmAddressPage(props: PageProps<'/address/[address]'>) {
                     <AddrMark addr={mapped} render={<Link href={`/account/${mapped}`} className="font-mono break-all text-primary hover:underline" />}>
                         {mapped}
                     </AddrMark>
-                    <span className="ml-2 text-xs text-dim">one way, balances live there</span>
+                    <span className="ml-2 text-xs text-dim">{revive ? 'both ways' : 'one way'}, balances live there</span>
                 </div>
             </div>
 

@@ -24,7 +24,7 @@ const SHAPES = {
     Bounty: {timeline: []},
     Track: {minApproval: CURVE, minSupport: CURVE},
     TrackParams: {minApproval: CURVE, minSupport: CURVE},
-    EvmTransaction: {exitReason: {__kind: 'Succeed', value: {__kind: 'Stopped'}}},
+    EvmTransaction: {success: true, exitReason: {__kind: 'Succeed', value: {__kind: 'Stopped'}}},
 }
 
 // lists start empty and optional fields start null, so a page shows only what the data holds

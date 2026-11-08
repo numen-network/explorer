@@ -53,13 +53,18 @@ export const issuance = {
     treasuryPot: '550000154663232139351368277',
 }
 
+// the genesis and the newest indexed block, whose runtime decides which EVM the pages read the chain by
+export const headUnder = specVersion => ({
+    blocks: ({where} = {}) => {
+        if (where?.timestamp_in != null) return []
+        return where?.height_eq === 0 ? [{height: 0, hash: GENESIS_HASH}] : [{height: HEAD, timestamp: new Date().toISOString(), specVersion: specVersion ?? block(HEAD).specVersion}]
+    },
+})
+
 // what every page reads before its own data, the chain, its genesis and the newest indexed block
 export const base = {
     chainInfos: [chainInfo],
-    blocks: ({where} = {}) => {
-        if (where?.timestamp_in != null) return []
-        return where?.height_eq === 0 ? [{height: 0, hash: GENESIS_HASH}] : [{height: HEAD, timestamp: new Date().toISOString(), specVersion: block(HEAD).specVersion}]
-    },
+    ...headUnder(),
 }
 
 const FIELDS = ['display', 'avatar', 'bio', 'web', 'email', 'github', 'matrix', 'x', 'telegram', 'discord']

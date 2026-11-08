@@ -746,7 +746,7 @@ export async function evmCounts(address: string) {
         `query ($a: String!) {
             transfers: tokenTransfersConnection(orderBy: id_ASC, where: {OR: [{from_eq: $a}, {to_eq: $a}]}) { totalCount }
             holdings: tokenHoldersConnection(orderBy: id_ASC, where: {address_eq: $a, ${HELD}}) { totalCount }
-            contracts: evmTransactionsConnection(orderBy: id_ASC, where: {from_eq: $a, contractAddress_isNull: false, status_eq: "Succeed"}) { totalCount }
+            contracts: evmTransactionsConnection(orderBy: id_ASC, where: {from_eq: $a, contractAddress_isNull: false, success_eq: true}) { totalCount }
             tokens: tokensConnection(orderBy: id_ASC, where: {deployTx: {from_eq: $a}}) { totalCount }
         }`,
         {a: address}
@@ -1860,11 +1860,12 @@ export interface TokenTransferRow {
     thirdParty: boolean
     timestamp: string
     token: {id: string; symbol: string | null; decimals: number | null}
-    transaction: {id: string}
+    transaction: {id: string} | null
+    extrinsic: {id: string} | null
     block: {height: number}
 }
 
-const TOKEN_TRANSFER_FIELDS = `id from to amount thirdParty timestamp token { id symbol decimals } transaction { id } block { height }`
+const TOKEN_TRANSFER_FIELDS = `id from to amount thirdParty timestamp token { id symbol decimals } transaction { id } extrinsic { id } block { height }`
 // logIndex counts across the whole block, so it orders a block's txs too
 const TOKEN_TRANSFER_ORDER = '[timestamp_DESC, logIndex_DESC, id_DESC]'
 const LOG_ORDER = '[logIndex_ASC, id_ASC]'
@@ -1914,18 +1915,19 @@ export interface EvmTxRow {
     gasUsed: string
     gasPrice: string
     txType: string
-    status: string
+    success: boolean
     exitReason: unknown
+    dispatchError: unknown
     timestamp: string
-    block: {height: number}
+    block: {height: number; specVersion: number}
     extrinsic: {id: string}
 }
 
 export interface EvmTxDetailRow extends EvmTxRow {
-    extrinsic: {id: string; transfers: TransferRow[]}
+    extrinsic: {id: string; fee: string | null; tip: string | null; transfers: TransferRow[]}
 }
 
-const EVM_TX_FIELDS = `id txIndex from to contractAddress value input inputSelector nonce gasLimit gasUsed gasPrice txType status exitReason timestamp block { height } extrinsic { id }`
+const EVM_TX_FIELDS = `id txIndex from to contractAddress value input inputSelector nonce gasLimit gasUsed gasPrice txType success exitReason dispatchError timestamp block { height specVersion } extrinsic { id }`
 
 export function evmTxDetail(hash: string, page: Slice) {
     const tx = '{transaction: {id_eq: $id}}'
@@ -1937,7 +1939,7 @@ export function evmTxDetail(hash: string, page: Slice) {
         tokenTransferCount: {totalCount: number}
     }>(
         `query ($id: String!, $limit: Int!, $offset: Int!) {
-            evmTransactionById(id: $id) { ${EVM_TX_FIELDS} extrinsic { transfers(orderBy: id_ASC) { ${TRANSFER_FIELDS} } } }
+            evmTransactionById(id: $id) { ${EVM_TX_FIELDS} extrinsic { fee tip transfers(orderBy: id_ASC) { ${TRANSFER_FIELDS} } } }
             evmLogs(where: ${tx}, orderBy: ${LOG_ORDER}, limit: $limit, offset: $offset) { id logIndex address topics data }
             logCount: evmLogsConnection(where: ${tx}, orderBy: id_ASC) { totalCount }
             tokenTransfers(where: ${tx}, orderBy: ${LOG_ORDER}, limit: $limit, offset: $offset) { ${TOKEN_TRANSFER_FIELDS} }
@@ -1956,6 +1958,7 @@ export function evmAddressData(address: string, page: Slice) {
         holdingCount: {totalCount: number}
         created: {id: string}[]
         asToken: TokenRow | null
+        mapped: {id: string}[]
     }>(
         `query ($a: String!, $limit: Int!, $offset: Int!) {
             txs: evmTransactions(where: ${txs}, orderBy: [timestamp_DESC, txIndex_DESC], limit: $limit, offset: $offset) { ${EVM_TX_FIELDS} }
@@ -1964,6 +1967,7 @@ export function evmAddressData(address: string, page: Slice) {
             holdingCount: tokenHoldersConnection(where: {address_eq: $a, ${HELD}}, orderBy: id_ASC) { totalCount }
             created: evmTransactions(where: {contractAddress_eq: $a}, limit: 1) { id }
             asToken: tokenById(id: $a) { ${TOKEN_FIELDS} }
+            mapped: accounts(where: {evmAddress_eq: $a}, limit: 1) { id }
         }`,
         {a: address, limit: page.limit, offset: page.offset}
     )

@@ -1,5 +1,6 @@
 import {sts, Block, Bytes, Option, Result, StorageType, RuntimeCtx} from '../support'
 import * as v100 from '../v100'
+import * as v10200 from '../v10200'
 
 export const totalIssuance =  {
     /**
@@ -69,6 +70,10 @@ export const holds =  {
      *  Holds on account balances.
      */
     v100: new StorageType('Balances.Holds', 'Default', [v100.AccountId32], sts.array(() => v100.IdAmount)) as HoldsV100,
+    /**
+     *  Holds on account balances.
+     */
+    v10200: new StorageType('Balances.Holds', 'Default', [v10200.AccountId32], sts.array(() => v10200.IdAmount)) as HoldsV10200,
 }
 
 /**
@@ -87,4 +92,22 @@ export interface HoldsV100  {
     getPairs(block: Block, key: v100.AccountId32): Promise<[k: v100.AccountId32, v: (v100.IdAmount[] | undefined)][]>
     getPairsPaged(pageSize: number, block: Block): AsyncIterable<[k: v100.AccountId32, v: (v100.IdAmount[] | undefined)][]>
     getPairsPaged(pageSize: number, block: Block, key: v100.AccountId32): AsyncIterable<[k: v100.AccountId32, v: (v100.IdAmount[] | undefined)][]>
+}
+
+/**
+ *  Holds on account balances.
+ */
+export interface HoldsV10200  {
+    is(block: RuntimeCtx): boolean
+    getDefault(block: Block): v10200.IdAmount[]
+    get(block: Block, key: v10200.AccountId32): Promise<(v10200.IdAmount[] | undefined)>
+    getMany(block: Block, keys: v10200.AccountId32[]): Promise<(v10200.IdAmount[] | undefined)[]>
+    getKeys(block: Block): Promise<v10200.AccountId32[]>
+    getKeys(block: Block, key: v10200.AccountId32): Promise<v10200.AccountId32[]>
+    getKeysPaged(pageSize: number, block: Block): AsyncIterable<v10200.AccountId32[]>
+    getKeysPaged(pageSize: number, block: Block, key: v10200.AccountId32): AsyncIterable<v10200.AccountId32[]>
+    getPairs(block: Block): Promise<[k: v10200.AccountId32, v: (v10200.IdAmount[] | undefined)][]>
+    getPairs(block: Block, key: v10200.AccountId32): Promise<[k: v10200.AccountId32, v: (v10200.IdAmount[] | undefined)][]>
+    getPairsPaged(pageSize: number, block: Block): AsyncIterable<[k: v10200.AccountId32, v: (v10200.IdAmount[] | undefined)][]>
+    getPairsPaged(pageSize: number, block: Block, key: v10200.AccountId32): AsyncIterable<[k: v10200.AccountId32, v: (v10200.IdAmount[] | undefined)][]>
 }

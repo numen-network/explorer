@@ -4,7 +4,7 @@ import AccountLink from '@/components/AccountLink'
 import HashText from '@/components/HashText'
 import BytesToggle from '@/components/BytesToggle'
 import CopyBtn from '@/components/CopyBtn'
-import {DetailCard, DetailRow} from '@/components/Detail'
+import {DetailCard, DetailRow, NONE} from '@/components/Detail'
 import Pager from '@/components/Pager'
 import {SplitRow, SplitRows} from '@/components/SplitRows'
 import {TabNav, panelTabs, type Panel} from '@/components/Tabs'
@@ -15,10 +15,12 @@ import {PoisoningMark, poisoningRow} from '@/components/Poisoning'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainProps} from '@/lib/chain'
-import {evmTxTypeLabel, exitDetail} from '@/lib/evm'
+import {dispatchErrorName} from '@/lib/args'
+import {evmFailure, evmTxTypeLabel, exitDetail} from '@/lib/evm'
 import {fmtBalance, fmtInt, shortHash} from '@/lib/format'
 import {evmTxDetail} from '@/lib/gql'
 import {paging} from '@/lib/paging'
+import {loadRuntimes} from '@/lib/runtime'
 import {ss58Encode} from '@/lib/ss58'
 import {withHeads} from '@/components/withHeads'
 
@@ -34,12 +36,12 @@ async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
     const sp = await props.searchParams
     const tab = String(sp.tab ?? '')
     const pg = paging(sp)
-    const [chain, data] = await Promise.all([chainProps(), evmTxDetail(hash.toLowerCase(), {limit: pg.size, offset: pg.offset})])
+    const [chain, data] = await Promise.all([chainProps(), evmTxDetail(hash.toLowerCase(), {limit: pg.size, offset: pg.offset}), loadRuntimes()])
     const tx = data.evmTransactionById
     if (!tx) notFound()
-    const ok = tx.status === 'Succeed'
-    const detail = exitDetail(tx.exitReason)
-    const fee = BigInt(tx.gasUsed) * BigInt(tx.gasPrice)
+    const detail = tx.exitReason != null ? exitDetail(tx.exitReason) : dispatchErrorName(tx.dispatchError, tx.block.specVersion)
+    // the fee the chain charged, which under revive leaves out the storage deposit its gas also covers
+    const fee = BigInt(tx.extrinsic.fee!) + BigInt(tx.extrinsic.tip!)
 
     const logs = (
         <>
@@ -121,7 +123,7 @@ async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
         <div>
             <div className="mt-6 flex items-center gap-3">
                 <h1 className="text-lg font-semibold">EVM Transaction</h1>
-                <Badge variant={ok ? 'pos' : 'neg'}>{ok ? 'Success' : `${tx.status}${detail ? ` · ${detail}` : ''}`}</Badge>
+                <Badge variant={tx.success ? 'pos' : 'neg'}>{tx.success ? 'Success' : `${evmFailure(tx)}${detail ? ` · ${detail}` : ''}`}</Badge>
             </div>
 
             <div className="mt-3">
@@ -144,11 +146,7 @@ async function EvmTxPage(props: PageProps<'/tx/[hash]'>) {
                             <EvmAddrLink addr={tx.to} full />
                         </DetailRow>
                     )}
-                    {tx.contractAddress && (
-                        <DetailRow label="Contract created">
-                            <EvmAddrLink addr={tx.contractAddress} full />
-                        </DetailRow>
-                    )}
+                    {tx.to == null && <DetailRow label="Contract created">{tx.contractAddress ? <EvmAddrLink addr={tx.contractAddress} full /> : NONE}</DetailRow>}
                     <DetailRow label="Value">{fmtBalance(tx.value, chain.decimals, chain.symbol)}</DetailRow>
                     <DetailRow label="Fee">{fmtBalance(fee, chain.decimals, chain.symbol)}</DetailRow>
                     <DetailRow label="Gas">

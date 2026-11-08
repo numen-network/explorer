@@ -5,7 +5,7 @@ import BlocksRail, {type BlockCard} from '@/components/BlocksRail'
 import CopyBtn from '@/components/CopyBtn'
 import DotRow from '@/components/DotRow'
 import EmptyList from '@/components/EmptyList'
-import {DetailRow, NONE} from '@/components/Detail'
+import {DetailRow} from '@/components/Detail'
 import HashText from '@/components/HashText'
 import Refresh from '@/components/Refresh'
 import Section from '@/components/Section'
@@ -27,10 +27,10 @@ import {StatusBadge, ThresholdPair} from '@/components/referenda'
 import {activeIssuanceOf, needsNow, phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
 import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, fmtSpan, planckToNum, shortHash, signOf, trackLabel, truncFixed} from '@/lib/format'
-import {evmMappedAccount} from '@/lib/evm'
+import {evmFailure, evmMappedAccount} from '@/lib/evm'
 import {homeData, type HomeEvmTxRow, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
 import {halvingAt} from '@/lib/halving'
-import {blocksConstant, loadRuntimes} from '@/lib/runtime'
+import {blocksConstant, loadRuntimes, runsRevive} from '@/lib/runtime'
 import {isBehind} from '@/lib/indexing'
 import {SPEND_KIND_LABEL, SPEND_STATE_TONE, spendState} from '@/lib/spends'
 import {ss58Encode} from '@/lib/ss58'
@@ -111,7 +111,7 @@ function ActivityRow({lead, time, from, to, amount, mark}: {lead: React.ReactNod
 // what the sender paid, then what it got back, token legs in log order ahead of native ones.
 // a call that moved nothing for the sender shows the value it carried
 function EvmMoved({tx, chain}: {tx: HomeEvmTxRow; chain: {decimals: number; symbol: string}}) {
-    const me = evmMappedAccount(tx.from)
+    const me = evmMappedAccount(tx.from, runsRevive(tx.block.specVersion))
     const legs = [
         ...tx.tokenTransfers.map(t => ({out: t.from === tx.from, amount: t.amount, decimals: t.token.decimals ?? 0, symbol: t.token.symbol ?? shortHash(t.token.id)})),
         ...tx.extrinsic.transfers.filter(t => t.from.id === me || t.to.id === me).map(t => ({out: t.from.id === me, amount: t.amount, decimals: chain.decimals, symbol: chain.symbol})),
@@ -147,7 +147,8 @@ function EvmMoved({tx, chain}: {tx: HomeEvmTxRow; chain: {decimals: number; symb
 }
 
 const GOV_MORE: Record<string, string> = {referenda: '/governance', spends: '/governance?tab=treasury'}
-const ACTIVITY_MORE: Record<string, string> = {transfers: '/transfers', evm: '/extrinsics?pallet=Ethereum&method=transact'}
+// the EVM list leads to the extrinsics that carry Ethereum transactions under the runtime of the newest indexed block
+const activityMore = (revive: boolean): Record<string, string> => ({transfers: '/transfers', evm: revive ? '/extrinsics?pallet=Revive&method=eth_transact' : '/extrinsics?pallet=Ethereum&method=transact'})
 
 const chosen = (panels: Panel[], param: string | string[] | undefined) => (panels.find(p => p.slug === param) ?? panels[0]).slug
 
@@ -295,11 +296,11 @@ async function Home({searchParams}: PageProps<'/'>) {
                                 create → <EvmAddrLink addr={tx.contractAddress} />
                             </span>
                         ) : (
-                            NONE
+                            <span>create</span>
                         )
                     }
                     amount={<EvmMoved tx={tx} chain={props} />}
-                    mark={<Badge variant={tx.status === 'Succeed' ? 'pos' : 'neg'}>{tx.status === 'Succeed' ? 'OK' : tx.status}</Badge>}
+                    mark={<Badge variant={tx.success ? 'pos' : 'neg'}>{tx.success ? 'OK' : evmFailure(tx)}</Badge>}
                 />
             ))}
         </>
@@ -488,7 +489,7 @@ async function Home({searchParams}: PageProps<'/'>) {
                 <div className="min-w-0">
                     <div className="mb-3 flex items-baseline justify-between gap-4">
                         <TabNav variant="heading" items={activity.items} aria-label="Activity" />
-                        <Link href={ACTIVITY_MORE[activity.active.slug]} className="pr-2 text-sm whitespace-nowrap text-primary hover:underline">
+                        <Link href={activityMore(runsRevive(head.specVersion))[activity.active.slug]} className="pr-2 text-sm whitespace-nowrap text-primary hover:underline">
                             View all <Jump />
                         </Link>
                     </div>

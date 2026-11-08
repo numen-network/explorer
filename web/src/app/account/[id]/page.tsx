@@ -40,13 +40,14 @@ import Vesting from '@/components/account/Vesting'
 import Votes from '@/components/account/Votes'
 import VoteHistory from '@/components/account/VoteHistory'
 import {controlRefIds, controlRoles, lockRows, multisigRole, schedules, tabHref, type Role, type TabCtx} from '@/components/account/shared'
-import {chainProps} from '@/lib/chain'
+import {chainDbHead, chainProps} from '@/lib/chain'
 import {shortAddr} from '@/components/AddressText'
 import {AddrMark} from '@/components/addrHot'
 import {votesPower} from '@/lib/conviction'
 import {fmtInt, fmtPct} from '@/lib/format'
 import {accountRefs, accountSummary, blockTime, evmCounts, seatCounts, type AccountRef} from '@/lib/gql'
 import {identityJudgements} from '@/lib/identity'
+import {loadRuntimes, runsRevive} from '@/lib/runtime'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
 import {CONFIG, datedOrGenesis} from '@/lib/config'
 import {withHeads} from '@/components/withHeads'
@@ -86,8 +87,10 @@ interface Tab extends Panel {
 }
 
 async function AccountPage(props: PageProps<'/account/[id]'>) {
+    await loadRuntimes()
     const {id: raw} = await props.params
-    const chain = await chainProps()
+    const [chain, head] = await Promise.all([chainProps(), chainDbHead()])
+    const revive = runsRevive(head.specVersion)
     const hex = accountHex(raw, chain.ss58)
     if (!hex) notFound()
     const addr = ss58Encode(hex, chain.ss58)
@@ -250,11 +253,11 @@ async function AccountPage(props: PageProps<'/account/[id]'>) {
                         </DetailRow>
                     )}
                     {a.evmAddress && (
-                        <DetailRow label="EVM origin">
+                        <DetailRow label={revive ? 'EVM address' : 'EVM origin'}>
                             <AddrMark addr={a.evmAddress} render={<Link href={`/address/${a.evmAddress}`} className="text-primary hover:underline" />}>
                                 {a.evmAddress}
                             </AddrMark>{' '}
-                            <span className="ml-1 text-xs text-dim">mapped account of this H160</span>
+                            <span className="ml-1 text-xs text-dim">{revive ? 'mapped both ways' : 'mapped account of this H160'}</span>
                         </DetailRow>
                     )}
                 </DetailCard>

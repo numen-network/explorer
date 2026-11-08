@@ -1,29 +1,22 @@
-import 'dotenv/config'
-import {
-    BlockHeader,
-    Block as BlockData,
-    DataHandlerContext,
-    Call as CallData,
-    Event as EventData,
-    Extrinsic as ExtrinsicData,
-    SubstrateBatchProcessor,
-    SubstrateBatchProcessorFields,
-} from '@subsquid/substrate-processor'
-import {Store, TypeormDatabase} from '@subsquid/typeorm-store'
-import {RpcClient} from '@subsquid/rpc-client'
+import {BlockHeader, Block as BlockData, Call as CallData, Event as EventData, Extrinsic as ExtrinsicData} from '@subsquid/substrate-processor'
+import {TypeormDatabase} from '@subsquid/typeorm-store'
 import type {Runtime} from '@subsquid/substrate-runtime'
 import {toJSON} from '@subsquid/util-internal-json'
 import pLimit from 'p-limit'
 import {In, LessThanOrEqual} from 'typeorm'
-import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EventKind, EvmAddress, EvmLog, EvmTransaction, Extrinsic, IdentityJudgement, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer, TreasuryPayoutRole} from './model'
+import {Account, Block, Call, CallKind, ChainInfo, Delegation, Event, EventKind, EvmAddress, EvmTransaction, Extrinsic, IdentityJudgement, MeshTopology, MinedObject, ProxyRelation, Token, TokenHolder, Transfer, TokenTransfer, TreasuryPayoutRole} from './model'
 import {constants, events, storage} from './types'
 import type {RuntimeCtx} from './types/support'
 import {BatchData} from './batch'
 import {missingCalls, type CallNode} from './callTree'
-import {parseEvmBlockHash, parsePowDigest} from './digest'
+import {parsePowDigest} from './digest'
 import {Deposit, feeShares} from './fees'
 import {fetchObj, parseMesh} from './objects'
-import {ZERO_ADDRESS, asErc20Transfer, asSync, decodeEvmTx, decodeLog, evmMappedAccount, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply, fetchPair, fetchProxy} from './evm'
+import {ZERO_ADDRESS, evmEra, fetchErc20Balance, fetchErc20Metadata, fetchErc20Supply, fetchPair, fetchProxy} from './evm'
+import {evmStateAt} from './evmState'
+import {mapFrontierEvm, parseEvmBlockHash} from './frontier'
+import {mapReviveEvm, reviveBlockHash, reviveEvmAddresses} from './revive'
+import {Ctx, Fields, originOf, processor, rpc} from './processor'
 import {collectGovEvent, finalizeGovernance, movedDelegates, refreshDelegates, totalAccountVotes} from './governance'
 import {collectValidatorEvent, finalizeValidators, seedGenesisValidators} from './validators'
 import {collectAnnotationCall, collectAnnotationEvent, finalizeAnnotations, finalizeRegistrars, refreshPrime, seedGenesisVesting} from './annotations'
@@ -35,29 +28,8 @@ import {readBatchTracks} from './tracks'
 import {readNewRuntimeVersions} from './runtimeVersions'
 import {collectUsernameEvent, finalizeUsernames, persistUsernames} from './usernames'
 
-const RPC_ENDPOINT = process.env.RPC_ENDPOINT
-if (!RPC_ENDPOINT) throw new Error('RPC_ENDPOINT is not set')
-
 const OBJECT_FETCH_CONCURRENCY = 8
 const BALANCE_EVENT_ACCOUNTS = ['who', 'account', 'from', 'to', 'source', 'dest']
-
-const rpc = new RpcClient({url: RPC_ENDPOINT})
-
-const processor = new SubstrateBatchProcessor()
-    .setRpcEndpoint(RPC_ENDPOINT)
-    .setBlockRange({from: 0})
-    .includeAllBlocks()
-    .addEvent({extrinsic: true, call: true, stack: true})
-    .addCall({extrinsic: true})
-    .setFields({
-        block: {timestamp: true, digest: true},
-        extrinsic: {hash: true, tip: true, success: true, error: true, signature: true},
-        call: {name: true, args: true, success: true, origin: true},
-        event: {name: true, args: true, phase: true},
-    })
-
-type Fields = SubstrateBatchProcessorFields<typeof processor>
-type Ctx = DataHandlerContext<Store, Fields>
 
 let chainProps: {name: string; symbol: string; decimals: number; ss58: number} | undefined
 
@@ -107,8 +79,10 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     const logs = h.digest?.logs ?? []
     const {author, seal} = parsePowDigest(logs, Buffer.from(engine.get(h).slice(2), 'hex'))
     if (h.height > 0 && !seal) throw new Error(`block ${h.height} has no pow seal`)
-    const evmHash = parseEvmBlockHash(logs)
-    if (h.height > 0 && !evmHash) throw new Error(`block ${h.height} has no frontier post log`)
+    const era = evmEra(h)
+    const evmHash = era === 'frontier' ? parseEvmBlockHash(logs) : await reviveBlockHash(h)
+    if (h.height > 0 && !evmHash) throw new Error(`block ${h.height} has no ${era} block hash`)
+    if (era === 'revive' && h.height > 0 && evmEra(h.getParent()) === 'frontier') batch.reviveFrom = h.height
     // the processor reports a block with no Timestamp.set inherent as 0
     const timestamp = h.timestamp ? new Date(h.timestamp) : null
     if (h.height > 0 && !timestamp) throw new Error(`block ${h.height} has no timestamp inherent`)
@@ -155,10 +129,11 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
     }
     const treasury = treasuryAccount(h)
     for (const ev of b.events) mapEvent(batch, block, timestamp, ev, author)
-    await mapEvm(batch, b, block, timestamp)
+    const deposits = depositsByExtrinsic(b.events)
+    if (era === 'frontier') await mapFrontierEvm(batch, b, block, timestamp)
+    else await mapReviveEvm(batch, b, block, timestamp, {author, treasury, deposits})
     let transferVolume = 0n
     for (let i = transfersBefore; i < batch.transfers.length; i++) transferVolume += batch.transfers[i].amount
-    const deposits = depositsByExtrinsic(b.events)
     let fees = 0n
     let signed = 0
     for (const ext of b.extrinsics) {
@@ -166,8 +141,8 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         const tip = x.tip ?? 0n
         if (x.fee != null && x.fee > 0n) {
             const shares = feeShares(x.id, tip, deposits.get(ext.index) ?? [], author, treasury)
-            x.minerFee = shares.miner
-            x.treasuryFee = shares.treasury
+            x.minerFee += shares.miner
+            x.treasuryFee += shares.treasury
         }
         const payer = batch.feePayers.get(x.id)
         if (payer != null) {
@@ -202,106 +177,6 @@ function depositsByExtrinsic(evs: EventData<Fields>[]): Map<number, Deposit[]> {
     return out
 }
 
-async function mapEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: Date): Promise<void> {
-    const transacts = b.extrinsics.filter(x => x.call?.name === 'Ethereum.transact')
-    if (transacts.length === 0) return
-    const h = b.header
-    // on_finalize sets the base fee for the block after, so a block's txs pay
-    // the one its parent left
-    const parent = h.getParent()
-    const receiptsStore = storage.ethereum.currentReceipts.v100
-    const baseFeeStore = storage.baseFee.baseFeePerGas.v100
-    const facadeConst = constants.precompiles.balancesErc20.v100
-    if (!receiptsStore.is(h) || !baseFeeStore.is(parent) || !facadeConst.is(h)) {
-        throw new Error(`unhandled spec version at block ${h.height}`)
-    }
-    const receipts = (await receiptsStore.get(h)) ?? []
-    const baseFee = (await baseFeeStore.get(parent)) ?? baseFeeStore.getDefault(parent)
-    const nativeFacade = facadeConst.get(h)
-    if (receipts.length !== transacts.length) {
-        throw new Error(`receipt count ${receipts.length} does not match evm tx count ${transacts.length} at block ${h.height}`)
-    }
-    const logsByExt = new Map<number, EventData<Fields>[]>()
-    for (const ev of b.events) {
-        if (ev.name === 'EVM.Log' && ev.extrinsicIndex != null) {
-            let arr = logsByExt.get(ev.extrinsicIndex)
-            if (arr == null) logsByExt.set(ev.extrinsicIndex, (arr = []))
-            arr.push(ev)
-        }
-    }
-    let prevGas = 0n
-    let blockLogIndex = 0
-    for (let txIndex = 0; txIndex < transacts.length; txIndex++) {
-        const ext = transacts[txIndex]
-        const executed = b.events.find(ev => ev.extrinsicIndex === ext.index && ev.name === 'Ethereum.Executed')
-        if (executed == null) throw new Error(`Ethereum.transact without Executed event at block ${h.height}`)
-        const decoded = decodeEvmTx(ext.call!.args, executed.args, baseFee)
-        // frontier receipts carry cumulative gas following eth receipt semantics
-        const cumGas = receipts[txIndex].value.usedGas
-        const gasUsed = cumGas - prevGas
-        prevGas = cumGas
-        const extrinsic = batch.extrinsicById.get(ext.id)!
-        // no fee event covers an EVM call, the base fee is what it cost and what
-        // the sender paid over it is the EVM's own kind of tip, handed to the
-        // miner whole like a substrate one
-        extrinsic.fee = gasUsed * baseFee
-        extrinsic.tip = gasUsed * (decoded.gasPrice - baseFee)
-        batch.feePayers.set(extrinsic.id, evmMappedAccount(decoded.from))
-        // canonical home of the tx payload is EvmTransaction, keep the call row lean
-        batch.callById.get(ext.call!.id)!.args = null
-        batch.act(evmMappedAccount(decoded.from), h.height).evmAddress = decoded.from
-        // a transaction counts once for each address that sent, received or created it
-        for (const addr of new Set([decoded.from, decoded.to ?? decoded.contractAddress!])) batch.touchEvm(addr, h.height, 1)
-        batch.actEvm(decoded.from, h.height)
-        const evmTx = new EvmTransaction({
-            id: decoded.hash,
-            extrinsic,
-            block,
-            txIndex,
-            from: decoded.from,
-            to: decoded.to,
-            contractAddress: decoded.contractAddress,
-            value: decoded.value,
-            input: Buffer.from(decoded.input.slice(2), 'hex'),
-            inputSelector: decoded.input.length >= 10 ? decoded.input.slice(0, 10) : undefined,
-            nonce: decoded.nonce,
-            gasLimit: decoded.gasLimit,
-            gasUsed,
-            gasPrice: decoded.gasPrice,
-            txType: decoded.txType,
-            status: decoded.status,
-            exitReason: toJSON(decoded.exitReason),
-            timestamp: at,
-        })
-        batch.evmTxs.push(evmTx)
-        for (const logEv of logsByExt.get(ext.index) ?? []) {
-            const log = decodeLog(logEv.args)
-            const logId = `${decoded.hash}-${blockLogIndex}`
-            batch.evmLogs.push(
-                new EvmLog({
-                    id: logId,
-                    transaction: evmTx,
-                    block,
-                    logIndex: blockLogIndex,
-                    address: log.address,
-                    topic0: log.topics[0],
-                    topics: log.topics,
-                    data: Buffer.from(log.data.slice(2), 'hex'),
-                })
-            )
-            const t = asErc20Transfer(log, nativeFacade)
-            if (t != null) {
-                batch.erc20Queue.push({...t, id: logId, logIndex: blockLogIndex, tx: evmTx, block, timestamp: at})
-                bookPair(batch.tokenPairDeltas, `${t.token}-`, t.from, t.to, t.amount, h.height)
-                for (const addr of [t.from, t.to]) if (addr !== ZERO_ADDRESS) batch.touchEvm(addr, h.height, 0)
-            }
-            const sync = asSync(log)
-            if (sync != null) batch.reserves.set(log.address, sync)
-            blockLogIndex++
-        }
-    }
-}
-
 // metadata, supply and balances are what the contracts answer at the batch
 // head, never a running sum of their logs. a token re-reads whenever it logs
 // or is called, so a proxy upgrade or a new symbol lands without a transfer
@@ -309,7 +184,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
     const tokenIds = [...new Set(batch.erc20Queue.map(q => q.token))]
     const reached = new Set([...tokenIds, ...batch.evmLogs.map(l => l.address), ...batch.evmTxs.flatMap(t => (t.to ? [t.to] : []))])
     if (reached.size === 0) return
-    const at = {blockHash: batch.blocks.find(b => b.height === header.height)!.evmHash!}
+    const state = await evmStateAt(rpc, header)
     const tokens = new Map((await ctx.store.findBy(Token, {id: In([...reached])})).map(t => [t.id, t]))
     const created = await createTxs(ctx, batch, tokenIds.filter(id => !tokens.has(id)))
     const holderIds = new Set<string>()
@@ -330,7 +205,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
         if (token == null) {
             token = new Token({
                 id: q.token,
-                ...(await fetchPair(rpc, q.token, at)),
+                ...(await fetchPair(state, q.token)),
                 holderCount: 0,
                 transferCount: 0,
                 deployTx: created.get(q.token) ?? null,
@@ -346,8 +221,9 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
                 from: q.from,
                 to: q.to,
                 amount: q.amount,
-                thirdParty: q.tx.from !== q.from && q.tx.from !== q.to,
+                thirdParty: q.thirdParty,
                 transaction: q.tx,
+                extrinsic: q.extrinsic,
                 block: q.block,
                 logIndex: q.logIndex,
                 timestamp: q.timestamp,
@@ -358,7 +234,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
     await Promise.all(
         [...tokens.values()].map(token =>
             limit(async () => {
-                const [meta, proxy, totalSupply] = await Promise.all([fetchErc20Metadata(rpc, token.id, at), fetchProxy(rpc, token.id, at), fetchErc20Supply(rpc, token.id, at)])
+                const [meta, proxy, totalSupply] = await Promise.all([fetchErc20Metadata(state, token.id), fetchProxy(state, token.id), fetchErc20Supply(state, token.id)])
                 Object.assign(token, meta, proxy, {totalSupply})
             })
         )
@@ -370,7 +246,7 @@ async function finalizeTokens(ctx: Ctx, batch: BatchData, header: BlockHeader<Fi
                 const token = tokens.get(tokenId)!
                 const holder = holders.get(id) ?? new TokenHolder({id, token, address: addr, transferInVolume: 0n, transferOutVolume: 0n, transferInCount: 0, transferOutCount: 0, firstInBlock: null})
                 const before = holder.balance ?? 0n
-                holder.balance = await fetchErc20Balance(rpc, tokenId, addr, at)
+                holder.balance = await fetchErc20Balance(state, tokenId, addr)
                 const after = holder.balance ?? 0n
                 if (before === 0n && after > 0n) token.holderCount += 1
                 if (before > 0n && after === 0n) token.holderCount -= 1
@@ -616,6 +492,7 @@ function accruePayouts(batch: BatchData): void {
 }
 
 async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fields>): Promise<void> {
+    if (batch.reviveFrom != null) for (const {id} of await ctx.store.find(Account, {})) batch.touch(id, batch.reviveFrom)
     const ids = [...batch.accounts.keys()]
     if (ids.length === 0) return
     const existing = await ctx.store.findBy(Account, {id: In(ids)})
@@ -640,20 +517,21 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
     if (!s.is(last) || !edConst.is(last)) throw new Error(`unhandled spec version at block ${last.height}`)
     const ed = edConst.get(last)
     const locksStore = storage.balances.locks.v100
-    const holdsStore = storage.balances.holds.v100
+    const holdsStore = holdsAt(last)
     const subsStore = storage.identity.subsOf.v100
     const proxyStore = storage.proxy.proxies.v100
     const announceStore = storage.proxy.announcements.v100
-    if (!locksStore.is(last) || !holdsStore.is(last) || !subsStore.is(last) || !proxyStore.is(last) || !announceStore.is(last)) {
+    if (!locksStore.is(last) || !subsStore.is(last) || !proxyStore.is(last) || !announceStore.is(last)) {
         throw new Error(`unhandled spec version at block ${last.height}`)
     }
-    const [infos, locks, holds, subs, proxies, announcements] = await Promise.all([
+    const [infos, locks, holds, subs, proxies, announcements, evmAddresses] = await Promise.all([
         s.getMany(last, ids),
         locksStore.getMany(last, ids),
         holdsStore.getMany(last, ids),
         subsStore.getMany(last, ids),
         proxyStore.getMany(last, ids),
         announceStore.getMany(last, ids),
+        evmEra(last) === 'revive' ? reviveEvmAddresses(last, ids) : undefined,
     ])
     ids.forEach((id, i) => {
         const a = batch.accounts.get(id)!
@@ -671,8 +549,17 @@ async function finalizeAccounts(ctx: Ctx, batch: BatchData, last: BlockHeader<Fi
             ['proxy', proxies[i]?.[1]],
             ['announcement', announcements[i]?.[1]],
         ])
+        if (evmAddresses != null) a.evmAddress = evmAddresses[i]
     })
     await addUsernameDeposits(batch, last, ids)
+}
+
+// revive added its hold reasons to RuntimeHoldReason, the holds read the same otherwise
+function holdsAt(h: BlockHeader<Fields>) {
+    const {v100, v10200} = storage.balances.holds
+    if (v100.is(h)) return v100
+    if (v10200.is(h)) return v10200
+    throw new Error(`unhandled Balances.Holds shape at block ${h.height}`)
 }
 
 // a pallet that reserves instead of holding leaves no reason on the balance, so
@@ -868,14 +755,6 @@ function signerOf(ext: ExtrinsicData<Fields> | undefined): string | undefined {
     if (typeof addr === 'string') return addr
     if (addr?.__kind === 'Id') return addr.value as string
     return undefined
-}
-
-// who a nested call really dispatches as, which proxy and multisig move away
-// from the signer. as_derivative and as_multi_threshold_1 leave it unresolved
-// upstream, dropping those is better than crediting the wrong account
-function originOf(call: CallData<Fields>): string | undefined {
-    const o = call.origin as any
-    return o?.__kind === 'system' && o.value?.__kind === 'Signed' ? (o.value.value as string) : undefined
 }
 
 function splitName(name: string | undefined): [string, string] {

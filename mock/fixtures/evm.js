@@ -163,10 +163,24 @@ export const EXIT = {
     notSupported: {__kind: 'Fatal', value: {__kind: 'NotSupported'}},
 }
 
-// the indexer writes status as the variant name of the ExitReason it stores
-export const exit = reason => ({status: reason.__kind, exitReason: reason})
+// the indexer reads success off the ExitReason Frontier reports, which it keeps whole
+export const exit = reason => ({success: reason.__kind === 'Succeed', exitReason: reason, dispatchError: null})
 
-export function evmTx(height, index, traits = {}) {
+// revive reports a failure only through EthExtrinsicRevert, Revive sits at pallet index 32
+export const REVERT = {
+    contractReverted: {__kind: 'Module', value: {index: 32, error: '0x1a000000'}},
+    outOfGas: {__kind: 'Module', value: {index: 32, error: '0x03000000'}},
+}
+
+export const FRONTIER_SPEC = 10000
+export const REVIVE_SPEC = 10200
+
+// a revive transaction sits at its extrinsic index and pays the gas price a
+// 10200 dev chain charged, a dispatchError in traits makes it a failure
+export const reviveTx = (height, index, traits = {}) =>
+    evmTx(height, index, {txIndex: index + 1, gasPrice: '3596400000000', success: traits.dispatchError == null, exitReason: null, dispatchError: null, block: {height, specVersion: REVIVE_SPEC}, ...traits})
+
+export function evmTx(height, index, {extrinsic, ...traits} = {}) {
     const tx = {
         id: evmTxHash(height, index),
         txIndex: index,
@@ -182,11 +196,12 @@ export function evmTx(height, index, traits = {}) {
         txType: 'EIP1559',
         ...exit(EXIT.stopped),
         timestamp: at(height),
-        block: {height},
-        extrinsic: {id: squidId(height, index + 1), transfers: []},
+        block: {height, specVersion: FRONTIER_SPEC},
         ...traits,
     }
-    return {inputSelector: tx.input.length >= 10 ? tx.input.slice(0, 10) : null, ...tx}
+    // what the gas cost at its price is the fee under Frontier, tip included
+    const fee = (BigInt(tx.gasUsed) * BigInt(tx.gasPrice)).toString()
+    return {inputSelector: tx.input.length >= 10 ? tx.input.slice(0, 10) : null, ...tx, extrinsic: {id: squidId(height, index + 1), transfers: [], fee, tip: '0', ...extrinsic}}
 }
 
 export const evmLog = (tx, logIndex, traits = {}) => ({
@@ -201,7 +216,7 @@ export const evmLog = (tx, logIndex, traits = {}) => ({
 // a Transfer log and the token transfer the indexer reads out of it, under one id
 export function erc20Transfer(tx, logIndex, tok, from, to, amount) {
     const log = evmLog(tx, logIndex, {address: tok.id, topics: [TOPIC.transfer, topicOf(from), topicOf(to)], data: '0x' + word(amount)})
-    return {log, transfer: {id: log.id, from, to, amount, thirdParty: tx.from !== from && tx.from !== to, timestamp: tx.timestamp, token: tok, transaction: {id: tx.id}, block: tx.block}}
+    return {log, transfer: {id: log.id, from, to, amount, thirdParty: tx.from !== from && tx.from !== to, timestamp: tx.timestamp, token: tok, transaction: {id: tx.id}, extrinsic: {id: tx.extrinsic.id}, block: tx.block}}
 }
 
 // one token moving across many transactions, rows() lays them out newest first
@@ -214,6 +229,7 @@ export const tokenTransfer = (tok, height, index, traits = {}) => ({
     timestamp: at(height),
     token: tok,
     transaction: {id: evmTxHash(height, index)},
+    extrinsic: {id: squidId(height, index + 1)},
     block: {height},
     ...traits,
 })

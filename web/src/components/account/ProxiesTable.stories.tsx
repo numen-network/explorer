@@ -3,6 +3,7 @@ import {expect, screen} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import {fmtSpan} from '@/lib/format'
 import type {ProxyRow} from '@/lib/gql'
+import {proxyScopes} from '@/lib/proxyTypes'
 import {CHAIN, proxyDelegates, proxyFor} from '../../../../mock/fixtures/accounts.js'
 import {columnTexts} from '../../../.storybook/fit'
 import {ProxiesTable} from './ProxiesTable'
@@ -11,9 +12,9 @@ const meta = {title: 'Pages/Account/Proxies'} satisfies Meta
 export default meta
 type Story = StoryObj<typeof meta>
 
-const table = (label: string, rows: ProxyRow[]) => (
+const table = (label: string, rows: ProxyRow[], revive = false) => (
     <Card size="flush">
-        <ProxiesTable label={label} rows={rows} chain={CHAIN} />
+        <ProxiesTable label={label} rows={rows} chain={CHAIN} scopes={proxyScopes(revive)} />
     </Card>
 )
 
@@ -35,8 +36,8 @@ export const EveryTypeAndDelay: Story = {
 }
 
 // a type's badge names on hover what the runtime lets a proxy of it call
-const scope = (proxyType: string, lines: string[]): Story => ({
-    render: () => table('Delegates to', proxyDelegates(1).map((p: ProxyRow) => ({...p, proxyType}))),
+const scope = (proxyType: string, lines: string[], revive = false): Story => ({
+    render: () => table('Delegates to', proxyDelegates(1).map((p: ProxyRow) => ({...p, proxyType})), revive),
     play: async ({canvas, userEvent}) => {
         await userEvent.hover(canvas.getByText(proxyType))
         const tip = await screen.findByRole('tooltip')
@@ -47,6 +48,9 @@ const scope = (proxyType: string, lines: string[]): Story => ({
 export const AnyScope = scope('Any', ['Can call anything, transfers included'])
 
 export const NonTransferScope = scope('NonTransfer', ['Can call anything except', 'Balances', 'EVM', 'Ethereum', 'Vesting.vested_transfer'])
+
+// a revive runtime fences off Revive in place of the two Frontier pallets
+export const NonTransferScopeUnderRevive = scope('NonTransfer', ['Can call anything except', 'Balances', 'Revive', 'Vesting.vested_transfer'], true)
 
 export const GovernanceScope = scope('Governance', ['Can only call', 'Treasury', 'Bounties', 'ChildBounties', 'ConvictionVoting', 'Referenda', 'Utility'])
 

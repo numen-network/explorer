@@ -1,0 +1,14 @@
+diff --git a/lib/metadata/runtime-description.js b/lib/metadata/runtime-description.js
+index b2cab3d3daf4602e822195be08e0496efe5092ca..77a1da701996eadf66587c98ee044e42885ad18d 100644
+--- a/lib/metadata/runtime-description.js
++++ b/lib/metadata/runtime-description.js
+@@ -441,7 +441,8 @@ class FromV16 {
+         this.base = new FromV14({
+             lookup: metadata.lookup,
+             // private base machinery only needs pallet names/type ids
+-            pallets: metadata.pallets,
++            // v16 calls a constant's type `ty`, the v14 conversion reads `type`
++            pallets: metadata.pallets.map(p => ({ ...p, constants: p.constants.map(c => ({ name: c.name, type: c.ty, value: c.value, docs: c.docs })) })),
+             extrinsic: {
+                 type: metadata.extrinsic.callTy,
+                 version: 5,

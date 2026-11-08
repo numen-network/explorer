@@ -1,5 +1,6 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, Index as Index_, ManyToOne as ManyToOne_, Relation as Relation_, IntColumn as IntColumn_, StringColumn as StringColumn_, BytesColumn as BytesColumn_} from "@subsquid/typeorm-store"
 import {EvmTransaction} from "./evmTransaction.model"
+import {Extrinsic} from "./extrinsic.model"
 import {Block} from "./block.model"
 
 @Index_("idx_evm_log_address_log_index_bd062870", ["address", "logIndex"], {unique: false})
@@ -12,14 +13,27 @@ export class EvmLog {
     @PrimaryColumn_()
     id!: string
 
+    /**
+     * null for a log no Ethereum transaction raised, like one from a substrate signed Revive.call
+     */
     @Index_("idx_evm_log_transaction_aa2eff54")
     @ManyToOne_(() => EvmTransaction, {nullable: true})
-    transaction!: Relation_<EvmTransaction>
+    transaction!: Relation_<EvmTransaction> | undefined | null
+
+    /**
+     * the extrinsic that raised it, null when no extrinsic did
+     */
+    @Index_("idx_evm_log_extrinsic_49507914")
+    @ManyToOne_(() => Extrinsic, {nullable: true})
+    extrinsic!: Relation_<Extrinsic> | undefined | null
 
     @Index_("idx_evm_log_block_c9cb892d")
     @ManyToOne_(() => Block, {nullable: true})
     block!: Relation_<Block>
 
+    /**
+     * Frontier counts the block's logs, revive takes the event index
+     */
     @IntColumn_({nullable: false})
     logIndex!: number
 

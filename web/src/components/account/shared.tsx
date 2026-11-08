@@ -6,7 +6,7 @@ import {fmtCount, fmtInt, fmtSpan} from '@/lib/format'
 import type {AccountRef, AccountRow, AccountSummary, BountyDepositRow, ChildBountyDepositRow, GovDepositRow, MultisigSet, ValidatorRow} from '@/lib/gql'
 import {identityLabel} from '@/lib/identity'
 import {ss58Encode} from '@/lib/ss58'
-import {variantName} from '@/lib/variant'
+import {variantName, variantValue} from '@/lib/variant'
 
 export interface TabCtx {
     hex: string
@@ -83,8 +83,16 @@ const LOCK_FREED: Record<string, string> = {
     pyconvot: 'until the votes are removed and the conviction runs out',
 }
 
+// keyed by pallet and reason, revive holds for more than one thing
+const HOLD_LABEL: Record<string, string> = {
+    'Revive.CodeUploadDepositReserve': 'Contract code deposit',
+    'Revive.StorageDepositReserve': 'Contract storage deposit',
+}
+
 const HOLD_FREED: Record<string, string> = {
-    Preimage: 'until the preimage is unnoted',
+    'Preimage.Preimage': 'until the preimage is unnoted',
+    'Revive.CodeUploadDepositReserve': 'until the code is removed',
+    'Revive.StorageDepositReserve': 'until that storage is freed or the contract is terminated',
 }
 
 export interface LockRow {
@@ -225,7 +233,8 @@ export function lockRows(a: AccountRow, addr: string, validator: ValidatorRow | 
     const named: LockRow[] = [
         ...(a.holdsJson ?? []).map(h => {
             const pallet = variantName(h.reason) ?? 'Unknown'
-            return reserved(`${pallet} hold`, BigInt(h.amount), {freedBy: HOLD_FREED[pallet]})
+            const reason = `${pallet}.${variantName(variantValue(h.reason))}`
+            return reserved(HOLD_LABEL[reason] ?? `${pallet} hold`, BigInt(h.amount), {freedBy: HOLD_FREED[reason]})
         }),
         ...identityRows(a, addr, s.retiredRegistrars),
         ...depositRows(a, addr, s),

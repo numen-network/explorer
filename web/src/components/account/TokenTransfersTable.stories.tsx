@@ -2,7 +2,7 @@ import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import {expect} from 'storybook/test'
 import {Card} from '@/components/ui/card'
 import type {TokenTransferRow} from '@/lib/gql'
-import {SUBJECT_EVM, tokenTransferCases, tokenTransferPoisoning} from '../../../../mock/fixtures/accounts.js'
+import {SUBJECT_EVM, tokenTransferCases, tokenTransferPoisoning, tokenTransferSources} from '../../../../mock/fixtures/accounts.js'
 import {poisonedRows} from '../../../.storybook/fit'
 import {TokenTransfersTable} from './TokenTransfersTable'
 
@@ -27,5 +27,14 @@ export const Poisoning: Story = {
     play: async ({canvas, canvasElement}) => {
         expect(poisonedRows([...canvasElement.querySelectorAll('tbody tr')])).toEqual([false, true, true, false, false])
         expect(canvas.getAllByRole('img', {name: 'Suspected address poisoning'})).toHaveLength(2)
+    },
+}
+
+// the transaction column links the Ethereum transaction, else the extrinsic, else the block
+export const Sources: Story = {
+    render: () => table(tokenTransferSources()),
+    play: async ({canvasElement}) => {
+        const links = [...canvasElement.querySelectorAll('tbody tr')].map(tr => tr.querySelector('td a')!.getAttribute('href')!.split('/')[1])
+        expect(links).toEqual(['tx', 'extrinsic', 'block'])
     },
 }

@@ -2,6 +2,7 @@ import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
 import {accountTransferCases, accountTransfers, delegatedOnTracks, funds, MAX_U128, subject, SUBJECT, TRACKS} from '../../../../../mock/fixtures/accounts.js'
 import {chainInfo, HEAD, numn, PEOPLE} from '../../../../../mock/fixtures.js'
+import {REVIVE_SPEC} from '../../../../../mock/fixtures/evm.js'
 import {expectWholeWords} from '../../../../.storybook/fit'
 import {pageMeta, pageStory} from '../../../../.storybook/page'
 import AccountPage from './page'
@@ -122,6 +123,15 @@ export const NeverActive: StoryObj = {
 export const EvmOriginNoteWraps: StoryObj = {
     ...story({account: mapped(), transfers: accountTransfers(3)}),
     play: async ({canvas}) => expectWholeWords(await canvas.findByText('mapped account of this H160')),
+}
+
+// under revive the H160 maps both ways, so the row names it the account's EVM address
+export const EvmAddressUnderRevive: StoryObj = {
+    ...story({account: mapped(), transfers: accountTransfers(3), specVersion: REVIVE_SPEC}),
+    play: async ({canvas}) => {
+        await expect(canvas.getByText('EVM address')).toBeVisible()
+        expectWholeWords(await canvas.findByText('mapped both ways'))
+    },
 }
 
 const BORN_AT_GENESIS = subject({firstSeenBlock: 0, firstSeenTimestamp: null})

@@ -6,10 +6,10 @@ import {BlockLink, EvmAddrLink, EvmTxLink} from '@/components/links'
 import {TimeCell, TimeModeButton} from '@/components/TimeCell'
 import {Badge} from '@/components/ui/badge'
 import type {ChainProps} from '@/lib/chain'
-import {evmTxTypeLabel} from '@/lib/evm'
+import {evmFailure, evmTxTypeLabel} from '@/lib/evm'
 import {fmtBalance} from '@/lib/format'
 import type {EvmTxRow} from '@/lib/gql'
-import {NONE, SELF} from '@/components/Detail'
+import {SELF} from '@/components/Detail'
 
 const xcol = columnsFor<EvmTxRow>()
 
@@ -32,7 +32,7 @@ export function EvmTxsTable({rows, addr, chain}: {rows: EvmTxRow[]; addr: string
                             create → {side(row.original.contractAddress)}
                         </span>
                     ) : (
-                        NONE
+                        <span className="text-xs">create</span>
                     ),
             }),
             xcol.display({id: 'type', header: 'Type', meta: {cellClassName: 'text-xs'}, cell: ({row}) => evmTxTypeLabel(row.original.txType)}),
@@ -41,7 +41,7 @@ export function EvmTxsTable({rows, addr, chain}: {rows: EvmTxRow[]; addr: string
                 id: 'result',
                 header: 'Result',
                 meta: {align: 'right'},
-                cell: ({row}) => <Badge variant={row.original.status === 'Succeed' ? 'pos' : 'neg'}>{row.original.status === 'Succeed' ? 'OK' : row.original.status}</Badge>,
+                cell: ({row}) => <Badge variant={row.original.success ? 'pos' : 'neg'}>{row.original.success ? 'OK' : evmFailure(row.original)}</Badge>,
             }),
         ])
     }, [addr, chain])
