@@ -115,7 +115,7 @@ export const CHARTS: ChartDef[] = [
         slug: 'evm-transactions',
         group: 'Transactions',
         title: 'EVM Transactions',
-        about: 'Ethereum transactions executed through the EVM each day. They ride inside an extrinsic, so they also count once in the signed extrinsic chart.',
+        about: 'Ethereum transactions executed through the EVM each day. Each one arrives as an unsigned extrinsic, so the signed extrinsic chart leaves it out.',
         kind: 'bar',
         unit: 'Transactions',
         ...count(d => d.evmTxs),
