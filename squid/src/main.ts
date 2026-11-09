@@ -96,7 +96,7 @@ async function mapBlock(batch: BatchData, b: BlockData<Fields>, finalizedHeight:
         evmHash,
         parentHash: h.parentHash,
         timestamp,
-        specVersion: h.specVersion,
+        specVersion: h._runtime.specVersion,
         author: miner,
         difficulty,
         reward: 0n,

@@ -3,15 +3,15 @@ import {RuntimeVersion, Track, TrackParams} from './model'
 import {constants} from './types'
 import type {RuntimeCtx} from './types/support'
 
-type Header = RuntimeCtx & {specVersion: number}
+type Header = RuntimeCtx
 
-export const trackParamsId = (track: string, header: {specVersion: number}) => `${track}-${header.specVersion}`
+export const trackParamsId = (track: string, header: Header) => `${track}-${header._runtime.specVersion}`
 
 // the runtime carries the tracks, so a batch reads them at its first block and
 // wherever the spec changes. each spec keeps its own copy, the track row
 // follows the newest
 export function readBatchTracks(headers: Header[]): {tracks: Track[]; params: TrackParams[]} {
-    const starts = headers.filter((h, i) => i === 0 || h.specVersion !== headers[i - 1].specVersion)
+    const starts = headers.filter((h, i) => i === 0 || h._runtime.specVersion !== headers[i - 1]._runtime.specVersion)
     const params = starts.flatMap(h => readTracks(h))
     const newest = new Map(params.map(p => [p.track.id, p]))
     const tracks = [...newest.values()].map(({id, track, runtime, ...fields}) => new Track({...fields, id: track.id, index: Number(track.id)}))
@@ -32,7 +32,7 @@ function readTracks(block: Header): TrackParams[] {
         return new TrackParams({
             id: trackParamsId(track, block),
             track: new Track({id: track}),
-            runtime: new RuntimeVersion({id: String(block.specVersion)}),
+            runtime: new RuntimeVersion({id: String(block._runtime.specVersion)}),
             // sp_runtime::str_array pads the name out to a fixed width
             name: t.name.replace(/\0+$/, ''),
             maxSpend: ceilings.get(id) ?? null,

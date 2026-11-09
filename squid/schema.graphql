@@ -7,6 +7,7 @@ type Block @entity {
   parentHash: String!
   "set by the timestamp inherent, null at genesis"
   timestamp: DateTime @index
+  "the runtime that ran the block, the old one in a block that sets new code"
   specVersion: Int!
   author: Account @index
   difficulty: BigInt!

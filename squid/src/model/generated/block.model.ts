@@ -35,6 +35,9 @@ export class Block {
     @DateTimeColumn_({nullable: true})
     timestamp!: Date | undefined | null
 
+    /**
+     * the runtime that ran the block, the old one in a block that sets new code
+     */
     @IntColumn_({nullable: false})
     specVersion!: number
 
