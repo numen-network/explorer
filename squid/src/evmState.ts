@@ -1,3 +1,4 @@
+import {run_task} from '@acala-network/chopsticks-executor'
 import type {RpcClient} from '@subsquid/rpc-client'
 import {getDynamicBuilder, getLookupFn} from '@polkadot-api/metadata-builders'
 import {AccountId, Bytes, Option, decAnyMetadata, u32, unifyMetadata} from '@polkadot-api/substrate-bindings'
@@ -12,14 +13,18 @@ export interface EvmState {
 
 interface Header {
     hash: string
+    parentHash: string
     specVersion: number
+    _runtime: {specVersion: number}
 }
 
 type Metadata = ReturnType<typeof unifyMetadata>
 type Builder = ReturnType<typeof getDynamicBuilder>
 type RuntimeCall = ReturnType<Builder['buildRuntimeCall']>
 type Run = (api: string, method: string, inputs: string[]) => (args: unknown[]) => Promise<any>
+type Call = (method: string, args: string) => Promise<string>
 
+const CODE_KEY = '0x3a636f6465'
 const ZERO_WORD = '0x' + '00'.repeat(32)
 const ZERO_H160 = '0x' + '00'.repeat(20)
 // an eth_call naming no sender runs from the zero H160, whose account AccountId32Mapper pads out with 0xEE
@@ -35,30 +40,57 @@ const u256 = (v: bigint) => [0n, 64n, 128n, 192n].map(shift => (v >> shift) & 0x
 // the runtime APIs and their types come with metadata v15, read once per spec version
 const runtimes = new Map<number, Promise<{metadata: Metadata; builder: Builder}>>()
 
-function runtimeAt(rpc: RpcClient, header: Header) {
-    let runtime = runtimes.get(header.specVersion)
+function runtimeOf(call: Call, specVersion: number) {
+    let runtime = runtimes.get(specVersion)
     if (runtime == null) {
-        runtime = rpc.call('state_call', ['Metadata_metadata_at_version', hex(u32.enc(15)), header.hash]).then((raw: string) => {
+        runtime = call('Metadata_metadata_at_version', hex(u32.enc(15))).then(raw => {
             const metadata = unifyMetadata(decAnyMetadata(Option(Bytes()).dec(raw)!))
             return {metadata, builder: getDynamicBuilder(getLookupFn(metadata))}
         })
-        runtimes.set(header.specVersion, runtime)
+        runtimes.set(specVersion, runtime)
     }
     return runtime
 }
 
+const noOffchain = async (): Promise<never> => {
+    throw new Error('an EVM runtime API call reads no offchain state')
+}
+
+// state_call runs the code a block leaves behind. a block that sets new code
+// was run by its parent's code instead, so that code runs locally over the
+// block's storage
+function callAt(rpc: RpcClient, header: Header): Call {
+    if (header.specVersion === header._runtime.specVersion) return (method, args) => rpc.call('state_call', [method, args, header.hash])
+    const wasm: Promise<string> = rpc.call('state_getStorage', [CODE_KEY, header.parentHash])
+    const host = {
+        getStorage: async (key: string) => (await rpc.call('state_getStorage', [key, header.hash])) ?? undefined,
+        getNextKey: async (prefix: string, key: string) => (await rpc.call('state_getKeysPaged', [prefix, 1, key, header.hash]))[0],
+        offchainGetStorage: noOffchain,
+        offchainTimestamp: noOffchain,
+        offchainRandomSeed: noOffchain,
+        offchainSubmitTransaction: noOffchain,
+    }
+    return async (method, args) => {
+        const task = await run_task({id: 1, wasm: await wasm, calls: [[method, [args]]], mockSignatureHost: 0, allowUnresolvedImports: false, runtimeLogLevel: 0, storageProofSize: 0}, host)
+        if (task.Call == null) throw new Error(`${method} failed at block ${header.hash} with ${task.Error}`)
+        return task.Call.result
+    }
+}
+
 /** Reads contracts through the EVM runtime API of the runtime that ran the block, so no eth RPC is involved. */
 export async function evmStateAt(rpc: RpcClient, header: Header): Promise<EvmState> {
-    const {metadata, builder} = await runtimeAt(rpc, header)
+    const specVersion = header._runtime.specVersion
+    const at = callAt(rpc, header)
+    const {metadata, builder} = await runtimeOf(at, specVersion)
     const run: Run = (api, method, inputs) => {
         const found = metadata.apis.find(a => a.name === api)?.methods.find(m => m.name === method)
-        if (found == null || found.inputs.map(i => i.name).join() !== inputs.join()) throw new Error(`unhandled ${api}.${method} in spec ${header.specVersion}`)
+        if (found == null || found.inputs.map(i => i.name).join() !== inputs.join()) throw new Error(`unhandled ${api}.${method} in spec ${specVersion}`)
         const call: RuntimeCall = builder.buildRuntimeCall(api, method)
-        return async args => call.value.dec(await rpc.call('state_call', [`${api}_${method}`, hex(call.args.enc(args)), header.hash]))
+        return async args => call.value.dec(await at(`${api}_${method}`, hex(call.args.enc(args))))
     }
     if (metadata.apis.some(a => a.name === 'EthereumRuntimeRPCApi')) return frontierState(run)
     if (metadata.apis.some(a => a.name === 'ReviveApi')) return reviveState(run)
-    throw new Error(`spec ${header.specVersion} offers no EVM runtime API`)
+    throw new Error(`spec ${specVersion} offers no EVM runtime API`)
 }
 
 // the block gas limit is plenty for a view call, and as with fc-rpc every
