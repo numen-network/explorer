@@ -239,12 +239,12 @@ type EvmTransaction @entity {
 
 type EvmLog @entity @index(fields: ["address", "logIndex"]) {
   id: ID!
-  "null for a log no Ethereum transaction raised, like one from a substrate signed Revive.call"
+  "null for a log no Ethereum transaction raised, like one from a substrate signed Revive.call or an EVM.call dispatched as Root"
   transaction: EvmTransaction @index
   "the extrinsic that raised it, null when no extrinsic did"
   extrinsic: Extrinsic
   block: Block!
-  "Frontier counts the block's logs, revive takes the event index"
+  "a Frontier transaction's log takes its position among the block's transaction logs, any other log takes the event index"
   logIndex: Int!
   address: String! @index
   topic0: String @index

@@ -14,7 +14,7 @@ export class EvmLog {
     id!: string
 
     /**
-     * null for a log no Ethereum transaction raised, like one from a substrate signed Revive.call
+     * null for a log no Ethereum transaction raised, like one from a substrate signed Revive.call or an EVM.call dispatched as Root
      */
     @Index_("idx_evm_log_transaction_aa2eff54")
     @ManyToOne_(() => EvmTransaction, {nullable: true})
@@ -32,7 +32,7 @@ export class EvmLog {
     block!: Relation_<Block>
 
     /**
-     * Frontier counts the block's logs, revive takes the event index
+     * a Frontier transaction's log takes its position among the block's transaction logs, any other log takes the event index
      */
     @IntColumn_({nullable: false})
     logIndex!: number

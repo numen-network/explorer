@@ -1,7 +1,7 @@
 import {blake2b} from '@noble/hashes/blake2.js'
 import {bytesToHex, hexToBytes} from '@noble/hashes/utils.js'
 import {Src} from '@subsquid/scale-codec'
-import type {Block as BlockData, Event as EventData} from '@subsquid/substrate-processor'
+import type {Block as BlockData} from '@subsquid/substrate-processor'
 import {toJSON} from '@subsquid/util-internal-json'
 import {BatchData} from './batch'
 import type {EvmLogData} from './evm'
@@ -99,34 +99,50 @@ export function parseEvmBlockHash(logs: string[]): string | undefined {
 }
 
 export async function mapFrontierEvm(batch: BatchData, b: BlockData<Fields>, block: Block, at: Date): Promise<void> {
+    const h = b.header
+    const facadeConst = constants.precompiles.balancesErc20.v100
+    if (!facadeConst.is(h)) throw new Error(`unhandled Precompiles.BalancesErc20 shape at block ${h.height}`)
+    const nativeFacade = facadeConst.get(h)
+    const txs = await mapTransactions(batch, b, block, at)
+    let txLogIndex = 0
+    for (const ev of b.events) {
+        if (ev.name !== 'EVM.Log') continue
+        const tx = ev.extrinsicIndex == null ? undefined : txs.get(ev.extrinsicIndex)
+        const logIndex = tx == null ? ev.index : txLogIndex++
+        recordLog(batch, decodeLog(ev.args), {
+            id: tx == null ? ev.id : `${tx.id}-${logIndex}`,
+            logIndex,
+            transaction: tx ?? null,
+            extrinsic: ev.extrinsic == null ? null : batch.extrinsicById.get(ev.extrinsic.id)!,
+            // outside Ethereum.transact only Root can call the EVM, and Root
+            // is not an account
+            sender: tx?.from,
+            block,
+            at,
+            nativeFacade,
+        })
+    }
+}
+
+async function mapTransactions(batch: BatchData, b: BlockData<Fields>, block: Block, at: Date): Promise<Map<number, EvmTransaction>> {
+    const txs = new Map<number, EvmTransaction>()
     const transacts = b.extrinsics.filter(x => x.call?.name === 'Ethereum.transact')
-    if (transacts.length === 0) return
+    if (transacts.length === 0) return txs
     const h = b.header
     // on_finalize sets the base fee for the block after, so a block's txs pay
     // the one its parent left
     const parent = h.getParent()
     const receiptsStore = storage.ethereum.currentReceipts.v100
     const baseFeeStore = storage.baseFee.baseFeePerGas.v100
-    const facadeConst = constants.precompiles.balancesErc20.v100
-    if (!receiptsStore.is(h) || !baseFeeStore.is(parent) || !facadeConst.is(h)) {
+    if (!receiptsStore.is(h) || !baseFeeStore.is(parent)) {
         throw new Error(`unhandled spec version at block ${h.height}`)
     }
     const receipts = (await receiptsStore.get(h)) ?? []
     const baseFee = (await baseFeeStore.get(parent)) ?? baseFeeStore.getDefault(parent)
-    const nativeFacade = facadeConst.get(h)
     if (receipts.length !== transacts.length) {
         throw new Error(`receipt count ${receipts.length} does not match evm tx count ${transacts.length} at block ${h.height}`)
     }
-    const logsByExt = new Map<number, EventData<Fields>[]>()
-    for (const ev of b.events) {
-        if (ev.name === 'EVM.Log' && ev.extrinsicIndex != null) {
-            let arr = logsByExt.get(ev.extrinsicIndex)
-            if (arr == null) logsByExt.set(ev.extrinsicIndex, (arr = []))
-            arr.push(ev)
-        }
-    }
     let prevGas = 0n
-    let blockLogIndex = 0
     for (let txIndex = 0; txIndex < transacts.length; txIndex++) {
         const ext = transacts[txIndex]
         const executed = b.events.find(ev => ev.extrinsicIndex === ext.index && ev.name === 'Ethereum.Executed')
@@ -171,10 +187,7 @@ export async function mapFrontierEvm(batch: BatchData, b: BlockData<Fields>, blo
             timestamp: at,
         })
         batch.evmTxs.push(evmTx)
-        for (const logEv of logsByExt.get(ext.index) ?? []) {
-            const id = `${decoded.hash}-${blockLogIndex}`
-            recordLog(batch, decodeLog(logEv.args), {id, logIndex: blockLogIndex, transaction: evmTx, extrinsic, sender: decoded.from, block, at, nativeFacade})
-            blockLogIndex++
-        }
+        txs.set(ext.index, evmTx)
     }
+    return txs
 }

@@ -156,7 +156,7 @@ The explorer refuses to append to a file that holds another chain, so delete `sp
 - UI parts are shadcn's generated files under `web/src/components/ui/`, pulled with the CLI and edited only for explorer tones and spacing. Icons come from lucide-react and simple-icons, which makes every icon in a server component a small client component of its own, a cost taken knowingly rather than copying SVG paths by hand.
 - Finality lags the head by minutes on this chain, so the processor follows hot blocks and marks finality separately.
 - Mined objects are not stored on chain. The processor regenerates each one from the node and stores gzipped f32 vertex arrays, topology is stored once per protocol version.
-- EVM rows follow the runtime of each block. Under Frontier the processor reads `Ethereum.transact` and its events. Under revive it decodes the `Revive.eth_transact` payload and reads `ContractEmitted`. One index spans the switch.
+- EVM rows follow the runtime of each block. Under Frontier the processor reads `Ethereum.transact` and every `EVM.Log`. Under revive it decodes the `Revive.eth_transact` payload and reads `ContractEmitted`. One index spans the switch.
 - Token metadata, supply and balances are what the contracts answer at the batch head, read through the EVM runtime API of the runtime that ran it. The processor needs no eth RPC.
 - Every call in an extrinsic gets a row, the root included. A batch, a proxy or a multisig is then an ordinary call that happens to have children, and the transfers and events underneath point at the call that really ran them.
 
