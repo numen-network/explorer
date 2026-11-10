@@ -45,12 +45,15 @@ function asBigInt(v: unknown): bigint {
 }
 
 // Decodes from the generic runtime decoding of Ethereum.transact args plus the
-// Ethereum.Executed event args. The typed frontier helpers reject unknown tx
-// variants like EIP7702, the generic path survives runtime upgrades.
+// Ethereum.Executed event args. The typed frontier helpers reject tx variants
+// they don't know.
 export function decodeEvmTx(callArgs: any, executedArgs: any, baseFee: bigint): DecodedEvmTx {
     const txType: string = callArgs.transaction.__kind
     const t = callArgs.transaction.value
-    const isCreate = t.action.__kind === 'Create'
+    // EIP7702 renames action to destination and input to data
+    const action = txType === 'EIP7702' ? t.destination : t.action
+    const input: string = txType === 'EIP7702' ? t.data : t.input
+    const isCreate = action.__kind === 'Create'
     let gasPrice: bigint
     if (t.maxFeePerGas != null) {
         const maxFee = asBigInt(t.maxFeePerGas)
@@ -62,10 +65,10 @@ export function decodeEvmTx(callArgs: any, executedArgs: any, baseFee: bigint): 
     return {
         hash: (executedArgs.transactionHash as string).toLowerCase(),
         from: (executedArgs.from as string).toLowerCase(),
-        to: isCreate ? undefined : (t.action.value as string).toLowerCase(),
+        to: isCreate ? undefined : (action.value as string).toLowerCase(),
         contractAddress: isCreate ? (executedArgs.to as string).toLowerCase() : undefined,
         value: asBigInt(t.value),
-        input: t.input as string,
+        input,
         nonce: Number(asBigInt(t.nonce)),
         gasLimit: asBigInt(t.gasLimit),
         gasPrice,
