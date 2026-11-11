@@ -741,17 +741,17 @@ async function applyProposals(batch: BatchData, rpc: RpcClient): Promise<void> {
         // the call was encoded against the runtime of the block that took it
         const runtime: Runtime = ev.header._runtime
         const call = await proposalCall(rpc, ev.args.proposal, ev.header.hash, runtime)
-        if (call != null) await setProposal(batch, r, call, runtime)
+        if (call != null) await setProposal(batch, r, call, runtime, rpc, ev.header.hash)
     }
 }
 
-async function setProposal(batch: BatchData, r: Referendum, call: Call, runtime: Runtime): Promise<void> {
+async function setProposal(batch: BatchData, r: Referendum, call: Call, runtime: Runtime, rpc: RpcClient, at: string): Promise<void> {
     const nodes: ProposalNode[] = []
     walkProposal(call, runtime, nodes, [])
     r.proposalPallet = nodes[0].pallet
     r.proposalMethod = nodes[0].method
     r.proposalCalls = nodes
-    r.proposalRuntime = await proposedRuntime(batch, nodes)
+    r.proposalRuntime = await proposedRuntime(batch, nodes, rpc, at)
 
     const bounty = nodes.find(node => node.bounty != null)
     if (bounty != null) r.proposalBountyIndex = bounty.bounty
@@ -771,7 +771,7 @@ async function recordEnactedCalls(batch: BatchData, rpc: RpcClient): Promise<voi
         if (r == null) continue
         if (r.proposalCalls == null) {
             const call = await proposalCall(rpc, {__kind: 'Lookup', hash: r.proposalHash}, header.parentHash, header._runtime)
-            if (call != null) await setProposal(batch, r, call, header._runtime)
+            if (call != null) await setProposal(batch, r, call, header._runtime, rpc, header.parentHash)
         }
         for (const node of (r.proposalCalls as ProposalNode[] | null) ?? []) addEnactedCall(batch, r, header, node, success)
     }
@@ -800,14 +800,14 @@ function addEnactedCall(batch: BatchData, r: Referendum, header: any, node: Prop
 // store where anybody may unnote them once the referendum is over
 const CODE_CALLS = new Set(['Prime.upgrade', 'System.set_code', 'System.set_code_without_checks'])
 
-async function proposedRuntime(batch: BatchData, nodes: ProposalNode[]): Promise<RuntimeCode | null> {
+async function proposedRuntime(batch: BatchData, nodes: ProposalNode[], rpc: RpcClient, at: string): Promise<RuntimeCode | null> {
     const node = nodes.find(n => CODE_CALLS.has(`${n.pallet}.${n.method}`))
     if (node == null) return null
     const wasm = (node.args as {code: string}).code
     const id = '0x' + bytesToHex(blake2b(hexToBytes(wasm.slice(2)), {dkLen: 32}))
     const known = batch.runtimeCodes.get(id)
     if (known != null) return known
-    const found = await readRuntime(wasm)
+    const found = await readRuntime(wasm, rpc, at)
     const code = new RuntimeCode({
         id,
         specName: found?.specName ?? null,
