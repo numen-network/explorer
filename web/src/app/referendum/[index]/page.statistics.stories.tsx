@@ -9,8 +9,14 @@ import {story, curatedCase, cast, withPlay, deciding, single, singleVote, everyA
 export default {title: 'Pages/Referendum/Statistics', ...pageMeta(ReferendumPage)}
 
 // the statistics tab as the page draws it, the list legend, the three totals,
-// the conviction shares, every stacked chart once it has drawn its totals and
-// the widths its bars take
+// the conviction and range shares, every stacked chart once it has drawn its
+// totals and the widths its bars take
+const sharesIn = (root: HTMLElement, name: string) =>
+    within(root)
+        .getAllByRole('listitem')
+        .filter(el => el.closest('ul')?.getAttribute('aria-label') === name)
+        .map(el => el.textContent)
+
 const statistics = async (root: HTMLElement) => {
     await waitFor(() => {
         const stacks = stacksIn(root)
@@ -22,14 +28,16 @@ const statistics = async (root: HTMLElement) => {
     return {
         legend: [...within(root).getByRole('heading', {name: 'Statistics'}).nextElementSibling!.children].map(el => el.textContent),
         totals: [...sections[0].children].map(el => [el.children[0].textContent, el.children[1].textContent]),
-        shares: within(root).getAllByRole('listitem').filter(el => el.closest('ul')?.getAttribute('aria-label') === 'Conviction shares').map(el => el.textContent),
+        shares: sharesIn(root, 'Conviction shares'),
+        rangeShares: sharesIn(root, 'Vote range shares'),
         ways,
         capital: capital.totals,
         votes: votes.totals,
         levels,
         ranges,
-        // the range labels the last chart draws, a crowded one broken after its dash
+        // the range labels the last chart with axes draws, a crowded one broken after its dash
         drawnRanges: axisTexts(root)
+            .filter(axes => axes.length)
             .at(-1)!
             .find(axis => axis.length === ranges.labels.length)
             ?.map(text => text.replace('\n', '')),
@@ -40,7 +48,7 @@ const statistics = async (root: HTMLElement) => {
 const WAYS = ['Delegated', 'Direct']
 const LEVELS = ['0.1x', '1x', '2x', '3x', '4x', '5x', '6x']
 const RANGES = ['0-10K', '10K-500K', '500K-1M', '1M-5M', '>5M']
-const shares = (pcts: string[]) => pcts.map((pct, n) => `${LEVELS[n]}${pct}`)
+const shares = (labels: string[], pcts: string[]) => pcts.map((pct, n) => `${labels[n]}${pct}`)
 
 export const Empty = withPlay(curatedCase(7, 'statistics'), async ({canvas}) => {
     await expect(await canvas.findByText('No votes yet.')).toBeInTheDocument()
@@ -54,7 +62,8 @@ export const One = withPlay(cast(single, singleVote, 'statistics'), async ({canv
             ['Capital', '1M NUMN'],
             ['Votes', '3M NUMN'],
         ],
-        shares: shares(['0.00%', '0.00%', '0.00%', '100.00%', '0.00%', '0.00%', '0.00%']),
+        shares: shares(LEVELS, ['0.00%', '0.00%', '0.00%', '100.00%', '0.00%', '0.00%', '0.00%']),
+        rangeShares: shares(RANGES, ['0.00%', '0.00%', '0.00%', '100.00%', '0.00%']),
         ways: {labels: WAYS, series: {Aye: [0, 1], Nay: [0, 0], Abstain: [0, 0]}, totals: ['0', '1']},
         capital: ['0', '1M'],
         votes: ['0', '3M'],
@@ -75,7 +84,8 @@ export const EveryKind = withPlay(story(everyAction.referendum, 'statistics', ev
             ['Capital', '1.14M NUMN'],
             ['Votes', '≈2.33M NUMN'],
         ],
-        shares: shares(['40.00%', '0.00%', '20.00%', '0.00%', '20.00%', '0.00%', '20.00%']),
+        shares: shares(LEVELS, ['40.00%', '0.00%', '20.00%', '0.00%', '20.00%', '0.00%', '20.00%']),
+        rangeShares: shares(RANGES, ['0.00%', '60.00%', '20.00%', '20.00%', '0.00%']),
         ways: {labels: WAYS, series: {Aye: [1, 1], Nay: [0, 1], Abstain: [0, 1], Split: [0, 1]}, totals: ['1', '4']},
         capital: ['50K', '1.09M'],
         votes: ['300K', '≈2.03M'],
@@ -94,7 +104,7 @@ export const EveryKind = withPlay(story(everyAction.referendum, 'statistics', ev
 export const EveryConviction = withPlay(cast(deciding(20, 'Votes at every conviction from 0x to 6x'), convictionVotes, 'statistics'), async ({canvasElement}) => {
     const {totals, shares: held, levels} = await statistics(canvasElement)
     await expect(totals[0]).toEqual(['Accounts', '14'])
-    await expect(held).toEqual(shares(Array(7).fill('14.28%')))
+    await expect(held).toEqual(shares(LEVELS, Array(7).fill('14.28%')))
     await expect(levels).toEqual({labels: LEVELS, series: {Aye: Array(7).fill(1), Nay: Array(7).fill(1), Abstain: Array(7).fill(0)}, totals: Array(7).fill('2')})
 })
 

@@ -24,6 +24,8 @@ const LIST_COLOR: Record<VoteList, string> = {aye: tint('#4caf50', 0.4), nay: ti
 // None through Locked6x, each a deeper shade of --primary
 const LEVELS = [0, 1, 2, 3, 4, 5, 6]
 const LEVEL_COLOR = [0.16, 0.28, 0.4, 0.53, 0.67, 0.83, 1].map(share => tint(ACCENT, share))
+// smallest range through largest, each a deeper shade of --primary
+const RANGE_COLOR = [0.16, 0.37, 0.58, 0.79, 1].map(share => tint(ACCENT, share))
 
 interface Group {
     label: string
@@ -70,6 +72,29 @@ function Total({label, value, children}: {label: string; value: ReactNode; child
     )
 }
 
+// each group's share of all accounts, as a legend beside a ring
+function Shares({ballots, groups, colors, name}: {ballots: Ballot[]; groups: Group[]; colors: string[]; name: string}) {
+    const counts = groups.map(g => ballots.filter(g.has).length)
+    return (
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-8 gap-y-5">
+            <ul aria-label={name} className="grid grid-cols-[auto_auto_auto] items-center gap-x-3 gap-y-1.5 text-xs">
+                {groups.map((g, i) => (
+                    <li key={g.label} className="col-span-3 grid grid-cols-subgrid items-center">
+                        <Swatch color={colors[i]} />
+                        <span>{g.label}</span>
+                        <span className="text-right text-muted-foreground tabular-nums">{fmtPct(counts[i], ballots.length)}</span>
+                    </li>
+                ))}
+            </ul>
+            <RingChart
+                total={fmtInt(ballots.length)}
+                unit="Accounts"
+                slices={groups.map((g, i) => ({label: g.label, value: counts[i], color: colors[i], tip: `${fmtInt(counts[i])} · ${fmtPct(counts[i], ballots.length)}`}))}
+            />
+        </div>
+    )
+}
+
 function Heading({note}: {note: string}) {
     return (
         <h3 className="text-[13px] font-semibold">
@@ -103,7 +128,6 @@ export default function VoteStats({votes, delegations, decimals, symbol}: Props)
         label: joint == null ? `>${fmtCompact(VOTE_JOINTS[i - 1])}` : `${i === 0 ? '0' : fmtCompact(VOTE_JOINTS[i - 1])}-${fmtCompact(joint)}`,
         has: b => rangeOf(b.votes, decimals) === i,
     }))
-    const atLevel = LEVELS.map(n => ballots.filter(b => b.level === n).length)
     return (
         <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
@@ -135,28 +159,16 @@ export default function VoteStats({votes, delegations, decimals, symbol}: Props)
                         <div className="min-w-0 flex-1">
                             <Bars ballots={ballots} lists={lists} groups={levels} measure={ACCOUNTS} height={184} />
                         </div>
-                        <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-8 gap-y-5">
-                            <ul aria-label="Conviction shares" className="grid grid-cols-[auto_auto_auto] items-center gap-x-3 gap-y-1.5 text-xs">
-                                {LEVELS.map(n => (
-                                    <li key={n} className="col-span-3 grid grid-cols-subgrid items-center">
-                                        <Swatch color={LEVEL_COLOR[n]} />
-                                        <span>{levelLabel(n)}</span>
-                                        <span className="text-right text-muted-foreground tabular-nums">{fmtPct(atLevel[n], ballots.length)}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                            <RingChart
-                                total={fmtInt(ballots.length)}
-                                unit="Accounts"
-                                slices={LEVELS.map(n => ({label: levelLabel(n), value: atLevel[n], color: LEVEL_COLOR[n], tip: `${fmtInt(atLevel[n])} · ${fmtPct(atLevel[n], ballots.length)}`}))}
-                            />
-                        </div>
+                        <Shares ballots={ballots} groups={levels} colors={LEVEL_COLOR} name="Conviction shares" />
                     </div>
                 </section>
                 <section className="px-5 py-4">
                     <Heading note="by votes" />
-                    <div className="mt-3">
-                        <Bars ballots={ballots} lists={lists} groups={ranges} measure={ACCOUNTS} axis height={184} />
+                    <div className="mt-2 flex flex-col gap-x-10 gap-y-5 @2xl:flex-row @2xl:items-center">
+                        <div className="min-w-0 flex-1">
+                            <Bars ballots={ballots} lists={lists} groups={ranges} measure={ACCOUNTS} axis height={184} />
+                        </div>
+                        <Shares ballots={ballots} groups={ranges} colors={RANGE_COLOR} name="Vote range shares" />
                     </div>
                 </section>
             </Card>
