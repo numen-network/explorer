@@ -116,6 +116,13 @@ export const EveryRole: StoryObj = {
         ]),
 }
 
+const BRIDGE_EVM = '0x0cd52bf83734f86bf3c1e74b702a816001299e96'
+
+export const WellKnownBridge: StoryObj = {
+    ...story({account: subject({id: BRIDGE_EVM + 'ee'.repeat(12), evmAddress: BRIDGE_EVM}), transfers: accountTransfers(2)}),
+    play: async ({canvasElement}) => expect(badgeTones(canvasElement)).toEqual([['Hyperlane Bridge', 'primary']]),
+}
+
 // a validator outside the active set wears the plain grey badge
 export const ValidatorInactive: StoryObj = {
     ...story({account: staked(), validator: validatorRow({active: false})}),

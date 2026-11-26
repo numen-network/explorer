@@ -1,6 +1,6 @@
 import type {Meta, StoryObj} from '@storybook/nextjs-vite'
 import type {ReactNode} from 'react'
-import {expect} from 'storybook/test'
+import {expect, screen} from 'storybook/test'
 import {HEAD, chainInfo, hashOf, squidId} from '../../../mock/fixtures.js'
 import {evmTxHash} from '../../../mock/fixtures/blocks.js'
 import {BlockLink, EventLink, EvmAddrLink, EvmTxLink, ExtrinsicLink, Jump} from './links'
@@ -119,6 +119,28 @@ export const EvmAddressShortFullAndInCell: Story = {
         const shown = [...cell.querySelectorAll('span')].filter(s => s.offsetParent != null && s.childElementCount <= 1).map(s => s.textContent)
         await expect(shown).toContain(phone ? SHORT_ADDRESS : ADDRESS)
         expect(canvasElement.textContent).not.toContain(`${ADDRESS.slice(0, 7)}…`)
+    },
+}
+
+const BRIDGE_EVM = '0x0cd52bf83734f86bf3c1e74b702a816001299e96'
+
+export const EvmAddressWellKnown: Story = {
+    render: () => (
+        <>
+            <Case label="short">
+                <EvmAddrLink addr={BRIDGE_EVM} />
+            </Case>
+            <Case label="full">
+                <EvmAddrLink addr={BRIDGE_EVM} full />
+            </Case>
+        </>
+    ),
+    play: async ({canvas, userEvent}) => {
+        const [short, full] = canvas.getAllByRole('link')
+        await expect(short).toHaveTextContent('Hyperlane Bridge')
+        await expect(full).toHaveTextContent('Hyperlane Bridge')
+        await userEvent.hover(full)
+        await expect(await screen.findByRole('tooltip')).toHaveTextContent(BRIDGE_EVM)
     },
 }
 

@@ -12,6 +12,7 @@ import {Jump} from '@/components/links'
 import {Badge} from '@/components/ui/badge'
 import {Card} from '@/components/ui/card'
 import {chainDbHead, chainProps} from '@/lib/chain'
+import {wellKnownAccount} from '@/lib/config'
 import {contractData} from '@/lib/contract'
 import {evmMappedAccount, isH160} from '@/lib/evm'
 import {evmAddressData} from '@/lib/gql'
@@ -40,6 +41,7 @@ async function EvmAddressPage(props: PageProps<'/address/[address]'>) {
     const revive = runsRevive(head.specVersion)
     const mapped = ss58Encode(revive ? (data.mapped[0]?.id ?? evmMappedAccount(address, true)) : evmMappedAccount(address, false), chain.ss58)
     const isContract = data.created.length > 0 || data.asToken !== null
+    const known = wellKnownAccount(address, chain.evmChainId)
     const contract = isContract && tab === 'contract' ? await contractData(address) : null
 
     const txs = (
@@ -69,8 +71,9 @@ async function EvmAddressPage(props: PageProps<'/address/[address]'>) {
     return (
         <div>
             <div className="mt-6">
-                <div className="flex items-center gap-2.5">
+                <div className="flex flex-wrap items-center gap-2.5">
                     <h1 className="text-lg font-semibold">EVM address</h1>
+                    {known && <Badge variant="primary">{known.label}</Badge>}
                     {isContract && <Badge variant="primary">Contract</Badge>}
                     {data.asToken && (
                         <Link href={`/token/${address}`} className="text-sm text-primary hover:underline">

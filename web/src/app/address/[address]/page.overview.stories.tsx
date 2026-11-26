@@ -15,6 +15,20 @@ export const ContractDeployed = addressPage(contract, {
     created: [deploy],
 })
 
+const BRIDGE_EVM = '0x0cd52bf83734f86bf3c1e74b702a816001299e96'
+
+export const WellKnownBridgeContract: StoryObj = {
+    ...addressPage(BRIDGE_EVM, {
+        txs: [deploy],
+        created: [deploy],
+    }),
+    play: async ({canvas}) => {
+        const header = within(canvas.getByRole('heading', {level: 1}).parentElement!)
+        await expect(header.getByText('Hyperlane Bridge')).toBeVisible()
+        await expect(header.getByText('Contract')).toBeVisible()
+    },
+}
+
 const wtmrDeploy = evmTx(WTMR.deployTx.block.height, 0, {from: alice, to: null, contractAddress: WTMR.id, input: bytecode(3_072), gasLimit: '3000000', gasUsed: '2100000', ...exit(EXIT.returned)})
 
 export const TokenContract: StoryObj = {

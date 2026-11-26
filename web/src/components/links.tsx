@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import {ArrowUpRight} from 'lucide-react'
-import {AddrMark} from '@/components/addrHot'
 import {BlockStatus} from '@/components/blockStatus'
 import HashText from '@/components/HashText'
 import {Tip} from '@/components/Tip'
+import {WellKnownEvmAddr} from '@/components/wellKnown'
 import {extrinsicPath, fmtInt} from '@/lib/format'
 
 // marks a link that leaves for somewhere else, sized to whatever text it sits in
@@ -59,13 +59,7 @@ export function EventLink({height, index}: {height: number; index: number}) {
 }
 
 export function EvmAddrLink({addr, full = false}: {addr: string; full?: boolean}) {
-    return (
-        <Tip text={full ? undefined : addr}>
-            <AddrMark addr={addr} render={<Link href={`/address/${addr}`} className="font-mono text-primary hover:underline" />}>
-                <HashText hash={addr} full={full} />
-            </AddrMark>
-        </Tip>
-    )
+    return <WellKnownEvmAddr addr={addr} full={full} />
 }
 
 export function EvmTxLink({hash, full = false}: {hash: string; full?: boolean}) {

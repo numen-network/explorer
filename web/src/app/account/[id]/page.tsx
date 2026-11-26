@@ -49,7 +49,7 @@ import {accountRefs, accountSummary, blockTime, evmCounts, seatCounts, type Acco
 import {identityJudgements} from '@/lib/identity'
 import {loadRuntimes, runsRevive} from '@/lib/runtime'
 import {ss58Encode, ss58TryDecode} from '@/lib/ss58'
-import {CONFIG, datedOrGenesis} from '@/lib/config'
+import {CONFIG, datedOrGenesis, wellKnownAccount} from '@/lib/config'
 import {withHeads} from '@/components/withHeads'
 
 export const dynamic = 'force-dynamic'
@@ -129,6 +129,8 @@ async function AccountPage(props: PageProps<'/account/[id]'>) {
     const roles: Role[] = []
     if (hex === chain.treasuryAccount) roles.push({text: CONFIG.wellKnown.treasury.label, tone: 'primary'})
     if (s.prime.length > 0) roles.push({text: CONFIG.wellKnown.prime.label, tone: 'warn'})
+    const known = wellKnownAccount(a.evmAddress ?? hex, chain.evmChainId)
+    if (known) roles.push({text: known.label, tone: 'primary'})
     if (validator) roles.push({text: validator.active ? 'Active validator' : 'Validator', tone: validator.active ? 'pos' : 'idle'})
     if (minedBlocks > 0) roles.push({text: 'Miner', tone: 'primary'})
     if (registrar) roles.push({text: `Registrar #${registrar.index}`, tone: 'primary'})
