@@ -40,6 +40,7 @@ interface Scene {
     validators?: number
     windows?: Partial<Windows>
     sessionLength?: number
+    evmChainId?: number
     // the runtime of the newest indexed block
     specVersion?: number
 }
@@ -84,7 +85,7 @@ function windowsOf(days: Day[]): Windows {
 
 const close = (d: Day) => ({difficulty: d.difficultyClose, issuanceTotal: d.issuanceTotal, issuanceInactive: d.issuanceInactive, treasuryPot: d.treasuryPot})
 
-export function home({head, best = head, finalized = Math.max(0, head - 5), days, objects = [], transfers = [], evmTxs = [], referendums = [], spends = [], upcoming = {}, validators = 4, windows = {}, sessionLength = chainInfo.sessionLength, specVersion = FRONTIER_SPEC}: Scene) {
+export function home({head, best = head, finalized = Math.max(0, head - 5), days, objects = [], transfers = [], evmTxs = [], referendums = [], spends = [], upcoming = {}, validators = 4, windows = {}, sessionLength = chainInfo.sessionLength, evmChainId = chainInfo.evmChainId, specVersion = FRONTIER_SPEC}: Scene) {
     const counts = {...windowsOf(days), ...windows}
     // a baseline exists once the chain is older than its window
     const baseline = (since: string) => {
@@ -92,7 +93,7 @@ export function home({head, best = head, finalized = Math.max(0, head - 5), days
         return head * chainInfo.blockTime * 1000 >= back * DAY_MS ? days.at(-1 - back) : undefined
     }
     return {
-        chainInfos: [{...chainInfo, head: best, finalizedHead: finalized, sessionLength}],
+        chainInfos: [{...chainInfo, head: best, finalizedHead: finalized, sessionLength, evmChainId}],
         blocks: ({where = {}}: {where?: Where}) => {
             if (where.height_eq === 0) return [block(0)]
             // a null bound matches no block

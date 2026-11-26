@@ -26,6 +26,7 @@ import {CallPill} from '@/components/calls'
 import {StatusBadge, ThresholdPair} from '@/components/referenda'
 import {activeIssuanceOf, needsNow, phaseOf} from '@/lib/referendum'
 import {chainDbHead, chainHeads, chainProps, windowStart} from '@/lib/chain'
+import {CONFIG} from '@/lib/config'
 import {fmtApprox, fmtBalance, fmtCompact, fmtCount, fmtInt, fmtPctMove, fmtSpan, planckToNum, shortHash, signOf, trackLabel, truncFixed} from '@/lib/format'
 import {evmFailure, evmMappedAccount} from '@/lib/evm'
 import {homeData, type HomeEvmTxRow, type BaselineRow, type DailyRow, type HourlyRow} from '@/lib/gql'
@@ -187,6 +188,7 @@ async function Home({searchParams}: PageProps<'/'>) {
     }))
     const halving = data.blocks[0] ? halvingAt(data.blocks[0].height, data.blocks[0].specVersion) : null
     const upcoming = data.blocks[0] ? deadlines(data, cut, blocksConstant(data.blocks[0].specVersion, 'Referenda.UndecidingTimeout')) : []
+    const external = CONFIG.networks[props.evmChainId]?.external ?? []
 
     const coins = (planck: string) => `${fmtInt(truncFixed(planck, 0, props.decimals))} ${props.symbol}`
     const referendaList = () => (
@@ -544,6 +546,14 @@ async function Home({searchParams}: PageProps<'/'>) {
                             {props.genesis}
                             <CopyBtn text={props.genesis} />
                         </DetailRow>
+                        {external.map(item => (
+                            <DetailRow key={item.label} label={item.label}>
+                                <a href={item.href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                    <HashText hash={item.address} full /> <Jump />
+                                </a>
+                                <CopyBtn text={item.address} />
+                            </DetailRow>
+                        ))}
                     </div>
                 </Card>
             </Section>

@@ -1,5 +1,6 @@
 import type {StoryObj} from '@storybook/nextjs-vite'
 import {expect, within} from 'storybook/test'
+import {expectFits} from '../../.storybook/fit'
 import {pageMeta, pageStory} from '../../.storybook/page'
 import Home from './page'
 import {V2, home, many, mixedProtocols} from './page.stories.helpers'
@@ -45,4 +46,37 @@ export const SecondEra: StoryObj = {
 export const RewardRunOut: StoryObj = {
     ...pageStory(home({head: 64 * HALVING, days: []})),
     play: async ({canvasElement}) => expectHalving(canvasElement, /^0 NUMN$/, /^—$/),
+}
+
+const infoCard = (root: HTMLElement) => within(root).getByRole('heading', {name: 'Network info'}).closest('section')!.querySelector('[data-slot=card]') as HTMLElement
+
+export const ExternalContracts: StoryObj = {
+    ...pageStory(home(many)),
+    play: async ({canvasElement}) => {
+        const card = infoCard(canvasElement)
+        const expected = [
+            ['Base NUMN', '0xC947c4c1AA52D1651CeE45d63C7f08aAa140aDF3', 'https://basescan.org/token/0xC947c4c1AA52D1651CeE45d63C7f08aAa140aDF3'],
+            ['Base Uniswap v3', '0x5602e17D192CD9ec52B839C1f8A32f29f55Ee4b1', 'https://app.uniswap.org/explore/pools/base/0x5602e17D192CD9ec52B839C1f8A32f29f55Ee4b1'],
+        ] as const
+        for (const [label, address, href] of expected) {
+            const row = within(card).getByText(label).parentElement!
+            const link = within(row).getByRole('link')
+            expect(link).toHaveAttribute('href', href)
+            expect(link).toHaveAttribute('target', '_blank')
+            expect(link.innerText.trim()).toBe(address)
+            expect(within(row).getByRole('button', {name: 'copy'})).toBeVisible()
+            expectFits(row)
+        }
+        expectFits(card)
+    },
+}
+
+export const NoExternalContracts: StoryObj = {
+    ...pageStory(home({...many, evmChainId: 320261})),
+    play: async ({canvasElement}) => {
+        const card = infoCard(canvasElement)
+        expect(within(card).queryByText('Base NUMN')).toBeNull()
+        expect(within(card).queryByText('Base Uniswap v3')).toBeNull()
+        expect(within(card).getByText('Genesis hash')).toBeVisible()
+    },
 }

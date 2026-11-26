@@ -6,6 +6,12 @@ export interface WellKnown {
     label: string
 }
 
+export interface ExternalRef {
+    label: string
+    address: string
+    href: string
+}
+
 interface Network {
     // genesis carries no timestamp, this is when the network launched
     genesisTime: string
@@ -13,6 +19,8 @@ interface Network {
     tokenIcons: Record<string, string>
     // protocol contracts and bridge operators keyed by lowercase EVM address
     accounts: Record<string, WellKnown>
+    // official contracts on other chains linked from Network info
+    external?: ExternalRef[]
 }
 
 const BRIDGE = '\u{1F309}'
@@ -49,6 +57,18 @@ export const CONFIG = {
                 '0xadc527c355f37a8c8bf93e942657d955e610b112': {emoji: BRIDGE, label: 'Hyperlane Validator'},
                 '0xc72c05f9a8605f69a05c4f88c386454fc9522778': {emoji: BRIDGE, label: 'Hyperlane Deployer'},
             },
+            external: [
+                {
+                    label: 'Base NUMN',
+                    address: '0xC947c4c1AA52D1651CeE45d63C7f08aAa140aDF3',
+                    href: 'https://basescan.org/token/0xC947c4c1AA52D1651CeE45d63C7f08aAa140aDF3',
+                },
+                {
+                    label: 'Base Uniswap v3',
+                    address: '0x5602e17D192CD9ec52B839C1f8A32f29f55Ee4b1',
+                    href: 'https://app.uniswap.org/explore/pools/base/0x5602e17D192CD9ec52B839C1f8A32f29f55Ee4b1',
+                },
+            ],
         },
     } as Record<number, Network>,
 }
