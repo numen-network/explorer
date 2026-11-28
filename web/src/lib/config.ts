@@ -1,4 +1,5 @@
 import {decode} from '@subsquid/ss58'
+import npo from '@/assets/tokens/npo.png'
 import wtmr from '@/assets/tokens/wtmr.svg'
 
 export interface WellKnown {
@@ -47,7 +48,10 @@ export const CONFIG = {
     networks: {
         32026: {
             genesisTime: '2026-09-14T01:00:00Z',
-            tokenIcons: {'0xa1795b3c6f74866c7def1df390f9e2e403dca2e9': wtmr.src},
+            tokenIcons: {
+                '0xa1795b3c6f74866c7def1df390f9e2e403dca2e9': wtmr.src,
+                '0x1e144970cb478adeaddbdfced586eb38afb3e0f9': npo.src,
+            },
             accounts: {
                 '0x0cd52bf83734f86bf3c1e74b702a816001299e96': {emoji: BRIDGE, label: 'Hyperlane Bridge'},
                 '0x31122dee12ef19c33ab9a6e6cfb5d505b83ed362': {emoji: BRIDGE, label: 'Hyperlane Fee'},
